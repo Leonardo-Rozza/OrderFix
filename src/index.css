@@ -1,18 +1,144 @@
 @import "tailwindcss";
 @config "../tailwind.config.ts";
 
-:root {
+/* ============================================================
+   OrdenFix — Design tokens (portados del mockup de diseño)
+   ============================================================ */
+:root,
+[data-theme="light"] {
   color-scheme: light;
+  --bg: #EEF2F6; --surface: #FFFFFF; --surface-2: #F6F8FB; --surface-3: #EDF1F6;
+  --border: #E3E8EF; --border-strong: #CFD6E0;
+  --text: #0E1726; --text-2: #536175; --text-3: #94A0B2;
+  --primary: #0D9488; --primary-hover: #0B8076; --primary-fg: #FFFFFF;
+  --primary-soft: #D5F4EE; --primary-soft-fg: #0B6F66;
+  --danger: #E5484D; --danger-soft: #FCE5E6; --danger-fg: #B42318;
+  --success: #1A9E5C; --success-soft: #DBF3E4;
+  --warning: #D9870B; --warning-soft: #FBEFD3;
+  --st-ingresado: #2563EB; --st-ingresado-bg: #DCE7FE;
+  --st-proceso: #C2700A; --st-proceso-bg: #FBEACB;
+  --st-esperando: #7C3AED; --st-esperando-bg: #EBE2FE;
+  --st-completado: #15924F; --st-completado-bg: #D6F2E0;
+  --st-entregado: #5A6B82; --st-entregado-bg: #E5EAF1;
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .05);
+  --shadow-md: 0 4px 14px rgba(16, 24, 40, .08);
+  --shadow-lg: 0 18px 48px rgba(16, 24, 40, .16);
+  --ring: rgba(13, 148, 136, .30);
+  --r-sm: 8px; --r-md: 12px; --r-lg: 16px;
 }
 
-:root.dark {
+[data-theme="dark"] {
   color-scheme: dark;
+  --bg: #070B12; --surface: #0F1722; --surface-2: #0C131C; --surface-3: #16202E;
+  --border: #1E2A3A; --border-strong: #2C3A4E;
+  --text: #EAF0F7; --text-2: #90A0B5; --text-3: #5E6E84;
+  --primary: #19B5A6; --primary-hover: #2BCBBA; --primary-fg: #04201D;
+  --primary-soft: #0E3833; --primary-soft-fg: #6FE6D7;
+  --danger: #F87171; --danger-soft: #3A1518; --danger-fg: #FCA5A5;
+  --success: #34D17F; --success-soft: #0E2F1E;
+  --warning: #F0B43C; --warning-soft: #3A2A0C;
+  --st-ingresado: #7DA8FF; --st-ingresado-bg: #15233F;
+  --st-proceso: #F0B43C; --st-proceso-bg: #392A0C;
+  --st-esperando: #B79BFA; --st-esperando-bg: #271A40;
+  --st-completado: #42D585; --st-completado-bg: #0E3322;
+  --st-entregado: #9CABC0; --st-entregado-bg: #1B2533;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, .45);
+  --shadow-lg: 0 22px 54px rgba(0, 0, 0, .6);
+  --ring: rgba(25, 181, 166, .40);
 }
+
+/* ============================================================
+   Mapeo a utilidades de Tailwind v4 (bg-surface, text-text-2, etc.)
+   `inline` => referencia los vars en runtime y conmuta con data-theme
+   ============================================================ */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-2: var(--text-2);
+  --color-text-3: var(--text-3);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-fg: var(--primary-fg);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-soft-fg: var(--primary-soft-fg);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-fg: var(--danger-fg);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-st-ingresado: var(--st-ingresado);
+  --color-st-ingresado-bg: var(--st-ingresado-bg);
+  --color-st-proceso: var(--st-proceso);
+  --color-st-proceso-bg: var(--st-proceso-bg);
+  --color-st-esperando: var(--st-esperando);
+  --color-st-esperando-bg: var(--st-esperando-bg);
+  --color-st-completado: var(--st-completado);
+  --color-st-completado-bg: var(--st-completado-bg);
+  --color-st-entregado: var(--st-entregado);
+  --color-st-entregado-bg: var(--st-entregado-bg);
+
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+
+  --font-sans: "Manrope", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* ============================================================
+   Animaciones del mockup
+   ============================================================ */
+@keyframes ofx-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes ofx-pop { from { opacity: 0; transform: scale(.96) translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes ofx-skel { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes ofx-spin { to { transform: rotate(360deg); } }
+
+.ofx-in { animation: ofx-in .35s ease both; }
+.ofx-pop { animation: ofx-pop .22s ease both; }
+
+/* Skeleton shimmer */
+.ofx-skel {
+  background: linear-gradient(90deg, var(--surface-3) 25%, var(--surface-2) 37%, var(--surface-3) 63%);
+  background-size: 200% 100%;
+  animation: ofx-skel 1.4s ease-in-out infinite;
+}
+
+/* ============================================================
+   Base
+   ============================================================ */
+* { box-sizing: border-box; }
 
 body {
-  @apply bg-gray-50 text-gray-900 antialiased dark:bg-gray-900 dark:text-gray-100;
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
 }
 
-a {
-  @apply text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300;
+::selection { background: rgba(13, 148, 136, .22); }
+
+a { color: var(--primary); text-decoration: none; }
+a:hover { color: var(--primary-hover); }
+
+/* Scrollbar fino */
+.ofx-scroll::-webkit-scrollbar { height: 10px; width: 10px; }
+.ofx-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 99px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
 }

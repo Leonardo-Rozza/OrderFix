@@ -11,31 +11,22 @@ export const ThemeToggle = (props: Omit<ButtonProps, 'onClick' | 'children'>) =>
   return (
     <button
       type="button"
-      aria-label="Cambiar tema"
+      aria-label={isDark ? 'Activar modo claro' : 'Activar modo oscuro'}
+      title={isDark ? 'Modo claro' : 'Modo oscuro'}
       {...rest}
       onClick={toggleTheme}
-      className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition-colors ${
-        isDark
-          ? 'border-gray-700 bg-gray-800 text-gray-100 hover:bg-gray-700'
-          : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100'
-      } ${className}`}
+      className={`grid h-9 w-9 place-items-center rounded-full border border-border-strong bg-surface text-text-2 transition-colors hover:bg-surface-2 hover:text-text ${className}`}
     >
-      <span
-        className={`flex h-5 w-5 items-center justify-center rounded-full ${
-          isDark ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-700'
-        }`}
-      >
-        {isDark ? (
-          <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M17.293 13.293A8 8 0 016.707 2.707 8 8 0 1017.293 13.293z" />
-          </svg>
-        ) : (
-          <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M10 15a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm-4.95-2.536a1 1 0 010 1.414L3.05 14.879a1 1 0 01-1.414-1.414l2-2a1 1 0 011.414 0zM5 10a1 1 0 01-1-1H3a1 1 0 110-2h1a1 1 0 112 0v1a1 1 0 01-1 1zm3.95-5.464a1 1 0 010-1.414l2-2a1 1 0 111.414 1.414l-2 2A1 1 0 018.95 4.536zM15 9a1 1 0 011-1h1a1 1 0 110 2h-1a1 1 0 01-1-1zm-.05 3.464a1 1 0 010-1.414l2-2a1 1 0 111.414 1.414l-2 2a1 1 0 01-1.414 0zM10 5a1 1 0 01-1-1V3a1 1 0 112 0v1a1 1 0 01-1 1zm0 5a3 3 0 100-6 3 3 0 000 6zm1 5a1 1 0 10-2 0 1 1 0 002 0z" />
-          </svg>
-        )}
-      </span>
-      <span className="hidden sm:inline">{isDark ? 'Oscuro' : 'Claro'}</span>
+      {isDark ? (
+        <svg viewBox="0 0 24 24" width={17} height={17} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" width={17} height={17} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+        </svg>
+      )}
     </button>
   );
 };

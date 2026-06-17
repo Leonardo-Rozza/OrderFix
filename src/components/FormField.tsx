@@ -10,16 +10,13 @@ interface FormFieldProps {
 
 export const FormField = ({ label, error, required, children, htmlFor }: FormFieldProps) => {
   return (
-    <div className="space-y-1">
-      <label
-        htmlFor={htmlFor}
-        className="block text-sm font-medium text-gray-700 dark:text-gray-200"
-      >
+    <div className="space-y-1.5">
+      <label htmlFor={htmlFor} className="block text-[13px] font-bold text-text">
         {label}
-        {required && <span className="ml-1 text-red-500">*</span>}
+        {required && <span className="ml-1 text-danger">*</span>}
       </label>
       {children}
-      {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
+      {error && <p className="text-[12.5px] text-danger-fg">{error}</p>}
     </div>
   );
 };

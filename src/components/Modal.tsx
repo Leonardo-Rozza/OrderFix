@@ -20,24 +20,25 @@ export const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalPr
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onClose} />
       <div
-        className={`relative z-10 w-full ${sizeClasses[size]} overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900`}
+        className={`ofx-pop relative z-10 w-full ${sizeClasses[size]} overflow-hidden rounded-2xl border border-border bg-surface shadow-lg`}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <h3 className="text-[17px] font-extrabold tracking-tight">{title}</h3>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-2 text-gray-500 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+            aria-label="Cerrar"
+            className="grid h-8 w-8 place-items-center rounded-full text-text-3 transition hover:bg-surface-2 hover:text-text"
           >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-        <div className="max-h-[80vh] overflow-y-auto px-6 py-5">{children}</div>
+        <div className="ofx-scroll max-h-[80vh] overflow-y-auto px-6 py-5">{children}</div>
       </div>
     </div>
   );

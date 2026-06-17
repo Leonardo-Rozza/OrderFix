@@ -30,3 +30,18 @@ export const useRepuestoQuery = (id: number) => {
     enabled: !!id,
   });
 };
+
+// Obtener repuestos de una reparación
+const fetchRepuestosPorReparacion = async (reparacionId: number): Promise<Repuesto[]> => {
+  const { data } = await apiClient.get<Repuesto[]>(`/repuestos/reparacion/${reparacionId}`);
+  return data;
+};
+
+// Hook para obtener repuestos por reparación
+export const useRepuestosPorReparacionQuery = (reparacionId: number | undefined) => {
+  return useQuery({
+    queryKey: ['repuestos', 'reparacion', reparacionId],
+    queryFn: () => fetchRepuestosPorReparacion(reparacionId as number),
+    enabled: !!reparacionId,
+  });
+};

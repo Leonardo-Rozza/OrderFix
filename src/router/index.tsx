@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router';
 import { authStore } from '../store/auth.store';
 import type { ReactNode } from 'react';
 import { LoginPage } from '../pages/LoginPage';
+import { RegisterPage } from '../pages/RegisterPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { ClientesPage } from '../pages/ClientesPage';
 import { EquiposPage } from '../pages/EquiposPage';
@@ -30,7 +31,7 @@ const PublicRoute = ({ children }: ProtectedRouteProps) => {
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
   }
-  
+
   return <>{children}</>;
 };
 
@@ -41,6 +42,14 @@ export const router = createBrowserRouter([
     element: (
       <PublicRoute>
         <LoginPage />
+      </PublicRoute>
+    ),
+  },
+  {
+    path: '/register',
+    element: (
+      <PublicRoute>
+        <RegisterPage />
       </PublicRoute>
     ),
   },

@@ -49,9 +49,9 @@ export const ClientesPage = () => {
       ? {
           nombre: editingCliente.nombre,
           apellido: editingCliente.apellido,
-          email: editingCliente.email,
+          email: editingCliente.email ?? '',
           telefono: editingCliente.telefono,
-          direccion: editingCliente.direccion,
+          direccion: editingCliente.direccion ?? '',
         }
       : undefined,
   });
@@ -88,9 +88,9 @@ export const ClientesPage = () => {
     reset({
       nombre: cliente.nombre,
       apellido: cliente.apellido,
-      email: cliente.email,
+      email: cliente.email ?? '',
       telefono: cliente.telefono,
-      direccion: cliente.direccion,
+      direccion: cliente.direccion ?? '',
     });
   };
 

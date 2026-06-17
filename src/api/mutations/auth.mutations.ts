@@ -1,22 +1,18 @@
 import { useMutation } from '@tanstack/react-query';
-import type { LoginRequest, LoginResponse } from '../../types';
+import type { AuthResponse, LoginRequest, RegisterRequest } from '../../types';
 import { getErrorMessage, showError, showSuccess } from '../../utils/toast';
 import { apiClient } from '../axios';
 
-// Función para hacer login
-const loginUser = async (credentials: LoginRequest): Promise<LoginResponse> => {
-  //console.log('Haciendo POST a /auth/login con:', credentials);
-  try {
-    const response = await apiClient.post<LoginResponse>('/auth/login', credentials);
-    // console.log('Respuesta exitosa:', response.data);
-    return response.data;
-  } catch (error) {
-    // console.error('Error en loginUser:', error);
-    throw error;
-  }
+const loginUser = async (credentials: LoginRequest): Promise<AuthResponse> => {
+  const { data } = await apiClient.post<AuthResponse>('/auth/login', credentials);
+  return data;
 };
 
-// Hook de mutación para login
+const registerTaller = async (payload: RegisterRequest): Promise<AuthResponse> => {
+  const { data } = await apiClient.post<AuthResponse>('/auth/register', payload);
+  return data;
+};
+
 export const useLoginMutation = () => {
   return useMutation({
     mutationFn: loginUser,
@@ -24,7 +20,19 @@ export const useLoginMutation = () => {
       showSuccess('Sesión iniciada correctamente');
     },
     onError: (error) => {
-      showError(getErrorMessage(error, 'Credenciales inválidas o servidor no disponible'));
+      showError(getErrorMessage(error, 'Email o contraseña incorrectos'));
+    },
+  });
+};
+
+export const useRegisterMutation = () => {
+  return useMutation({
+    mutationFn: registerTaller,
+    onSuccess: () => {
+      showSuccess('¡Taller creado! Bienvenido a OrdenFix');
+    },
+    onError: (error) => {
+      showError(getErrorMessage(error, 'No se pudo crear el taller'));
     },
   });
 };

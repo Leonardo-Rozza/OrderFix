@@ -7,7 +7,7 @@ interface NavbarProps {
 }
 
 export const Navbar = ({ onToggleSidebar }: NavbarProps) => {
-  const { user, logout } = useAuth();
+  const { email, logout } = useAuth();
   const navigate = useNavigate();
   const showSidebarToggle = typeof onToggleSidebar === 'function';
 
@@ -39,10 +39,10 @@ export const Navbar = ({ onToggleSidebar }: NavbarProps) => {
           <ThemeToggle />
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 text-sm font-semibold dark:bg-indigo-900/60 dark:text-indigo-200">
-              {user?.charAt(0).toUpperCase() || 'U'}
+              {email?.charAt(0).toUpperCase() || 'U'}
             </div>
             <div className="hidden text-right md:block">
-              <p className="text-sm font-medium text-gray-800 dark:text-gray-100">{user || 'Usuario'}</p>
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-100">{email || 'Usuario'}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">Administrador</p>
             </div>
           </div>

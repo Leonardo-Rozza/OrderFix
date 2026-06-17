@@ -3,7 +3,13 @@ import type { InternalAxiosRequestConfig } from 'axios';
 import { authStore } from '../store/auth.store';
 import { getErrorMessage, showError } from '../utils/toast';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_URL ||
+  'http://localhost:8080/api';
+
+/** Evento global para el límite de plan (402). El modal "Pasá a PRO" lo escucha. */
+export const LIMITE_PLAN_EVENT = 'ofx:limite-plan';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -29,11 +35,17 @@ apiClient.interceptors.response.use(
     const status = error.response?.status;
 
     if (status === 401) {
+      // Token inválido o vencido → cerrar sesión
       authStore.getState().logout();
-      if (window.location.pathname !== '/login') {
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
         window.location.href = '/login';
       }
+    } else if (status === 402) {
+      // Límite del plan / suscripción no vigente → modal de upgrade
+      const message = getErrorMessage(error, 'Alcanzaste el límite de tu plan.');
+      window.dispatchEvent(new CustomEvent(LIMITE_PLAN_EVENT, { detail: { message } }));
     } else {
+      // Errores de lectura: avisar por toast (las mutaciones manejan su propio onError)
       const method = error.config?.method?.toLowerCase();
       if (method === 'get') {
         showError(getErrorMessage(error, 'No se pudo obtener la información.'));

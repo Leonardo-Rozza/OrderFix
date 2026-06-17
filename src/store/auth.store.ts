@@ -3,44 +3,35 @@ import { persist } from 'zustand/middleware';
 
 interface AuthState {
   token: string | null;
-  user: string | null;
-  login: (token: string, username: string) => void;
-  logout: () => void;
+  email: string | null;
   isAuthenticated: boolean;
+  login: (token: string, email: string) => void;
+  logout: () => void;
 }
 
 export const authStore = create<AuthState>()(
   persist(
     (set) => ({
       token: null,
-      user: null,
+      email: null,
       isAuthenticated: false,
-      
-      login: (token: string, username: string) => {
-        set({
-          token,
-          user: username,
-          isAuthenticated: true,
-        });
+
+      login: (token: string, email: string) => {
+        set({ token, email, isAuthenticated: true });
       },
-      
+
       logout: () => {
-        set({
-          token: null,
-          user: null,
-          isAuthenticated: false,
-        });
+        set({ token: null, email: null, isAuthenticated: false });
       },
     }),
     {
-      name: 'auth-storage', // nombre para localStorage
+      name: 'ordenfix-auth',
     }
   )
 );
 
-// Selector para obtener el estado de autenticación
+// Selector hook para componentes
 export const useAuth = () => {
-  const { token, user, login, logout, isAuthenticated } = authStore();
-  return { token, user, login, logout, isAuthenticated };
+  const { token, email, isAuthenticated, login, logout } = authStore();
+  return { token, email, isAuthenticated, login, logout };
 };
-

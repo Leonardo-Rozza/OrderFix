@@ -1,297 +1,305 @@
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { DashboardLayout } from '../layouts/DashboardLayout';
-import { DataTable } from '../components/DataTable';
-import { Modal } from '../components/Modal';
-import { FormField } from '../components/FormField';
-import { useReparacionesQuery } from '../api/queries/reparaciones.queries';
-import { useEquiposQuery } from '../api/queries/equipos.queries';
-import {
-  useCreateReparacionMutation,
-  useUpdateReparacionMutation,
-  useDeleteReparacionMutation,
-} from '../api/mutations/reparaciones.mutations';
-import type { Reparacion, ReparacionCreate, ReparacionUpdate } from '../types';
+import { EstadoBadge } from '../components/EstadoBadge';
+import { ReparacionFormModal } from '../components/ReparacionFormModal';
+import { btnPrimary } from '../components/ui';
+import { ESTADOS, ESTADOS_LIST } from '../config/estados';
+import { formatMoney } from '../utils/format';
+import { useReparacionesEnriquecidas } from '../hooks/useEnriched';
+import type { ReparacionEnriquecida } from '../hooks/useEnriched';
+import { useEquiposEnriquecidos } from '../hooks/useEnriched';
+import { useCambiarEstadoMutation } from '../api/mutations/reparaciones.mutations';
+import type { EstadoReparacion, Reparacion } from '../types';
 
-const reparacionSchema = z.object({
-  descripcionProblema: z.string().min(1, 'La descripción del problema es requerida'),
-  fechaIngreso: z.string().optional().or(z.literal('')),
-  fechaEntrega: z.string().optional().or(z.literal('')),
-  estado: z.enum(['INGRESADO', 'EN_PROCESO', 'ESPERANDO_REPUESTO', 'COMPLETADO', 'ENTREGADO']).optional(),
-  precioFinal: z.number().min(0).optional().or(z.literal('')),
-  equipoId: z.number().min(1, 'Debe seleccionar un equipo'),
-});
+type Vista = 'board' | 'list';
+type Filtro = EstadoReparacion | 'TODOS';
 
-type ReparacionFormData = z.infer<typeof reparacionSchema>;
+const equipoLabel = (r: ReparacionEnriquecida) =>
+  r.equipo ? `${r.equipo.marca} ${r.equipo.modelo}` : `Equipo #${r.equipoId}`;
+const clienteLabel = (r: ReparacionEnriquecida) =>
+  r.equipo?.cliente ? `${r.equipo.cliente.nombre} ${r.equipo.cliente.apellido}` : 'Sin cliente';
 
-const inputClasses = (hasError: boolean) =>
-  `w-full rounded-lg border px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 dark:text-gray-100 ${
-    hasError ? 'border-red-300 dark:border-red-400' : 'border-gray-300 dark:border-gray-700 dark:bg-gray-900'
-  }`;
-
-const estadoColors: Record<
-  NonNullable<Reparacion['estado']>,
-  string
-> = {
-  INGRESADO: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-300/20 dark:text-yellow-100',
-  EN_PROCESO: 'bg-blue-100 text-blue-800 dark:bg-blue-300/20 dark:text-blue-100',
-  ESPERANDO_REPUESTO: 'bg-orange-100 text-orange-800 dark:bg-orange-300/20 dark:text-orange-100',
-  COMPLETADO: 'bg-green-100 text-green-800 dark:bg-green-300/20 dark:text-green-100',
-  ENTREGADO: 'bg-purple-100 text-purple-800 dark:bg-purple-300/20 dark:text-purple-100',
+const matches = (r: ReparacionEnriquecida, q: string) => {
+  if (!q) return true;
+  const t = q.toLowerCase();
+  return (
+    equipoLabel(r).toLowerCase().includes(t) ||
+    clienteLabel(r).toLowerCase().includes(t) ||
+    r.descripcionProblema.toLowerCase().includes(t) ||
+    String(r.id).includes(t)
+  );
 };
 
 export const ReparacionesPage = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingReparacion, setEditingReparacion] = useState<Reparacion | null>(null);
+  const navigate = useNavigate();
+  const { data: reparaciones, isLoading } = useReparacionesEnriquecidas();
+  const { data: equipos } = useEquiposEnriquecidos();
+  const cambiarEstado = useCambiarEstadoMutation();
 
-  const { data: reparaciones = [], isLoading } = useReparacionesQuery();
-  const { data: equipos = [] } = useEquiposQuery();
-  const createMutation = useCreateReparacionMutation();
-  const updateMutation = useUpdateReparacionMutation();
-  const deleteMutation = useDeleteReparacionMutation();
+  const [vista, setVista] = useState<Vista>('board');
+  const [search, setSearch] = useState('');
+  const [filtro, setFiltro] = useState<Filtro>('TODOS');
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Reparacion | null>(null);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm<ReparacionFormData>({
-    resolver: zodResolver(reparacionSchema),
-    defaultValues: editingReparacion
-      ? {
-          descripcionProblema: editingReparacion.descripcionProblema,
-          fechaIngreso: editingReparacion.fechaIngreso?.split('T')[0] || '',
-          fechaEntrega: editingReparacion.fechaEntrega?.split('T')[0] || '',
-          estado: editingReparacion.estado,
-          precioFinal: editingReparacion.precioFinal || '',
-          equipoId: editingReparacion.equipoId,
-        }
-      : {
-          estado: 'INGRESADO',
-          fechaIngreso: new Date().toISOString().split('T')[0],
-        },
-  });
+  const filtradas = useMemo(
+    () => reparaciones.filter((r) => matches(r, search) && (filtro === 'TODOS' || r.estado === filtro)),
+    [reparaciones, search, filtro]
+  );
 
-  const getEquipoLabel = (reparacion: Reparacion) => {
-    if (reparacion.equipo) {
-      return `${reparacion.equipo.marca} ${reparacion.equipo.modelo}`;
-    }
-    const equipo = equipos.find((item) => item.id === reparacion.equipoId);
-    return equipo ? `${equipo.marca} ${equipo.modelo}` : '-';
+  const counts = useMemo(() => {
+    const base = { TODOS: reparaciones.length } as Record<Filtro, number>;
+    ESTADOS_LIST.forEach((e) => (base[e.key] = 0));
+    reparaciones.forEach((r) => (base[r.estado] = (base[r.estado] ?? 0) + 1));
+    return base;
+  }, [reparaciones]);
+
+  const openNew = () => {
+    setEditing(null);
+    setFormOpen(true);
+  };
+  const advance = (r: Reparacion) => {
+    const next = ESTADOS[r.estado].next;
+    if (next) cambiarEstado.mutate({ id: r.id, estado: next });
   };
 
-  const onSubmit = async (data: ReparacionFormData) => {
-    const estadoValue = data.estado ?? editingReparacion?.estado ?? 'INGRESADO';
-    const basePayload = {
-      descripcionProblema: data.descripcionProblema,
-      equipoId: data.equipoId,
-      fechaIngreso: data.fechaIngreso && data.fechaIngreso !== '' ? data.fechaIngreso : undefined,
-      fechaEntrega: data.fechaEntrega && data.fechaEntrega !== '' ? data.fechaEntrega : undefined,
-      estado: estadoValue,
-      precioFinal: data.precioFinal !== '' ? Number(data.precioFinal) : undefined,
-    };
-
-    const cleanPayload = Object.fromEntries(Object.entries(basePayload).filter(([, value]) => value !== undefined)) as Partial<ReparacionCreate>;
-
-    if (editingReparacion) {
-      const updatePayload: ReparacionUpdate = {
-        id: editingReparacion.id,
-        ...cleanPayload,
-      };
-      await updateMutation.mutateAsync(updatePayload);
-    } else {
-      await createMutation.mutateAsync(cleanPayload as ReparacionCreate);
-    }
-    handleCloseModal();
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setEditingReparacion(null);
-    reset();
-  };
-
-  const handleEdit = (reparacion: Reparacion) => {
-    setEditingReparacion(reparacion);
-    setIsModalOpen(true);
-    reset({
-      descripcionProblema: reparacion.descripcionProblema,
-      fechaIngreso: reparacion.fechaIngreso?.split('T')[0] || '',
-      fechaEntrega: reparacion.fechaEntrega?.split('T')[0] || '',
-      estado: reparacion.estado,
-      precioFinal: reparacion.precioFinal || '',
-      equipoId: reparacion.equipoId,
-    });
-  };
-
-  const handleDelete = async (reparacion: Reparacion) => {
-    if (window.confirm('¿Estás seguro de eliminar esta reparación?')) {
-      await deleteMutation.mutateAsync(reparacion.id);
-    }
-  };
-
-  const columns = [
-    { header: 'ID', accessor: 'id' as const },
-    { header: 'Descripción Problema', accessor: 'descripcionProblema' as const },
-    {
-      header: 'Fecha Ingreso',
-      accessor: (row: Reparacion) => {
-        if (!row.fechaIngreso) return '-';
-        const date = new Date(row.fechaIngreso);
-        return Number.isNaN(date.getTime())
-          ? row.fechaIngreso
-          : date.toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
-      },
-    },
-    {
-      header: 'Fecha Entrega',
-      accessor: (row: Reparacion) => {
-        if (!row.fechaEntrega) return '-';
-        const date = new Date(row.fechaEntrega);
-        return Number.isNaN(date.getTime())
-          ? row.fechaEntrega
-          : date.toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
-      },
-    },
-    {
-      header: 'Estado',
-      accessor: (row: Reparacion) =>
-        row.estado ? (
-          <span className={`rounded-full px-2 py-1 text-xs font-medium ${estadoColors[row.estado]}`}>
-            {row.estado.replace('_', ' ')}
-          </span>
-        ) : (
-          '-'
-        ),
-    },
-    {
-      header: 'Precio',
-      accessor: (row: Reparacion) => (row.precioFinal ? `$${row.precioFinal.toFixed(2)}` : '-'),
-    },
-    {
-      header: 'Equipo',
-      accessor: (row: Reparacion) => getEquipoLabel(row),
-    },
+  const chips: { key: Filtro; label: string }[] = [
+    { key: 'TODOS', label: 'Todas' },
+    ...ESTADOS_LIST.map((e) => ({ key: e.key as Filtro, label: e.label })),
   ];
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Reparaciones</h1>
-            <p className="text-gray-600 dark:text-gray-400">Gestiona las reparaciones de equipos</p>
+    <DashboardLayout title="Reparaciones">
+      <div className="ofx-in space-y-4">
+        {/* Toolbar */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex rounded-lg bg-surface-3 p-1">
+            {(['board', 'list'] as Vista[]).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setVista(v)}
+                className={`rounded-md px-3.5 py-1.5 text-[13px] font-bold transition ${
+                  vista === v ? 'bg-surface text-text shadow-sm' : 'text-text-2'
+                }`}
+              >
+                {v === 'board' ? 'Tablero' : 'Lista'}
+              </button>
+            ))}
           </div>
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow transition hover:bg-indigo-700 sm:w-auto"
-          >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+
+          <div className="relative ml-auto min-w-[180px] max-w-[320px] flex-1">
+            <svg viewBox="0 0 24 24" width={17} height={17} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-2.5">
+              <path d="m21 21-4.3-4.3M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z" />
             </svg>
-            Nueva Reparación
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar equipo, cliente o #orden…"
+              className="w-full rounded-lg border border-border-strong bg-surface py-2 pl-9 pr-3 text-[13.5px] text-text outline-none transition placeholder:text-text-3 focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)]"
+            />
+          </div>
+
+          <button type="button" className={btnPrimary} onClick={openNew}>
+            <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Nueva reparación
           </button>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
-          <DataTable
-            data={reparaciones}
-            columns={columns}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            isLoading={isLoading}
-            emptyMessage="No hay reparaciones registradas"
-          />
+        {/* Chips de filtro */}
+        <div className="ofx-scroll flex gap-2 overflow-x-auto pb-1">
+          {chips.map((c) => {
+            const active = filtro === c.key;
+            return (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => setFiltro(c.key)}
+                className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-[12.5px] font-bold transition ${
+                  active
+                    ? 'border-primary bg-primary text-primary-fg'
+                    : 'border-border-strong bg-surface text-text-2 hover:bg-surface-2'
+                }`}
+              >
+                {c.label} · {counts[c.key] ?? 0}
+              </button>
+            );
+          })}
         </div>
 
-        <Modal
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          title={editingReparacion ? 'Editar Reparación' : 'Nueva Reparación'}
-          size="lg"
-        >
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <FormField label="Equipo" error={errors.equipoId?.message} required htmlFor="equipoId">
-              <select id="equipoId" {...register('equipoId', { valueAsNumber: true })} className={inputClasses(!!errors.equipoId)}>
-                <option value="">Seleccione un equipo</option>
-                {equipos.map((equipo) => (
-                  <option key={equipo.id} value={equipo.id}>
-                    {equipo.marca} {equipo.modelo} - {equipo.cliente?.nombre} {equipo.cliente?.apellido}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-
-            <FormField label="Descripción del Problema" error={errors.descripcionProblema?.message} required htmlFor="descripcionProblema">
-              <textarea
-                id="descripcionProblema"
-                rows={3}
-                {...register('descripcionProblema')}
-                className={`${inputClasses(!!errors.descripcionProblema)} resize-none`}
-                placeholder="Describe el problema o trabajo a realizar"
-              />
-            </FormField>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField label="Fecha Ingreso" error={errors.fechaIngreso?.message} htmlFor="fechaIngreso">
-                <input id="fechaIngreso" type="date" {...register('fechaIngreso')} className={inputClasses(!!errors.fechaIngreso)} />
-              </FormField>
-              <FormField label="Fecha Entrega" error={errors.fechaEntrega?.message} htmlFor="fechaEntrega">
-                <input id="fechaEntrega" type="date" {...register('fechaEntrega')} className={inputClasses(!!errors.fechaEntrega)} />
-              </FormField>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField label="Estado" error={errors.estado?.message} htmlFor="estado">
-                <select id="estado" {...register('estado')} className={inputClasses(!!errors.estado)}>
-                  <option value="">Seleccione un estado</option>
-                  <option value="INGRESADO">Ingresado</option>
-                  <option value="EN_PROCESO">En Proceso</option>
-                  <option value="ESPERANDO_REPUESTO">Esperando Repuesto</option>
-                  <option value="COMPLETADO">Completado</option>
-                  <option value="ENTREGADO">Entregado</option>
-                </select>
-              </FormField>
-
-              <FormField label="Precio" error={errors.precioFinal?.message} htmlFor="precioFinal">
-                <input
-                  id="precioFinal"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  {...register('precioFinal', { valueAsNumber: true })}
-                  className={inputClasses(!!errors.precioFinal)}
-                  placeholder="0.00"
-                />
-              </FormField>
-            </div>
-
-            <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={handleCloseModal}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-800 sm:w-auto"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={createMutation.isPending || updateMutation.isPending}
-                className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-white transition hover:bg-indigo-700 disabled:opacity-50 sm:w-auto"
-              >
-                {createMutation.isPending || updateMutation.isPending
-                  ? 'Guardando...'
-                  : editingReparacion
-                  ? 'Actualizar'
-                  : 'Crear'}
-              </button>
-            </div>
-          </form>
-        </Modal>
+        {isLoading ? (
+          <BoardSkeleton />
+        ) : vista === 'board' ? (
+          <Board reparaciones={filtradas} onOpen={(id) => navigate(`/reparaciones/${id}`)} onAdvance={advance} />
+        ) : (
+          <Lista
+            reparaciones={filtradas}
+            onOpen={(id) => navigate(`/reparaciones/${id}`)}
+            onAdvance={advance}
+          />
+        )}
       </div>
+
+      <ReparacionFormModal isOpen={formOpen} onClose={() => setFormOpen(false)} editing={editing} equipos={equipos} />
     </DashboardLayout>
   );
 };
+
+/* ---------- Tablero kanban ---------- */
+const Board = ({
+  reparaciones,
+  onOpen,
+  onAdvance,
+}: {
+  reparaciones: ReparacionEnriquecida[];
+  onOpen: (id: number) => void;
+  onAdvance: (r: Reparacion) => void;
+}) => (
+  <div className="ofx-scroll flex items-start gap-3.5 overflow-x-auto pb-2">
+    {ESTADOS_LIST.map((meta) => {
+      const items = reparaciones.filter((r) => r.estado === meta.key);
+      return (
+        <div key={meta.key} className="flex w-[296px] flex-shrink-0 flex-col rounded-2xl border border-border bg-surface-2">
+          <div className="flex items-center gap-2.5 border-b border-border px-3.5 py-3">
+            <span className={`grid h-6 w-6 place-items-center rounded-lg ${meta.textClass} ${meta.bgClass}`}>
+              <svg viewBox="0 0 24 24" width={15} height={15} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                <path d={meta.iconD} />
+              </svg>
+            </span>
+            <span className="text-[13.5px] font-extrabold">{meta.label}</span>
+            <span className="ml-auto rounded-full bg-surface-3 px-2 py-0.5 text-[12px] font-bold text-text-3">{items.length}</span>
+          </div>
+          <div className="flex flex-col gap-2.5 p-3">
+            {items.map((r) => (
+              <div
+                key={r.id}
+                onClick={() => onOpen(r.id)}
+                className="cursor-pointer rounded-xl border border-border bg-surface p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-border-strong"
+                style={{ borderLeft: `3px solid ${meta.cssVar}` }}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1 truncate text-[14px] font-extrabold">{equipoLabel(r)}</div>
+                  <span className="font-mono text-[10.5px] font-bold text-text-3">#{r.id}</span>
+                </div>
+                <div className="mt-0.5 text-[12.5px] font-semibold text-text-2">{clienteLabel(r)}</div>
+                <div className="mt-1.5 line-clamp-2 text-[12.5px] leading-snug text-text-3">{r.descripcionProblema}</div>
+                <div className="mt-2.5 flex items-center justify-between">
+                  <span className="font-mono text-[13.5px] font-extrabold" style={{ color: meta.cssVar }}>
+                    {formatMoney(r.precioFinal ?? r.precioEstimado)}
+                  </span>
+                  {meta.next && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAdvance(r);
+                      }}
+                      className="inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[11.5px] font-bold text-text-2 transition hover:border-primary hover:text-primary"
+                    >
+                      Avanzar
+                      <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m9 6 6 6-6 6" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+            {items.length === 0 && (
+              <div className="rounded-lg border border-dashed border-border py-5 text-center text-[12.5px] text-text-3">
+                Sin reparaciones acá
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+);
+
+/* ---------- Vista lista ---------- */
+const Lista = ({
+  reparaciones,
+  onOpen,
+  onAdvance,
+}: {
+  reparaciones: ReparacionEnriquecida[];
+  onOpen: (id: number) => void;
+  onAdvance: (r: Reparacion) => void;
+}) => {
+  if (reparaciones.length === 0) {
+    return (
+      <div className="rounded-2xl border border-border bg-surface py-12 text-center">
+        <div className="text-[15px] font-extrabold">No encontramos reparaciones</div>
+        <div className="mt-1 text-[13px] text-text-3">Probá con otro filtro o término de búsqueda.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+      <div className="flex items-center gap-3 border-b border-border px-4 py-3 text-[11.5px] font-extrabold uppercase tracking-wide text-text-3">
+        <div className="min-w-0 flex-[1.6]">Equipo / Cliente</div>
+        <div className="hidden min-w-0 flex-[1.6] sm:block">Problema</div>
+        <div className="w-[150px]">Estado</div>
+        <div className="w-[96px] text-right">Precio</div>
+        <div className="w-10" />
+      </div>
+      {reparaciones.map((r) => {
+        const meta = ESTADOS[r.estado];
+        return (
+          <div
+            key={r.id}
+            onClick={() => onOpen(r.id)}
+            className="flex cursor-pointer items-center gap-3 border-b border-border px-4 py-3 transition last:border-0 hover:bg-surface-2"
+          >
+            <div className="min-w-0 flex-[1.6]">
+              <div className="truncate text-[14px] font-bold">{equipoLabel(r)}</div>
+              <div className="text-[12.5px] text-text-2">{clienteLabel(r)}</div>
+            </div>
+            <div className="hidden min-w-0 flex-[1.6] truncate text-[13px] text-text-3 sm:block">{r.descripcionProblema}</div>
+            <div className="w-[150px]">
+              <EstadoBadge estado={r.estado} />
+            </div>
+            <div className="w-[96px] text-right font-mono text-[13.5px] font-bold">
+              {formatMoney(r.precioFinal ?? r.precioEstimado)}
+            </div>
+            {meta.next ? (
+              <button
+                type="button"
+                title="Avanzar estado"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAdvance(r);
+                }}
+                className="grid h-8 w-10 flex-shrink-0 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-primary hover:text-primary"
+              >
+                <svg viewBox="0 0 24 24" width={15} height={15} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m9 6 6 6-6 6" />
+                </svg>
+              </button>
+            ) : (
+              <div className="w-10" />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+/* ---------- Skeleton ---------- */
+const BoardSkeleton = () => (
+  <div className="flex gap-3.5 overflow-hidden">
+    {Array.from({ length: 4 }).map((_, i) => (
+      <div key={i} className="w-[296px] flex-shrink-0 rounded-2xl border border-border bg-surface-2 p-3">
+        <div className="ofx-skel mb-3 h-6 w-32 rounded" />
+        <div className="ofx-skel mb-2.5 h-24 rounded-xl" />
+        <div className="ofx-skel h-24 rounded-xl" />
+      </div>
+    ))}
+  </div>
+);

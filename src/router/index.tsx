@@ -7,6 +7,7 @@ import { DashboardPage } from '../pages/DashboardPage';
 import { ClientesPage } from '../pages/ClientesPage';
 import { EquiposPage } from '../pages/EquiposPage';
 import { ReparacionesPage } from '../pages/ReparacionesPage';
+import { ReparacionDetallePage } from '../pages/ReparacionDetallePage';
 import { RepuestosPage } from '../pages/RepuestosPage';
 
 // Componente para proteger rutas privadas
@@ -82,6 +83,14 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <ReparacionesPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/reparaciones/:id',
+    element: (
+      <ProtectedRoute>
+        <ReparacionDetallePage />
       </ProtectedRoute>
     ),
   },

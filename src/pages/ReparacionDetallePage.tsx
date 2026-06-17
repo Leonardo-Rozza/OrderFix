@@ -1,0 +1,252 @@
+import { useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router';
+import { DashboardLayout } from '../layouts/DashboardLayout';
+import { EstadoBadge } from '../components/EstadoBadge';
+import { ReparacionFormModal } from '../components/ReparacionFormModal';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { Loader } from '../components/Loader';
+import { btnGhost, btnDanger, card } from '../components/ui';
+import { ESTADOS, ESTADOS_LIST } from '../config/estados';
+import { formatMoney, formatDate, iniciales, whatsappLink } from '../utils/format';
+import { useReparacionesEnriquecidas, useEquiposEnriquecidos } from '../hooks/useEnriched';
+import { useRepuestosPorReparacionQuery } from '../api/queries/repuestos.queries';
+import {
+  useCambiarEstadoMutation,
+  useDeleteReparacionMutation,
+} from '../api/mutations/reparaciones.mutations';
+import type { EstadoReparacion } from '../types';
+
+export const ReparacionDetallePage = () => {
+  const { id } = useParams();
+  const reparacionId = Number(id);
+  const navigate = useNavigate();
+
+  const { data: reparaciones, isLoading } = useReparacionesEnriquecidas();
+  const { data: equipos } = useEquiposEnriquecidos();
+  const { data: repuestos = [] } = useRepuestosPorReparacionQuery(reparacionId);
+  const cambiarEstado = useCambiarEstadoMutation();
+  const deleteMutation = useDeleteReparacionMutation();
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const rep = useMemo(() => reparaciones.find((r) => r.id === reparacionId), [reparaciones, reparacionId]);
+  const totalRepuestos = useMemo(() => repuestos.reduce((sum, r) => sum + (r.precio ?? 0), 0), [repuestos]);
+
+  if (isLoading) {
+    return (
+      <DashboardLayout title="Reparación">
+        <div className="py-24">
+          <Loader size="lg" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!rep) {
+    return (
+      <DashboardLayout title="Reparación">
+        <div className="ofx-in mx-auto max-w-md py-20 text-center">
+          <div className="text-[16px] font-extrabold">No encontramos esa reparación</div>
+          <div className="mt-1 text-[13px] text-text-3">Puede haber sido eliminada o no pertenece a tu taller.</div>
+          <button className={`${btnGhost} mt-5`} onClick={() => navigate('/reparaciones')}>
+            Volver al tablero
+          </button>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const meta = ESTADOS[rep.estado];
+  const cliente = rep.equipo?.cliente;
+  const equipoNombre = rep.equipo ? `${rep.equipo.marca} ${rep.equipo.modelo}` : `Equipo #${rep.equipoId}`;
+  const next = meta.next;
+
+  const handleEstadoSelect = (estado: EstadoReparacion) => {
+    if (estado !== rep.estado) cambiarEstado.mutate({ id: rep.id, estado });
+  };
+
+  const avisarWhatsapp = () => {
+    const msg = `Hola ${cliente?.nombre ?? ''}, tu ${equipoNombre} (orden #${rep.id}) está ${meta.label.toLowerCase()}. ¡Gracias!`;
+    window.open(whatsappLink(cliente?.telefono, msg), '_blank', 'noopener,noreferrer');
+  };
+
+  return (
+    <DashboardLayout title="Detalle de reparación">
+      <div className="ofx-in mx-auto max-w-4xl">
+        <button
+          onClick={() => navigate('/reparaciones')}
+          className="mb-3.5 inline-flex items-center gap-1.5 text-[13.5px] font-bold text-text-2 transition hover:text-primary"
+        >
+          <svg viewBox="0 0 24 24" width={17} height={17} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+            <path d="m15 18-6-6 6-6" />
+          </svg>
+          Volver al tablero
+        </button>
+
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1.7fr_1fr]">
+          {/* Columna principal */}
+          <div className="flex flex-col gap-4">
+            <div className={`${card} p-5`}>
+              <div className="flex flex-wrap items-start gap-3.5">
+                <span className="grid h-14 w-14 flex-shrink-0 place-items-center rounded-2xl bg-surface-3 text-text-2">
+                  <svg viewBox="0 0 24 24" width={28} height={28} fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="6" y="2" width="12" height="20" rx="2.5" />
+                    <path d="M11 18h2" />
+                  </svg>
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span className="text-[22px] font-extrabold tracking-tight">{equipoNombre}</span>
+                    <span className="rounded-md bg-surface-3 px-2 py-0.5 font-mono text-[12px] font-bold text-text-3">#{rep.id}</span>
+                  </div>
+                  <div className="mt-0.5 text-[14px] text-text-2">Ingresó el {formatDate(rep.fechaIngreso)}</div>
+                </div>
+                <EstadoBadge estado={rep.estado} size="md" />
+              </div>
+
+              <div className="mt-4 border-t border-border pt-4">
+                <div className="mb-1.5 text-[12px] font-extrabold uppercase tracking-wide text-text-3">Problema reportado</div>
+                <div className="text-[15px] leading-relaxed">{rep.descripcionProblema}</div>
+              </div>
+
+              {rep.equipo && (rep.equipo.imei || rep.equipo.color) && (
+                <div className="mt-4 flex flex-wrap gap-x-8 gap-y-2 border-t border-border pt-4 text-[13.5px]">
+                  {rep.equipo.color && (
+                    <div>
+                      <span className="text-text-3">Color: </span>
+                      <span className="font-semibold">{rep.equipo.color}</span>
+                    </div>
+                  )}
+                  {rep.equipo.imei && (
+                    <div>
+                      <span className="text-text-3">IMEI: </span>
+                      <span className="font-mono font-semibold">{rep.equipo.imei}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Repuestos */}
+            <div className={`${card} overflow-hidden`}>
+              <div className="flex items-center gap-2 border-b border-border px-5 py-4 text-[15px] font-extrabold">
+                <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m7.5 4.27 9 5.15M21 8l-9 5-9-5 9-5 9 5zM3 8v8l9 5 9-5V8M12 13v8" />
+                </svg>
+                Repuestos
+              </div>
+              {repuestos.map((rp) => (
+                <div key={rp.id} className="flex items-center justify-between border-b border-border px-5 py-3">
+                  <span className="text-[14px] font-semibold">{rp.nombre}</span>
+                  <span className="font-mono text-[13.5px] font-bold">{formatMoney(rp.precio)}</span>
+                </div>
+              ))}
+              {repuestos.length === 0 && (
+                <div className="px-5 py-5 text-center text-[13.5px] text-text-3">Sin repuestos cargados.</div>
+              )}
+              <div className="flex items-center justify-between bg-surface-2 px-5 py-3.5">
+                <span className="text-[14px] font-extrabold">Total repuestos</span>
+                <span className="font-mono text-[15px] font-extrabold text-primary">{formatMoney(totalRepuestos)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Columna lateral */}
+          <div className="flex flex-col gap-4">
+            <div className={`${card} p-5`}>
+              <div className="mb-4 flex items-center gap-3">
+                <div className="grid h-11 w-11 flex-shrink-0 place-items-center rounded-full bg-primary-soft text-[15px] font-extrabold text-primary-soft-fg">
+                  {iniciales(cliente?.nombre, cliente?.apellido)}
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate text-[15px] font-extrabold">
+                    {cliente ? `${cliente.nombre} ${cliente.apellido}` : 'Sin cliente'}
+                  </div>
+                  {cliente?.telefono && <div className="font-mono text-[12.5px] text-text-3">{cliente.telefono}</div>}
+                </div>
+              </div>
+              <div className="flex flex-col gap-2.5">
+                <div className="flex justify-between text-[13.5px]">
+                  <span className="text-text-2">Precio estimado</span>
+                  <span className="font-mono font-bold">{formatMoney(rep.precioEstimado)}</span>
+                </div>
+                <div className="flex justify-between text-[13.5px]">
+                  <span className="text-text-2">Precio final</span>
+                  <span className="font-mono text-[16px] font-extrabold text-primary">{formatMoney(rep.precioFinal)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className={`${card} p-5`}>
+              <div className="mb-2 text-[12px] font-extrabold uppercase tracking-wide text-text-3">Cambiar estado</div>
+              <select
+                value={rep.estado}
+                onChange={(e) => handleEstadoSelect(e.target.value as EstadoReparacion)}
+                className="mb-2.5 w-full cursor-pointer rounded-lg border border-border-strong bg-surface px-3 py-2.5 text-[14px] text-text outline-none focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)]"
+              >
+                {ESTADOS_LIST.map((e) => (
+                  <option key={e.key} value={e.key}>
+                    {e.label}
+                  </option>
+                ))}
+              </select>
+              {next && (
+                <button
+                  onClick={() => cambiarEstado.mutate({ id: rep.id, estado: next })}
+                  disabled={cambiarEstado.isPending}
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary py-3 text-[14px] font-bold text-primary-fg shadow-sm transition hover:bg-primary-hover disabled:opacity-60"
+                >
+                  Marcar como {ESTADOS[next].label.toLowerCase()}
+                  <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m9 6 6 6-6 6" />
+                  </svg>
+                </button>
+              )}
+              <button
+                onClick={avisarWhatsapp}
+                disabled={!cliente?.telefono}
+                className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-border-strong bg-surface py-2.5 text-[14px] font-bold text-text transition hover:bg-surface-2 disabled:opacity-50"
+                title={cliente?.telefono ? 'Avisar por WhatsApp' : 'El cliente no tiene teléfono'}
+              >
+                <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 11.5a8.4 8.4 0 0 1-12.3 7.5L3 21l2-5.7A8.4 8.4 0 1 1 21 11.5z" />
+                </svg>
+                Avisar al cliente
+              </button>
+            </div>
+
+            <div className="flex gap-2.5">
+              <button className={`${btnGhost} flex-1`} onClick={() => setEditOpen(true)}>
+                <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+                </svg>
+                Editar
+              </button>
+              <button className={`${btnDanger} flex-1`} onClick={() => setConfirmOpen(true)}>
+                <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                </svg>
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <ReparacionFormModal isOpen={editOpen} onClose={() => setEditOpen(false)} editing={rep} equipos={equipos} />
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        title="Eliminar reparación"
+        message={`¿Seguro que querés eliminar la reparación #${rep.id}? Esta acción no se puede deshacer.`}
+        loading={deleteMutation.isPending}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={async () => {
+          await deleteMutation.mutateAsync(rep.id);
+          setConfirmOpen(false);
+          navigate('/reparaciones');
+        }}
+      />
+    </DashboardLayout>
+  );
+};

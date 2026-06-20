@@ -2,15 +2,21 @@ import { Link, NavLink } from 'react-router';
 import { Logo } from './Logo';
 import { navItems } from '../config/nav';
 import { useAuth } from '../store/auth.store';
-import { useFunciones } from '../api/queries/suscripcion.queries';
+import { useFunciones, useSuscripcionQuery } from '../api/queries/suscripcion.queries';
 
 /** Sidebar de escritorio (oculto en mobile; en mobile se usa BottomNav). */
 export const Sidebar = () => {
   const { email, isAdmin } = useAuth();
   const funciones = useFunciones();
+  const { data: sus } = useSuscripcionQuery();
   const items = navItems.filter(
     (item) => (!item.adminOnly || isAdmin) && (!item.feature || funciones[item.feature])
   );
+
+  // Consumo del plan FREE (nudge a PRO)
+  const limite = sus?.plan === 'FREE' ? sus.limiteReparacionesMes : null;
+  const usados = sus?.reparacionesEsteMes ?? 0;
+  const pct = limite ? Math.min(100, Math.round((usados / limite) * 100)) : 0;
 
   return (
     <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-border bg-surface lg:flex">
@@ -54,6 +60,18 @@ export const Sidebar = () => {
       </nav>
 
       <div className="border-t border-border p-3">
+        {limite != null && (
+          <Link to="/planes" className="mb-2 block rounded-lg bg-surface-2 px-3 py-2.5 transition hover:bg-surface-3">
+            <div className="mb-1.5 flex items-center justify-between text-[12px]">
+              <span className="font-bold text-text-2">Plan FREE</span>
+              <span className="font-mono font-bold text-text-3">{usados}/{limite}</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-surface-3">
+              <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: pct >= 80 ? 'var(--warning)' : 'var(--primary)' }} />
+            </div>
+            <div className="mt-1.5 text-[11.5px] font-bold text-primary">Pasar a PRO →</div>
+          </Link>
+        )}
         <div className="flex items-center gap-3 rounded-lg px-2 py-2">
           <div className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full bg-primary-soft text-sm font-bold text-primary-soft-fg">
             {email?.charAt(0).toUpperCase() || 'U'}

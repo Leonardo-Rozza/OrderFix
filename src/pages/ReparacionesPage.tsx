@@ -132,7 +132,13 @@ export const ReparacionesPage = () => {
         )}
       </div>
 
-      <ReparacionFormModal isOpen={formOpen} onClose={closeForm} editing={null} equipos={equipos} />
+      <ReparacionFormModal
+        isOpen={formOpen}
+        onClose={closeForm}
+        editing={null}
+        equipos={equipos}
+        onCreated={(id) => navigate(`/reparaciones/${id}`)}
+      />
     </DashboardLayout>
   );
 };

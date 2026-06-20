@@ -7,6 +7,7 @@ import { formatMoney } from '../utils/format';
 import { equipoLabel, clienteLabel } from '../utils/reparacion';
 import { useDashboardQuery } from '../api/queries/dashboard.queries';
 import { useClientesQuery } from '../api/queries/clientes.queries';
+import { useFunciones } from '../api/queries/suscripcion.queries';
 import { useAuth } from '../store/auth.store';
 
 interface KpiProps {
@@ -38,6 +39,8 @@ export const DashboardPage = () => {
   const { email } = useAuth();
   const { data: stats, isLoading } = useDashboardQuery();
   const { data: clientesPage } = useClientesQuery({ page: 0, size: 1 });
+  const { inventario } = useFunciones();
+  const stockBajo = stats?.articulosStockBajo ?? 0;
 
   const counts = stats?.reparacionesPorEstado;
   const total = stats?.totalReparaciones ?? 0;
@@ -62,6 +65,22 @@ export const DashboardPage = () => {
             Nueva reparación
           </button>
         </div>
+
+        {inventario && stockBajo > 0 && (
+          <button
+            type="button"
+            onClick={() => navigate('/inventario')}
+            className="flex w-full items-center gap-3 rounded-xl border border-warning bg-warning-soft px-4 py-3 text-left transition hover:brightness-95"
+          >
+            <svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="var(--warning)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+              <path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+            </svg>
+            <span className="flex-1 text-[13.5px] font-bold text-warning">
+              {stockBajo} artículo{stockBajo === 1 ? '' : 's'} con stock bajo
+            </span>
+            <span className="text-[12.5px] font-bold text-warning">Ver inventario →</span>
+          </button>
+        )}
 
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
           <Kpi

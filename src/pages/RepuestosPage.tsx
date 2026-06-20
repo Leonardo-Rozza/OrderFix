@@ -90,8 +90,8 @@ export const RepuestosPage = () => {
                   <div className="truncate text-[14px] font-bold">{r.nombre}</div>
                   {r.descripcion && <div className="truncate text-[12.5px] text-text-3">{r.descripcion}</div>}
                 </div>
-                <div className="hidden w-[130px] text-[13px] text-text-2 sm:block">
-                  {r.reparacionId ? `Orden #${r.reparacionId}` : 'Sin asociar'}
+                <div className="hidden w-[130px] truncate text-[13px] text-text-2 sm:block">
+                  {r.reparacionId ? (r.reparacionEquipo ?? `Orden #${r.reparacionId}`) : 'Sin asociar'}
                 </div>
                 <div className="w-[110px] text-right font-mono text-[13.5px] font-bold">{formatMoney(r.precio)}</div>
                 <div className="flex w-[72px] justify-end gap-1">

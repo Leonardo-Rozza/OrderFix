@@ -60,6 +60,8 @@ interface Props {
   onClose: () => void;
   editing: Reparacion | null;
   equipos: Equipo[];
+  /** Se llama tras crear por carga rápida, con el id de la reparación nueva. */
+  onCreated?: (reparacionId: number) => void;
 }
 
 const num = (v: number | '' | undefined): number | undefined =>
@@ -72,7 +74,7 @@ const fotosArray = (v: string | undefined): string[] | undefined => {
   return arr.length ? arr : undefined;
 };
 
-export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props) => {
+export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreated }: Props) => {
   const createMutation = useCreateReparacionMutation();
   const updateMutation = useUpdateReparacionMutation();
   const ingresoRapido = useIngresoRapidoMutation();
@@ -183,8 +185,9 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props
         descripcionProblema: data.descripcionProblema,
         precioEstimado: num(data.precioEstimado),
       };
-      await ingresoRapido.mutateAsync(payload);
+      const res = await ingresoRapido.mutateAsync(payload);
       onClose();
+      onCreated?.(res.reparacion.id);
       return;
     }
 

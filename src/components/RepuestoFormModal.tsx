@@ -9,7 +9,7 @@ import {
   useCreateRepuestoMutation,
   useUpdateRepuestoMutation,
 } from '../api/mutations/repuestos.mutations';
-import { useInventarioQuery } from '../api/queries/inventario.queries';
+import { useArticulosOptions } from '../api/queries/inventario.queries';
 import { useFunciones } from '../api/queries/suscripcion.queries';
 import type { Reparacion, Repuesto, RepuestoCreate, RepuestoUpdate } from '../types';
 
@@ -43,7 +43,7 @@ export const RepuestoFormModal = ({ isOpen, onClose, editing, reparaciones = [],
   const updateMutation = useUpdateRepuestoMutation();
   // El inventario solo se ofrece al crear y si el plan lo habilita (PRO).
   const { inventario } = useFunciones();
-  const { data: articulos = [] } = useInventarioQuery(isOpen && !editing && inventario);
+  const { data: articulos = [] } = useArticulosOptions(isOpen && !editing && inventario);
   const saving = createMutation.isPending || updateMutation.isPending;
 
   const {

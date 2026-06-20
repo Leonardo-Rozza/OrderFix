@@ -23,7 +23,23 @@ export const unwrapList = <T>(data: T[] | Page<T> | null | undefined): T[] => {
 };
 
 /**
- * Parámetro temporal para traer "todo" mientras los joins son client-side.
- * TODO: migrar a paginación/búsqueda server-side (ver notas de robustez).
+ * Parámetro temporal para traer "todo" mientras los joins son client-side
+ * (clientes/equipos/reparaciones, hasta que el backend denormalice los listados).
  */
 export const FETCH_ALL_PARAMS = { size: 1000 } as const;
+
+/** Parámetros de un listado paginado server-side. */
+export interface ListParams {
+  q?: string;
+  page: number;
+  size: number;
+  sort?: string;
+}
+
+/** Arma el objeto de query params (omite q vacío). */
+export const toQueryParams = (p: ListParams) => ({
+  q: p.q && p.q.trim() !== '' ? p.q.trim() : undefined,
+  page: p.page,
+  size: p.size,
+  sort: p.sort,
+});

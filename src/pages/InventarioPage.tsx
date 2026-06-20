@@ -1,11 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { ArticuloFormModal } from '../components/ArticuloFormModal';
 import { AjusteStockModal } from '../components/AjusteStockModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { FeatureLocked } from '../components/FeatureLocked';
+import { Pagination } from '../components/Pagination';
 import { btnPrimary } from '../components/ui';
 import { formatMoney } from '../utils/format';
+import { useListParams } from '../hooks/useListParams';
 import { useInventarioQuery } from '../api/queries/inventario.queries';
 import { useFunciones } from '../api/queries/suscripcion.queries';
 import { useDeleteArticuloMutation } from '../api/mutations/inventario.mutations';
@@ -14,25 +16,17 @@ import type { Articulo } from '../types';
 
 export const InventarioPage = () => {
   const { inventario } = useFunciones();
-  const { data: articulos = [], isLoading } = useInventarioQuery(inventario);
+  const { q, onSearch, page, setPage, debouncedQ, size } = useListParams();
+  const { data, isLoading } = useInventarioQuery({ q: debouncedQ, page, size }, inventario);
   const { isAdmin } = useAuth();
   const deleteMutation = useDeleteArticuloMutation();
 
-  const [search, setSearch] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Articulo | null>(null);
   const [ajuste, setAjuste] = useState<Articulo | null>(null);
   const [toDelete, setToDelete] = useState<Articulo | null>(null);
 
-  const filtrados = useMemo(() => {
-    const t = search.trim().toLowerCase();
-    if (!t) return articulos;
-    return articulos.filter(
-      (a) => a.nombre.toLowerCase().includes(t) || (a.sku ?? '').toLowerCase().includes(t)
-    );
-  }, [articulos, search]);
-
-  const stockBajo = articulos.filter((a) => a.stockBajo).length;
+  const articulos = data?.content ?? [];
 
   const openNew = () => {
     setEditing(null);
@@ -64,17 +58,12 @@ export const InventarioPage = () => {
               <path d="m21 21-4.3-4.3M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z" />
             </svg>
             <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={q}
+              onChange={(e) => onSearch(e.target.value)}
               placeholder="Buscar por nombre o SKU…"
               className="w-full rounded-lg border border-border-strong bg-surface py-2 pl-9 pr-3 text-[13.5px] text-text outline-none transition placeholder:text-text-3 focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)]"
             />
           </div>
-          {stockBajo > 0 && (
-            <span className="rounded-full bg-warning-soft px-3 py-1 text-[12.5px] font-bold text-warning">
-              {stockBajo} con stock bajo
-            </span>
-          )}
           <button type="button" className={`${btnPrimary} ml-auto`} onClick={openNew}>
             <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 5v14M5 12h14" />
@@ -97,15 +86,15 @@ export const InventarioPage = () => {
                 <div className="ofx-skel h-4 flex-1 rounded" />
               </div>
             ))
-          ) : filtrados.length === 0 ? (
+          ) : articulos.length === 0 ? (
             <div className="py-12 text-center">
               <div className="text-[15px] font-extrabold">Sin artículos</div>
               <div className="mt-1 text-[13px] text-text-3">
-                {search ? 'Probá con otra búsqueda.' : 'Cargá tu primer artículo de inventario.'}
+                {debouncedQ ? 'Probá con otra búsqueda.' : 'Cargá tu primer artículo de inventario.'}
               </div>
             </div>
           ) : (
-            filtrados.map((a) => (
+            articulos.map((a) => (
               <div key={a.id} className="flex items-center gap-3 border-b border-border px-4 py-3 transition last:border-0 hover:bg-surface-2">
                 <div className="min-w-0 flex-[1.6]">
                   <div className="truncate text-[14px] font-bold">{a.nombre}</div>
@@ -163,6 +152,8 @@ export const InventarioPage = () => {
             ))
           )}
         </div>
+
+        <Pagination meta={data?.page} onChange={setPage} />
       </div>
 
       <ArticuloFormModal isOpen={formOpen} onClose={() => setFormOpen(false)} editing={editing} />

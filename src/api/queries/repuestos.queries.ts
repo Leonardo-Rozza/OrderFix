@@ -1,19 +1,19 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '../axios';
-import { unwrapList, FETCH_ALL_PARAMS, type Page } from '../pagination';
+import { unwrapList, toQueryParams, FETCH_ALL_PARAMS, type Page, type ListParams } from '../pagination';
 import type { Repuesto } from '../../types';
 
-// Obtener todos los repuestos (la respuesta puede venir paginada)
-const fetchRepuestos = async (): Promise<Repuesto[]> => {
-  const { data } = await apiClient.get<Repuesto[] | Page<Repuesto>>('/repuestos', { params: FETCH_ALL_PARAMS });
-  return unwrapList(data);
+// Listado de repuestos paginado + búsqueda (server-side)
+const fetchRepuestos = async (params: ListParams): Promise<Page<Repuesto>> => {
+  const { data } = await apiClient.get<Page<Repuesto>>('/repuestos', { params: toQueryParams(params) });
+  return data;
 };
 
-// Hook para obtener repuestos
-export const useRepuestosQuery = () => {
+export const useRepuestosQuery = (params: ListParams) => {
   return useQuery({
-    queryKey: ['repuestos'],
-    queryFn: fetchRepuestos,
+    queryKey: ['repuestos', params],
+    queryFn: () => fetchRepuestos(params),
+    placeholderData: keepPreviousData,
   });
 };
 

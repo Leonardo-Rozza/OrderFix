@@ -1,43 +1,27 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { RepuestoFormModal } from '../components/RepuestoFormModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { Pagination } from '../components/Pagination';
 import { btnPrimary } from '../components/ui';
 import { formatMoney } from '../utils/format';
+import { useListParams } from '../hooks/useListParams';
 import { useRepuestosQuery } from '../api/queries/repuestos.queries';
-import { useReparacionesEnriquecidas } from '../hooks/useEnriched';
 import { useDeleteRepuestoMutation } from '../api/mutations/repuestos.mutations';
 import { useAuth } from '../store/auth.store';
 import type { Repuesto } from '../types';
 
 export const RepuestosPage = () => {
-  const { data: repuestos = [], isLoading } = useRepuestosQuery();
-  const { data: reparaciones } = useReparacionesEnriquecidas();
+  const { q, onSearch, page, setPage, debouncedQ, size } = useListParams();
+  const { data, isLoading } = useRepuestosQuery({ q: debouncedQ, page, size });
   const { isAdmin } = useAuth();
   const deleteMutation = useDeleteRepuestoMutation();
 
-  const [search, setSearch] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Repuesto | null>(null);
   const [toDelete, setToDelete] = useState<Repuesto | null>(null);
 
-  // Etiqueta de la reparación asociada (equipo) para mostrar contexto.
-  const repLabel = useMemo(() => {
-    const map = new Map<number, string>();
-    reparaciones.forEach((r) => {
-      const eq = r.equipo ? `${r.equipo.marca} ${r.equipo.modelo}` : `Equipo #${r.equipoId}`;
-      map.set(r.id, eq);
-    });
-    return map;
-  }, [reparaciones]);
-
-  const filtrados = useMemo(() => {
-    const t = search.trim().toLowerCase();
-    if (!t) return repuestos;
-    return repuestos.filter(
-      (r) => r.nombre.toLowerCase().includes(t) || (r.descripcion ?? '').toLowerCase().includes(t)
-    );
-  }, [repuestos, search]);
+  const repuestos = data?.content ?? [];
 
   const openNew = () => {
     setEditing(null);
@@ -63,8 +47,8 @@ export const RepuestosPage = () => {
               <path d="m21 21-4.3-4.3M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z" />
             </svg>
             <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={q}
+              onChange={(e) => onSearch(e.target.value)}
               placeholder="Buscar repuesto por nombre…"
               className="w-full rounded-lg border border-border-strong bg-surface py-2 pl-9 pr-3 text-[13.5px] text-text outline-none transition placeholder:text-text-3 focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)]"
             />
@@ -81,7 +65,7 @@ export const RepuestosPage = () => {
         <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
           <div className="flex items-center gap-3 border-b border-border px-4 py-3 text-[11.5px] font-extrabold uppercase tracking-wide text-text-3">
             <div className="min-w-0 flex-[1.6]">Repuesto</div>
-            <div className="hidden min-w-0 flex-1 sm:block">Reparación</div>
+            <div className="hidden w-[130px] sm:block">Reparación</div>
             <div className="w-[110px] text-right">Precio</div>
             <div className="w-[72px]" />
           </div>
@@ -92,22 +76,22 @@ export const RepuestosPage = () => {
                 <div className="ofx-skel h-4 flex-1 rounded" />
               </div>
             ))
-          ) : filtrados.length === 0 ? (
+          ) : repuestos.length === 0 ? (
             <div className="py-12 text-center">
               <div className="text-[15px] font-extrabold">Sin repuestos</div>
               <div className="mt-1 text-[13px] text-text-3">
-                {search ? 'Probá con otra búsqueda.' : 'Cargá repuestos o agregalos desde una reparación.'}
+                {debouncedQ ? 'Probá con otra búsqueda.' : 'Cargá repuestos o agregalos desde una reparación.'}
               </div>
             </div>
           ) : (
-            filtrados.map((r) => (
+            repuestos.map((r) => (
               <div key={r.id} className="flex items-center gap-3 border-b border-border px-4 py-3 transition last:border-0 hover:bg-surface-2">
                 <div className="min-w-0 flex-[1.6]">
                   <div className="truncate text-[14px] font-bold">{r.nombre}</div>
                   {r.descripcion && <div className="truncate text-[12.5px] text-text-3">{r.descripcion}</div>}
                 </div>
-                <div className="hidden min-w-0 flex-1 truncate text-[13px] text-text-2 sm:block">
-                  {r.reparacionId ? `#${r.reparacionId} · ${repLabel.get(r.reparacionId) ?? '—'}` : 'Sin asociar'}
+                <div className="hidden w-[130px] text-[13px] text-text-2 sm:block">
+                  {r.reparacionId ? `Orden #${r.reparacionId}` : 'Sin asociar'}
                 </div>
                 <div className="w-[110px] text-right font-mono text-[13.5px] font-bold">{formatMoney(r.precio)}</div>
                 <div className="flex w-[72px] justify-end gap-1">
@@ -138,14 +122,11 @@ export const RepuestosPage = () => {
             ))
           )}
         </div>
+
+        <Pagination meta={data?.page} onChange={setPage} />
       </div>
 
-      <RepuestoFormModal
-        isOpen={formOpen}
-        onClose={() => setFormOpen(false)}
-        editing={editing}
-        reparaciones={reparaciones}
-      />
+      <RepuestoFormModal isOpen={formOpen} onClose={() => setFormOpen(false)} editing={editing} />
 
       <ConfirmDialog
         isOpen={!!toDelete}

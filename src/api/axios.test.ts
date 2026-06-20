@@ -49,6 +49,12 @@ describe('axios interceptor de errores', () => {
     window.removeEventListener(LIMITE_PLAN_EVENT, handler);
   });
 
+  it('toastea "sin permisos" ante un 403', async () => {
+    server.use(http.delete(`${API}/clientes/1`, () => new HttpResponse(null, { status: 403 })));
+    await expect(apiClient.delete('/clientes/1')).rejects.toBeTruthy();
+    expect(showError).toHaveBeenCalled();
+  });
+
   it('cierra la sesión ante un 401', async () => {
     authStore.getState().login('token-falso', 'a@a.com');
     expect(authStore.getState().isAuthenticated).toBe(true);

@@ -10,6 +10,8 @@ interface Props {
   onEdit: () => void;
   onDelete: () => void;
   onNuevoEquipo: () => void;
+  /** Solo ADMIN puede eliminar. */
+  canDelete?: boolean;
 }
 
 const Stat = ({ value, label }: { value: string; label: string }) => (
@@ -27,7 +29,7 @@ const deviceIcon = (
 );
 
 /** Ficha de un cliente: stats + sus equipos + acciones. */
-export const ClienteFichaModal = ({ isOpen, cliente, onClose, onEdit, onDelete, onNuevoEquipo }: Props) => {
+export const ClienteFichaModal = ({ isOpen, cliente, onClose, onEdit, onDelete, onNuevoEquipo, canDelete = true }: Props) => {
   if (!cliente) return null;
 
   const nombre = `${cliente.nombre} ${cliente.apellido}`;
@@ -86,9 +88,13 @@ export const ClienteFichaModal = ({ isOpen, cliente, onClose, onEdit, onDelete, 
 
         {/* Acciones */}
         <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-between">
-          <button type="button" className={btnDanger} onClick={onDelete}>
-            Eliminar
-          </button>
+          {canDelete ? (
+            <button type="button" className={btnDanger} onClick={onDelete}>
+              Eliminar
+            </button>
+          ) : (
+            <span />
+          )}
           <div className="flex flex-col-reverse gap-3 sm:flex-row">
             {cliente.telefono && (
               <a

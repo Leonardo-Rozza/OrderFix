@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { isTokenExpired } from '../utils/jwt';
+import { decodeToken, isTokenExpired } from '../utils/jwt';
 
 interface AuthState {
   token: string | null;
@@ -40,5 +40,8 @@ export const authStore = create<AuthState>()(
 // Selector hook para componentes
 export const useAuth = () => {
   const { token, email, isAuthenticated, login, logout } = authStore();
-  return { token, email, isAuthenticated, login, logout };
+  const role = decodeToken(token)?.role ?? null;
+  // El backend manda roles tipo "ROLE_ADMIN" / "ROLE_USER".
+  const isAdmin = !!role && role.toUpperCase().includes('ADMIN');
+  return { token, email, role, isAdmin, isAuthenticated, login, logout };
 };

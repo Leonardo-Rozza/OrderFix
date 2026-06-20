@@ -9,6 +9,7 @@ import { iniciales, formatDate } from '../utils/format';
 import { useClientesEnriquecidos } from '../hooks/useEnriched';
 import type { ClienteEnriquecido } from '../hooks/useEnriched';
 import { useDeleteClienteMutation } from '../api/mutations/clientes.mutations';
+import { useAuth } from '../store/auth.store';
 import type { Cliente } from '../types';
 
 const matches = (c: ClienteEnriquecido, q: string) => {
@@ -23,6 +24,7 @@ const matches = (c: ClienteEnriquecido, q: string) => {
 
 export const ClientesPage = () => {
   const { data: clientes, isLoading } = useClientesEnriquecidos();
+  const { isAdmin } = useAuth();
   const deleteMutation = useDeleteClienteMutation();
 
   const [search, setSearch] = useState('');
@@ -132,6 +134,7 @@ export const ClientesPage = () => {
         onClose={() => setFicha(null)}
         onEdit={() => ficha && openEdit(ficha)}
         onDelete={() => ficha && setToDelete(ficha)}
+        canDelete={isAdmin}
         onNuevoEquipo={() => {
           if (ficha) {
             setEquipoFor(ficha);

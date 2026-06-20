@@ -48,6 +48,9 @@ apiClient.interceptors.response.use(
       // Límite del plan / suscripción no vigente → modal de upgrade
       const message = getErrorMessage(error, 'Alcanzaste el límite de tu plan.');
       window.dispatchEvent(new CustomEvent(LIMITE_PLAN_EVENT, { detail: { message } }));
+    } else if (status === 403) {
+      // Autenticado pero sin permiso (acción solo de ADMIN)
+      showError(getErrorMessage(error, 'No tenés permisos para esta acción.'));
     } else {
       // Errores de lectura: avisar por toast (las mutaciones manejan su propio onError)
       const method = error.config?.method?.toLowerCase();

@@ -1,6 +1,7 @@
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { useSuscripcionQuery } from '../api/queries/suscripcion.queries';
 import { useIniciarPagoProMutation } from '../api/mutations/pagos.mutations';
+import { useAuth } from '../store/auth.store';
 import type { Plan } from '../types';
 
 /** Una fila de la comparativa. value: texto, true (incluido) o false (no incluido). */
@@ -48,6 +49,7 @@ const FeatureRow = ({ value, label, accent }: { value: string | boolean; label: 
 
 export const PlanesPage = () => {
   const { data: sus } = useSuscripcionQuery();
+  const { isAdmin } = useAuth();
   const iniciarPago = useIniciarPagoProMutation();
 
   const plan: Plan = sus?.plan ?? 'FREE';
@@ -133,7 +135,7 @@ export const PlanesPage = () => {
               <button type="button" disabled className="w-full rounded-xl bg-surface-3 py-3 text-[14px] font-bold text-text-2">
                 Tu plan actual
               </button>
-            ) : (
+            ) : isAdmin ? (
               <button
                 type="button"
                 onClick={suscribir}
@@ -142,6 +144,10 @@ export const PlanesPage = () => {
               >
                 {iniciarPago.isPending ? 'Redirigiendo…' : 'Suscribirme a PRO'}
               </button>
+            ) : (
+              <div className="rounded-xl bg-surface-3 px-3 py-3 text-center text-[12.5px] font-semibold text-text-2">
+                Solo un administrador puede activar PRO.
+              </div>
             )}
             <div className="mt-5 flex flex-col gap-2.5">
               {FEATURES.map((f) => (

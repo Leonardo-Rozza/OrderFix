@@ -7,11 +7,13 @@ import { formatMoney } from '../utils/format';
 import { useRepuestosQuery } from '../api/queries/repuestos.queries';
 import { useReparacionesEnriquecidas } from '../hooks/useEnriched';
 import { useDeleteRepuestoMutation } from '../api/mutations/repuestos.mutations';
+import { useAuth } from '../store/auth.store';
 import type { Repuesto } from '../types';
 
 export const RepuestosPage = () => {
   const { data: repuestos = [], isLoading } = useRepuestosQuery();
   const { data: reparaciones } = useReparacionesEnriquecidas();
+  const { isAdmin } = useAuth();
   const deleteMutation = useDeleteRepuestoMutation();
 
   const [search, setSearch] = useState('');
@@ -119,16 +121,18 @@ export const RepuestosPage = () => {
                       <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
                     </svg>
                   </button>
-                  <button
-                    type="button"
-                    title="Eliminar"
-                    onClick={() => setToDelete(r)}
-                    className="grid h-8 w-8 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-danger hover:text-danger"
-                  >
-                    <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
-                    </svg>
-                  </button>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      title="Eliminar"
+                      onClick={() => setToDelete(r)}
+                      className="grid h-8 w-8 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-danger hover:text-danger"
+                    >
+                      <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
             ))

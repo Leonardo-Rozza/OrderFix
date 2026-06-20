@@ -8,6 +8,7 @@ import { useEquiposEnriquecidos } from '../hooks/useEnriched';
 import type { EquipoEnriquecido } from '../hooks/useEnriched';
 import { useClientesQuery } from '../api/queries/clientes.queries';
 import { useDeleteEquipoMutation } from '../api/mutations/equipos.mutations';
+import { useAuth } from '../store/auth.store';
 import type { Equipo } from '../types';
 
 const clienteLabel = (e: EquipoEnriquecido) =>
@@ -33,6 +34,7 @@ const deviceIcon = (
 export const EquiposPage = () => {
   const { data: equipos, isLoading } = useEquiposEnriquecidos();
   const { data: clientes = [] } = useClientesQuery();
+  const { isAdmin } = useAuth();
   const deleteMutation = useDeleteEquipoMutation();
 
   const [search, setSearch] = useState('');
@@ -120,16 +122,18 @@ export const EquiposPage = () => {
                         <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
                       </svg>
                     </button>
-                    <button
-                      type="button"
-                      title="Eliminar"
-                      onClick={() => setToDelete(e)}
-                      className="grid h-7 w-7 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-danger hover:text-danger"
-                    >
-                      <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
-                      </svg>
-                    </button>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        title="Eliminar"
+                        onClick={() => setToDelete(e)}
+                        className="grid h-7 w-7 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-danger hover:text-danger"
+                      >
+                        <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 </div>
 

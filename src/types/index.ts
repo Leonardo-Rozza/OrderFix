@@ -50,6 +50,12 @@ export interface Suscripcion {
   limiteReparacionesMes: number | null; // null = ilimitado (PRO)
 }
 
+// Respuesta del checkout de MercadoPago (POST /api/pagos/suscripcion)
+export interface CheckoutResponse {
+  preapprovalId: string;
+  initPoint: string; // URL a la que se redirige al usuario
+}
+
 // ========== CLIENTE ==========
 export interface Cliente {
   id: number;

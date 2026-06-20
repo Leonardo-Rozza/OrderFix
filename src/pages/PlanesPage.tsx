@@ -1,6 +1,6 @@
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { useSuscripcionQuery } from '../api/queries/suscripcion.queries';
-import { showInfo } from '../utils/toast';
+import { useIniciarPagoProMutation } from '../api/mutations/pagos.mutations';
 import type { Plan } from '../types';
 
 /** Una fila de la comparativa. value: texto, true (incluido) o false (no incluido). */
@@ -11,8 +11,8 @@ interface Feature {
 }
 
 const FEATURES: Feature[] = [
-  { label: 'Reparaciones por mes', free: 'Hasta 10', pro: 'Ilimitadas' },
-  { label: 'Clientes y equipos', free: 'Hasta 50', pro: 'Ilimitados' },
+  { label: 'Reparaciones por mes', free: 'Hasta 50', pro: 'Ilimitadas' },
+  { label: 'Clientes y equipos', free: 'Sin tope', pro: 'Sin tope' },
   { label: 'Tablero por estado', free: true, pro: true },
   { label: 'Detalle y repuestos', free: true, pro: true },
   { label: 'Avisos por WhatsApp', free: false, pro: true },
@@ -48,6 +48,7 @@ const FeatureRow = ({ value, label, accent }: { value: string | boolean; label: 
 
 export const PlanesPage = () => {
   const { data: sus } = useSuscripcionQuery();
+  const iniciarPago = useIniciarPagoProMutation();
 
   const plan: Plan = sus?.plan ?? 'FREE';
   const usados = sus?.reparacionesEsteMes ?? 0;
@@ -55,7 +56,7 @@ export const PlanesPage = () => {
   const pct = limite ? Math.min(100, Math.round((usados / limite) * 100)) : 0;
   const cerca = limite !== null && usados >= limite * 0.8;
 
-  const suscribir = () => showInfo('La suscripción a PRO estará disponible muy pronto.');
+  const suscribir = () => iniciarPago.mutate();
 
   return (
     <DashboardLayout title="Planes">
@@ -136,9 +137,10 @@ export const PlanesPage = () => {
               <button
                 type="button"
                 onClick={suscribir}
-                className="w-full rounded-xl bg-primary py-3 text-[14px] font-bold text-primary-fg shadow-sm transition hover:bg-primary-hover"
+                disabled={iniciarPago.isPending}
+                className="w-full rounded-xl bg-primary py-3 text-[14px] font-bold text-primary-fg shadow-sm transition hover:bg-primary-hover disabled:opacity-60"
               >
-                Suscribirme a PRO
+                {iniciarPago.isPending ? 'Redirigiendo…' : 'Suscribirme a PRO'}
               </button>
             )}
             <div className="mt-5 flex flex-col gap-2.5">

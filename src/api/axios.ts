@@ -3,10 +3,14 @@ import type { InternalAxiosRequestConfig } from 'axios';
 import { authStore } from '../store/auth.store';
 import { getErrorMessage, showError } from '../utils/toast';
 
-const API_BASE_URL =
+// La base puede venir con o sin sufijo /api (el contrato sugiere VITE_API_URL=http://localhost:8080).
+// Normalizamos para que las llamadas sin /api funcionen en ambos casos.
+const RAW_BASE =
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_API_URL ||
-  'http://localhost:8080/api';
+  'http://localhost:8080';
+const TRIMMED_BASE = RAW_BASE.replace(/\/+$/, '');
+const API_BASE_URL = /\/api$/.test(TRIMMED_BASE) ? TRIMMED_BASE : `${TRIMMED_BASE}/api`;
 
 /** Evento global para el límite de plan (402). El modal "Pasá a PRO" lo escucha. */
 export const LIMITE_PLAN_EVENT = 'ofx:limite-plan';

@@ -10,6 +10,7 @@ import { ReparacionesPage } from '../pages/ReparacionesPage';
 import { ReparacionDetallePage } from '../pages/ReparacionDetallePage';
 import { RepuestosPage } from '../pages/RepuestosPage';
 import { PlanesPage } from '../pages/PlanesPage';
+import { SuscripcionResultadoPage } from '../pages/SuscripcionResultadoPage';
 
 // Componente para proteger rutas privadas
 interface ProtectedRouteProps {
@@ -108,6 +109,14 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <PlanesPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/suscripcion/resultado',
+    element: (
+      <ProtectedRoute>
+        <SuscripcionResultadoPage />
       </ProtectedRoute>
     ),
   },

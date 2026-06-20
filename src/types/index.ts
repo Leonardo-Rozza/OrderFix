@@ -63,6 +63,13 @@ export interface ApiErrorBody {
 export type Plan = 'FREE' | 'PRO';
 export type EstadoSuscripcion = 'TRIAL' | 'ACTIVA' | 'VENCIDA' | 'CANCELADA';
 
+// Flags de funciones según el plan (PRO habilita estas; FREE en false)
+export interface Funciones {
+  inventario: boolean;
+  cobros: boolean;
+  empleadosMultiples: boolean;
+}
+
 export interface Suscripcion {
   plan: Plan;
   estado: EstadoSuscripcion;
@@ -71,6 +78,7 @@ export interface Suscripcion {
   proximoCobro: string | null;
   reparacionesEsteMes: number;
   limiteReparacionesMes: number | null; // null = ilimitado (PRO)
+  funciones?: Funciones;
 }
 
 // Respuesta del checkout de MercadoPago (POST /api/pagos/suscripcion)

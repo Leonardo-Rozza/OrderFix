@@ -14,15 +14,15 @@ interface Feature {
 }
 
 const FEATURES: Feature[] = [
-  { label: 'Reparaciones por mes', free: 'Hasta 50', pro: 'Ilimitadas' },
-  { label: 'Clientes y equipos', free: 'Sin tope', pro: 'Sin tope' },
+  { label: 'Reparaciones por mes', free: 'Hasta 25', pro: 'Ilimitadas' },
+  { label: 'Clientes, equipos y repuestos', free: true, pro: true },
   { label: 'Tablero por estado', free: true, pro: true },
-  { label: 'Detalle y repuestos', free: true, pro: true },
-  { label: 'Avisos por WhatsApp', free: false, pro: true },
-  { label: 'Reportes de ingresos', free: false, pro: true },
-  { label: 'Exportar a Excel', free: false, pro: true },
-  { label: 'Usuarios del taller', free: '1', pro: 'Hasta 5' },
-  { label: 'Soporte prioritario', free: false, pro: true },
+  { label: 'Presupuestos', free: true, pro: true },
+  { label: 'Dashboard', free: true, pro: true },
+  { label: 'Seguimiento público + WhatsApp', free: true, pro: true },
+  { label: 'Inventario con stock', free: false, pro: true },
+  { label: 'Cobros, caja y recibo', free: false, pro: true },
+  { label: 'Empleados', free: '1', pro: 'Varios' },
 ];
 
 const CheckIcon = ({ className }: { className?: string }) => (

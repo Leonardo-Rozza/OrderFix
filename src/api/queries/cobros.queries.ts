@@ -36,9 +36,10 @@ const fetchCaja = async (rango: { desde?: string; hasta?: string }): Promise<Caj
   return data;
 };
 
-export const useCajaQuery = (rango: { desde?: string; hasta?: string }) => {
+export const useCajaQuery = (rango: { desde?: string; hasta?: string }, enabled = true) => {
   return useQuery({
     queryKey: ['caja', rango.desde ?? null, rango.hasta ?? null],
     queryFn: () => fetchCaja(rango),
+    enabled,
   });
 };

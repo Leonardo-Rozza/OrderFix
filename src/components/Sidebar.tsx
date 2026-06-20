@@ -2,11 +2,15 @@ import { Link, NavLink } from 'react-router';
 import { Logo } from './Logo';
 import { navItems } from '../config/nav';
 import { useAuth } from '../store/auth.store';
+import { useFunciones } from '../api/queries/suscripcion.queries';
 
 /** Sidebar de escritorio (oculto en mobile; en mobile se usa BottomNav). */
 export const Sidebar = () => {
   const { email, isAdmin } = useAuth();
-  const items = navItems.filter((item) => !item.adminOnly || isAdmin);
+  const funciones = useFunciones();
+  const items = navItems.filter(
+    (item) => (!item.adminOnly || isAdmin) && (!item.feature || funciones[item.feature])
+  );
 
   return (
     <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-border bg-surface lg:flex">

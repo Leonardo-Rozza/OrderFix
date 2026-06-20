@@ -10,6 +10,7 @@ import {
   useUpdateRepuestoMutation,
 } from '../api/mutations/repuestos.mutations';
 import { useInventarioQuery } from '../api/queries/inventario.queries';
+import { useFunciones } from '../api/queries/suscripcion.queries';
 import type { Reparacion, Repuesto, RepuestoCreate, RepuestoUpdate } from '../types';
 
 const schema = z.object({
@@ -40,8 +41,9 @@ const numOpt = (v: number | '' | undefined): number | undefined =>
 export const RepuestoFormModal = ({ isOpen, onClose, editing, reparaciones = [], lockedReparacionId }: Props) => {
   const createMutation = useCreateRepuestoMutation();
   const updateMutation = useUpdateRepuestoMutation();
-  // El inventario solo se ofrece al crear (al editar no re-vinculamos stock).
-  const { data: articulos = [] } = useInventarioQuery(isOpen && !editing);
+  // El inventario solo se ofrece al crear y si el plan lo habilita (PRO).
+  const { inventario } = useFunciones();
+  const { data: articulos = [] } = useInventarioQuery(isOpen && !editing && inventario);
   const saving = createMutation.isPending || updateMutation.isPending;
 
   const {

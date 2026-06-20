@@ -1,13 +1,27 @@
 import { useState } from 'react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
+import { FeatureLocked } from '../components/FeatureLocked';
 import { formatMoney, formatDate } from '../utils/format';
 import { METODOS, metodoLabel } from '../config/cobros';
 import { useCajaQuery } from '../api/queries/cobros.queries';
+import { useFunciones } from '../api/queries/suscripcion.queries';
 
 export const CajaPage = () => {
+  const { cobros: cobrosHabilitado } = useFunciones();
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
-  const { data, isLoading } = useCajaQuery({ desde: desde || undefined, hasta: hasta || undefined });
+  const { data, isLoading } = useCajaQuery({ desde: desde || undefined, hasta: hasta || undefined }, cobrosHabilitado);
+
+  if (!cobrosHabilitado) {
+    return (
+      <DashboardLayout title="Caja">
+        <FeatureLocked
+          titulo="Caja es una función PRO"
+          detalle="Los cobros, la caja por período y el recibo imprimible están disponibles en el plan PRO."
+        />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="Caja">

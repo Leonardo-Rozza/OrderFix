@@ -16,3 +16,17 @@ export const useSuscripcionQuery = () => {
     queryFn: fetchSuscripcion,
   });
 };
+
+/**
+ * Flags de funciones del plan. Por defecto "habilitado" (true) salvo que el
+ * backend lo marque explícitamente en false → así no parpadea para PRO.
+ */
+export const useFunciones = () => {
+  const { data } = useSuscripcionQuery();
+  const f = data?.funciones;
+  return {
+    inventario: f?.inventario !== false,
+    cobros: f?.cobros !== false,
+    empleadosMultiples: f?.empleadosMultiples !== false,
+  };
+};

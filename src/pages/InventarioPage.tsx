@@ -3,15 +3,18 @@ import { DashboardLayout } from '../layouts/DashboardLayout';
 import { ArticuloFormModal } from '../components/ArticuloFormModal';
 import { AjusteStockModal } from '../components/AjusteStockModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { FeatureLocked } from '../components/FeatureLocked';
 import { btnPrimary } from '../components/ui';
 import { formatMoney } from '../utils/format';
 import { useInventarioQuery } from '../api/queries/inventario.queries';
+import { useFunciones } from '../api/queries/suscripcion.queries';
 import { useDeleteArticuloMutation } from '../api/mutations/inventario.mutations';
 import { useAuth } from '../store/auth.store';
 import type { Articulo } from '../types';
 
 export const InventarioPage = () => {
-  const { data: articulos = [], isLoading } = useInventarioQuery();
+  const { inventario } = useFunciones();
+  const { data: articulos = [], isLoading } = useInventarioQuery(inventario);
   const { isAdmin } = useAuth();
   const deleteMutation = useDeleteArticuloMutation();
 
@@ -40,6 +43,17 @@ export const InventarioPage = () => {
     await deleteMutation.mutateAsync(toDelete.id);
     setToDelete(null);
   };
+
+  if (!inventario) {
+    return (
+      <DashboardLayout title="Inventario">
+        <FeatureLocked
+          titulo="Inventario es una función PRO"
+          detalle="El control de stock (artículos, ajustes y aviso de stock bajo) está disponible en el plan PRO."
+        />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="Inventario">

@@ -19,6 +19,7 @@ import { useReparacionesEnriquecidas, useEquiposEnriquecidos } from '../hooks/us
 import { useRepuestosPorReparacionQuery } from '../api/queries/repuestos.queries';
 import { usePresupuestosQuery } from '../api/queries/presupuestos.queries';
 import { useCobrosQuery } from '../api/queries/cobros.queries';
+import { useFunciones } from '../api/queries/suscripcion.queries';
 import { useAnularCobroMutation } from '../api/mutations/cobros.mutations';
 import {
   useCambiarEstadoMutation,
@@ -37,7 +38,8 @@ export const ReparacionDetallePage = () => {
   const { data: equipos } = useEquiposEnriquecidos();
   const { data: repuestos = [] } = useRepuestosPorReparacionQuery(reparacionId);
   const { data: presupuestos = [] } = usePresupuestosQuery(reparacionId);
-  const { data: cobros } = useCobrosQuery(reparacionId);
+  const { cobros: cobrosHabilitado } = useFunciones();
+  const { data: cobros } = useCobrosQuery(cobrosHabilitado ? reparacionId : undefined);
   const anularCobro = useAnularCobroMutation(reparacionId);
   const { isAdmin } = useAuth();
   const cambiarEstado = useCambiarEstadoMutation();
@@ -335,7 +337,8 @@ export const ReparacionDetallePage = () => {
                 ))
               )}
             </div>
-            {/* Cobros */}
+            {/* Cobros (PRO) */}
+            {cobrosHabilitado && (
             <div className={`${card} overflow-hidden`}>
               <div className="flex items-center gap-2 border-b border-border px-5 py-4 text-[15px] font-extrabold">
                 <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -414,6 +417,7 @@ export const ReparacionDetallePage = () => {
                 ))
               )}
             </div>
+            )}
           </div>
 
           {/* Columna lateral */}

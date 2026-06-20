@@ -7,9 +7,20 @@ import type { ReactElement } from 'react';
 import { server, API } from '../test/server';
 import { RepuestoFormModal } from './RepuestoFormModal';
 
-// Al crear, el modal lista el inventario para ofrecer "tomar del stock".
+// Al crear, el modal consulta el plan (funciones) y lista el inventario.
 beforeEach(() => {
-  server.use(http.get(`${API}/inventario`, () => HttpResponse.json({ content: [], page: { size: 20, number: 0, totalElements: 0, totalPages: 0 } })));
+  server.use(
+    http.get(`${API}/suscripcion`, () =>
+      HttpResponse.json({
+        plan: 'PRO',
+        estado: 'ACTIVA',
+        reparacionesEsteMes: 0,
+        limiteReparacionesMes: null,
+        funciones: { inventario: true, cobros: true, empleadosMultiples: true },
+      })
+    ),
+    http.get(`${API}/inventario`, () => HttpResponse.json({ content: [], page: { size: 20, number: 0, totalElements: 0, totalPages: 0 } }))
+  );
 });
 
 const renderUI = (ui: ReactElement) => {

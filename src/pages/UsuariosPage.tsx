@@ -4,12 +4,14 @@ import { UsuarioFormModal } from '../components/UsuarioFormModal';
 import { btnPrimary } from '../components/ui';
 import { iniciales } from '../utils/format';
 import { useUsuariosQuery } from '../api/queries/usuarios.queries';
+import { useFunciones } from '../api/queries/suscripcion.queries';
 import { useUpdateUsuarioMutation } from '../api/mutations/usuarios.mutations';
 import { useAuth } from '../store/auth.store';
 import type { Rol } from '../types';
 
 export const UsuariosPage = () => {
   const { isAdmin, email } = useAuth();
+  const { empleadosMultiples } = useFunciones();
   const { data: usuarios = [], isLoading } = useUsuariosQuery(isAdmin);
   const updateUsuario = useUpdateUsuarioMutation();
   const [formOpen, setFormOpen] = useState(false);
@@ -30,12 +32,21 @@ export const UsuariosPage = () => {
       <div className="ofx-in mx-auto max-w-[900px] space-y-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-[13.5px] text-text-2">Gestioná los usuarios de tu taller y sus permisos.</p>
-          <button type="button" className={btnPrimary} onClick={() => setFormOpen(true)}>
-            <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            Nuevo empleado
-          </button>
+          {empleadosMultiples ? (
+            <button type="button" className={btnPrimary} onClick={() => setFormOpen(true)}>
+              <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              Nuevo empleado
+            </button>
+          ) : (
+            <span className="rounded-lg bg-surface-3 px-3 py-2 text-[12.5px] font-semibold text-text-2">
+              Sumar empleados es PRO ·{' '}
+              <a href="/planes" className="font-bold text-primary">
+                Ver planes
+              </a>
+            </span>
+          )}
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">

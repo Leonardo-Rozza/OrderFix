@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 export type Theme = 'light' | 'dark';
 
-const THEME_STORAGE_KEY = 'mvgr-theme';
+const THEME_STORAGE_KEY = 'ordenfix-theme';
 
 const getStoredTheme = (): Theme | null => {
   if (typeof window === 'undefined') return null;
@@ -72,7 +72,7 @@ export const syncThemeClass = (theme: Theme) => {
   root.setAttribute('data-theme', theme);
 };
 
-// Sincronizar inmediatamente al cargar el m��dulo para evitar FOUC
+// Sincronizar inmediatamente al cargar el módulo para evitar FOUC
 if (typeof document !== 'undefined') {
   syncThemeClass(getInitialTheme());
 }

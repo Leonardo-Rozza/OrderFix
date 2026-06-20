@@ -1,6 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router';
-import { authStore } from '../store/auth.store';
-import type { ReactNode } from 'react';
+import { ProtectedRoute, PublicRoute } from './guards';
 import { LoginPage } from '../pages/LoginPage';
 import { RegisterPage } from '../pages/RegisterPage';
 import { DashboardPage } from '../pages/DashboardPage';
@@ -11,32 +10,6 @@ import { ReparacionDetallePage } from '../pages/ReparacionDetallePage';
 import { RepuestosPage } from '../pages/RepuestosPage';
 import { PlanesPage } from '../pages/PlanesPage';
 import { SuscripcionResultadoPage } from '../pages/SuscripcionResultadoPage';
-
-// Componente para proteger rutas privadas
-interface ProtectedRouteProps {
-  children: ReactNode;
-}
-
-const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const isAuthenticated = authStore.getState().isAuthenticated;
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  return <>{children}</>;
-};
-
-// Componente para redirigir si ya está autenticado
-const PublicRoute = ({ children }: ProtectedRouteProps) => {
-  const isAuthenticated = authStore.getState().isAuthenticated;
-  
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return <>{children}</>;
-};
 
 // Configuración de rutas
 export const router = createBrowserRouter([

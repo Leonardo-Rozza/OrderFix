@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { SvgIcon as Svg } from '../components/SvgIcon';
 
 export interface NavItem {
   key: string;
@@ -10,12 +11,6 @@ export interface NavItem {
   /** Aparece en la barra inferior mobile */
   mobile?: boolean;
 }
-
-const Svg = ({ children }: { children: ReactNode }) => (
-  <svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-    {children}
-  </svg>
-);
 
 export const navItems: NavItem[] = [
   {

@@ -1,11 +1,11 @@
-import { StrictMode, useEffect } from 'react';
+import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Toaster } from 'react-hot-toast';
 import './index.css';
 import App from './App.tsx';
-import { syncThemeClass, useThemeStore } from './store/theme.store.ts';
+import { ThemeBootstrapper } from './components/ThemeBootstrapper.tsx';
 
 // Configuración de React Query
 const queryClient = new QueryClient({
@@ -17,16 +17,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-const ThemeBootstrapper = () => {
-  const theme = useThemeStore((state) => state.theme);
-
-  useEffect(() => {
-    syncThemeClass(theme);
-  }, [theme]);
-
-  return null;
-};
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

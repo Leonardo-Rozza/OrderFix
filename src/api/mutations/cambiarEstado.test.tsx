@@ -19,14 +19,17 @@ const baseRep: Reparacion = {
   fechaEntrega: null,
 };
 
+const KEY = ['reparaciones', { q: undefined, page: 0, size: 20 }];
+type Page = { content: Reparacion[]; page: { size: number; number: number; totalElements: number; totalPages: number } };
+
 const setup = () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  client.setQueryData<Reparacion[]>(['reparaciones'], [baseRep]);
+  client.setQueryData<Page>(KEY, { content: [baseRep], page: { size: 20, number: 0, totalElements: 1, totalPages: 1 } });
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
   const { result } = renderHook(() => useCambiarEstadoMutation(), { wrapper });
-  const estadoEnCache = () => client.getQueryData<Reparacion[]>(['reparaciones'])?.[0].estado;
+  const estadoEnCache = () => client.getQueryData<Page>(KEY)?.content[0].estado;
   return { result, estadoEnCache };
 };
 

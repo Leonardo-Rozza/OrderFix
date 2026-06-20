@@ -1,29 +1,56 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '../axios';
-import { unwrapList, FETCH_ALL_PARAMS, type Page } from '../pagination';
+import { unwrapList, toQueryParams, type Page, type ListParams } from '../pagination';
 import type { Equipo } from '../../types';
 
-// Obtener todos los equipos (la respuesta puede venir paginada)
-const fetchEquipos = async (): Promise<Equipo[]> => {
-  const { data } = await apiClient.get<Equipo[] | Page<Equipo>>('/equipos', { params: FETCH_ALL_PARAMS });
-  return unwrapList(data);
+// Listado paginado + búsqueda (server-side)
+const fetchEquipos = async (params: ListParams): Promise<Page<Equipo>> => {
+  const { data } = await apiClient.get<Page<Equipo>>('/equipos', { params: toQueryParams(params) });
+  return data;
 };
 
-// Hook para obtener equipos
-export const useEquiposQuery = () => {
+export const useEquiposQuery = (params: ListParams) => {
   return useQuery({
-    queryKey: ['equipos'],
-    queryFn: fetchEquipos,
+    queryKey: ['equipos', params],
+    queryFn: () => fetchEquipos(params),
+    placeholderData: keepPreviousData,
   });
 };
 
-// Obtener un equipo por ID
+// Opciones para selects (ej: elegir equipo en una reparación) — lista acotada
+const fetchEquiposOptions = async (): Promise<Equipo[]> => {
+  const { data } = await apiClient.get<Page<Equipo> | Equipo[]>('/equipos', { params: { size: 200 } });
+  return unwrapList(data);
+};
+
+export const useEquiposOptions = (enabled = true) => {
+  return useQuery({
+    queryKey: ['equipos', 'options'],
+    queryFn: fetchEquiposOptions,
+    enabled,
+  });
+};
+
+// Equipos de un cliente (sub-listado: array simple)
+const fetchEquiposPorCliente = async (clienteId: number): Promise<Equipo[]> => {
+  const { data } = await apiClient.get<Equipo[]>(`/equipos/cliente/${clienteId}`);
+  return data;
+};
+
+export const useEquiposPorClienteQuery = (clienteId: number | undefined) => {
+  return useQuery({
+    queryKey: ['equipos', 'cliente', clienteId],
+    queryFn: () => fetchEquiposPorCliente(clienteId as number),
+    enabled: !!clienteId,
+  });
+};
+
+// Equipo por ID
 const fetchEquipoById = async (id: number): Promise<Equipo> => {
   const { data } = await apiClient.get<Equipo>(`/equipos/${id}`);
   return data;
 };
 
-// Hook para obtener un equipo por ID
 export const useEquipoQuery = (id: number) => {
   return useQuery({
     queryKey: ['equipo', id],

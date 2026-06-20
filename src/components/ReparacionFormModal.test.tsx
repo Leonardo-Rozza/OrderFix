@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { server, API } from '../test/server';
 import { ReparacionFormModal } from './ReparacionFormModal';
-import type { EquipoEnriquecido } from '../hooks/useEnriched';
+import type { Equipo } from '../types';
 
 const renderUI = (ui: ReactElement) => {
   const client = new QueryClient({
@@ -75,7 +75,7 @@ describe('ReparacionFormModal — equipo existente', () => {
     const onClose = vi.fn();
     let body: Record<string, unknown> | undefined;
 
-    const equipos: EquipoEnriquecido[] = [
+    const equipos: Equipo[] = [
       {
         id: 5,
         marca: 'Samsung',
@@ -84,7 +84,8 @@ describe('ReparacionFormModal — equipo existente', () => {
         color: null,
         descripcion: null,
         clienteId: 1,
-        cliente: { id: 1, nombre: 'Ana', apellido: 'Gómez', telefono: '111', email: null, direccion: null },
+        clienteNombre: 'Ana',
+        clienteApellido: 'Gómez',
       },
     ];
 

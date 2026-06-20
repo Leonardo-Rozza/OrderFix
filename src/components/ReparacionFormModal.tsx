@@ -13,8 +13,7 @@ import {
 } from '../api/mutations/reparaciones.mutations';
 import { useUsuariosQuery } from '../api/queries/usuarios.queries';
 import { useAuth } from '../store/auth.store';
-import type { EquipoEnriquecido } from '../hooks/useEnriched';
-import type { IngresoRapidoRequest, Reparacion, ReparacionCreate, ReparacionUpdate } from '../types';
+import type { Equipo, IngresoRapidoRequest, Reparacion, ReparacionCreate, ReparacionUpdate } from '../types';
 
 const schema = z
   .object({
@@ -60,7 +59,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   editing: Reparacion | null;
-  equipos: EquipoEnriquecido[];
+  equipos: Equipo[];
 }
 
 const num = (v: number | '' | undefined): number | undefined =>
@@ -266,7 +265,7 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props
               {equipos.map((e) => (
                 <option key={e.id} value={e.id}>
                   {e.marca} {e.modelo}
-                  {e.cliente ? ` — ${e.cliente.nombre} ${e.cliente.apellido}` : ''}
+                  {e.clienteNombre ? ` — ${e.clienteNombre} ${e.clienteApellido ?? ''}` : ''}
                 </option>
               ))}
             </select>

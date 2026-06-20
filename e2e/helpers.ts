@@ -38,7 +38,8 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
   // sirve en dev desde /src/api/... (un glob **/api/** los pisaría).
   await page.route((url) => url.origin === 'http://localhost:8080', async (route) => {
     const req = route.request();
-    const { pathname } = new URL(req.url());
+    const url = new URL(req.url());
+    const pathname = url.pathname;
     const method = req.method();
 
     // Auth
@@ -62,7 +63,13 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
     }
 
     // Listados (GET)
-    if (pathname.endsWith('/api/reparaciones') && method === 'GET') return route.fulfill({ json: pageOf(reparaciones) });
+    if (pathname.endsWith('/api/reparaciones') && method === 'GET') {
+      const estado = url.searchParams.get('estado');
+      const items = estado
+        ? (reparaciones as { estado?: string }[]).filter((r) => r.estado === estado)
+        : reparaciones;
+      return route.fulfill({ json: pageOf(items) });
+    }
     if (pathname.endsWith('/api/equipos') && method === 'GET') return route.fulfill({ json: pageOf(equipos) });
     if (pathname.endsWith('/api/clientes') && method === 'GET') return route.fulfill({ json: pageOf(clientes) });
     if (pathname.endsWith('/api/repuestos') && method === 'GET') return route.fulfill({ json: pageOf(repuestos) });

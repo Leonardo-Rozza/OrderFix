@@ -13,9 +13,11 @@ import { Loader } from '../components/Loader';
 import { btnGhost, btnDanger, card } from '../components/ui';
 import { ESTADOS, ESTADOS_LIST } from '../config/estados';
 import { formatMoney, formatDate, iniciales } from '../utils/format';
+import { equipoLabel, clienteLabel } from '../utils/reparacion';
 import { apiClient } from '../api/axios';
 import type { WhatsappLink } from '../types';
-import { useReparacionesEnriquecidas, useEquiposEnriquecidos } from '../hooks/useEnriched';
+import { useReparacionQuery } from '../api/queries/reparaciones.queries';
+import { useEquiposOptions } from '../api/queries/equipos.queries';
 import { useRepuestosPorReparacionQuery } from '../api/queries/repuestos.queries';
 import { usePresupuestosQuery } from '../api/queries/presupuestos.queries';
 import { useCobrosQuery } from '../api/queries/cobros.queries';
@@ -34,8 +36,8 @@ export const ReparacionDetallePage = () => {
   const reparacionId = Number(id);
   const navigate = useNavigate();
 
-  const { data: reparaciones, isLoading } = useReparacionesEnriquecidas();
-  const { data: equipos } = useEquiposEnriquecidos();
+  const { data: rep, isLoading } = useReparacionQuery(reparacionId);
+  const { data: equipos = [] } = useEquiposOptions();
   const { data: repuestos = [] } = useRepuestosPorReparacionQuery(reparacionId);
   const { data: presupuestos = [] } = usePresupuestosQuery(reparacionId);
   const { cobros: cobrosHabilitado } = useFunciones();
@@ -63,7 +65,6 @@ export const ReparacionDetallePage = () => {
     setRepuestoOpen(true);
   };
 
-  const rep = useMemo(() => reparaciones.find((r) => r.id === reparacionId), [reparaciones, reparacionId]);
   const totalRepuestos = useMemo(() => repuestos.reduce((sum, r) => sum + (r.precio ?? 0), 0), [repuestos]);
 
   if (isLoading) {
@@ -91,8 +92,8 @@ export const ReparacionDetallePage = () => {
   }
 
   const meta = ESTADOS[rep.estado];
-  const cliente = rep.equipo?.cliente;
-  const equipoNombre = rep.equipo ? `${rep.equipo.marca} ${rep.equipo.modelo}` : `Equipo #${rep.equipoId}`;
+  const clienteTelefono = rep.clienteTelefono ?? null;
+  const equipoNombre = equipoLabel(rep);
   const next = meta.next;
 
   const handleEstadoSelect = (estado: EstadoReparacion) => {
@@ -150,23 +151,6 @@ export const ReparacionDetallePage = () => {
                 <div className="mb-1.5 text-[12px] font-extrabold uppercase tracking-wide text-text-3">Problema reportado</div>
                 <div className="text-[15px] leading-relaxed">{rep.descripcionProblema}</div>
               </div>
-
-              {rep.equipo && (rep.equipo.imei || rep.equipo.color) && (
-                <div className="mt-4 flex flex-wrap gap-x-8 gap-y-2 border-t border-border pt-4 text-[13.5px]">
-                  {rep.equipo.color && (
-                    <div>
-                      <span className="text-text-3">Color: </span>
-                      <span className="font-semibold">{rep.equipo.color}</span>
-                    </div>
-                  )}
-                  {rep.equipo.imei && (
-                    <div>
-                      <span className="text-text-3">IMEI: </span>
-                      <span className="font-mono font-semibold">{rep.equipo.imei}</span>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
 
             {/* Repuestos */}
@@ -425,13 +409,11 @@ export const ReparacionDetallePage = () => {
             <div className={`${card} p-5`}>
               <div className="mb-4 flex items-center gap-3">
                 <div className="grid h-11 w-11 flex-shrink-0 place-items-center rounded-full bg-primary-soft text-[15px] font-extrabold text-primary-soft-fg">
-                  {iniciales(cliente?.nombre, cliente?.apellido)}
+                  {iniciales(rep.clienteNombre, rep.clienteApellido)}
                 </div>
                 <div className="min-w-0">
-                  <div className="truncate text-[15px] font-extrabold">
-                    {cliente ? `${cliente.nombre} ${cliente.apellido}` : 'Sin cliente'}
-                  </div>
-                  {cliente?.telefono && <div className="font-mono text-[12.5px] text-text-3">{cliente.telefono}</div>}
+                  <div className="truncate text-[15px] font-extrabold">{clienteLabel(rep)}</div>
+                  {clienteTelefono && <div className="font-mono text-[12.5px] text-text-3">{clienteTelefono}</div>}
                 </div>
               </div>
               <div className="flex flex-col gap-2.5">
@@ -479,9 +461,9 @@ export const ReparacionDetallePage = () => {
               )}
               <button
                 onClick={avisarWhatsapp}
-                disabled={!cliente?.telefono}
+                disabled={!clienteTelefono}
                 className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-border-strong bg-surface py-2.5 text-[14px] font-bold text-text transition hover:bg-surface-2 disabled:opacity-50"
-                title={cliente?.telefono ? 'Avisar por WhatsApp' : 'El cliente no tiene teléfono'}
+                title={clienteTelefono ? 'Avisar por WhatsApp' : 'El cliente no tiene teléfono'}
               >
                 <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 11.5a8.4 8.4 0 0 1-12.3 7.5L3 21l2-5.7A8.4 8.4 0 1 1 21 11.5z" />

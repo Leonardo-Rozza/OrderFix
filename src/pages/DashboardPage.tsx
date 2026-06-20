@@ -1,21 +1,13 @@
-import { useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { EstadoBadge } from '../components/EstadoBadge';
 import { btnPrimary } from '../components/ui';
-import { formatMoney } from '../utils/format';
 import { ESTADOS_LIST } from '../config/estados';
-import { useReparacionesEnriquecidas } from '../hooks/useEnriched';
-import type { ReparacionEnriquecida } from '../hooks/useEnriched';
-import { useClientesQuery } from '../api/queries/clientes.queries';
+import { formatMoney } from '../utils/format';
+import { equipoLabel, clienteLabel } from '../utils/reparacion';
 import { useDashboardQuery } from '../api/queries/dashboard.queries';
+import { useClientesQuery } from '../api/queries/clientes.queries';
 import { useAuth } from '../store/auth.store';
-import { computeDashboardMetrics } from './dashboard.metrics';
-
-const equipoLabel = (r: ReparacionEnriquecida) =>
-  r.equipo ? `${r.equipo.marca} ${r.equipo.modelo}` : `Equipo #${r.equipoId}`;
-const clienteLabel = (r: ReparacionEnriquecida) =>
-  r.equipo?.cliente ? `${r.equipo.cliente.nombre} ${r.equipo.cliente.apellido}` : 'Sin cliente';
 
 interface KpiProps {
   label: string;
@@ -44,33 +36,20 @@ const Kpi = ({ label, value, hint, iconD, iconBg, iconFg }: KpiProps) => (
 export const DashboardPage = () => {
   const navigate = useNavigate();
   const { email } = useAuth();
-  const { data: reparaciones, isLoading } = useReparacionesEnriquecidas();
-  const { data: clientes = [] } = useClientesQuery();
-  const { data: stats } = useDashboardQuery();
-
-  // Métricas: si el backend respondió, son la fuente autoritativa; si no, fallback client-side.
-  const fallback = useMemo(() => computeDashboardMetrics(reparaciones), [reparaciones]);
-  const recientes = useMemo(
-    () => [...reparaciones].sort((a, b) => b.id - a.id).slice(0, 5),
-    [reparaciones]
-  );
+  const { data: stats, isLoading } = useDashboardQuery();
+  const { data: clientesPage } = useClientesQuery({ page: 0, size: 1 });
 
   const counts = stats?.reparacionesPorEstado;
-  const total = stats?.totalReparaciones ?? reparaciones.length;
-  const activas = counts ? total - (counts.ENTREGADO ?? 0) : fallback.activas;
-  const equiposListos = stats?.equiposListos ?? fallback.sinRetirar;
-  const delMes = stats?.reparacionesEsteMes ?? reparaciones.length;
-  const bars = ESTADOS_LIST.map((e) => {
-    const count = counts ? (counts[e.key] ?? 0) : (fallback.counts[e.key] ?? 0);
-    return { meta: e, count, pct: total > 0 ? Math.round((count / total) * 100) : 0 };
-  });
+  const total = stats?.totalReparaciones ?? 0;
+  const activas = total - (counts?.ENTREGADO ?? 0);
+  const recientes = stats?.ultimasReparaciones ?? [];
+  const clientesTotal = clientesPage?.page?.totalElements ?? 0;
 
   const nombre = email ? email.split('@')[0] : 'taller';
 
   return (
     <DashboardLayout title="Inicio">
       <div className="ofx-in mx-auto max-w-[1180px] space-y-4">
-        {/* Encabezado */}
         <div className="flex flex-wrap items-center gap-3">
           <div>
             <h1 className="text-[22px] font-extrabold tracking-tight">Hola, {nombre} 👋</h1>
@@ -84,7 +63,6 @@ export const DashboardPage = () => {
           </button>
         </div>
 
-        {/* KPIs */}
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
           <Kpi
             label="Reparaciones activas"
@@ -96,7 +74,7 @@ export const DashboardPage = () => {
           />
           <Kpi
             label="Equipos sin retirar"
-            value={String(equiposListos)}
+            value={String(stats?.equiposListos ?? 0)}
             hint="Listos para entregar"
             iconBg="var(--st-completado-bg)"
             iconFg="var(--st-completado)"
@@ -104,7 +82,7 @@ export const DashboardPage = () => {
           />
           <Kpi
             label="Reparaciones del mes"
-            value={String(delMes)}
+            value={String(stats?.reparacionesEsteMes ?? 0)}
             hint="Ingresadas este mes"
             iconBg="var(--primary-soft)"
             iconFg="var(--primary)"
@@ -112,7 +90,7 @@ export const DashboardPage = () => {
           />
           <Kpi
             label="Clientes"
-            value={String(clientes.length)}
+            value={String(clientesTotal)}
             hint="Cartera total"
             iconBg="var(--st-ingresado-bg)"
             iconFg="var(--st-ingresado)"
@@ -120,7 +98,6 @@ export const DashboardPage = () => {
           />
         </div>
 
-        {/* Recientes + por estado */}
         <div className="grid grid-cols-1 items-start gap-3.5 lg:grid-cols-[1.6fr_1fr]">
           {/* Ingresos recientes */}
           <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
@@ -164,9 +141,7 @@ export const DashboardPage = () => {
                   <div className="hidden sm:block">
                     <EstadoBadge estado={r.estado} />
                   </div>
-                  <div className="w-[84px] text-right font-mono text-[13.5px] font-bold">
-                    {formatMoney(r.precioFinal ?? r.precioEstimado)}
-                  </div>
+                  <div className="w-[84px] text-right font-mono text-[13.5px] font-bold">{formatMoney(r.precioFinal ?? r.precioEstimado)}</div>
                 </div>
               ))
             )}
@@ -175,20 +150,24 @@ export const DashboardPage = () => {
           {/* Reparaciones por estado */}
           <div className="rounded-2xl border border-border bg-surface p-[18px] shadow-sm">
             <div className="mb-3.5 text-[15px] font-extrabold">Reparaciones por estado</div>
-            {bars.map((s) => (
-              <div key={s.meta.key} className="mb-3.5 last:mb-0">
-                <div className="mb-1.5 flex items-center justify-between text-[13px]">
-                  <span className="inline-flex items-center gap-2 font-bold">
-                    <span className="h-2.5 w-2.5 rounded" style={{ background: s.meta.cssVar }} />
-                    {s.meta.label}
-                  </span>
-                  <span className="font-mono font-extrabold">{s.count}</span>
+            {ESTADOS_LIST.map((meta) => {
+              const count = counts?.[meta.key] ?? 0;
+              const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+              return (
+                <div key={meta.key} className="mb-3.5 last:mb-0">
+                  <div className="mb-1.5 flex items-center justify-between text-[13px]">
+                    <span className="inline-flex items-center gap-2 font-bold">
+                      <span className="h-2.5 w-2.5 rounded" style={{ background: meta.cssVar }} />
+                      {meta.label}
+                    </span>
+                    <span className="font-mono font-extrabold">{count}</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-surface-3">
+                    <div className="h-full rounded-full" style={{ width: `${pct}%`, background: meta.cssVar }} />
+                  </div>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-surface-3">
-                  <div className="h-full rounded-full" style={{ width: `${s.pct}%`, background: s.meta.cssVar }} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
             <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
               <div className="text-[12.5px] font-semibold text-text-2">Total reparaciones</div>
               <div className="font-mono text-[20px] font-extrabold tracking-tight">{total}</div>

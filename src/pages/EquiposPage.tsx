@@ -1,28 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { EquipoFormModal } from '../components/EquipoFormModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { Pagination } from '../components/Pagination';
 import { btnPrimary } from '../components/ui';
 import { iniciales } from '../utils/format';
-import { useEquiposEnriquecidos } from '../hooks/useEnriched';
-import type { EquipoEnriquecido } from '../hooks/useEnriched';
-import { useClientesQuery } from '../api/queries/clientes.queries';
+import { useListParams } from '../hooks/useListParams';
+import { useEquiposQuery } from '../api/queries/equipos.queries';
+import { useClientesOptions } from '../api/queries/clientes.queries';
 import { useDeleteEquipoMutation } from '../api/mutations/equipos.mutations';
 import { useAuth } from '../store/auth.store';
 import type { Equipo } from '../types';
 
-const clienteLabel = (e: EquipoEnriquecido) =>
-  e.cliente ? `${e.cliente.nombre} ${e.cliente.apellido}` : 'Sin cliente';
-
-const matches = (e: EquipoEnriquecido, q: string) => {
-  if (!q) return true;
-  const t = q.toLowerCase();
-  return (
-    `${e.marca} ${e.modelo}`.toLowerCase().includes(t) ||
-    (e.imei ?? '').toLowerCase().includes(t) ||
-    clienteLabel(e).toLowerCase().includes(t)
-  );
-};
+const clienteLabel = (e: Equipo) =>
+  e.clienteNombre ? `${e.clienteNombre} ${e.clienteApellido ?? ''}`.trim() : 'Sin cliente';
 
 const deviceIcon = (
   <svg viewBox="0 0 24 24" width={22} height={22} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -32,17 +23,17 @@ const deviceIcon = (
 );
 
 export const EquiposPage = () => {
-  const { data: equipos, isLoading } = useEquiposEnriquecidos();
-  const { data: clientes = [] } = useClientesQuery();
+  const { q, onSearch, page, setPage, debouncedQ, size } = useListParams();
+  const { data, isLoading } = useEquiposQuery({ q: debouncedQ, page, size });
+  const { data: clientes = [] } = useClientesOptions();
   const { isAdmin } = useAuth();
   const deleteMutation = useDeleteEquipoMutation();
 
-  const [search, setSearch] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Equipo | null>(null);
-  const [toDelete, setToDelete] = useState<EquipoEnriquecido | null>(null);
+  const [toDelete, setToDelete] = useState<Equipo | null>(null);
 
-  const filtrados = useMemo(() => equipos.filter((e) => matches(e, search)), [equipos, search]);
+  const equipos = data?.content ?? [];
 
   const openNew = () => {
     setEditing(null);
@@ -61,15 +52,14 @@ export const EquiposPage = () => {
   return (
     <DashboardLayout title="Equipos">
       <div className="ofx-in mx-auto max-w-[1100px] space-y-4">
-        {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative min-w-[180px] max-w-[360px] flex-1">
             <svg viewBox="0 0 24 24" width={17} height={17} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-2.5">
               <path d="m21 21-4.3-4.3M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z" />
             </svg>
             <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={q}
+              onChange={(e) => onSearch(e.target.value)}
               placeholder="Buscar por modelo, IMEI o cliente…"
               className="w-full rounded-lg border border-border-strong bg-surface py-2 pl-9 pr-3 text-[13.5px] text-text outline-none transition placeholder:text-text-3 focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)]"
             />
@@ -82,27 +72,23 @@ export const EquiposPage = () => {
           </button>
         </div>
 
-        {/* Grilla */}
         {isLoading ? (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="ofx-skel h-[150px] rounded-2xl" />
             ))}
           </div>
-        ) : filtrados.length === 0 ? (
+        ) : equipos.length === 0 ? (
           <div className="rounded-2xl border border-border bg-surface py-12 text-center">
             <div className="text-[15px] font-extrabold">Sin equipos</div>
             <div className="mt-1 text-[13px] text-text-3">
-              {search ? 'Probá con otra búsqueda.' : 'Registrá el primer equipo de un cliente.'}
+              {debouncedQ ? 'Probá con otra búsqueda.' : 'Registrá el primer equipo de un cliente.'}
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
-            {filtrados.map((e) => (
-              <div
-                key={e.id}
-                className="group flex flex-col rounded-2xl border border-border bg-surface p-4 shadow-sm transition hover:border-border-strong"
-              >
+            {equipos.map((e) => (
+              <div key={e.id} className="group flex flex-col rounded-2xl border border-border bg-surface p-4 shadow-sm transition hover:border-border-strong">
                 <div className="flex items-start gap-3">
                   <span className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-xl bg-surface-3 text-text-2">{deviceIcon}</span>
                   <div className="min-w-0 flex-1">
@@ -141,7 +127,7 @@ export const EquiposPage = () => {
 
                 <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
                   <div className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-full bg-primary-soft text-[11px] font-extrabold text-primary-soft-fg">
-                    {iniciales(e.cliente?.nombre, e.cliente?.apellido)}
+                    {iniciales(e.clienteNombre, e.clienteApellido)}
                   </div>
                   <span className="truncate text-[13px] font-semibold text-text-2">{clienteLabel(e)}</span>
                   {!!e.reparacionesCount && (
@@ -154,6 +140,8 @@ export const EquiposPage = () => {
             ))}
           </div>
         )}
+
+        <Pagination meta={data?.page} onChange={setPage} />
       </div>
 
       <EquipoFormModal isOpen={formOpen} onClose={() => setFormOpen(false)} editing={editing} clientes={clientes} />

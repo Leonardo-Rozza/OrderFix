@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../axios';
+import type { Page } from '../pagination';
 import type {
   EstadoReparacion,
   IngresoRapidoRequest,
@@ -101,17 +102,16 @@ export const useCambiarEstadoMutation = () => {
     mutationFn: cambiarEstado,
     onMutate: async ({ id, estado }) => {
       await queryClient.cancelQueries({ queryKey: ['reparaciones'] });
-      const prev = queryClient.getQueryData<Reparacion[]>(['reparaciones']);
-      if (prev) {
-        queryClient.setQueryData<Reparacion[]>(
-          ['reparaciones'],
-          prev.map((r) => (r.id === id ? { ...r, estado } : r))
-        );
-      }
+      // Snapshot de todas las páginas cacheadas y update optimista en cada una.
+      const prev = queryClient.getQueriesData<Page<Reparacion>>({ queryKey: ['reparaciones'] });
+      queryClient.setQueriesData<Page<Reparacion>>({ queryKey: ['reparaciones'] }, (old) =>
+        old ? { ...old, content: old.content.map((r) => (r.id === id ? { ...r, estado } : r)) } : old
+      );
+      queryClient.setQueryData<Reparacion>(['reparacion', id], (old) => (old ? { ...old, estado } : old));
       return { prev };
     },
     onError: (error, _vars, context) => {
-      if (context?.prev) queryClient.setQueryData(['reparaciones'], context.prev);
+      context?.prev?.forEach(([key, data]) => queryClient.setQueryData(key, data));
       showError(getErrorMessage(error, 'No se pudo cambiar el estado'));
     },
     onSuccess: (data) => {

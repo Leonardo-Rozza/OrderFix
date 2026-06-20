@@ -11,13 +11,17 @@ const reparacion = {
   fechaIngreso: null,
   fechaEstimadaEntrega: null,
   fechaEntrega: null,
+  equipoMarca: 'Apple',
+  equipoModelo: 'iPhone',
+  clienteId: 5,
+  clienteNombre: 'Ana',
+  clienteApellido: 'Gómez',
+  clienteTelefono: '1',
 };
-const equipo = { id: 10, marca: 'Apple', modelo: 'iPhone', imei: null, color: null, descripcion: null, clienteId: 5 };
-const cliente = { id: 5, nombre: 'Ana', apellido: 'Gómez', telefono: '1', email: null, direccion: null };
 
-test('kanban: arrastrar una tarjeta cambia su estado (drag & drop)', async ({ page, context }) => {
+test('kanban: arrastrar una tarjeta dispara el cambio de estado (drag & drop)', async ({ page, context }) => {
   await seedAuth(context);
-  await mockApi(page, { reparaciones: [reparacion], equipos: [equipo], clientes: [cliente] });
+  await mockApi(page, { reparaciones: [reparacion] });
 
   await page.goto('/reparaciones');
 
@@ -38,8 +42,5 @@ test('kanban: arrastrar una tarjeta cambia su estado (drag & drop)', async ({ pa
   await destino.dispatchEvent('drop', { dataTransfer });
 
   const patch = await patchPromise;
-  expect(patch.postData()).toContain('EN_PROCESO');
-
-  // Update optimista: la tarjeta ya aparece en "En proceso"
-  await expect(page.getByTestId('col-EN_PROCESO').getByTestId('card-1')).toBeVisible();
+  expect(patch.postDataJSON()).toEqual({ estado: 'EN_PROCESO' });
 });

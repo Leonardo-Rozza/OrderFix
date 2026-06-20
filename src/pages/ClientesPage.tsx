@@ -1,40 +1,32 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { ClienteFormModal } from '../components/ClienteFormModal';
 import { ClienteFichaModal } from '../components/ClienteFichaModal';
 import { EquipoFormModal } from '../components/EquipoFormModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { Pagination } from '../components/Pagination';
 import { btnPrimary } from '../components/ui';
 import { iniciales, formatDate } from '../utils/format';
-import { useClientesEnriquecidos } from '../hooks/useEnriched';
-import type { ClienteEnriquecido } from '../hooks/useEnriched';
+import { useListParams } from '../hooks/useListParams';
+import { useClientesQuery, useClientesOptions } from '../api/queries/clientes.queries';
 import { useDeleteClienteMutation } from '../api/mutations/clientes.mutations';
 import { useAuth } from '../store/auth.store';
 import type { Cliente } from '../types';
 
-const matches = (c: ClienteEnriquecido, q: string) => {
-  if (!q) return true;
-  const t = q.toLowerCase();
-  return (
-    `${c.nombre} ${c.apellido}`.toLowerCase().includes(t) ||
-    c.telefono.toLowerCase().includes(t) ||
-    (c.email ?? '').toLowerCase().includes(t)
-  );
-};
-
 export const ClientesPage = () => {
-  const { data: clientes, isLoading } = useClientesEnriquecidos();
+  const { q, onSearch, page, setPage, debouncedQ, size } = useListParams();
+  const { data, isLoading } = useClientesQuery({ q: debouncedQ, page, size });
+  const { data: clientesOptions = [] } = useClientesOptions();
   const { isAdmin } = useAuth();
   const deleteMutation = useDeleteClienteMutation();
 
-  const [search, setSearch] = useState('');
-  const [ficha, setFicha] = useState<ClienteEnriquecido | null>(null);
+  const [ficha, setFicha] = useState<Cliente | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Cliente | null>(null);
-  const [equipoFor, setEquipoFor] = useState<ClienteEnriquecido | null>(null);
-  const [toDelete, setToDelete] = useState<ClienteEnriquecido | null>(null);
+  const [equipoFor, setEquipoFor] = useState<Cliente | null>(null);
+  const [toDelete, setToDelete] = useState<Cliente | null>(null);
 
-  const filtrados = useMemo(() => clientes.filter((c) => matches(c, search)), [clientes, search]);
+  const clientes = data?.content ?? [];
 
   const openNew = () => {
     setEditing(null);
@@ -55,15 +47,14 @@ export const ClientesPage = () => {
   return (
     <DashboardLayout title="Clientes">
       <div className="ofx-in mx-auto max-w-[1100px] space-y-4">
-        {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative min-w-[180px] max-w-[360px] flex-1">
             <svg viewBox="0 0 24 24" width={17} height={17} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-2.5">
               <path d="m21 21-4.3-4.3M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z" />
             </svg>
             <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={q}
+              onChange={(e) => onSearch(e.target.value)}
               placeholder="Buscar cliente por nombre, tel o email…"
               className="w-full rounded-lg border border-border-strong bg-surface py-2 pl-9 pr-3 text-[13.5px] text-text outline-none transition placeholder:text-text-3 focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)]"
             />
@@ -76,7 +67,6 @@ export const ClientesPage = () => {
           </button>
         </div>
 
-        {/* Tabla */}
         <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
           <div className="flex items-center gap-3 border-b border-border px-4 py-3 text-[11.5px] font-extrabold uppercase tracking-wide text-text-3">
             <div className="min-w-0 flex-[1.6]">Cliente</div>
@@ -93,15 +83,15 @@ export const ClientesPage = () => {
                 <div className="ofx-skel h-4 flex-1 rounded" />
               </div>
             ))
-          ) : filtrados.length === 0 ? (
+          ) : clientes.length === 0 ? (
             <div className="py-12 text-center">
               <div className="text-[15px] font-extrabold">Sin clientes</div>
               <div className="mt-1 text-[13px] text-text-3">
-                {search ? 'Probá con otra búsqueda.' : 'Cargá tu primer cliente para empezar.'}
+                {debouncedQ ? 'Probá con otra búsqueda.' : 'Cargá tu primer cliente para empezar.'}
               </div>
             </div>
           ) : (
-            filtrados.map((c) => (
+            clientes.map((c) => (
               <div
                 key={c.id}
                 onClick={() => setFicha(c)}
@@ -119,13 +109,15 @@ export const ClientesPage = () => {
                   <div className="truncate font-mono text-[13px] text-text-2">{c.telefono}</div>
                   <div className="truncate text-[12px] text-text-3">{c.email || '—'}</div>
                 </div>
-                <div className="w-[70px] text-center font-mono text-[14px] font-extrabold">{c.equipos.length}</div>
-                <div className="hidden w-[70px] text-center font-mono text-[13px] font-bold text-text-2 sm:block">{c.reparaciones.length}</div>
+                <div className="w-[70px] text-center font-mono text-[14px] font-extrabold">{c.equiposCount ?? 0}</div>
+                <div className="hidden w-[70px] text-center font-mono text-[13px] font-bold text-text-2 sm:block">{c.reparacionesCount ?? 0}</div>
                 <div className="w-[90px] text-right font-mono text-[12.5px] text-text-3">{formatDate(c.ultimaVisita)}</div>
               </div>
             ))
           )}
         </div>
+
+        <Pagination meta={data?.page} onChange={setPage} />
       </div>
 
       <ClienteFichaModal
@@ -149,7 +141,7 @@ export const ClientesPage = () => {
         isOpen={!!equipoFor}
         onClose={() => setEquipoFor(null)}
         editing={null}
-        clientes={clientes}
+        clientes={clientesOptions}
         defaultClienteId={equipoFor?.id}
       />
 

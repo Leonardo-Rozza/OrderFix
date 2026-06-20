@@ -1,16 +1,16 @@
 import { Modal } from './Modal';
 import { btnGhost, btnPrimary, btnDanger } from './ui';
 import { iniciales, formatDate, whatsappLink } from '../utils/format';
-import type { ClienteEnriquecido } from '../hooks/useEnriched';
+import { useEquiposPorClienteQuery } from '../api/queries/equipos.queries';
+import type { Cliente } from '../types';
 
 interface Props {
   isOpen: boolean;
-  cliente: ClienteEnriquecido | null;
+  cliente: Cliente | null;
   onClose: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onNuevoEquipo: () => void;
-  /** Solo ADMIN puede eliminar. */
   canDelete?: boolean;
 }
 
@@ -30,6 +30,8 @@ const deviceIcon = (
 
 /** Ficha de un cliente: stats + sus equipos + acciones. */
 export const ClienteFichaModal = ({ isOpen, cliente, onClose, onEdit, onDelete, onNuevoEquipo, canDelete = true }: Props) => {
+  const { data: equipos = [] } = useEquiposPorClienteQuery(isOpen ? cliente?.id : undefined);
+
   if (!cliente) return null;
 
   const nombre = `${cliente.nombre} ${cliente.apellido}`;
@@ -38,7 +40,6 @@ export const ClienteFichaModal = ({ isOpen, cliente, onClose, onEdit, onDelete, 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Ficha de cliente" size="md">
       <div className="space-y-5">
-        {/* Encabezado */}
         <div className="flex items-center gap-3.5">
           <div className="grid shrink-0 place-items-center rounded-full bg-primary-soft text-[18px] font-extrabold text-primary-soft-fg" style={{ width: 52, height: 52 }}>
             {iniciales(cliente.nombre, cliente.apellido)}
@@ -50,14 +51,12 @@ export const ClienteFichaModal = ({ isOpen, cliente, onClose, onEdit, onDelete, 
           </div>
         </div>
 
-        {/* Stats */}
         <div className="flex gap-2.5">
-          <Stat value={String(cliente.equipos.length)} label="Equipos" />
-          <Stat value={String(cliente.reparaciones.length)} label="Reparaciones" />
+          <Stat value={String(cliente.equiposCount ?? equipos.length)} label="Equipos" />
+          <Stat value={String(cliente.reparacionesCount ?? 0)} label="Reparaciones" />
           <Stat value={formatDate(cliente.ultimaVisita)} label="Última visita" />
         </div>
 
-        {/* Equipos del cliente */}
         <div>
           <div className="mb-2.5 flex items-center justify-between">
             <span className="text-[11.5px] font-extrabold uppercase tracking-wide text-text-3">Equipos del cliente</span>
@@ -65,13 +64,13 @@ export const ClienteFichaModal = ({ isOpen, cliente, onClose, onEdit, onDelete, 
               + Agregar equipo
             </button>
           </div>
-          {cliente.equipos.length === 0 ? (
+          {equipos.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border py-5 text-center text-[12.5px] text-text-3">
               Este cliente todavía no tiene equipos.
             </div>
           ) : (
             <div className="space-y-2">
-              {cliente.equipos.map((e) => (
+              {equipos.map((e) => (
                 <div key={e.id} className="flex items-center gap-3 rounded-xl border border-border p-2.5">
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface-3 text-text-2">{deviceIcon}</span>
                   <div className="min-w-0">
@@ -86,7 +85,6 @@ export const ClienteFichaModal = ({ isOpen, cliente, onClose, onEdit, onDelete, 
           )}
         </div>
 
-        {/* Acciones */}
         <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-between">
           {canDelete ? (
             <button type="button" className={btnDanger} onClick={onDelete}>

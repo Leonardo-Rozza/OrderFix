@@ -96,6 +96,8 @@ export interface DashboardStats {
   plan: Plan;
   estadoSuscripcion: EstadoSuscripcion;
   limiteReparacionesMes: number | null;
+  articulosStockBajo?: number;
+  ultimasReparaciones?: Reparacion[];
 }
 
 // ========== CLIENTE ==========
@@ -106,6 +108,10 @@ export interface Cliente {
   telefono: string;
   email: string | null;
   direccion: string | null;
+  // Agregados denormalizados por el backend en el listado
+  equiposCount?: number;
+  reparacionesCount?: number;
+  ultimaVisita?: string | null;
 }
 
 export interface ClienteCreate {
@@ -129,8 +135,11 @@ export interface Equipo {
   color: string | null;
   descripcion: string | null;
   clienteId: number;
-  // Enriquecido en el front (join client-side); el backend no lo anida
-  cliente?: Cliente;
+  // Denormalizado por el backend en el listado
+  clienteNombre?: string;
+  clienteApellido?: string;
+  clienteTelefono?: string;
+  reparacionesCount?: number;
 }
 
 export interface EquipoCreate {
@@ -176,8 +185,13 @@ export interface Reparacion {
   tecnicoId?: number | null;
   tecnicoNombre?: string | null;
   fotos?: string[];
-  // Enriquecido en el front (join client-side)
-  equipo?: Equipo;
+  // Denormalizado por el backend (equipo + cliente del equipo)
+  equipoMarca?: string;
+  equipoModelo?: string;
+  clienteId?: number;
+  clienteNombre?: string;
+  clienteApellido?: string;
+  clienteTelefono?: string;
 }
 
 // ========== PRESUPUESTOS ==========
@@ -276,6 +290,8 @@ export interface Repuesto {
   reparacionId: number | null;
   articuloId?: number | null;
   cantidad?: number | null;
+  // Denormalizado: equipo de la reparación asociada (ej: "Samsung A52")
+  reparacionEquipo?: string | null;
 }
 
 export interface RepuestoCreate {

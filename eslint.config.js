@@ -19,5 +19,11 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // El compilador de React no puede optimizar componentes que usan react-hook-form
+      // ("Compilation Skipped: incompatible library"); es informativo y benigno.
+      // Se mantienen rules-of-hooks y exhaustive-deps.
+      'react-hooks/incompatible-library': 'off',
+    },
   },
 ])

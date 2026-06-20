@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../axios';
+import { unwrapList, FETCH_ALL_PARAMS, type Page } from '../pagination';
 import type { Cliente } from '../../types';
 
-// Obtener todos los clientes
+// Obtener todos los clientes (la respuesta puede venir paginada)
 const fetchClientes = async (): Promise<Cliente[]> => {
-  const { data } = await apiClient.get<Cliente[]>('/clientes');
-  return data;
+  const { data } = await apiClient.get<Cliente[] | Page<Cliente>>('/clientes', { params: FETCH_ALL_PARAMS });
+  return unwrapList(data);
 };
 
 // Hook para obtener clientes

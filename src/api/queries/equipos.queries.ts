@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../axios';
+import { unwrapList, FETCH_ALL_PARAMS, type Page } from '../pagination';
 import type { Equipo } from '../../types';
 
-// Obtener todos los equipos
+// Obtener todos los equipos (la respuesta puede venir paginada)
 const fetchEquipos = async (): Promise<Equipo[]> => {
-  const { data } = await apiClient.get<Equipo[]>('/equipos');
-  return data;
+  const { data } = await apiClient.get<Equipo[] | Page<Equipo>>('/equipos', { params: FETCH_ALL_PARAMS });
+  return unwrapList(data);
 };
 
 // Hook para obtener equipos

@@ -25,7 +25,7 @@ export interface ClienteEnriquecido extends Cliente {
 }
 
 const byId = <T extends { id: number }>(items: T[] | undefined) =>
-  new Map((items ?? []).map((item) => [item.id, item]));
+  new Map((Array.isArray(items) ? items : []).map((item) => [item.id, item]));
 
 /** Equipos con su cliente embebido y la cantidad de reparaciones asociadas. */
 export const useEquiposEnriquecidos = () => {

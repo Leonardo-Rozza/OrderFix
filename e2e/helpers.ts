@@ -68,6 +68,22 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
     if (pathname.endsWith('/api/repuestos') && method === 'GET') return route.fulfill({ json: pageOf(repuestos) });
     if (pathname.includes('/api/repuestos/reparacion/')) return route.fulfill({ json: pageOf([]) });
 
+    // Seguimiento público
+    if (pathname.includes('/api/seguimiento/')) {
+      return route.fulfill({
+        json: {
+          codigo: 'ABC123',
+          estado: 'EN_PROCESO',
+          marca: 'Apple',
+          modelo: 'iPhone 13',
+          taller: 'MVGR Reparaciones',
+          fechaIngreso: '2026-06-10',
+          fechaEstimadaEntrega: '2026-06-20',
+          presupuesto: 50000,
+        },
+      });
+    }
+
     // Dashboard
     if (pathname.endsWith('/api/dashboard')) {
       return route.fulfill({

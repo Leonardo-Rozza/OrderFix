@@ -133,8 +133,32 @@ export interface Reparacion {
   fechaIngreso: string | null;
   fechaEstimadaEntrega: string | null;
   fechaEntrega: string | null;
+  // Agregados por el backend (orden de trabajo ampliada / seguimiento)
+  codigoSeguimiento?: string | null;
+  total?: number | null;
+  totalRepuestos?: number | null;
   // Enriquecido en el front (join client-side)
   equipo?: Equipo;
+}
+
+// Seguimiento público del equipo (GET /api/seguimiento/{codigo}, sin token)
+export interface Seguimiento {
+  codigo: string;
+  estado: EstadoReparacion;
+  marca: string;
+  modelo: string;
+  taller: string;
+  fechaIngreso: string | null;
+  fechaEstimadaEntrega: string | null;
+  presupuesto: number | null;
+}
+
+// Respuesta del link de WhatsApp armado por el backend (GET /api/reparaciones/{id}/whatsapp)
+export interface WhatsappLink {
+  url: string;
+  telefono: string;
+  mensaje: string;
+  linkSeguimiento: string;
 }
 
 export interface ReparacionCreate {

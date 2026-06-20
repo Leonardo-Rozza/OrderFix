@@ -11,6 +11,7 @@ import { ReparacionDetallePage } from '../pages/ReparacionDetallePage';
 import { RepuestosPage } from '../pages/RepuestosPage';
 import { PlanesPage } from '../pages/PlanesPage';
 import { SuscripcionResultadoPage } from '../pages/SuscripcionResultadoPage';
+import { SeguimientoPage } from '../pages/SeguimientoPage';
 
 // Configuración de rutas
 const appRoutes = [
@@ -93,6 +94,11 @@ const appRoutes = [
         <SuscripcionResultadoPage />
       </ProtectedRoute>
     ),
+  },
+  {
+    // Seguimiento público: accesible sin sesión (lo abre el cliente del taller)
+    path: '/seguimiento/:codigo',
+    element: <SeguimientoPage />,
   },
   {
     path: '/',

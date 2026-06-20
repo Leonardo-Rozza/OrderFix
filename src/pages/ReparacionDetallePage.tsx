@@ -8,7 +8,9 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Loader } from '../components/Loader';
 import { btnGhost, btnDanger, card } from '../components/ui';
 import { ESTADOS, ESTADOS_LIST } from '../config/estados';
-import { formatMoney, formatDate, iniciales, whatsappLink } from '../utils/format';
+import { formatMoney, formatDate, iniciales } from '../utils/format';
+import { apiClient } from '../api/axios';
+import type { WhatsappLink } from '../types';
 import { useReparacionesEnriquecidas, useEquiposEnriquecidos } from '../hooks/useEnriched';
 import { useRepuestosPorReparacionQuery } from '../api/queries/repuestos.queries';
 import {
@@ -83,9 +85,17 @@ export const ReparacionDetallePage = () => {
     if (estado !== rep.estado) cambiarEstado.mutate({ id: rep.id, estado });
   };
 
-  const avisarWhatsapp = () => {
-    const msg = `Hola ${cliente?.nombre ?? ''}, tu ${equipoNombre} (orden #${rep.id}) está ${meta.label.toLowerCase()}. ¡Gracias!`;
-    window.open(whatsappLink(cliente?.telefono, msg), '_blank', 'noopener,noreferrer');
+  // El backend arma el mensaje + link de seguimiento; abrimos la pestaña en el
+  // click (gesto del usuario) y la redirigimos cuando llega la URL.
+  const avisarWhatsapp = async () => {
+    const win = window.open('', '_blank');
+    try {
+      const { data } = await apiClient.get<WhatsappLink>(`/reparaciones/${rep.id}/whatsapp`);
+      if (win) win.location.href = data.url;
+      else window.location.href = data.url;
+    } catch {
+      win?.close();
+    }
   };
 
   return (
@@ -269,6 +279,23 @@ export const ReparacionDetallePage = () => {
                 Avisar al cliente
               </button>
             </div>
+
+            {rep.codigoSeguimiento && (
+              <div className={`${card} p-4`}>
+                <div className="text-[12px] font-extrabold uppercase tracking-wide text-text-3">Seguimiento del cliente</div>
+                <div className="mt-1.5 flex items-center justify-between gap-2">
+                  <span className="font-mono text-[14px] font-bold">{rep.codigoSeguimiento}</span>
+                  <a
+                    href={`/seguimiento/${rep.codigoSeguimiento}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[12.5px] font-bold text-primary hover:underline"
+                  >
+                    Ver página →
+                  </a>
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-2.5">
               <button className={`${btnGhost} flex-1`} onClick={() => setEditOpen(true)}>

@@ -22,6 +22,15 @@ export const apiClient = axios.create({
   },
 });
 
+/**
+ * Cliente para endpoints públicos (sin token ni interceptores): por ejemplo el
+ * seguimiento público que abren los clientes del taller sin estar logueados.
+ */
+export const publicClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: { 'Content-Type': 'application/json' },
+});
+
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = authStore.getState().token;

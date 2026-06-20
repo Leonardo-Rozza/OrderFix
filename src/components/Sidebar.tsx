@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router';
+import { Link, NavLink } from 'react-router';
 import { Logo } from './Logo';
 import { navItems } from '../config/nav';
 import { useAuth } from '../store/auth.store';
@@ -10,7 +10,9 @@ export const Sidebar = () => {
   return (
     <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-border bg-surface lg:flex">
       <div className="flex h-16 items-center border-b border-border px-5">
-        <Logo size={34} />
+        <Link to="/dashboard" className="rounded-lg transition hover:opacity-80" aria-label="Ir al inicio">
+          <Logo size={34} />
+        </Link>
       </div>
 
       <nav className="ofx-scroll flex-1 space-y-0.5 overflow-y-auto px-3 py-3">

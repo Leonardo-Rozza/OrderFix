@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../store/auth.store';
 import { ThemeToggle } from './ThemeToggle';
 import { Logo } from './Logo';
@@ -21,9 +21,9 @@ export const Navbar = ({ title }: NavbarProps) => {
     <header className="sticky top-0 z-30 h-16 border-b border-border bg-surface/85 backdrop-blur">
       <div className="flex h-full items-center justify-between gap-3 px-4 lg:px-6">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="lg:hidden">
+          <Link to="/dashboard" className="lg:hidden" aria-label="Ir al inicio">
             <Logo size={32} />
-          </div>
+          </Link>
           {title && <h1 className="hidden truncate text-lg font-extrabold tracking-tight lg:block">{title}</h1>}
         </div>
 

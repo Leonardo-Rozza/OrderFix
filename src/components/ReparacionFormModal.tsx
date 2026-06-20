@@ -11,6 +11,8 @@ import {
   useUpdateReparacionMutation,
   useIngresoRapidoMutation,
 } from '../api/mutations/reparaciones.mutations';
+import { useUsuariosQuery } from '../api/queries/usuarios.queries';
+import { useAuth } from '../store/auth.store';
 import type { EquipoEnriquecido } from '../hooks/useEnriched';
 import type { IngresoRapidoRequest, Reparacion, ReparacionCreate, ReparacionUpdate } from '../types';
 
@@ -32,6 +34,14 @@ const schema = z
     precioFinal: z.union([z.number().min(0), z.nan(), z.literal('')]).optional(),
     fechaIngreso: z.string().optional().or(z.literal('')),
     fechaEstimadaEntrega: z.string().optional().or(z.literal('')),
+    // Orden de trabajo ampliada (opcional)
+    patronDesbloqueo: z.string().optional(),
+    pinDesbloqueo: z.string().optional(),
+    accesorios: z.string().optional(),
+    condicionesIngreso: z.string().optional(),
+    observaciones: z.string().optional(),
+    tecnicoId: z.union([z.number(), z.nan()]).optional(),
+    fotosText: z.string().optional(),
   })
   .superRefine((val, ctx) => {
     if (val.modo === 'existente') {
@@ -55,12 +65,20 @@ interface Props {
 
 const num = (v: number | '' | undefined): number | undefined =>
   v === '' || v === undefined || Number.isNaN(v) ? undefined : v;
+const numId = (v: number | undefined): number | undefined =>
+  v === undefined || Number.isNaN(v) ? undefined : v;
 const str = (v: string | undefined): string | undefined => (v && v.trim() !== '' ? v : undefined);
+const fotosArray = (v: string | undefined): string[] | undefined => {
+  const arr = (v ?? '').split('\n').map((s) => s.trim()).filter(Boolean);
+  return arr.length ? arr : undefined;
+};
 
 export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props) => {
   const createMutation = useCreateReparacionMutation();
   const updateMutation = useUpdateReparacionMutation();
   const ingresoRapido = useIngresoRapidoMutation();
+  const { isAdmin } = useAuth();
+  const { data: tecnicos = [] } = useUsuariosQuery(isAdmin);
 
   const saving = createMutation.isPending || updateMutation.isPending || ingresoRapido.isPending;
 
@@ -91,6 +109,13 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props
         precioFinal: editing.precioFinal ?? '',
         fechaIngreso: editing.fechaIngreso ?? '',
         fechaEstimadaEntrega: editing.fechaEstimadaEntrega ?? '',
+        patronDesbloqueo: editing.patronDesbloqueo ?? '',
+        pinDesbloqueo: editing.pinDesbloqueo ?? '',
+        accesorios: editing.accesorios ?? '',
+        condicionesIngreso: editing.condicionesIngreso ?? '',
+        observaciones: editing.observaciones ?? '',
+        tecnicoId: editing.tecnicoId ?? undefined,
+        fotosText: (editing.fotos ?? []).join('\n'),
       });
     } else {
       reset({
@@ -108,9 +133,26 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props
         precioFinal: '',
         fechaIngreso: new Date().toISOString().slice(0, 10),
         fechaEstimadaEntrega: '',
+        patronDesbloqueo: '',
+        pinDesbloqueo: '',
+        accesorios: '',
+        condicionesIngreso: '',
+        observaciones: '',
+        tecnicoId: undefined,
+        fotosText: '',
       });
     }
   }, [isOpen, editing, reset]);
+
+  const ordenTrabajo = (data: FormData) => ({
+    patronDesbloqueo: str(data.patronDesbloqueo),
+    pinDesbloqueo: str(data.pinDesbloqueo),
+    accesorios: str(data.accesorios),
+    condicionesIngreso: str(data.condicionesIngreso),
+    observaciones: str(data.observaciones),
+    tecnicoId: numId(data.tecnicoId),
+    fotos: fotosArray(data.fotosText),
+  });
 
   const onSubmit = async (data: FormData) => {
     // Editar reparación existente
@@ -124,6 +166,7 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props
         precioFinal: num(data.precioFinal),
         fechaIngreso: str(data.fechaIngreso),
         fechaEstimadaEntrega: str(data.fechaEstimadaEntrega),
+        ...ordenTrabajo(data),
       };
       await updateMutation.mutateAsync(payload);
       onClose();
@@ -155,6 +198,7 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props
       precioFinal: num(data.precioFinal),
       fechaIngreso: str(data.fechaIngreso),
       fechaEstimadaEntrega: str(data.fechaEstimadaEntrega),
+      ...ordenTrabajo(data),
     };
     await createMutation.mutateAsync(payload);
     onClose();
@@ -273,6 +317,45 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props
             <FormField label="Entrega estimada" error={errors.fechaEstimadaEntrega?.message} htmlFor="fechaEstimadaEntrega">
               <input id="fechaEstimadaEntrega" type="date" {...register('fechaEstimadaEntrega')} className={inputClass(!!errors.fechaEstimadaEntrega)} />
             </FormField>
+
+            {/* Orden de trabajo (opcional, colapsable) */}
+            <details className="rounded-xl border border-border bg-surface-2 p-4 [&_summary]:cursor-pointer">
+              <summary className="text-[13px] font-extrabold text-text-2">Detalles de ingreso (opcional)</summary>
+              <div className="mt-4 space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <FormField label="Patrón de desbloqueo" htmlFor="patronDesbloqueo">
+                    <input id="patronDesbloqueo" type="text" {...register('patronDesbloqueo')} className={inputClass()} placeholder="Ej: L invertida" />
+                  </FormField>
+                  <FormField label="PIN / contraseña" htmlFor="pinDesbloqueo">
+                    <input id="pinDesbloqueo" type="text" {...register('pinDesbloqueo')} className={inputClass()} placeholder="Ej: 1234" />
+                  </FormField>
+                </div>
+                <FormField label="Accesorios que deja" htmlFor="accesorios">
+                  <input id="accesorios" type="text" {...register('accesorios')} className={inputClass()} placeholder="Cargador, funda, SIM…" />
+                </FormField>
+                <FormField label="Condiciones de ingreso" htmlFor="condicionesIngreso">
+                  <textarea id="condicionesIngreso" rows={2} {...register('condicionesIngreso')} className={`${inputClass()} resize-none`} placeholder="Rayones, golpes, etc." />
+                </FormField>
+                <FormField label="Observaciones internas" htmlFor="observaciones">
+                  <textarea id="observaciones" rows={2} {...register('observaciones')} className={`${inputClass()} resize-none`} placeholder="Notas privadas (no se muestran al cliente)" />
+                </FormField>
+                {isAdmin && (
+                  <FormField label="Técnico asignado" htmlFor="tecnicoId">
+                    <select id="tecnicoId" {...register('tecnicoId', { valueAsNumber: true })} className={inputClass()}>
+                      <option value="">Sin asignar</option>
+                      {tecnicos.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.username}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+                )}
+                <FormField label="Fotos (una URL por línea)" htmlFor="fotosText">
+                  <textarea id="fotosText" rows={2} {...register('fotosText')} className={`${inputClass()} resize-none`} placeholder="https://…/foto1.jpg" />
+                </FormField>
+              </div>
+            </details>
           </>
         )}
 

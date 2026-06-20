@@ -160,6 +160,14 @@ export interface Reparacion {
   codigoSeguimiento?: string | null;
   total?: number | null;
   totalRepuestos?: number | null;
+  patronDesbloqueo?: string | null;
+  pinDesbloqueo?: string | null;
+  accesorios?: string | null;
+  condicionesIngreso?: string | null;
+  observaciones?: string | null;
+  tecnicoId?: number | null;
+  tecnicoNombre?: string | null;
+  fotos?: string[];
   // Enriquecido en el front (join client-side)
   equipo?: Equipo;
 }
@@ -193,6 +201,14 @@ export interface ReparacionCreate {
   fechaIngreso?: string;
   fechaEstimadaEntrega?: string;
   fechaEntrega?: string;
+  // Orden de trabajo ampliada (todo opcional)
+  patronDesbloqueo?: string;
+  pinDesbloqueo?: string;
+  accesorios?: string;
+  condicionesIngreso?: string;
+  observaciones?: string;
+  tecnicoId?: number;
+  fotos?: string[];
 }
 
 export interface ReparacionUpdate extends Partial<ReparacionCreate> {

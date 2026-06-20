@@ -211,9 +211,72 @@ export const ReparacionDetallePage = () => {
               )}
               <div className="flex items-center justify-between bg-surface-2 px-5 py-3.5">
                 <span className="text-[14px] font-extrabold">Total repuestos</span>
-                <span className="font-mono text-[15px] font-extrabold text-primary">{formatMoney(totalRepuestos)}</span>
+                <span className="font-mono text-[15px] font-extrabold text-primary">{formatMoney(rep.totalRepuestos ?? totalRepuestos)}</span>
               </div>
             </div>
+
+            {/* Orden de trabajo */}
+            {(rep.patronDesbloqueo ||
+              rep.pinDesbloqueo ||
+              rep.accesorios ||
+              rep.condicionesIngreso ||
+              rep.observaciones ||
+              rep.tecnicoNombre ||
+              (rep.fotos?.length ?? 0) > 0) && (
+              <div className={`${card} p-5`}>
+                <div className="mb-3.5 text-[15px] font-extrabold">Orden de trabajo</div>
+                <div className="grid grid-cols-1 gap-x-8 gap-y-3 text-[13.5px] sm:grid-cols-2">
+                  {rep.tecnicoNombre && (
+                    <div>
+                      <span className="text-text-3">Técnico: </span>
+                      <span className="font-semibold">{rep.tecnicoNombre}</span>
+                    </div>
+                  )}
+                  {rep.patronDesbloqueo && (
+                    <div>
+                      <span className="text-text-3">Patrón: </span>
+                      <span className="font-mono font-semibold">{rep.patronDesbloqueo}</span>
+                    </div>
+                  )}
+                  {rep.pinDesbloqueo && (
+                    <div>
+                      <span className="text-text-3">PIN: </span>
+                      <span className="font-mono font-semibold">{rep.pinDesbloqueo}</span>
+                    </div>
+                  )}
+                  {rep.accesorios && (
+                    <div>
+                      <span className="text-text-3">Accesorios: </span>
+                      <span className="font-semibold">{rep.accesorios}</span>
+                    </div>
+                  )}
+                </div>
+                {rep.condicionesIngreso && (
+                  <div className="mt-3.5 border-t border-border pt-3.5">
+                    <div className="mb-1 text-[12px] font-extrabold uppercase tracking-wide text-text-3">Condiciones de ingreso</div>
+                    <div className="text-[13.5px] leading-relaxed">{rep.condicionesIngreso}</div>
+                  </div>
+                )}
+                {rep.observaciones && (
+                  <div className="mt-3.5 border-t border-border pt-3.5">
+                    <div className="mb-1 text-[12px] font-extrabold uppercase tracking-wide text-text-3">Observaciones (privado)</div>
+                    <div className="text-[13.5px] leading-relaxed text-text-2">{rep.observaciones}</div>
+                  </div>
+                )}
+                {(rep.fotos?.length ?? 0) > 0 && (
+                  <div className="mt-3.5 border-t border-border pt-3.5">
+                    <div className="mb-2 text-[12px] font-extrabold uppercase tracking-wide text-text-3">Fotos</div>
+                    <div className="flex flex-wrap gap-2">
+                      {rep.fotos!.map((url) => (
+                        <a key={url} href={url} target="_blank" rel="noreferrer" className="block">
+                          <img src={url} alt="Foto del equipo" className="h-16 w-16 rounded-lg border border-border object-cover" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Columna lateral */}
@@ -237,8 +300,14 @@ export const ReparacionDetallePage = () => {
                 </div>
                 <div className="flex justify-between text-[13.5px]">
                   <span className="text-text-2">Precio final</span>
-                  <span className="font-mono text-[16px] font-extrabold text-primary">{formatMoney(rep.precioFinal)}</span>
+                  <span className="font-mono font-bold">{formatMoney(rep.precioFinal)}</span>
                 </div>
+                {rep.total != null && (
+                  <div className="flex justify-between border-t border-border pt-2.5 text-[13.5px]">
+                    <span className="font-semibold text-text-2">Total (con repuestos)</span>
+                    <span className="font-mono text-[16px] font-extrabold text-primary">{formatMoney(rep.total)}</span>
+                  </div>
+                )}
               </div>
             </div>
 

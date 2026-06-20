@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Sidebar } from '../components/Sidebar';
 import { Navbar } from '../components/Navbar';
 import { BottomNav } from '../components/BottomNav';
+import { LimitePlanModal } from '../components/LimitePlanModal';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -19,5 +20,6 @@ export const DashboardLayout = ({ children, title }: DashboardLayoutProps) => (
       </main>
       <BottomNav />
     </div>
+    <LimitePlanModal />
   </div>
 );

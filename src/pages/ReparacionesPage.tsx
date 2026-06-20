@@ -72,6 +72,9 @@ export const ReparacionesPage = () => {
     const next = ESTADOS[r.estado].next;
     if (next) cambiarEstado.mutate({ id: r.id, estado: next });
   };
+  const move = (r: Reparacion, estado: EstadoReparacion) => {
+    if (r.estado !== estado) cambiarEstado.mutate({ id: r.id, estado });
+  };
 
   const chips: { key: Filtro; label: string }[] = [
     { key: 'TODOS', label: 'Todas' },
@@ -142,7 +145,7 @@ export const ReparacionesPage = () => {
         {isLoading ? (
           <BoardSkeleton />
         ) : vista === 'board' ? (
-          <Board reparaciones={filtradas} onOpen={(id) => navigate(`/reparaciones/${id}`)} onAdvance={advance} />
+          <Board reparaciones={filtradas} onOpen={(id) => navigate(`/reparaciones/${id}`)} onAdvance={advance} onMove={move} />
         ) : (
           <Lista
             reparaciones={filtradas}
@@ -157,77 +160,118 @@ export const ReparacionesPage = () => {
   );
 };
 
-/* ---------- Tablero kanban ---------- */
+/* ---------- Tablero kanban (con drag & drop) ---------- */
 const Board = ({
   reparaciones,
   onOpen,
   onAdvance,
+  onMove,
 }: {
   reparaciones: ReparacionEnriquecida[];
   onOpen: (id: number) => void;
   onAdvance: (r: Reparacion) => void;
-}) => (
-  <div className="ofx-scroll flex items-start gap-3.5 overflow-x-auto pb-2">
-    {ESTADOS_LIST.map((meta) => {
-      const items = reparaciones.filter((r) => r.estado === meta.key);
-      return (
-        <div key={meta.key} className="flex w-[296px] flex-shrink-0 flex-col rounded-2xl border border-border bg-surface-2">
-          <div className="flex items-center gap-2.5 border-b border-border px-3.5 py-3">
-            <span className={`grid h-6 w-6 place-items-center rounded-lg ${meta.textClass} ${meta.bgClass}`}>
-              <svg viewBox="0 0 24 24" width={15} height={15} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                <path d={meta.iconD} />
-              </svg>
-            </span>
-            <span className="text-[13.5px] font-extrabold">{meta.label}</span>
-            <span className="ml-auto rounded-full bg-surface-3 px-2 py-0.5 text-[12px] font-bold text-text-3">{items.length}</span>
-          </div>
-          <div className="flex flex-col gap-2.5 p-3">
-            {items.map((r) => (
-              <div
-                key={r.id}
-                onClick={() => onOpen(r.id)}
-                className="cursor-pointer rounded-xl border border-border bg-surface p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-border-strong"
-                style={{ borderLeft: `3px solid ${meta.cssVar}` }}
-              >
-                <div className="flex items-center gap-2">
-                  <div className="min-w-0 flex-1 truncate text-[14px] font-extrabold">{equipoLabel(r)}</div>
-                  <span className="font-mono text-[10.5px] font-bold text-text-3">#{r.id}</span>
+  onMove: (r: Reparacion, estado: EstadoReparacion) => void;
+}) => {
+  const [dragId, setDragId] = useState<number | null>(null);
+  const [overCol, setOverCol] = useState<EstadoReparacion | null>(null);
+
+  const handleDrop = (estado: EstadoReparacion) => {
+    const r = reparaciones.find((x) => x.id === dragId);
+    setOverCol(null);
+    setDragId(null);
+    if (r) onMove(r, estado);
+  };
+
+  return (
+    <div className="ofx-scroll flex items-start gap-3.5 overflow-x-auto pb-2">
+      {ESTADOS_LIST.map((meta) => {
+        const items = reparaciones.filter((r) => r.estado === meta.key);
+        const isOver = overCol === meta.key && dragId !== null;
+        return (
+          <div
+            key={meta.key}
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (overCol !== meta.key) setOverCol(meta.key);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              handleDrop(meta.key);
+            }}
+            className={`flex w-[296px] flex-shrink-0 flex-col rounded-2xl border bg-surface-2 transition ${
+              isOver ? 'border-primary ring-2 ring-[var(--ring)]' : 'border-border'
+            }`}
+          >
+            <div className="flex items-center gap-2.5 border-b border-border px-3.5 py-3">
+              <span className={`grid h-6 w-6 place-items-center rounded-lg ${meta.textClass} ${meta.bgClass}`}>
+                <svg viewBox="0 0 24 24" width={15} height={15} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d={meta.iconD} />
+                </svg>
+              </span>
+              <span className="text-[13.5px] font-extrabold">{meta.label}</span>
+              <span className="ml-auto rounded-full bg-surface-3 px-2 py-0.5 text-[12px] font-bold text-text-3">{items.length}</span>
+            </div>
+            <div className="flex min-h-[64px] flex-col gap-2.5 p-3">
+              {items.map((r) => (
+                <div
+                  key={r.id}
+                  draggable
+                  onDragStart={(e) => {
+                    setDragId(r.id);
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  onDragEnd={() => {
+                    setDragId(null);
+                    setOverCol(null);
+                  }}
+                  onClick={() => onOpen(r.id)}
+                  className={`cursor-grab select-none rounded-xl border border-border bg-surface p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-border-strong active:cursor-grabbing ${
+                    dragId === r.id ? 'opacity-50' : ''
+                  }`}
+                  style={{ borderLeft: `3px solid ${meta.cssVar}` }}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1 truncate text-[14px] font-extrabold">{equipoLabel(r)}</div>
+                    <span className="font-mono text-[10.5px] font-bold text-text-3">#{r.id}</span>
+                  </div>
+                  <div className="mt-0.5 text-[12.5px] font-semibold text-text-2">{clienteLabel(r)}</div>
+                  <div className="mt-1.5 line-clamp-2 text-[12.5px] leading-snug text-text-3">{r.descripcionProblema}</div>
+                  <div className="mt-2.5 flex items-center justify-between">
+                    <span className="font-mono text-[13.5px] font-extrabold" style={{ color: meta.cssVar }}>
+                      {formatMoney(r.precioFinal ?? r.precioEstimado)}
+                    </span>
+                    {meta.next && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAdvance(r);
+                        }}
+                        className="inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[11.5px] font-bold text-text-2 transition hover:border-primary hover:text-primary"
+                      >
+                        Avanzar
+                        <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                          <path d="m9 6 6 6-6 6" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="mt-0.5 text-[12.5px] font-semibold text-text-2">{clienteLabel(r)}</div>
-                <div className="mt-1.5 line-clamp-2 text-[12.5px] leading-snug text-text-3">{r.descripcionProblema}</div>
-                <div className="mt-2.5 flex items-center justify-between">
-                  <span className="font-mono text-[13.5px] font-extrabold" style={{ color: meta.cssVar }}>
-                    {formatMoney(r.precioFinal ?? r.precioEstimado)}
-                  </span>
-                  {meta.next && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAdvance(r);
-                      }}
-                      className="inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[11.5px] font-bold text-text-2 transition hover:border-primary hover:text-primary"
-                    >
-                      Avanzar
-                      <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
-                        <path d="m9 6 6 6-6 6" />
-                      </svg>
-                    </button>
-                  )}
+              ))}
+              {items.length === 0 && (
+                <div className={`rounded-lg border border-dashed py-5 text-center text-[12.5px] transition ${
+                  isOver ? 'border-primary text-primary' : 'border-border text-text-3'
+                }`}>
+                  {isOver ? 'Soltá acá' : 'Sin reparaciones acá'}
                 </div>
-              </div>
-            ))}
-            {items.length === 0 && (
-              <div className="rounded-lg border border-dashed border-border py-5 text-center text-[12.5px] text-text-3">
-                Sin reparaciones acá
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
-      );
-    })}
-  </div>
-);
+        );
+      })}
+    </div>
+  );
+};
 
 /* ---------- Vista lista ---------- */
 const Lista = ({

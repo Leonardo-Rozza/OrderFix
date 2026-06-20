@@ -95,19 +95,33 @@ export const useUpdateReparacionMutation = () => {
   });
 };
 
-// Hook para cambiar el estado de una reparación
+// Hook para cambiar el estado de una reparación (optimista: la tarjeta se mueve al instante)
 export const useCambiarEstadoMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: cambiarEstado,
+    onMutate: async ({ id, estado }) => {
+      await queryClient.cancelQueries({ queryKey: ['reparaciones'] });
+      const prev = queryClient.getQueryData<Reparacion[]>(['reparaciones']);
+      if (prev) {
+        queryClient.setQueryData<Reparacion[]>(
+          ['reparaciones'],
+          prev.map((r) => (r.id === id ? { ...r, estado } : r))
+        );
+      }
+      return { prev };
+    },
+    onError: (error, _vars, context) => {
+      if (context?.prev) queryClient.setQueryData(['reparaciones'], context.prev);
+      showError(getErrorMessage(error, 'No se pudo cambiar el estado'));
+    },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['reparaciones'] });
       queryClient.invalidateQueries({ queryKey: ['reparacion', data.id] });
       showSuccess('Estado actualizado');
     },
-    onError: (error) => {
-      showError(getErrorMessage(error, 'No se pudo cambiar el estado'));
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['reparaciones'] });
     },
   });
 };

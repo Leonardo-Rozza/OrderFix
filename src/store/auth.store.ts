@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { isTokenExpired } from '../utils/jwt';
 
 interface AuthState {
   token: string | null;
@@ -26,6 +27,12 @@ export const authStore = create<AuthState>()(
     }),
     {
       name: 'ordenfix-auth',
+      // Al cargar: si el token persistido venció, cerrar sesión (evita sesión fantasma).
+      onRehydrateStorage: () => (state) => {
+        if (state?.token && isTokenExpired(state.token)) {
+          state.logout();
+        }
+      },
     }
   )
 );

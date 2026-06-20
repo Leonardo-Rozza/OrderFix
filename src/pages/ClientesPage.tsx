@@ -1,199 +1,163 @@
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { useMemo, useState } from 'react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
-import { DataTable } from '../components/DataTable';
-import { Modal } from '../components/Modal';
-import { FormField } from '../components/FormField';
-import { useClientesQuery } from '../api/queries/clientes.queries';
-import {
-  useCreateClienteMutation,
-  useUpdateClienteMutation,
-  useDeleteClienteMutation,
-} from '../api/mutations/clientes.mutations';
-import type { Cliente, ClienteCreate } from '../types';
+import { ClienteFormModal } from '../components/ClienteFormModal';
+import { ClienteFichaModal } from '../components/ClienteFichaModal';
+import { EquipoFormModal } from '../components/EquipoFormModal';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { btnPrimary } from '../components/ui';
+import { iniciales, formatDate } from '../utils/format';
+import { useClientesEnriquecidos } from '../hooks/useEnriched';
+import type { ClienteEnriquecido } from '../hooks/useEnriched';
+import { useDeleteClienteMutation } from '../api/mutations/clientes.mutations';
+import type { Cliente } from '../types';
 
-const clienteSchema = z.object({
-  nombre: z.string().min(1, 'El nombre es requerido').max(60, 'Máximo 60 caracteres'),
-  apellido: z.string().min(1, 'El apellido es requerido').max(60, 'Máximo 60 caracteres'),
-  email: z.string().email('Email inválido').max(120, 'Máximo 120 caracteres').optional().or(z.literal('')),
-  telefono: z.string().min(1, 'El teléfono es requerido').max(20, 'Máximo 20 caracteres'),
-  direccion: z.string().max(255, 'Máximo 255 caracteres').optional().or(z.literal('')),
-});
-
-type ClienteFormData = z.infer<typeof clienteSchema>;
-
-const inputClasses = (hasError: boolean) =>
-  `w-full rounded-lg border px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 dark:text-gray-100 ${
-    hasError ? 'border-red-300 dark:border-red-400' : 'border-gray-300 dark:border-gray-700 dark:bg-gray-900'
-  }`;
+const matches = (c: ClienteEnriquecido, q: string) => {
+  if (!q) return true;
+  const t = q.toLowerCase();
+  return (
+    `${c.nombre} ${c.apellido}`.toLowerCase().includes(t) ||
+    c.telefono.toLowerCase().includes(t) ||
+    (c.email ?? '').toLowerCase().includes(t)
+  );
+};
 
 export const ClientesPage = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
-
-  const { data: clientes = [], isLoading } = useClientesQuery();
-  const createMutation = useCreateClienteMutation();
-  const updateMutation = useUpdateClienteMutation();
+  const { data: clientes, isLoading } = useClientesEnriquecidos();
   const deleteMutation = useDeleteClienteMutation();
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm<ClienteFormData>({
-    resolver: zodResolver(clienteSchema),
-    defaultValues: editingCliente
-      ? {
-          nombre: editingCliente.nombre,
-          apellido: editingCliente.apellido,
-          email: editingCliente.email ?? '',
-          telefono: editingCliente.telefono,
-          direccion: editingCliente.direccion ?? '',
-        }
-      : undefined,
-  });
+  const [search, setSearch] = useState('');
+  const [ficha, setFicha] = useState<ClienteEnriquecido | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Cliente | null>(null);
+  const [equipoFor, setEquipoFor] = useState<ClienteEnriquecido | null>(null);
+  const [toDelete, setToDelete] = useState<ClienteEnriquecido | null>(null);
 
-  const onSubmit = async (data: ClienteFormData) => {
-    const payload: ClienteCreate = {
-      nombre: data.nombre,
-      apellido: data.apellido,
-      telefono: data.telefono,
-      email: data.email && data.email.trim() !== '' ? data.email : undefined,
-      direccion: data.direccion && data.direccion.trim() !== '' ? data.direccion : undefined,
-    };
+  const filtrados = useMemo(() => clientes.filter((c) => matches(c, search)), [clientes, search]);
 
-    if (editingCliente) {
-      await updateMutation.mutateAsync({
-        id: editingCliente.id,
-        ...payload,
-      });
-    } else {
-      await createMutation.mutateAsync(payload);
-    }
-    handleCloseModal();
+  const openNew = () => {
+    setEditing(null);
+    setFormOpen(true);
   };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setEditingCliente(null);
-    reset();
+  const openEdit = (c: Cliente) => {
+    setFicha(null);
+    setEditing(c);
+    setFormOpen(true);
   };
-
-  const handleEdit = (cliente: Cliente) => {
-    setEditingCliente(cliente);
-    setIsModalOpen(true);
-    reset({
-      nombre: cliente.nombre,
-      apellido: cliente.apellido,
-      email: cliente.email ?? '',
-      telefono: cliente.telefono,
-      direccion: cliente.direccion ?? '',
-    });
+  const confirmDelete = async () => {
+    if (!toDelete) return;
+    await deleteMutation.mutateAsync(toDelete.id);
+    setToDelete(null);
+    setFicha(null);
   };
-
-  const handleDelete = async (cliente: Cliente) => {
-    if (window.confirm(`¿Estás seguro de eliminar a ${cliente.nombre} ${cliente.apellido}?`)) {
-      await deleteMutation.mutateAsync(cliente.id);
-    }
-  };
-
-  const columns = [
-    { header: 'ID', accessor: 'id' as const },
-    { header: 'Nombre', accessor: 'nombre' as const },
-    { header: 'Apellido', accessor: 'apellido' as const },
-    { header: 'Email', accessor: 'email' as const },
-    { header: 'Teléfono', accessor: 'telefono' as const },
-    {
-      header: 'Dirección',
-      accessor: (row: Cliente) => row.direccion || '-',
-    },
-  ];
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Clientes</h1>
-            <p className="text-gray-600 dark:text-gray-400">Gestiona los clientes del sistema</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow transition hover:bg-indigo-700 sm:w-auto"
-          >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+    <DashboardLayout title="Clientes">
+      <div className="ofx-in mx-auto max-w-[1100px] space-y-4">
+        {/* Toolbar */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[180px] max-w-[360px] flex-1">
+            <svg viewBox="0 0 24 24" width={17} height={17} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-2.5">
+              <path d="m21 21-4.3-4.3M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z" />
             </svg>
-            Nuevo Cliente
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar cliente por nombre, tel o email…"
+              className="w-full rounded-lg border border-border-strong bg-surface py-2 pl-9 pr-3 text-[13.5px] text-text outline-none transition placeholder:text-text-3 focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)]"
+            />
+          </div>
+          <button type="button" className={`${btnPrimary} ml-auto`} onClick={openNew}>
+            <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Nuevo cliente
           </button>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
-          <DataTable
-            data={clientes}
-            columns={columns}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            isLoading={isLoading}
-            emptyMessage="No hay clientes registrados"
-          />
+        {/* Tabla */}
+        <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+          <div className="flex items-center gap-3 border-b border-border px-4 py-3 text-[11.5px] font-extrabold uppercase tracking-wide text-text-3">
+            <div className="min-w-0 flex-[1.6]">Cliente</div>
+            <div className="hidden min-w-0 flex-[1.4] sm:block">Contacto</div>
+            <div className="w-[70px] text-center">Equipos</div>
+            <div className="hidden w-[70px] text-center sm:block">Repar.</div>
+            <div className="w-[90px] text-right">Última</div>
+          </div>
+
+          {isLoading ? (
+            Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-0">
+                <div className="ofx-skel h-9 w-9 rounded-full" />
+                <div className="ofx-skel h-4 flex-1 rounded" />
+              </div>
+            ))
+          ) : filtrados.length === 0 ? (
+            <div className="py-12 text-center">
+              <div className="text-[15px] font-extrabold">Sin clientes</div>
+              <div className="mt-1 text-[13px] text-text-3">
+                {search ? 'Probá con otra búsqueda.' : 'Cargá tu primer cliente para empezar.'}
+              </div>
+            </div>
+          ) : (
+            filtrados.map((c) => (
+              <div
+                key={c.id}
+                onClick={() => setFicha(c)}
+                className="flex cursor-pointer items-center gap-3 border-b border-border px-4 py-3 transition last:border-0 hover:bg-surface-2"
+              >
+                <div className="flex min-w-0 flex-[1.6] items-center gap-3">
+                  <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary-soft text-[13px] font-extrabold text-primary-soft-fg">
+                    {iniciales(c.nombre, c.apellido)}
+                  </div>
+                  <div className="truncate text-[14px] font-bold">
+                    {c.nombre} {c.apellido}
+                  </div>
+                </div>
+                <div className="hidden min-w-0 flex-[1.4] sm:block">
+                  <div className="truncate font-mono text-[13px] text-text-2">{c.telefono}</div>
+                  <div className="truncate text-[12px] text-text-3">{c.email || '—'}</div>
+                </div>
+                <div className="w-[70px] text-center font-mono text-[14px] font-extrabold">{c.equipos.length}</div>
+                <div className="hidden w-[70px] text-center font-mono text-[13px] font-bold text-text-2 sm:block">{c.reparaciones.length}</div>
+                <div className="w-[90px] text-right font-mono text-[12.5px] text-text-3">{formatDate(c.ultimaVisita)}</div>
+              </div>
+            ))
+          )}
         </div>
-
-        <Modal
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          title={editingCliente ? 'Editar Cliente' : 'Nuevo Cliente'}
-          size="md"
-        >
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField label="Nombre" error={errors.nombre?.message} required htmlFor="nombre">
-                <input id="nombre" type="text" {...register('nombre')} className={inputClasses(!!errors.nombre)} />
-              </FormField>
-              <FormField label="Apellido" error={errors.apellido?.message} required htmlFor="apellido">
-                <input id="apellido" type="text" {...register('apellido')} className={inputClasses(!!errors.apellido)} />
-              </FormField>
-            </div>
-
-            <FormField label="Email" error={errors.email?.message} htmlFor="email">
-              <input id="email" type="email" {...register('email')} className={inputClasses(!!errors.email)} />
-            </FormField>
-
-            <FormField label="Teléfono" error={errors.telefono?.message} required htmlFor="telefono">
-              <input id="telefono" type="text" {...register('telefono')} className={inputClasses(!!errors.telefono)} />
-            </FormField>
-
-            <FormField label="Dirección" error={errors.direccion?.message} htmlFor="direccion">
-              <input id="direccion" type="text" {...register('direccion')} className={inputClasses(!!errors.direccion)} />
-            </FormField>
-
-            <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={handleCloseModal}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-800 sm:w-auto"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={createMutation.isPending || updateMutation.isPending}
-                className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-white transition hover:bg-indigo-700 disabled:opacity-50 sm:w-auto"
-              >
-                {createMutation.isPending || updateMutation.isPending
-                  ? 'Guardando...'
-                  : editingCliente
-                  ? 'Actualizar'
-                  : 'Crear'}
-              </button>
-            </div>
-          </form>
-        </Modal>
       </div>
+
+      <ClienteFichaModal
+        isOpen={!!ficha}
+        cliente={ficha}
+        onClose={() => setFicha(null)}
+        onEdit={() => ficha && openEdit(ficha)}
+        onDelete={() => ficha && setToDelete(ficha)}
+        onNuevoEquipo={() => {
+          if (ficha) {
+            setEquipoFor(ficha);
+            setFicha(null);
+          }
+        }}
+      />
+
+      <ClienteFormModal isOpen={formOpen} onClose={() => setFormOpen(false)} editing={editing} />
+
+      <EquipoFormModal
+        isOpen={!!equipoFor}
+        onClose={() => setEquipoFor(null)}
+        editing={null}
+        clientes={clientes}
+        defaultClienteId={equipoFor?.id}
+      />
+
+      <ConfirmDialog
+        isOpen={!!toDelete}
+        title="Eliminar cliente"
+        message={`¿Seguro que querés eliminar a ${toDelete?.nombre} ${toDelete?.apellido}? Esta acción no se puede deshacer.`}
+        loading={deleteMutation.isPending}
+        onConfirm={confirmDelete}
+        onClose={() => setToDelete(null)}
+      />
     </DashboardLayout>
   );
 };

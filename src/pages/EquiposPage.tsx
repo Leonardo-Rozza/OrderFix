@@ -1,233 +1,167 @@
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { useMemo, useState } from 'react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
-import { DataTable } from '../components/DataTable';
-import { Modal } from '../components/Modal';
-import { FormField } from '../components/FormField';
-import { useEquiposQuery } from '../api/queries/equipos.queries';
+import { EquipoFormModal } from '../components/EquipoFormModal';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { btnPrimary } from '../components/ui';
+import { iniciales } from '../utils/format';
+import { useEquiposEnriquecidos } from '../hooks/useEnriched';
+import type { EquipoEnriquecido } from '../hooks/useEnriched';
 import { useClientesQuery } from '../api/queries/clientes.queries';
-import {
-  useCreateEquipoMutation,
-  useUpdateEquipoMutation,
-  useDeleteEquipoMutation,
-} from '../api/mutations/equipos.mutations';
-import type { Equipo, EquipoCreate } from '../types';
+import { useDeleteEquipoMutation } from '../api/mutations/equipos.mutations';
+import type { Equipo } from '../types';
 
-const equipoSchema = z.object({
-  marca: z.string().min(1, 'La marca es requerida').max(60, 'Máximo 60 caracteres'),
-  modelo: z.string().min(1, 'El modelo es requerido').max(60, 'Máximo 60 caracteres'),
-  imei: z.string().max(30, 'Máximo 30 caracteres').optional().or(z.literal('')),
-  color: z.string().max(40, 'Máximo 40 caracteres').optional().or(z.literal('')),
-  descripcion: z.string().max(255, 'Máximo 255 caracteres').optional().or(z.literal('')),
-  clienteId: z.number().min(1, 'Debe seleccionar un cliente'),
-});
+const clienteLabel = (e: EquipoEnriquecido) =>
+  e.cliente ? `${e.cliente.nombre} ${e.cliente.apellido}` : 'Sin cliente';
 
-type EquipoFormData = z.infer<typeof equipoSchema>;
+const matches = (e: EquipoEnriquecido, q: string) => {
+  if (!q) return true;
+  const t = q.toLowerCase();
+  return (
+    `${e.marca} ${e.modelo}`.toLowerCase().includes(t) ||
+    (e.imei ?? '').toLowerCase().includes(t) ||
+    clienteLabel(e).toLowerCase().includes(t)
+  );
+};
 
-const inputClasses = (hasError: boolean) =>
-  `w-full rounded-lg border px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 dark:text-gray-100 ${
-    hasError ? 'border-red-300 dark:border-red-400' : 'border-gray-300 dark:border-gray-700 dark:bg-gray-900'
-  }`;
+const deviceIcon = (
+  <svg viewBox="0 0 24 24" width={22} height={22} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+    <rect x="6" y="2" width="12" height="20" rx="2.5" />
+    <path d="M11 18h2" />
+  </svg>
+);
 
 export const EquiposPage = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingEquipo, setEditingEquipo] = useState<Equipo | null>(null);
-
-  const { data: equipos = [], isLoading } = useEquiposQuery();
+  const { data: equipos, isLoading } = useEquiposEnriquecidos();
   const { data: clientes = [] } = useClientesQuery();
-  const createMutation = useCreateEquipoMutation();
-  const updateMutation = useUpdateEquipoMutation();
   const deleteMutation = useDeleteEquipoMutation();
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm<EquipoFormData>({
-    resolver: zodResolver(equipoSchema),
-    defaultValues: editingEquipo
-      ? {
-          marca: editingEquipo.marca,
-          modelo: editingEquipo.modelo,
-          imei: editingEquipo.imei || '',
-          color: editingEquipo.color || '',
-          descripcion: editingEquipo.descripcion || '',
-          clienteId: editingEquipo.clienteId,
-        }
-      : undefined,
-  });
+  const [search, setSearch] = useState('');
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Equipo | null>(null);
+  const [toDelete, setToDelete] = useState<EquipoEnriquecido | null>(null);
 
-  const onSubmit = async (data: EquipoFormData) => {
-    const payload: EquipoCreate = {
-      marca: data.marca,
-      modelo: data.modelo,
-      clienteId: data.clienteId,
-      imei: data.imei && data.imei.trim() !== '' ? data.imei : undefined,
-      color: data.color && data.color.trim() !== '' ? data.color : undefined,
-      descripcion: data.descripcion && data.descripcion.trim() !== '' ? data.descripcion : undefined,
-    };
+  const filtrados = useMemo(() => equipos.filter((e) => matches(e, search)), [equipos, search]);
 
-    if (editingEquipo) {
-      await updateMutation.mutateAsync({
-        id: editingEquipo.id,
-        ...payload,
-      });
-    } else {
-      await createMutation.mutateAsync(payload);
-    }
-    handleCloseModal();
+  const openNew = () => {
+    setEditing(null);
+    setFormOpen(true);
   };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setEditingEquipo(null);
-    reset();
+  const openEdit = (e: Equipo) => {
+    setEditing(e);
+    setFormOpen(true);
   };
-
-  const handleEdit = (equipo: Equipo) => {
-    setEditingEquipo(equipo);
-    setIsModalOpen(true);
-    reset({
-      marca: equipo.marca,
-      modelo: equipo.modelo,
-      imei: equipo.imei || '',
-      color: equipo.color || '',
-      descripcion: equipo.descripcion || '',
-      clienteId: equipo.clienteId,
-    });
+  const confirmDelete = async () => {
+    if (!toDelete) return;
+    await deleteMutation.mutateAsync(toDelete.id);
+    setToDelete(null);
   };
-
-  const handleDelete = async (equipo: Equipo) => {
-    if (window.confirm(`¿Estás seguro de eliminar el equipo ${equipo.marca} ${equipo.modelo}?`)) {
-      await deleteMutation.mutateAsync(equipo.id);
-    }
-  };
-
-  const columns = [
-    { header: 'ID', accessor: 'id' as const },
-    { header: 'Marca', accessor: 'marca' as const },
-    { header: 'Modelo', accessor: 'modelo' as const },
-    {
-      header: 'IMEI',
-      accessor: (row: Equipo) => row.imei || '-',
-    },
-    {
-      header: 'Color',
-      accessor: (row: Equipo) => row.color || '-',
-    },
-    {
-      header: 'Cliente',
-      accessor: (row: Equipo) => {
-        const cliente = clientes.find((c) => c.id === row.clienteId);
-        return cliente ? `${cliente.nombre} ${cliente.apellido}` : '-';
-      },
-    },
-  ];
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Equipos</h1>
-            <p className="text-gray-600 dark:text-gray-400">Gestiona los equipos de los clientes</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow transition hover:bg-indigo-700 sm:w-auto"
-          >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+    <DashboardLayout title="Equipos">
+      <div className="ofx-in mx-auto max-w-[1100px] space-y-4">
+        {/* Toolbar */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[180px] max-w-[360px] flex-1">
+            <svg viewBox="0 0 24 24" width={17} height={17} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-2.5">
+              <path d="m21 21-4.3-4.3M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z" />
             </svg>
-            Nuevo Equipo
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por modelo, IMEI o cliente…"
+              className="w-full rounded-lg border border-border-strong bg-surface py-2 pl-9 pr-3 text-[13.5px] text-text outline-none transition placeholder:text-text-3 focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)]"
+            />
+          </div>
+          <button type="button" className={`${btnPrimary} ml-auto`} onClick={openNew}>
+            <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Nuevo equipo
           </button>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
-          <DataTable
-            data={equipos}
-            columns={columns}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            isLoading={isLoading}
-            emptyMessage="No hay equipos registrados"
-          />
-        </div>
-
-        <Modal
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          title={editingEquipo ? 'Editar Equipo' : 'Nuevo Equipo'}
-          size="md"
-        >
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField label="Marca" error={errors.marca?.message} required htmlFor="marca">
-                <input id="marca" type="text" maxLength={60} {...register('marca')} className={inputClasses(!!errors.marca)} />
-              </FormField>
-              <FormField label="Modelo" error={errors.modelo?.message} required htmlFor="modelo">
-                <input id="modelo" type="text" maxLength={60} {...register('modelo')} className={inputClasses(!!errors.modelo)} />
-              </FormField>
+        {/* Grilla */}
+        {isLoading ? (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="ofx-skel h-[150px] rounded-2xl" />
+            ))}
+          </div>
+        ) : filtrados.length === 0 ? (
+          <div className="rounded-2xl border border-border bg-surface py-12 text-center">
+            <div className="text-[15px] font-extrabold">Sin equipos</div>
+            <div className="mt-1 text-[13px] text-text-3">
+              {search ? 'Probá con otra búsqueda.' : 'Registrá el primer equipo de un cliente.'}
             </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField label="IMEI" error={errors.imei?.message} htmlFor="imei">
-                <input id="imei" type="text" maxLength={30} {...register('imei')} className={inputClasses(!!errors.imei)} />
-              </FormField>
-              <FormField label="Color" error={errors.color?.message} htmlFor="color">
-                <input id="color" type="text" maxLength={40} {...register('color')} className={inputClasses(!!errors.color)} />
-              </FormField>
-            </div>
-
-            <FormField label="Descripción" error={errors.descripcion?.message} htmlFor="descripcion">
-              <textarea
-                id="descripcion"
-                rows={3}
-                maxLength={255}
-                {...register('descripcion')}
-                className={`${inputClasses(!!errors.descripcion)} resize-none`}
-                placeholder="Descripción adicional del equipo"
-              />
-            </FormField>
-
-            <FormField label="Cliente" error={errors.clienteId?.message} required htmlFor="clienteId">
-              <select id="clienteId" {...register('clienteId', { valueAsNumber: true })} className={inputClasses(!!errors.clienteId)}>
-                <option value="">Seleccione un cliente</option>
-                {clientes.map((cliente) => (
-                  <option key={cliente.id} value={cliente.id}>
-                    {cliente.nombre} {cliente.apellido}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-
-            <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={handleCloseModal}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-800 sm:w-auto"
+          </div>
+        ) : (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
+            {filtrados.map((e) => (
+              <div
+                key={e.id}
+                className="group flex flex-col rounded-2xl border border-border bg-surface p-4 shadow-sm transition hover:border-border-strong"
               >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={createMutation.isPending || updateMutation.isPending}
-                className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-white transition hover:bg-indigo-700 disabled:opacity-50 sm:w-auto"
-              >
-                {createMutation.isPending || updateMutation.isPending
-                  ? 'Guardando...'
-                  : editingEquipo
-                  ? 'Actualizar'
-                  : 'Crear'}
-              </button>
-            </div>
-          </form>
-        </Modal>
+                <div className="flex items-start gap-3">
+                  <span className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-xl bg-surface-3 text-text-2">{deviceIcon}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[15px] font-extrabold">
+                      {e.marca} {e.modelo}
+                    </div>
+                    <div className="text-[12px] text-text-3">{e.color || 'Sin color'}</div>
+                  </div>
+                  <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
+                    <button
+                      type="button"
+                      title="Editar"
+                      onClick={() => openEdit(e)}
+                      className="grid h-7 w-7 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-primary hover:text-primary"
+                    >
+                      <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      title="Eliminar"
+                      onClick={() => setToDelete(e)}
+                      className="grid h-7 w-7 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-danger hover:text-danger"
+                    >
+                      <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-2.5 font-mono text-[12px] text-text-3">{e.imei ? `IMEI ${e.imei}` : 'Sin IMEI'}</div>
+
+                <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
+                  <div className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-full bg-primary-soft text-[11px] font-extrabold text-primary-soft-fg">
+                    {iniciales(e.cliente?.nombre, e.cliente?.apellido)}
+                  </div>
+                  <span className="truncate text-[13px] font-semibold text-text-2">{clienteLabel(e)}</span>
+                  {!!e.reparacionesCount && (
+                    <span className="ml-auto shrink-0 rounded-full bg-surface-3 px-2 py-0.5 text-[11px] font-bold text-text-3">
+                      {e.reparacionesCount} rep.
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
+
+      <EquipoFormModal isOpen={formOpen} onClose={() => setFormOpen(false)} editing={editing} clientes={clientes} />
+
+      <ConfirmDialog
+        isOpen={!!toDelete}
+        title="Eliminar equipo"
+        message={`¿Seguro que querés eliminar ${toDelete?.marca} ${toDelete?.modelo}? Esta acción no se puede deshacer.`}
+        loading={deleteMutation.isPending}
+        onConfirm={confirmDelete}
+        onClose={() => setToDelete(null)}
+      />
     </DashboardLayout>
   );
 };

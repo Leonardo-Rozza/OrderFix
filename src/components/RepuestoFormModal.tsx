@@ -9,6 +9,7 @@ import {
   useCreateRepuestoMutation,
   useUpdateRepuestoMutation,
 } from '../api/mutations/repuestos.mutations';
+import { useInventarioQuery } from '../api/queries/inventario.queries';
 import type { Reparacion, Repuesto, RepuestoCreate, RepuestoUpdate } from '../types';
 
 const schema = z.object({
@@ -16,6 +17,8 @@ const schema = z.object({
   descripcion: z.string().optional().or(z.literal('')),
   precio: z.number({ message: 'El precio es requerido' }).min(0, 'Mínimo 0'),
   reparacionId: z.union([z.number(), z.nan(), z.literal('')]).optional(),
+  articuloId: z.union([z.number(), z.nan(), z.literal('')]).optional(),
+  cantidad: z.union([z.number(), z.nan(), z.literal('')]).optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -31,20 +34,27 @@ interface Props {
 }
 
 const str = (v: string | undefined): string | undefined => (v && v.trim() !== '' ? v : undefined);
-const repId = (v: number | '' | undefined): number | undefined =>
+const numOpt = (v: number | '' | undefined): number | undefined =>
   v === '' || v === undefined || Number.isNaN(v) ? undefined : v;
 
 export const RepuestoFormModal = ({ isOpen, onClose, editing, reparaciones = [], lockedReparacionId }: Props) => {
   const createMutation = useCreateRepuestoMutation();
   const updateMutation = useUpdateRepuestoMutation();
+  // El inventario solo se ofrece al crear (al editar no re-vinculamos stock).
+  const { data: articulos = [] } = useInventarioQuery(isOpen && !editing);
   const saving = createMutation.isPending || updateMutation.isPending;
 
   const {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
+
+  const articuloId = watch('articuloId');
+  const usaInventario = !editing && !!numOpt(articuloId);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -53,15 +63,20 @@ export const RepuestoFormModal = ({ isOpen, onClose, editing, reparaciones = [],
       descripcion: editing?.descripcion ?? '',
       precio: editing?.precio ?? ('' as unknown as number),
       reparacionId: editing?.reparacionId ?? lockedReparacionId ?? '',
+      articuloId: '',
+      cantidad: '',
     });
   }, [isOpen, editing, lockedReparacionId, reset]);
 
   const onSubmit = async (data: FormData) => {
+    const artId = editing ? undefined : numOpt(data.articuloId);
     const base: RepuestoCreate = {
       nombre: data.nombre,
       precio: data.precio,
       descripcion: str(data.descripcion),
-      reparacionId: lockedReparacionId ?? repId(data.reparacionId),
+      reparacionId: lockedReparacionId ?? numOpt(data.reparacionId),
+      articuloId: artId,
+      cantidad: artId ? (numOpt(data.cantidad) ?? 1) : undefined,
     };
 
     if (editing) {
@@ -73,9 +88,38 @@ export const RepuestoFormModal = ({ isOpen, onClose, editing, reparaciones = [],
     onClose();
   };
 
+  const regArticulo = register('articuloId', { valueAsNumber: true });
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={editing ? 'Editar repuesto' : 'Nuevo repuesto'} size="md">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {/* Tomar del inventario (solo al crear) → descuenta stock */}
+        {!editing && articulos.length > 0 && (
+          <FormField label="Artículo del inventario (opcional)" htmlFor="articuloId">
+            <select
+              id="articuloId"
+              {...regArticulo}
+              onChange={(e) => {
+                regArticulo.onChange(e);
+                const art = articulos.find((a) => a.id === Number(e.target.value));
+                if (art) {
+                  setValue('nombre', art.nombre);
+                  setValue('precio', art.precio);
+                  setValue('cantidad', 1);
+                }
+              }}
+              className={inputClass()}
+            >
+              <option value="">Cargar a mano (sin descontar stock)</option>
+              {articulos.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.nombre} — stock {a.stock}
+                </option>
+              ))}
+            </select>
+          </FormField>
+        )}
+
         <FormField label="Nombre" required error={errors.nombre?.message} htmlFor="nombre">
           <input id="nombre" type="text" {...register('nombre')} className={inputClass(!!errors.nombre)} placeholder="Ej: Módulo de pantalla" />
         </FormField>
@@ -90,9 +134,16 @@ export const RepuestoFormModal = ({ isOpen, onClose, editing, reparaciones = [],
           />
         </FormField>
 
-        <FormField label="Precio" required error={errors.precio?.message} htmlFor="precio">
-          <input id="precio" type="number" step="0.01" min="0" {...register('precio', { valueAsNumber: true })} className={inputClass(!!errors.precio)} placeholder="0" />
-        </FormField>
+        <div className={`grid gap-4 ${usaInventario ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          <FormField label="Precio" required error={errors.precio?.message} htmlFor="precio">
+            <input id="precio" type="number" step="0.01" min="0" {...register('precio', { valueAsNumber: true })} className={inputClass(!!errors.precio)} placeholder="0" />
+          </FormField>
+          {usaInventario && (
+            <FormField label="Cantidad (descuenta stock)" htmlFor="cantidad">
+              <input id="cantidad" type="number" step="1" min="1" {...register('cantidad', { valueAsNumber: true })} className={inputClass()} placeholder="1" />
+            </FormField>
+          )}
+        </div>
 
         {/* Selector de reparación solo si no viene fijada */}
         {lockedReparacionId === undefined && (

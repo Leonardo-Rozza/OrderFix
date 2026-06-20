@@ -241,6 +241,8 @@ export interface Repuesto {
   descripcion: string | null;
   precio: number;
   reparacionId: number | null;
+  articuloId?: number | null;
+  cantidad?: number | null;
 }
 
 export interface RepuestoCreate {
@@ -248,8 +250,44 @@ export interface RepuestoCreate {
   descripcion?: string;
   precio: number;
   reparacionId?: number;
+  // Enlaza al inventario y descuenta stock (opcional)
+  articuloId?: number;
+  cantidad?: number;
 }
 
 export interface RepuestoUpdate extends Partial<RepuestoCreate> {
   id: number;
+}
+
+// ========== INVENTARIO ==========
+export interface Articulo {
+  id: number;
+  nombre: string;
+  descripcion: string | null;
+  sku: string | null;
+  precio: number;
+  costo: number | null;
+  stock: number;
+  stockMinimo: number;
+  activo: boolean;
+  stockBajo: boolean;
+}
+
+export interface ArticuloCreate {
+  nombre: string;
+  descripcion?: string;
+  sku?: string;
+  precio: number;
+  costo?: number;
+  stock?: number;
+  stockMinimo?: number;
+}
+
+export interface ArticuloUpdate extends Partial<ArticuloCreate> {
+  id: number;
+}
+
+export interface AjusteStock {
+  delta: number;
+  motivo?: string;
 }

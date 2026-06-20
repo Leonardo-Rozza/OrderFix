@@ -65,7 +65,7 @@ export const navItems: NavItem[] = [
   },
   // Secciones futuras (roadmap) — deshabilitadas
   { key: 'caja', label: 'Caja', path: '#', soon: true, icon: <Svg><rect x="2" y="6" width="20" height="13" rx="2" /><path d="M2 10h20M16 14h2" /></Svg> },
-  { key: 'inventario', label: 'Inventario', path: '#', soon: true, icon: <Svg><path d="M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7M12 11v10" /></Svg> },
+  { key: 'inventario', label: 'Inventario', path: '/inventario', icon: <Svg><path d="M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7M12 11v10" /></Svg> },
   { key: 'reportes', label: 'Reportes', path: '#', soon: true, icon: <Svg><path d="M3 3v18h18M8 14v4M13 9v9M18 6v12" /></Svg> },
 ];
 

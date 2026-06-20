@@ -131,8 +131,12 @@ body {
 
 ::selection { background: rgba(13, 148, 136, .22); }
 
-a { color: var(--primary); text-decoration: none; }
-a:hover { color: var(--primary-hover); }
+/* En @layer base para que las utilidades de color de Tailwind (text-*) puedan
+   sobreescribir el color por defecto de los links (si no, pisa a NavLink, etc.). */
+@layer base {
+  a { color: var(--primary); text-decoration: none; }
+  a:hover { color: var(--primary-hover); }
+}
 
 /* Scrollbar fino */
 .ofx-scroll::-webkit-scrollbar { height: 10px; width: 10px; }

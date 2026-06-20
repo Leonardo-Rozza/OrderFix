@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { EstadoBadge } from '../components/EstadoBadge';
 import { ReparacionFormModal } from '../components/ReparacionFormModal';
@@ -33,6 +33,7 @@ const matches = (r: ReparacionEnriquecida, q: string) => {
 
 export const ReparacionesPage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: reparaciones, isLoading } = useReparacionesEnriquecidas();
   const { data: equipos } = useEquiposEnriquecidos();
   const cambiarEstado = useCambiarEstadoMutation();
@@ -40,8 +41,19 @@ export const ReparacionesPage = () => {
   const [vista, setVista] = useState<Vista>('board');
   const [search, setSearch] = useState('');
   const [filtro, setFiltro] = useState<Filtro>('TODOS');
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<Reparacion | null>(null);
+  const [localOpen, setLocalOpen] = useState(false);
+
+  // El formulario se abre por botón (localOpen) o llegando con ?nuevo=1 (ej. dashboard).
+  const nuevoParam = searchParams.get('nuevo') !== null;
+  const formOpen = localOpen || nuevoParam;
+
+  const closeForm = () => {
+    setLocalOpen(false);
+    if (nuevoParam) {
+      searchParams.delete('nuevo');
+      setSearchParams(searchParams, { replace: true });
+    }
+  };
 
   const filtradas = useMemo(
     () => reparaciones.filter((r) => matches(r, search) && (filtro === 'TODOS' || r.estado === filtro)),
@@ -55,10 +67,7 @@ export const ReparacionesPage = () => {
     return base;
   }, [reparaciones]);
 
-  const openNew = () => {
-    setEditing(null);
-    setFormOpen(true);
-  };
+  const openNew = () => setLocalOpen(true);
   const advance = (r: Reparacion) => {
     const next = ESTADOS[r.estado].next;
     if (next) cambiarEstado.mutate({ id: r.id, estado: next });
@@ -143,7 +152,7 @@ export const ReparacionesPage = () => {
         )}
       </div>
 
-      <ReparacionFormModal isOpen={formOpen} onClose={() => setFormOpen(false)} editing={editing} equipos={equipos} />
+      <ReparacionFormModal isOpen={formOpen} onClose={closeForm} editing={null} equipos={equipos} />
     </DashboardLayout>
   );
 };

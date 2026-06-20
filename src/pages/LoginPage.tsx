@@ -38,7 +38,7 @@ export const LoginPage = () => {
     <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
       <AuthAside />
 
-      <div className="flex items-center justify-center bg-bg px-6 py-10">
+      <div className="flex items-center justify-center bg-surface px-6 py-10">
         <div className="ofx-in w-full max-w-[392px]">
           <Logo size={38} className="mb-2" />
 

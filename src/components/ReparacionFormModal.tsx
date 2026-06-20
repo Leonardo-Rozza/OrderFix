@@ -10,18 +10,43 @@ import {
   useCreateReparacionMutation,
   useUpdateReparacionMutation,
 } from '../api/mutations/reparaciones.mutations';
+import { useCreateClienteMutation } from '../api/mutations/clientes.mutations';
+import { useCreateEquipoMutation } from '../api/mutations/equipos.mutations';
+import { useClientesQuery } from '../api/queries/clientes.queries';
 import type { EquipoEnriquecido } from '../hooks/useEnriched';
 import type { Reparacion, ReparacionCreate, ReparacionUpdate } from '../types';
 
-const schema = z.object({
-  equipoId: z.number({ message: 'Seleccioná un equipo' }).min(1, 'Seleccioná un equipo'),
-  descripcionProblema: z.string().min(1, 'Describí el problema'),
-  estado: z.enum(['INGRESADO', 'EN_PROCESO', 'ESPERANDO_REPUESTO', 'COMPLETADO', 'ENTREGADO']),
-  precioEstimado: z.union([z.number().min(0), z.nan(), z.literal('')]).optional(),
-  precioFinal: z.union([z.number().min(0), z.nan(), z.literal('')]).optional(),
-  fechaIngreso: z.string().optional().or(z.literal('')),
-  fechaEstimadaEntrega: z.string().optional().or(z.literal('')),
-});
+const schema = z
+  .object({
+    modo: z.enum(['nuevo', 'existente']),
+    equipoId: z.union([z.number(), z.nan()]).optional(),
+    // Cliente nuevo (datos mínimos)
+    clienteNombre: z.string().optional(),
+    clienteApellido: z.string().optional(),
+    clienteTelefono: z.string().optional(),
+    // Equipo nuevo (datos mínimos)
+    marca: z.string().optional(),
+    modelo: z.string().optional(),
+    imei: z.string().optional(),
+    // Reparación
+    descripcionProblema: z.string().min(1, 'Describí el problema'),
+    estado: z.enum(['INGRESADO', 'EN_PROCESO', 'ESPERANDO_REPUESTO', 'COMPLETADO', 'ENTREGADO']),
+    precioEstimado: z.union([z.number().min(0), z.nan(), z.literal('')]).optional(),
+    precioFinal: z.union([z.number().min(0), z.nan(), z.literal('')]).optional(),
+    fechaIngreso: z.string().optional().or(z.literal('')),
+    fechaEstimadaEntrega: z.string().optional().or(z.literal('')),
+  })
+  .superRefine((val, ctx) => {
+    if (val.modo === 'existente') {
+      if (!val.equipoId || Number.isNaN(val.equipoId)) ctx.addIssue({ path: ['equipoId'], code: 'custom', message: 'Seleccioná un equipo' });
+    } else {
+      if (!val.clienteNombre?.trim()) ctx.addIssue({ path: ['clienteNombre'], code: 'custom', message: 'Nombre requerido' });
+      if (!val.clienteApellido?.trim()) ctx.addIssue({ path: ['clienteApellido'], code: 'custom', message: 'Apellido requerido' });
+      if (!val.clienteTelefono?.trim()) ctx.addIssue({ path: ['clienteTelefono'], code: 'custom', message: 'Teléfono requerido' });
+      if (!val.marca?.trim()) ctx.addIssue({ path: ['marca'], code: 'custom', message: 'Marca requerida' });
+      if (!val.modelo?.trim()) ctx.addIssue({ path: ['modelo'], code: 'custom', message: 'Modelo requerido' });
+    }
+  });
 
 type FormData = z.infer<typeof schema>;
 
@@ -35,26 +60,40 @@ interface Props {
 const num = (v: number | '' | undefined): number | undefined =>
   v === '' || v === undefined || Number.isNaN(v) ? undefined : v;
 const str = (v: string | undefined): string | undefined => (v && v.trim() !== '' ? v : undefined);
+const soloDigitos = (v: string) => v.replace(/\D/g, '');
 
 export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props) => {
   const createMutation = useCreateReparacionMutation();
   const updateMutation = useUpdateReparacionMutation();
-  const saving = createMutation.isPending || updateMutation.isPending;
+  const createCliente = useCreateClienteMutation();
+  const createEquipo = useCreateEquipoMutation();
+  const { data: clientes = [] } = useClientesQuery();
+
+  const saving =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    createCliente.isPending ||
+    createEquipo.isPending;
 
   const {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { estado: 'INGRESADO' },
+    defaultValues: { modo: 'nuevo', estado: 'INGRESADO' },
   });
+
+  const modo = watch('modo');
 
   useEffect(() => {
     if (!isOpen) return;
     if (editing) {
       reset({
+        modo: 'existente',
         equipoId: editing.equipoId,
         descripcionProblema: editing.descripcionProblema,
         estado: editing.estado,
@@ -65,7 +104,16 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props
       });
     } else {
       reset({
+        // Flujo rápido por defecto: cargar cliente + equipo en el acto.
+        // El usuario puede cambiar a "elegir existente".
+        modo: 'nuevo',
         equipoId: undefined,
+        clienteNombre: '',
+        clienteApellido: '',
+        clienteTelefono: '',
+        marca: '',
+        modelo: '',
+        imei: '',
         descripcionProblema: '',
         estado: 'INGRESADO',
         precioEstimado: '',
@@ -77,8 +125,7 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props
   }, [isOpen, editing, reset]);
 
   const onSubmit = async (data: FormData) => {
-    const base: ReparacionCreate = {
-      equipoId: data.equipoId,
+    const repBase = {
       descripcionProblema: data.descripcionProblema,
       estado: data.estado,
       precioEstimado: num(data.precioEstimado),
@@ -87,29 +134,117 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props
       fechaEstimadaEntrega: str(data.fechaEstimadaEntrega),
     };
 
+    // Editar reparación existente
     if (editing) {
-      const payload: ReparacionUpdate = { id: editing.id, ...base };
+      const payload: ReparacionUpdate = { id: editing.id, equipoId: editing.equipoId, ...repBase };
       await updateMutation.mutateAsync(payload);
-    } else {
-      await createMutation.mutateAsync(base);
+      onClose();
+      return;
     }
+
+    // Crear: resolver el equipoId (existente o creando cliente + equipo)
+    let equipoId: number;
+    if (data.modo === 'existente') {
+      equipoId = data.equipoId as number;
+    } else {
+      // Reutilizar cliente si ya existe uno con ese teléfono (evita el 400 por duplicado)
+      const tel = data.clienteTelefono!.trim();
+      const telNorm = soloDigitos(tel);
+      const existente = clientes.find((c) => telNorm !== '' && soloDigitos(c.telefono) === telNorm);
+      const clienteId = existente
+        ? existente.id
+        : (
+            await createCliente.mutateAsync({
+              nombre: data.clienteNombre!.trim(),
+              apellido: str(data.clienteApellido) ?? '',
+              telefono: tel,
+            })
+          ).id;
+
+      const equipo = await createEquipo.mutateAsync({
+        marca: data.marca!.trim(),
+        modelo: data.modelo!.trim(),
+        imei: str(data.imei),
+        clienteId,
+      });
+      equipoId = equipo.id;
+    }
+
+    const payload: ReparacionCreate = { equipoId, ...repBase };
+    await createMutation.mutateAsync(payload);
     onClose();
   };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={editing ? 'Editar reparación' : 'Nueva reparación'} size="lg">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <FormField label="Equipo" required error={errors.equipoId?.message} htmlFor="equipoId">
-          <select id="equipoId" {...register('equipoId', { valueAsNumber: true })} className={inputClass(!!errors.equipoId)}>
-            <option value="">Seleccioná un equipo</option>
-            {equipos.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.marca} {e.modelo}
-                {e.cliente ? ` — ${e.cliente.nombre} ${e.cliente.apellido}` : ''}
-              </option>
+        {/* Selector de modo (solo al crear) */}
+        {!editing && (
+          <div className="flex rounded-lg bg-surface-3 p-1">
+            {(['nuevo', 'existente'] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setValue('modo', m)}
+                className={`flex-1 rounded-md px-3 py-2 text-[13px] font-bold transition ${
+                  modo === m ? 'bg-surface text-text shadow-sm' : 'text-text-2'
+                }`}
+              >
+                {m === 'nuevo' ? 'Cliente y equipo nuevos' : 'Elegir equipo existente'}
+              </button>
             ))}
-          </select>
-        </FormField>
+          </div>
+        )}
+
+        {/* MODO NUEVO: datos mínimos de cliente + equipo */}
+        {!editing && modo === 'nuevo' && (
+          <div className="space-y-4 rounded-xl border border-border bg-surface-2 p-4">
+            <div className="text-[12px] font-extrabold uppercase tracking-wide text-text-3">Cliente</div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField label="Nombre" required error={errors.clienteNombre?.message} htmlFor="clienteNombre">
+                <input id="clienteNombre" type="text" {...register('clienteNombre')} className={inputClass(!!errors.clienteNombre)} placeholder="Ej: Juan" />
+              </FormField>
+              <FormField label="Apellido" required error={errors.clienteApellido?.message} htmlFor="clienteApellido">
+                <input id="clienteApellido" type="text" {...register('clienteApellido')} className={inputClass(!!errors.clienteApellido)} placeholder="Ej: Pérez" />
+              </FormField>
+            </div>
+            <FormField label="Teléfono" required error={errors.clienteTelefono?.message} htmlFor="clienteTelefono">
+              <input id="clienteTelefono" type="tel" {...register('clienteTelefono')} className={inputClass(!!errors.clienteTelefono)} placeholder="+54 9 11 5555-1234" />
+            </FormField>
+
+            <div className="pt-1 text-[12px] font-extrabold uppercase tracking-wide text-text-3">Equipo</div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField label="Marca" required error={errors.marca?.message} htmlFor="marca">
+                <input id="marca" type="text" {...register('marca')} className={inputClass(!!errors.marca)} placeholder="Ej: Apple" />
+              </FormField>
+              <FormField label="Modelo" required error={errors.modelo?.message} htmlFor="modelo">
+                <input id="modelo" type="text" {...register('modelo')} className={inputClass(!!errors.modelo)} placeholder="Ej: iPhone 11" />
+              </FormField>
+            </div>
+            <FormField label="IMEI / Serie" error={errors.imei?.message} htmlFor="imei">
+              <input id="imei" type="text" {...register('imei')} className={inputClass(!!errors.imei)} placeholder="Opcional" />
+            </FormField>
+
+            <p className="text-[12px] text-text-3">
+              Con esto alcanza para abrir la orden. Después podés completar email, dirección, color, etc. desde Clientes y Equipos.
+            </p>
+          </div>
+        )}
+
+        {/* MODO EXISTENTE: seleccionar equipo */}
+        {(editing || modo === 'existente') && (
+          <FormField label="Equipo" required error={errors.equipoId?.message} htmlFor="equipoId">
+            <select id="equipoId" {...register('equipoId', { valueAsNumber: true })} className={inputClass(!!errors.equipoId)} disabled={!!editing}>
+              <option value="">Seleccioná un equipo</option>
+              {equipos.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.marca} {e.modelo}
+                  {e.cliente ? ` — ${e.cliente.nombre} ${e.cliente.apellido}` : ''}
+                </option>
+              ))}
+            </select>
+          </FormField>
+        )}
 
         <FormField label="Problema reportado" required error={errors.descripcionProblema?.message} htmlFor="descripcionProblema">
           <textarea

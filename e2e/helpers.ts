@@ -57,7 +57,7 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
     // Cambiar estado: PATCH /api/reparaciones/:id/estado (body = "ESTADO")
     if (/\/api\/reparaciones\/\d+\/estado$/.test(pathname) && method === 'PATCH') {
       const id = Number(pathname.match(/reparaciones\/(\d+)\/estado/)![1]);
-      const estado = (req.postData() ?? '""').replace(/"/g, '');
+      const estado = (req.postDataJSON() as { estado?: string })?.estado;
       return route.fulfill({ json: { id, estado } });
     }
 

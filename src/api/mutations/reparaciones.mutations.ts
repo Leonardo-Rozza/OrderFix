@@ -29,13 +29,11 @@ const updateReparacion = async (reparacion: ReparacionUpdate): Promise<Reparacio
   return data;
 };
 
-// Cambiar solo el estado: el backend espera el enum como string JSON crudo
+// Cambiar solo el estado: el backend espera { estado: "EN_PROCESO" }
 const cambiarEstado = async (params: { id: number; estado: EstadoReparacion }): Promise<Reparacion> => {
-  const { data } = await apiClient.patch<Reparacion>(
-    `/reparaciones/${params.id}/estado`,
-    JSON.stringify(params.estado),
-    { headers: { 'Content-Type': 'application/json' } }
-  );
+  const { data } = await apiClient.patch<Reparacion>(`/reparaciones/${params.id}/estado`, {
+    estado: params.estado,
+  });
   return data;
 };
 

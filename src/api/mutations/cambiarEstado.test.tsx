@@ -31,11 +31,13 @@ const setup = () => {
 };
 
 describe('useCambiarEstadoMutation (optimista)', () => {
-  it('actualiza la cache al instante y confirma con el backend', async () => {
+  it('actualiza la cache al instante, manda { estado } y confirma con el backend', async () => {
+    let body: unknown;
     server.use(
-      http.patch(`${API}/reparaciones/1/estado`, () =>
-        HttpResponse.json({ ...baseRep, estado: 'EN_PROCESO' })
-      )
+      http.patch(`${API}/reparaciones/1/estado`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ ...baseRep, estado: 'EN_PROCESO' });
+      })
     );
     const { result, estadoEnCache } = setup();
 
@@ -45,6 +47,8 @@ describe('useCambiarEstadoMutation (optimista)', () => {
     await waitFor(() => expect(estadoEnCache()).toBe('EN_PROCESO'));
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(estadoEnCache()).toBe('EN_PROCESO');
+    // El backend nuevo espera { estado: "..." }, no el string crudo
+    expect(body).toEqual({ estado: 'EN_PROCESO' });
   });
 
   it('revierte la cache si el backend falla', async () => {

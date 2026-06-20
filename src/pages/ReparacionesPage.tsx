@@ -190,6 +190,7 @@ const Board = ({
         return (
           <div
             key={meta.key}
+            data-testid={`col-${meta.key}`}
             onDragOver={(e) => {
               e.preventDefault();
               if (overCol !== meta.key) setOverCol(meta.key);
@@ -215,6 +216,7 @@ const Board = ({
               {items.map((r) => (
                 <div
                   key={r.id}
+                  data-testid={`card-${r.id}`}
                   draggable
                   onDragStart={(e) => {
                     setDragId(r.id);

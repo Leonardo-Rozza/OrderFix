@@ -11,6 +11,8 @@ export default defineConfig({
     setupFiles: './src/test/setup.ts',
     css: false,
     restoreMocks: true,
+    // Vitest solo corre los unit/integration de src; los E2E de e2e/ son de Playwright.
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
   },
   build: {
     rollupOptions: {

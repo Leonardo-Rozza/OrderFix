@@ -69,7 +69,7 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
     if (pathname.includes('/api/repuestos/reparacion/')) return route.fulfill({ json: pageOf([]) });
 
     // Seguimiento público
-    if (pathname.includes('/api/seguimiento/')) {
+    if (pathname.includes('/api/seguimiento/') && method === 'GET') {
       return route.fulfill({
         json: {
           codigo: 'ABC123',
@@ -79,7 +79,16 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
           taller: 'MVGR Reparaciones',
           fechaIngreso: '2026-06-10',
           fechaEstimadaEntrega: '2026-06-20',
-          presupuesto: 50000,
+          presupuesto: {
+            id: 1,
+            reparacionId: 1,
+            estado: 'PENDIENTE',
+            items: [{ descripcion: 'Pantalla', cantidad: 1, precioUnitario: 50000 }],
+            total: 50000,
+            observaciones: null,
+            fechaRespuesta: null,
+            createdAt: '2026-06-10T00:00:00',
+          },
         },
       });
     }

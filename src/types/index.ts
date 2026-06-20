@@ -172,6 +172,31 @@ export interface Reparacion {
   equipo?: Equipo;
 }
 
+// ========== PRESUPUESTOS ==========
+export type PresupuestoEstado = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO';
+
+export interface PresupuestoItem {
+  descripcion: string;
+  cantidad: number;
+  precioUnitario: number;
+}
+
+export interface Presupuesto {
+  id: number;
+  reparacionId: number;
+  estado: PresupuestoEstado;
+  items: PresupuestoItem[];
+  total: number;
+  observaciones: string | null;
+  fechaRespuesta: string | null;
+  createdAt: string;
+}
+
+export interface PresupuestoCreate {
+  items: PresupuestoItem[];
+  observaciones?: string;
+}
+
 // Seguimiento público del equipo (GET /api/seguimiento/{codigo}, sin token)
 export interface Seguimiento {
   codigo: string;
@@ -181,7 +206,7 @@ export interface Seguimiento {
   taller: string;
   fechaIngreso: string | null;
   fechaEstimadaEntrega: string | null;
-  presupuesto: number | null;
+  presupuesto: Presupuesto | null;
 }
 
 // Respuesta del link de WhatsApp armado por el backend (GET /api/reparaciones/{id}/whatsapp)

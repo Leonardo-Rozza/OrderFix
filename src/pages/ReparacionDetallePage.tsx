@@ -4,6 +4,8 @@ import { DashboardLayout } from '../layouts/DashboardLayout';
 import { EstadoBadge } from '../components/EstadoBadge';
 import { ReparacionFormModal } from '../components/ReparacionFormModal';
 import { RepuestoFormModal } from '../components/RepuestoFormModal';
+import { PresupuestoFormModal } from '../components/PresupuestoFormModal';
+import { PresupuestoBadge } from '../components/PresupuestoBadge';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Loader } from '../components/Loader';
 import { btnGhost, btnDanger, card } from '../components/ui';
@@ -13,6 +15,7 @@ import { apiClient } from '../api/axios';
 import type { WhatsappLink } from '../types';
 import { useReparacionesEnriquecidas, useEquiposEnriquecidos } from '../hooks/useEnriched';
 import { useRepuestosPorReparacionQuery } from '../api/queries/repuestos.queries';
+import { usePresupuestosQuery } from '../api/queries/presupuestos.queries';
 import {
   useCambiarEstadoMutation,
   useDeleteReparacionMutation,
@@ -29,6 +32,7 @@ export const ReparacionDetallePage = () => {
   const { data: reparaciones, isLoading } = useReparacionesEnriquecidas();
   const { data: equipos } = useEquiposEnriquecidos();
   const { data: repuestos = [] } = useRepuestosPorReparacionQuery(reparacionId);
+  const { data: presupuestos = [] } = usePresupuestosQuery(reparacionId);
   const { isAdmin } = useAuth();
   const cambiarEstado = useCambiarEstadoMutation();
   const deleteMutation = useDeleteReparacionMutation();
@@ -39,6 +43,7 @@ export const ReparacionDetallePage = () => {
   const [repuestoOpen, setRepuestoOpen] = useState(false);
   const [editingRepuesto, setEditingRepuesto] = useState<Repuesto | null>(null);
   const [repuestoToDelete, setRepuestoToDelete] = useState<Repuesto | null>(null);
+  const [presupuestoOpen, setPresupuestoOpen] = useState(false);
 
   const openNewRepuesto = () => {
     setEditingRepuesto(null);
@@ -277,6 +282,52 @@ export const ReparacionDetallePage = () => {
                 )}
               </div>
             )}
+
+            {/* Presupuestos */}
+            <div className={`${card} overflow-hidden`}>
+              <div className="flex items-center gap-2 border-b border-border px-5 py-4 text-[15px] font-extrabold">
+                <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M9 13h6 M9 17h6" />
+                </svg>
+                Presupuestos
+                <button
+                  type="button"
+                  onClick={() => setPresupuestoOpen(true)}
+                  className="ml-auto inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[12.5px] font-bold text-text-2 transition hover:border-primary hover:text-primary"
+                >
+                  <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  Nuevo
+                </button>
+              </div>
+              {presupuestos.length === 0 ? (
+                <div className="px-5 py-5 text-center text-[13.5px] text-text-3">
+                  Sin presupuestos. Creá uno para que el cliente lo apruebe desde el seguimiento.
+                </div>
+              ) : (
+                presupuestos.map((p) => (
+                  <div key={p.id} className="border-b border-border px-5 py-3.5 last:border-0">
+                    <div className="flex items-center gap-2.5">
+                      <PresupuestoBadge estado={p.estado} />
+                      <span className="text-[12.5px] text-text-3">{formatDate(p.createdAt)}</span>
+                      <span className="ml-auto font-mono text-[15px] font-extrabold text-primary">{formatMoney(p.total)}</span>
+                    </div>
+                    <div className="mt-2 space-y-1">
+                      {p.items.map((it, idx) => (
+                        <div key={idx} className="flex justify-between text-[13px] text-text-2">
+                          <span className="truncate">
+                            {it.cantidad}× {it.descripcion}
+                          </span>
+                          <span className="font-mono">{formatMoney(it.cantidad * it.precioUnitario)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {p.observaciones && <div className="mt-2 text-[12.5px] text-text-3">{p.observaciones}</div>}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
           {/* Columna lateral */}
@@ -406,6 +457,7 @@ export const ReparacionDetallePage = () => {
         editing={editingRepuesto}
         lockedReparacionId={rep.id}
       />
+      <PresupuestoFormModal isOpen={presupuestoOpen} onClose={() => setPresupuestoOpen(false)} reparacionId={rep.id} />
       <ConfirmDialog
         isOpen={!!repuestoToDelete}
         title="Eliminar repuesto"

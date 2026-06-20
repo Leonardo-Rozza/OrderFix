@@ -2,9 +2,12 @@ import type { ReactNode } from 'react';
 import { useParams } from 'react-router';
 import { Logo } from '../components/Logo';
 import { EstadoBadge } from '../components/EstadoBadge';
+import { PresupuestoBadge } from '../components/PresupuestoBadge';
 import { ESTADOS, ESTADOS_ORDEN } from '../config/estados';
 import { formatMoney, formatDate } from '../utils/format';
 import { useSeguimientoQuery } from '../api/queries/seguimiento.queries';
+import { useResponderPresupuestoMutation } from '../api/mutations/presupuestos.mutations';
+import { btnPrimary, btnGhost } from '../components/ui';
 
 const Shell = ({ children }: { children: ReactNode }) => (
   <div className="min-h-screen bg-bg text-text">
@@ -21,6 +24,7 @@ const Shell = ({ children }: { children: ReactNode }) => (
 export const SeguimientoPage = () => {
   const { codigo } = useParams();
   const { data, isLoading, isError } = useSeguimientoQuery(codigo);
+  const responder = useResponderPresupuestoMutation(codigo ?? '');
 
   if (isLoading) {
     return (
@@ -100,12 +104,56 @@ export const SeguimientoPage = () => {
               <dt className="text-text-2">Entrega estimada</dt>
               <dd className="font-semibold">{formatDate(data.fechaEstimadaEntrega)}</dd>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-text-2">Presupuesto</dt>
-              <dd className="font-mono font-extrabold text-primary">{formatMoney(data.presupuesto)}</dd>
-            </div>
           </dl>
         </div>
+
+        {/* Presupuesto */}
+        {data.presupuesto && (
+          <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-[13px] font-extrabold uppercase tracking-wide text-text-3">Presupuesto</span>
+              <PresupuestoBadge estado={data.presupuesto.estado} />
+            </div>
+            <div className="space-y-1.5">
+              {data.presupuesto.items.map((it, i) => (
+                <div key={i} className="flex justify-between text-[14px]">
+                  <span className="text-text-2">
+                    {it.cantidad}× {it.descripcion}
+                  </span>
+                  <span className="font-mono font-semibold">{formatMoney(it.cantidad * it.precioUnitario)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+              <span className="text-[15px] font-extrabold">Total</span>
+              <span className="font-mono text-[18px] font-extrabold text-primary">{formatMoney(data.presupuesto.total)}</span>
+            </div>
+            {data.presupuesto.observaciones && (
+              <p className="mt-2 text-[13px] text-text-3">{data.presupuesto.observaciones}</p>
+            )}
+
+            {data.presupuesto.estado === 'PENDIENTE' && (
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  className={`${btnPrimary} flex-1`}
+                  disabled={responder.isPending}
+                  onClick={() => responder.mutate({ codigo: data.codigo, accion: 'aprobar' })}
+                >
+                  Aprobar presupuesto
+                </button>
+                <button
+                  type="button"
+                  className={`${btnGhost} flex-1`}
+                  disabled={responder.isPending}
+                  onClick={() => responder.mutate({ codigo: data.codigo, accion: 'rechazar' })}
+                >
+                  Rechazar
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </Shell>
   );

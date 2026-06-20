@@ -68,6 +68,21 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
     if (pathname.endsWith('/api/repuestos') && method === 'GET') return route.fulfill({ json: pageOf(repuestos) });
     if (pathname.includes('/api/repuestos/reparacion/')) return route.fulfill({ json: pageOf([]) });
 
+    // Dashboard
+    if (pathname.endsWith('/api/dashboard')) {
+      return route.fulfill({
+        json: {
+          reparacionesPorEstado: { INGRESADO: 0, EN_PROCESO: 0, ESPERANDO_REPUESTO: 0, COMPLETADO: 0, ENTREGADO: 0 },
+          totalReparaciones: 0,
+          reparacionesEsteMes: 0,
+          equiposListos: 0,
+          plan: 'FREE',
+          estadoSuscripcion: 'TRIAL',
+          limiteReparacionesMes: 50,
+        },
+      });
+    }
+
     // Suscripción
     if (pathname.endsWith('/api/suscripcion')) {
       return route.fulfill({

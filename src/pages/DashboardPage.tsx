@@ -4,9 +4,11 @@ import { DashboardLayout } from '../layouts/DashboardLayout';
 import { EstadoBadge } from '../components/EstadoBadge';
 import { btnPrimary } from '../components/ui';
 import { formatMoney } from '../utils/format';
+import { ESTADOS_LIST } from '../config/estados';
 import { useReparacionesEnriquecidas } from '../hooks/useEnriched';
 import type { ReparacionEnriquecida } from '../hooks/useEnriched';
 import { useClientesQuery } from '../api/queries/clientes.queries';
+import { useDashboardQuery } from '../api/queries/dashboard.queries';
 import { useAuth } from '../store/auth.store';
 import { computeDashboardMetrics } from './dashboard.metrics';
 
@@ -44,8 +46,24 @@ export const DashboardPage = () => {
   const { email } = useAuth();
   const { data: reparaciones, isLoading } = useReparacionesEnriquecidas();
   const { data: clientes = [] } = useClientesQuery();
+  const { data: stats } = useDashboardQuery();
 
-  const m = useMemo(() => computeDashboardMetrics(reparaciones), [reparaciones]);
+  // Métricas: si el backend respondió, son la fuente autoritativa; si no, fallback client-side.
+  const fallback = useMemo(() => computeDashboardMetrics(reparaciones), [reparaciones]);
+  const recientes = useMemo(
+    () => [...reparaciones].sort((a, b) => b.id - a.id).slice(0, 5),
+    [reparaciones]
+  );
+
+  const counts = stats?.reparacionesPorEstado;
+  const total = stats?.totalReparaciones ?? reparaciones.length;
+  const activas = counts ? total - (counts.ENTREGADO ?? 0) : fallback.activas;
+  const equiposListos = stats?.equiposListos ?? fallback.sinRetirar;
+  const delMes = stats?.reparacionesEsteMes ?? reparaciones.length;
+  const bars = ESTADOS_LIST.map((e) => {
+    const count = counts ? (counts[e.key] ?? 0) : (fallback.counts[e.key] ?? 0);
+    return { meta: e, count, pct: total > 0 ? Math.round((count / total) * 100) : 0 };
+  });
 
   const nombre = email ? email.split('@')[0] : 'taller';
 
@@ -70,7 +88,7 @@ export const DashboardPage = () => {
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
           <Kpi
             label="Reparaciones activas"
-            value={String(m.activas)}
+            value={String(activas)}
             hint="En taller ahora"
             iconBg="var(--st-proceso-bg)"
             iconFg="var(--st-proceso)"
@@ -78,19 +96,19 @@ export const DashboardPage = () => {
           />
           <Kpi
             label="Equipos sin retirar"
-            value={String(m.sinRetirar)}
+            value={String(equiposListos)}
             hint="Listos para entregar"
             iconBg="var(--st-completado-bg)"
             iconFg="var(--st-completado)"
             iconD="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8.5 12.2l2.4 2.4 4.6-5"
           />
           <Kpi
-            label="Ingresos estimados"
-            value={formatMoney(m.ingresosMes)}
-            hint="Reparaciones cerradas"
+            label="Reparaciones del mes"
+            value={String(delMes)}
+            hint="Ingresadas este mes"
             iconBg="var(--primary-soft)"
             iconFg="var(--primary)"
-            iconD="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+            iconD="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"
           />
           <Kpi
             label="Clientes"
@@ -119,13 +137,13 @@ export const DashboardPage = () => {
                   <div className="ofx-skel h-4 flex-1 rounded" />
                 </div>
               ))
-            ) : m.recientes.length === 0 ? (
+            ) : recientes.length === 0 ? (
               <div className="px-[18px] py-12 text-center">
                 <div className="text-[14px] font-extrabold">Todavía no hay reparaciones</div>
                 <div className="mt-1 text-[13px] text-text-3">Cargá la primera para verla acá.</div>
               </div>
             ) : (
-              m.recientes.map((r) => (
+              recientes.map((r) => (
                 <div
                   key={r.id}
                   onClick={() => navigate(`/reparaciones/${r.id}`)}
@@ -157,7 +175,7 @@ export const DashboardPage = () => {
           {/* Reparaciones por estado */}
           <div className="rounded-2xl border border-border bg-surface p-[18px] shadow-sm">
             <div className="mb-3.5 text-[15px] font-extrabold">Reparaciones por estado</div>
-            {m.stats.map((s) => (
+            {bars.map((s) => (
               <div key={s.meta.key} className="mb-3.5 last:mb-0">
                 <div className="mb-1.5 flex items-center justify-between text-[13px]">
                   <span className="inline-flex items-center gap-2 font-bold">
@@ -172,10 +190,8 @@ export const DashboardPage = () => {
               </div>
             ))}
             <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-              <div>
-                <div className="text-[12.5px] font-semibold text-text-2">Ingresos estimados</div>
-                <div className="font-mono text-[24px] font-extrabold tracking-tight">{formatMoney(m.ingresosMes)}</div>
-              </div>
+              <div className="text-[12.5px] font-semibold text-text-2">Total reparaciones</div>
+              <div className="font-mono text-[20px] font-extrabold tracking-tight">{total}</div>
             </div>
           </div>
         </div>

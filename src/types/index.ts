@@ -56,6 +56,17 @@ export interface CheckoutResponse {
   initPoint: string; // URL a la que se redirige al usuario
 }
 
+// Métricas del dashboard (GET /api/dashboard)
+export interface DashboardStats {
+  reparacionesPorEstado: Record<EstadoReparacion, number>;
+  totalReparaciones: number;
+  reparacionesEsteMes: number;
+  equiposListos: number;
+  plan: Plan;
+  estadoSuscripcion: EstadoSuscripcion;
+  limiteReparacionesMes: number | null;
+}
+
 // ========== CLIENTE ==========
 export interface Cliente {
   id: number;

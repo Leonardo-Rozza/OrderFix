@@ -1,228 +1,156 @@
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { useMemo, useState } from 'react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
-import { DataTable } from '../components/DataTable';
-import { Modal } from '../components/Modal';
-import { FormField } from '../components/FormField';
+import { RepuestoFormModal } from '../components/RepuestoFormModal';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { btnPrimary } from '../components/ui';
+import { formatMoney } from '../utils/format';
 import { useRepuestosQuery } from '../api/queries/repuestos.queries';
-import { useReparacionesQuery } from '../api/queries/reparaciones.queries';
-import {
-  useCreateRepuestoMutation,
-  useUpdateRepuestoMutation,
-  useDeleteRepuestoMutation,
-} from '../api/mutations/repuestos.mutations';
-import type { Repuesto, RepuestoCreate } from '../types';
-
-const repuestoSchema = z.object({
-  nombre: z.string().min(1, 'El nombre es requerido'),
-  descripcion: z.string().optional().or(z.literal('')),
-  precio: z.number().min(0, 'El precio debe ser mayor o igual a 0'),
-  reparacionId: z.union([z.number().int().min(1), z.literal('')]).optional(),
-});
-
-type RepuestoFormData = z.infer<typeof repuestoSchema>;
-
-const inputClasses = (hasError: boolean) =>
-  `w-full rounded-lg border px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 dark:text-gray-100 ${
-    hasError ? 'border-red-300 dark:border-red-400' : 'border-gray-300 dark:border-gray-700 dark:bg-gray-900'
-  }`;
+import { useReparacionesEnriquecidas } from '../hooks/useEnriched';
+import { useDeleteRepuestoMutation } from '../api/mutations/repuestos.mutations';
+import type { Repuesto } from '../types';
 
 export const RepuestosPage = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingRepuesto, setEditingRepuesto] = useState<Repuesto | null>(null);
-
   const { data: repuestos = [], isLoading } = useRepuestosQuery();
-  const { data: reparaciones = [] } = useReparacionesQuery();
-  const createMutation = useCreateRepuestoMutation();
-  const updateMutation = useUpdateRepuestoMutation();
+  const { data: reparaciones } = useReparacionesEnriquecidas();
   const deleteMutation = useDeleteRepuestoMutation();
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm<RepuestoFormData>({
-    resolver: zodResolver(repuestoSchema),
-    defaultValues: editingRepuesto
-      ? {
-          nombre: editingRepuesto.nombre,
-          descripcion: editingRepuesto.descripcion || '',
-          precio: editingRepuesto.precio,
-          reparacionId: editingRepuesto.reparacionId || '',
-        }
-      : undefined,
-  });
+  const [search, setSearch] = useState('');
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Repuesto | null>(null);
+  const [toDelete, setToDelete] = useState<Repuesto | null>(null);
 
-  const onSubmit = async (data: RepuestoFormData) => {
-    const payload: RepuestoCreate = {
-      nombre: data.nombre,
-      precio: data.precio,
-      descripcion: data.descripcion && data.descripcion.trim() !== '' ? data.descripcion : undefined,
-      reparacionId:
-        data.reparacionId !== undefined && data.reparacionId !== ''
-          ? typeof data.reparacionId === 'number'
-            ? data.reparacionId
-            : Number(data.reparacionId)
-          : undefined,
-    };
-
-    if (editingRepuesto) {
-      await updateMutation.mutateAsync({
-        id: editingRepuesto.id,
-        ...payload,
-      });
-    } else {
-      await createMutation.mutateAsync(payload);
-    }
-    handleCloseModal();
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setEditingRepuesto(null);
-    reset();
-  };
-
-  const handleEdit = (repuesto: Repuesto) => {
-    setEditingRepuesto(repuesto);
-    setIsModalOpen(true);
-    reset({
-      nombre: repuesto.nombre,
-      descripcion: repuesto.descripcion || '',
-      precio: repuesto.precio,
-      reparacionId: repuesto.reparacionId || '',
+  // Etiqueta de la reparación asociada (equipo) para mostrar contexto.
+  const repLabel = useMemo(() => {
+    const map = new Map<number, string>();
+    reparaciones.forEach((r) => {
+      const eq = r.equipo ? `${r.equipo.marca} ${r.equipo.modelo}` : `Equipo #${r.equipoId}`;
+      map.set(r.id, eq);
     });
-  };
+    return map;
+  }, [reparaciones]);
 
-  const handleDelete = async (repuesto: Repuesto) => {
-    if (window.confirm(`¿Estás seguro de eliminar el repuesto ${repuesto.nombre}?`)) {
-      await deleteMutation.mutateAsync(repuesto.id);
-    }
-  };
+  const filtrados = useMemo(() => {
+    const t = search.trim().toLowerCase();
+    if (!t) return repuestos;
+    return repuestos.filter(
+      (r) => r.nombre.toLowerCase().includes(t) || (r.descripcion ?? '').toLowerCase().includes(t)
+    );
+  }, [repuestos, search]);
 
-  const columns = [
-    { header: 'ID', accessor: 'id' as const },
-    { header: 'Nombre', accessor: 'nombre' as const },
-    {
-      header: 'Descripción',
-      accessor: (row: Repuesto) => row.descripcion || '-',
-    },
-    {
-      header: 'Precio',
-      accessor: (row: Repuesto) => `$${row.precio.toFixed(2)}`,
-    },
-    {
-      header: 'Reparación ID',
-      accessor: (row: Repuesto) => row.reparacionId || '-',
-    },
-  ];
+  const openNew = () => {
+    setEditing(null);
+    setFormOpen(true);
+  };
+  const openEdit = (r: Repuesto) => {
+    setEditing(r);
+    setFormOpen(true);
+  };
+  const confirmDelete = async () => {
+    if (!toDelete) return;
+    await deleteMutation.mutateAsync(toDelete.id);
+    setToDelete(null);
+  };
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Repuestos</h1>
-            <p className="text-gray-600 dark:text-gray-400">Gestiona el inventario de repuestos</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow transition hover:bg-indigo-700 sm:w-auto"
-          >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+    <DashboardLayout title="Repuestos">
+      <div className="ofx-in mx-auto max-w-[1000px] space-y-4">
+        {/* Toolbar */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[180px] max-w-[360px] flex-1">
+            <svg viewBox="0 0 24 24" width={17} height={17} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-2.5">
+              <path d="m21 21-4.3-4.3M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z" />
             </svg>
-            Nuevo Repuesto
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar repuesto por nombre…"
+              className="w-full rounded-lg border border-border-strong bg-surface py-2 pl-9 pr-3 text-[13.5px] text-text outline-none transition placeholder:text-text-3 focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)]"
+            />
+          </div>
+          <button type="button" className={`${btnPrimary} ml-auto`} onClick={openNew}>
+            <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Nuevo repuesto
           </button>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
-          <DataTable
-            data={repuestos}
-            columns={columns}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            isLoading={isLoading}
-            emptyMessage="No hay repuestos registrados"
-          />
-        </div>
+        {/* Tabla */}
+        <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+          <div className="flex items-center gap-3 border-b border-border px-4 py-3 text-[11.5px] font-extrabold uppercase tracking-wide text-text-3">
+            <div className="min-w-0 flex-[1.6]">Repuesto</div>
+            <div className="hidden min-w-0 flex-1 sm:block">Reparación</div>
+            <div className="w-[110px] text-right">Precio</div>
+            <div className="w-[72px]" />
+          </div>
 
-        <Modal
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          title={editingRepuesto ? 'Editar Repuesto' : 'Nuevo Repuesto'}
-          size="md"
-        >
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <FormField label="Nombre" error={errors.nombre?.message} required htmlFor="nombre">
-              <input id="nombre" type="text" {...register('nombre')} className={inputClasses(!!errors.nombre)} />
-            </FormField>
-
-            <FormField label="Descripción" error={errors.descripcion?.message} htmlFor="descripcion">
-              <textarea
-                id="descripcion"
-                rows={3}
-                {...register('descripcion')}
-                className={`${inputClasses(!!errors.descripcion)} resize-none`}
-                placeholder="Detalle opcional del repuesto"
-              />
-            </FormField>
-
-            <FormField label="Precio" error={errors.precio?.message} required htmlFor="precio">
-              <input
-                id="precio"
-                type="number"
-                step="0.01"
-                min="0"
-                {...register('precio', { valueAsNumber: true })}
-                className={inputClasses(!!errors.precio)}
-                placeholder="0.00"
-              />
-            </FormField>
-
-            <FormField label="Reparación asociada" error={errors.reparacionId?.message} htmlFor="reparacionId">
-              <select
-                id="reparacionId"
-                {...register('reparacionId', { valueAsNumber: true })}
-                className={inputClasses(!!errors.reparacionId)}
-              >
-                <option value="">Sin reparación asociada</option>
-                {reparaciones.map((reparacion) => (
-                  <option key={reparacion.id} value={reparacion.id}>
-                    Reparación #{reparacion.id} - {reparacion.descripcionProblema.substring(0, 30)}
-                    {reparacion.descripcionProblema.length > 30 ? '…' : ''}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-
-            <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={handleCloseModal}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-800 sm:w-auto"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={createMutation.isPending || updateMutation.isPending}
-                className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-white transition hover:bg-indigo-700 disabled:opacity-50 sm:w-auto"
-              >
-                {createMutation.isPending || updateMutation.isPending
-                  ? 'Guardando...'
-                  : editingRepuesto
-                  ? 'Actualizar'
-                  : 'Crear'}
-              </button>
+          {isLoading ? (
+            Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-0">
+                <div className="ofx-skel h-4 flex-1 rounded" />
+              </div>
+            ))
+          ) : filtrados.length === 0 ? (
+            <div className="py-12 text-center">
+              <div className="text-[15px] font-extrabold">Sin repuestos</div>
+              <div className="mt-1 text-[13px] text-text-3">
+                {search ? 'Probá con otra búsqueda.' : 'Cargá repuestos o agregalos desde una reparación.'}
+              </div>
             </div>
-          </form>
-        </Modal>
+          ) : (
+            filtrados.map((r) => (
+              <div key={r.id} className="flex items-center gap-3 border-b border-border px-4 py-3 transition last:border-0 hover:bg-surface-2">
+                <div className="min-w-0 flex-[1.6]">
+                  <div className="truncate text-[14px] font-bold">{r.nombre}</div>
+                  {r.descripcion && <div className="truncate text-[12.5px] text-text-3">{r.descripcion}</div>}
+                </div>
+                <div className="hidden min-w-0 flex-1 truncate text-[13px] text-text-2 sm:block">
+                  {r.reparacionId ? `#${r.reparacionId} · ${repLabel.get(r.reparacionId) ?? '—'}` : 'Sin asociar'}
+                </div>
+                <div className="w-[110px] text-right font-mono text-[13.5px] font-bold">{formatMoney(r.precio)}</div>
+                <div className="flex w-[72px] justify-end gap-1">
+                  <button
+                    type="button"
+                    title="Editar"
+                    onClick={() => openEdit(r)}
+                    className="grid h-8 w-8 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-primary hover:text-primary"
+                  >
+                    <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    title="Eliminar"
+                    onClick={() => setToDelete(r)}
+                    className="grid h-8 w-8 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-danger hover:text-danger"
+                  >
+                    <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
+
+      <RepuestoFormModal
+        isOpen={formOpen}
+        onClose={() => setFormOpen(false)}
+        editing={editing}
+        reparaciones={reparaciones}
+      />
+
+      <ConfirmDialog
+        isOpen={!!toDelete}
+        title="Eliminar repuesto"
+        message={`¿Seguro que querés eliminar "${toDelete?.nombre}"? Esta acción no se puede deshacer.`}
+        loading={deleteMutation.isPending}
+        onConfirm={confirmDelete}
+        onClose={() => setToDelete(null)}
+      />
     </DashboardLayout>
   );
 };

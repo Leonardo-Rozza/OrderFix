@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { EstadoBadge } from '../components/EstadoBadge';
 import { ReparacionFormModal } from '../components/ReparacionFormModal';
+import { RepuestoFormModal } from '../components/RepuestoFormModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Loader } from '../components/Loader';
 import { btnGhost, btnDanger, card } from '../components/ui';
@@ -14,7 +15,8 @@ import {
   useCambiarEstadoMutation,
   useDeleteReparacionMutation,
 } from '../api/mutations/reparaciones.mutations';
-import type { EstadoReparacion } from '../types';
+import { useDeleteRepuestoMutation } from '../api/mutations/repuestos.mutations';
+import type { EstadoReparacion, Repuesto } from '../types';
 
 export const ReparacionDetallePage = () => {
   const { id } = useParams();
@@ -26,9 +28,22 @@ export const ReparacionDetallePage = () => {
   const { data: repuestos = [] } = useRepuestosPorReparacionQuery(reparacionId);
   const cambiarEstado = useCambiarEstadoMutation();
   const deleteMutation = useDeleteReparacionMutation();
+  const deleteRepuesto = useDeleteRepuestoMutation();
 
   const [editOpen, setEditOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [repuestoOpen, setRepuestoOpen] = useState(false);
+  const [editingRepuesto, setEditingRepuesto] = useState<Repuesto | null>(null);
+  const [repuestoToDelete, setRepuestoToDelete] = useState<Repuesto | null>(null);
+
+  const openNewRepuesto = () => {
+    setEditingRepuesto(null);
+    setRepuestoOpen(true);
+  };
+  const openEditRepuesto = (rp: Repuesto) => {
+    setEditingRepuesto(rp);
+    setRepuestoOpen(true);
+  };
 
   const rep = useMemo(() => reparaciones.find((r) => r.id === reparacionId), [reparaciones, reparacionId]);
   const totalRepuestos = useMemo(() => repuestos.reduce((sum, r) => sum + (r.precio ?? 0), 0), [repuestos]);
@@ -135,11 +150,46 @@ export const ReparacionDetallePage = () => {
                   <path d="m7.5 4.27 9 5.15M21 8l-9 5-9-5 9-5 9 5zM3 8v8l9 5 9-5V8M12 13v8" />
                 </svg>
                 Repuestos
+                <button
+                  type="button"
+                  onClick={openNewRepuesto}
+                  className="ml-auto inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[12.5px] font-bold text-text-2 transition hover:border-primary hover:text-primary"
+                >
+                  <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  Agregar
+                </button>
               </div>
               {repuestos.map((rp) => (
-                <div key={rp.id} className="flex items-center justify-between border-b border-border px-5 py-3">
-                  <span className="text-[14px] font-semibold">{rp.nombre}</span>
+                <div key={rp.id} className="group flex items-center gap-3 border-b border-border px-5 py-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[14px] font-semibold">{rp.nombre}</div>
+                    {rp.descripcion && <div className="truncate text-[12px] text-text-3">{rp.descripcion}</div>}
+                  </div>
                   <span className="font-mono text-[13.5px] font-bold">{formatMoney(rp.precio)}</span>
+                  <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
+                    <button
+                      type="button"
+                      title="Editar"
+                      onClick={() => openEditRepuesto(rp)}
+                      className="grid h-7 w-7 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-primary hover:text-primary"
+                    >
+                      <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      title="Eliminar"
+                      onClick={() => setRepuestoToDelete(rp)}
+                      className="grid h-7 w-7 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-danger hover:text-danger"
+                    >
+                      <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               ))}
               {repuestos.length === 0 && (
@@ -245,6 +295,25 @@ export const ReparacionDetallePage = () => {
           await deleteMutation.mutateAsync(rep.id);
           setConfirmOpen(false);
           navigate('/reparaciones');
+        }}
+      />
+
+      <RepuestoFormModal
+        isOpen={repuestoOpen}
+        onClose={() => setRepuestoOpen(false)}
+        editing={editingRepuesto}
+        lockedReparacionId={rep.id}
+      />
+      <ConfirmDialog
+        isOpen={!!repuestoToDelete}
+        title="Eliminar repuesto"
+        message={`¿Seguro que querés eliminar "${repuestoToDelete?.nombre}"?`}
+        loading={deleteRepuesto.isPending}
+        onClose={() => setRepuestoToDelete(null)}
+        onConfirm={async () => {
+          if (!repuestoToDelete) return;
+          await deleteRepuesto.mutateAsync(repuestoToDelete.id);
+          setRepuestoToDelete(null);
         }}
       />
     </DashboardLayout>

@@ -1,11 +1,24 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../axios';
-import type { EstadoReparacion, Reparacion, ReparacionCreate, ReparacionUpdate } from '../../types';
+import type {
+  EstadoReparacion,
+  IngresoRapidoRequest,
+  IngresoRapidoResponse,
+  Reparacion,
+  ReparacionCreate,
+  ReparacionUpdate,
+} from '../../types';
 import { getErrorMessage, showError, showSuccess } from '../../utils/toast';
 
 // Crear reparación
 const createReparacion = async (reparacion: ReparacionCreate): Promise<Reparacion> => {
   const { data } = await apiClient.post<Reparacion>('/reparaciones', reparacion);
+  return data;
+};
+
+// Carga rápida: crea cliente + equipo + reparación en un solo paso
+const ingresoRapido = async (payload: IngresoRapidoRequest): Promise<IngresoRapidoResponse> => {
+  const { data } = await apiClient.post<IngresoRapidoResponse>('/reparaciones/ingreso-rapido', payload);
   return data;
 };
 
@@ -40,6 +53,24 @@ export const useCreateReparacionMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reparaciones'] });
       showSuccess('Reparación creada');
+    },
+    onError: (error) => {
+      showError(getErrorMessage(error, 'No se pudo crear la reparación'));
+    },
+  });
+};
+
+// Hook para la carga rápida (cliente + equipo + reparación)
+export const useIngresoRapidoMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ingresoRapido,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['reparaciones'] });
+      queryClient.invalidateQueries({ queryKey: ['equipos'] });
+      queryClient.invalidateQueries({ queryKey: ['clientes'] });
+      showSuccess(data.clienteNuevo ? 'Reparación y cliente creados' : 'Reparación creada');
     },
     onError: (error) => {
       showError(getErrorMessage(error, 'No se pudo crear la reparación'));

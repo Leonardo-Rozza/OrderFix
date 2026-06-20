@@ -141,6 +141,25 @@ export interface ReparacionUpdate extends Partial<ReparacionCreate> {
   id: number;
 }
 
+// Carga rápida: crea cliente + equipo + reparación en un solo paso
+// (POST /api/reparaciones/ingreso-rapido)
+export interface IngresoRapidoRequest {
+  clienteNombre: string;
+  clienteApellido?: string;
+  clienteTelefono: string;
+  equipoMarca: string;
+  equipoModelo: string;
+  descripcionProblema: string;
+  precioEstimado?: number;
+}
+
+export interface IngresoRapidoResponse {
+  clienteId: number;
+  equipoId: number;
+  clienteNuevo: boolean; // false = se reutilizó un cliente existente por teléfono
+  reparacion: Reparacion;
+}
+
 // ========== REPUESTO ==========
 export interface Repuesto {
   id: number;

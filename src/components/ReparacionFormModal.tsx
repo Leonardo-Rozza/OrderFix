@@ -9,12 +9,10 @@ import { ESTADOS_LIST } from '../config/estados';
 import {
   useCreateReparacionMutation,
   useUpdateReparacionMutation,
+  useIngresoRapidoMutation,
 } from '../api/mutations/reparaciones.mutations';
-import { useCreateClienteMutation } from '../api/mutations/clientes.mutations';
-import { useCreateEquipoMutation } from '../api/mutations/equipos.mutations';
-import { useClientesQuery } from '../api/queries/clientes.queries';
 import type { EquipoEnriquecido } from '../hooks/useEnriched';
-import type { Reparacion, ReparacionCreate, ReparacionUpdate } from '../types';
+import type { IngresoRapidoRequest, Reparacion, ReparacionCreate, ReparacionUpdate } from '../types';
 
 const schema = z
   .object({
@@ -27,7 +25,6 @@ const schema = z
     // Equipo nuevo (datos mínimos)
     marca: z.string().optional(),
     modelo: z.string().optional(),
-    imei: z.string().optional(),
     // Reparación
     descripcionProblema: z.string().min(1, 'Describí el problema'),
     estado: z.enum(['INGRESADO', 'EN_PROCESO', 'ESPERANDO_REPUESTO', 'COMPLETADO', 'ENTREGADO']),
@@ -41,7 +38,6 @@ const schema = z
       if (!val.equipoId || Number.isNaN(val.equipoId)) ctx.addIssue({ path: ['equipoId'], code: 'custom', message: 'Seleccioná un equipo' });
     } else {
       if (!val.clienteNombre?.trim()) ctx.addIssue({ path: ['clienteNombre'], code: 'custom', message: 'Nombre requerido' });
-      if (!val.clienteApellido?.trim()) ctx.addIssue({ path: ['clienteApellido'], code: 'custom', message: 'Apellido requerido' });
       if (!val.clienteTelefono?.trim()) ctx.addIssue({ path: ['clienteTelefono'], code: 'custom', message: 'Teléfono requerido' });
       if (!val.marca?.trim()) ctx.addIssue({ path: ['marca'], code: 'custom', message: 'Marca requerida' });
       if (!val.modelo?.trim()) ctx.addIssue({ path: ['modelo'], code: 'custom', message: 'Modelo requerido' });
@@ -60,20 +56,13 @@ interface Props {
 const num = (v: number | '' | undefined): number | undefined =>
   v === '' || v === undefined || Number.isNaN(v) ? undefined : v;
 const str = (v: string | undefined): string | undefined => (v && v.trim() !== '' ? v : undefined);
-const soloDigitos = (v: string) => v.replace(/\D/g, '');
 
 export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props) => {
   const createMutation = useCreateReparacionMutation();
   const updateMutation = useUpdateReparacionMutation();
-  const createCliente = useCreateClienteMutation();
-  const createEquipo = useCreateEquipoMutation();
-  const { data: clientes = [] } = useClientesQuery();
+  const ingresoRapido = useIngresoRapidoMutation();
 
-  const saving =
-    createMutation.isPending ||
-    updateMutation.isPending ||
-    createCliente.isPending ||
-    createEquipo.isPending;
+  const saving = createMutation.isPending || updateMutation.isPending || ingresoRapido.isPending;
 
   const {
     register,
@@ -88,6 +77,7 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props
   });
 
   const modo = watch('modo');
+  const esRapido = !editing && modo === 'nuevo';
 
   useEffect(() => {
     if (!isOpen) return;
@@ -105,7 +95,6 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props
     } else {
       reset({
         // Flujo rápido por defecto: cargar cliente + equipo en el acto.
-        // El usuario puede cambiar a "elegir existente".
         modo: 'nuevo',
         equipoId: undefined,
         clienteNombre: '',
@@ -113,7 +102,6 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props
         clienteTelefono: '',
         marca: '',
         modelo: '',
-        imei: '',
         descripcionProblema: '',
         estado: 'INGRESADO',
         precioEstimado: '',
@@ -125,7 +113,42 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props
   }, [isOpen, editing, reset]);
 
   const onSubmit = async (data: FormData) => {
-    const repBase = {
+    // Editar reparación existente
+    if (editing) {
+      const payload: ReparacionUpdate = {
+        id: editing.id,
+        equipoId: editing.equipoId,
+        descripcionProblema: data.descripcionProblema,
+        estado: data.estado,
+        precioEstimado: num(data.precioEstimado),
+        precioFinal: num(data.precioFinal),
+        fechaIngreso: str(data.fechaIngreso),
+        fechaEstimadaEntrega: str(data.fechaEstimadaEntrega),
+      };
+      await updateMutation.mutateAsync(payload);
+      onClose();
+      return;
+    }
+
+    // Carga rápida: un solo endpoint crea cliente + equipo + reparación
+    if (data.modo === 'nuevo') {
+      const payload: IngresoRapidoRequest = {
+        clienteNombre: data.clienteNombre!.trim(),
+        clienteApellido: str(data.clienteApellido),
+        clienteTelefono: data.clienteTelefono!.trim(),
+        equipoMarca: data.marca!.trim(),
+        equipoModelo: data.modelo!.trim(),
+        descripcionProblema: data.descripcionProblema,
+        precioEstimado: num(data.precioEstimado),
+      };
+      await ingresoRapido.mutateAsync(payload);
+      onClose();
+      return;
+    }
+
+    // Equipo existente: alta normal con todos los campos
+    const payload: ReparacionCreate = {
+      equipoId: data.equipoId as number,
       descripcionProblema: data.descripcionProblema,
       estado: data.estado,
       precioEstimado: num(data.precioEstimado),
@@ -133,44 +156,6 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props
       fechaIngreso: str(data.fechaIngreso),
       fechaEstimadaEntrega: str(data.fechaEstimadaEntrega),
     };
-
-    // Editar reparación existente
-    if (editing) {
-      const payload: ReparacionUpdate = { id: editing.id, equipoId: editing.equipoId, ...repBase };
-      await updateMutation.mutateAsync(payload);
-      onClose();
-      return;
-    }
-
-    // Crear: resolver el equipoId (existente o creando cliente + equipo)
-    let equipoId: number;
-    if (data.modo === 'existente') {
-      equipoId = data.equipoId as number;
-    } else {
-      // Reutilizar cliente si ya existe uno con ese teléfono (evita el 400 por duplicado)
-      const tel = data.clienteTelefono!.trim();
-      const telNorm = soloDigitos(tel);
-      const existente = clientes.find((c) => telNorm !== '' && soloDigitos(c.telefono) === telNorm);
-      const clienteId = existente
-        ? existente.id
-        : (
-            await createCliente.mutateAsync({
-              nombre: data.clienteNombre!.trim(),
-              apellido: str(data.clienteApellido) ?? '',
-              telefono: tel,
-            })
-          ).id;
-
-      const equipo = await createEquipo.mutateAsync({
-        marca: data.marca!.trim(),
-        modelo: data.modelo!.trim(),
-        imei: str(data.imei),
-        clienteId,
-      });
-      equipoId = equipo.id;
-    }
-
-    const payload: ReparacionCreate = { equipoId, ...repBase };
     await createMutation.mutateAsync(payload);
     onClose();
   };
@@ -197,15 +182,15 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props
         )}
 
         {/* MODO NUEVO: datos mínimos de cliente + equipo */}
-        {!editing && modo === 'nuevo' && (
+        {esRapido && (
           <div className="space-y-4 rounded-xl border border-border bg-surface-2 p-4">
             <div className="text-[12px] font-extrabold uppercase tracking-wide text-text-3">Cliente</div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField label="Nombre" required error={errors.clienteNombre?.message} htmlFor="clienteNombre">
                 <input id="clienteNombre" type="text" {...register('clienteNombre')} className={inputClass(!!errors.clienteNombre)} placeholder="Ej: Juan" />
               </FormField>
-              <FormField label="Apellido" required error={errors.clienteApellido?.message} htmlFor="clienteApellido">
-                <input id="clienteApellido" type="text" {...register('clienteApellido')} className={inputClass(!!errors.clienteApellido)} placeholder="Ej: Pérez" />
+              <FormField label="Apellido" error={errors.clienteApellido?.message} htmlFor="clienteApellido">
+                <input id="clienteApellido" type="text" {...register('clienteApellido')} className={inputClass(!!errors.clienteApellido)} placeholder="Opcional" />
               </FormField>
             </div>
             <FormField label="Teléfono" required error={errors.clienteTelefono?.message} htmlFor="clienteTelefono">
@@ -221,12 +206,10 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props
                 <input id="modelo" type="text" {...register('modelo')} className={inputClass(!!errors.modelo)} placeholder="Ej: iPhone 11" />
               </FormField>
             </div>
-            <FormField label="IMEI / Serie" error={errors.imei?.message} htmlFor="imei">
-              <input id="imei" type="text" {...register('imei')} className={inputClass(!!errors.imei)} placeholder="Opcional" />
-            </FormField>
 
             <p className="text-[12px] text-text-3">
-              Con esto alcanza para abrir la orden. Después podés completar email, dirección, color, etc. desde Clientes y Equipos.
+              Con esto alcanza para abrir la orden. Si el teléfono ya existe, se reutiliza ese cliente. El resto
+              (email, dirección, IMEI, color…) lo completás después desde Clientes y Equipos.
             </p>
           </div>
         )}
@@ -256,33 +239,42 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos }: Props
           />
         </FormField>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormField label="Estado" error={errors.estado?.message} htmlFor="estado">
-            <select id="estado" {...register('estado')} className={inputClass(!!errors.estado)}>
-              {ESTADOS_LIST.map((e) => (
-                <option key={e.key} value={e.key}>
-                  {e.label}
-                </option>
-              ))}
-            </select>
-          </FormField>
-          <FormField label="Fecha de ingreso" error={errors.fechaIngreso?.message} htmlFor="fechaIngreso">
-            <input id="fechaIngreso" type="date" {...register('fechaIngreso')} className={inputClass(!!errors.fechaIngreso)} />
-          </FormField>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {esRapido ? (
+          /* En carga rápida solo el precio estimado (lo demás se completa luego) */
           <FormField label="Precio estimado" error={errors.precioEstimado?.message} htmlFor="precioEstimado">
-            <input id="precioEstimado" type="number" step="0.01" min="0" {...register('precioEstimado', { valueAsNumber: true })} className={inputClass(!!errors.precioEstimado)} placeholder="0" />
+            <input id="precioEstimado" type="number" step="0.01" min="0" {...register('precioEstimado', { valueAsNumber: true })} className={inputClass(!!errors.precioEstimado)} placeholder="0 (opcional)" />
           </FormField>
-          <FormField label="Precio final" error={errors.precioFinal?.message} htmlFor="precioFinal">
-            <input id="precioFinal" type="number" step="0.01" min="0" {...register('precioFinal', { valueAsNumber: true })} className={inputClass(!!errors.precioFinal)} placeholder="0" />
-          </FormField>
-        </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField label="Estado" error={errors.estado?.message} htmlFor="estado">
+                <select id="estado" {...register('estado')} className={inputClass(!!errors.estado)}>
+                  {ESTADOS_LIST.map((e) => (
+                    <option key={e.key} value={e.key}>
+                      {e.label}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField label="Fecha de ingreso" error={errors.fechaIngreso?.message} htmlFor="fechaIngreso">
+                <input id="fechaIngreso" type="date" {...register('fechaIngreso')} className={inputClass(!!errors.fechaIngreso)} />
+              </FormField>
+            </div>
 
-        <FormField label="Entrega estimada" error={errors.fechaEstimadaEntrega?.message} htmlFor="fechaEstimadaEntrega">
-          <input id="fechaEstimadaEntrega" type="date" {...register('fechaEstimadaEntrega')} className={inputClass(!!errors.fechaEstimadaEntrega)} />
-        </FormField>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField label="Precio estimado" error={errors.precioEstimado?.message} htmlFor="precioEstimado">
+                <input id="precioEstimado" type="number" step="0.01" min="0" {...register('precioEstimado', { valueAsNumber: true })} className={inputClass(!!errors.precioEstimado)} placeholder="0" />
+              </FormField>
+              <FormField label="Precio final" error={errors.precioFinal?.message} htmlFor="precioFinal">
+                <input id="precioFinal" type="number" step="0.01" min="0" {...register('precioFinal', { valueAsNumber: true })} className={inputClass(!!errors.precioFinal)} placeholder="0" />
+              </FormField>
+            </div>
+
+            <FormField label="Entrega estimada" error={errors.fechaEstimadaEntrega?.message} htmlFor="fechaEstimadaEntrega">
+              <input id="fechaEstimadaEntrega" type="date" {...register('fechaEstimadaEntrega')} className={inputClass(!!errors.fechaEstimadaEntrega)} />
+            </FormField>
+          </>
+        )}
 
         <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
           <button type="button" className={btnGhost} onClick={onClose}>

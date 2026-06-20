@@ -14,6 +14,8 @@ import { SuscripcionResultadoPage } from '../pages/SuscripcionResultadoPage';
 import { SeguimientoPage } from '../pages/SeguimientoPage';
 import { UsuariosPage } from '../pages/UsuariosPage';
 import { InventarioPage } from '../pages/InventarioPage';
+import { CajaPage } from '../pages/CajaPage';
+import { ReciboPage } from '../pages/ReciboPage';
 
 // Configuración de rutas
 const appRoutes = [
@@ -74,6 +76,14 @@ const appRoutes = [
     ),
   },
   {
+    path: '/reparaciones/:id/recibo',
+    element: (
+      <ProtectedRoute>
+        <ReciboPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: '/repuestos',
     element: (
       <ProtectedRoute>
@@ -110,6 +120,14 @@ const appRoutes = [
     element: (
       <ProtectedRoute>
         <InventarioPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/caja',
+    element: (
+      <ProtectedRoute>
+        <CajaPage />
       </ProtectedRoute>
     ),
   },

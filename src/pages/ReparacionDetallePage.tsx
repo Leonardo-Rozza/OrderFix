@@ -6,7 +6,9 @@ import { ReparacionFormModal } from '../components/ReparacionFormModal';
 import { RepuestoFormModal } from '../components/RepuestoFormModal';
 import { PresupuestoFormModal } from '../components/PresupuestoFormModal';
 import { PresupuestoBadge } from '../components/PresupuestoBadge';
+import { CobroFormModal } from '../components/CobroFormModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { metodoLabel } from '../config/cobros';
 import { Loader } from '../components/Loader';
 import { btnGhost, btnDanger, card } from '../components/ui';
 import { ESTADOS, ESTADOS_LIST } from '../config/estados';
@@ -16,6 +18,8 @@ import type { WhatsappLink } from '../types';
 import { useReparacionesEnriquecidas, useEquiposEnriquecidos } from '../hooks/useEnriched';
 import { useRepuestosPorReparacionQuery } from '../api/queries/repuestos.queries';
 import { usePresupuestosQuery } from '../api/queries/presupuestos.queries';
+import { useCobrosQuery } from '../api/queries/cobros.queries';
+import { useAnularCobroMutation } from '../api/mutations/cobros.mutations';
 import {
   useCambiarEstadoMutation,
   useDeleteReparacionMutation,
@@ -33,6 +37,8 @@ export const ReparacionDetallePage = () => {
   const { data: equipos } = useEquiposEnriquecidos();
   const { data: repuestos = [] } = useRepuestosPorReparacionQuery(reparacionId);
   const { data: presupuestos = [] } = usePresupuestosQuery(reparacionId);
+  const { data: cobros } = useCobrosQuery(reparacionId);
+  const anularCobro = useAnularCobroMutation(reparacionId);
   const { isAdmin } = useAuth();
   const cambiarEstado = useCambiarEstadoMutation();
   const deleteMutation = useDeleteReparacionMutation();
@@ -44,6 +50,7 @@ export const ReparacionDetallePage = () => {
   const [editingRepuesto, setEditingRepuesto] = useState<Repuesto | null>(null);
   const [repuestoToDelete, setRepuestoToDelete] = useState<Repuesto | null>(null);
   const [presupuestoOpen, setPresupuestoOpen] = useState(false);
+  const [cobroOpen, setCobroOpen] = useState(false);
 
   const openNewRepuesto = () => {
     setEditingRepuesto(null);
@@ -328,6 +335,85 @@ export const ReparacionDetallePage = () => {
                 ))
               )}
             </div>
+            {/* Cobros */}
+            <div className={`${card} overflow-hidden`}>
+              <div className="flex items-center gap-2 border-b border-border px-5 py-4 text-[15px] font-extrabold">
+                <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+                Cobros
+                <a
+                  href={`/reparaciones/${rep.id}/recibo`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="ml-auto inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[12.5px] font-bold text-text-2 transition hover:border-primary hover:text-primary"
+                >
+                  Recibo
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setCobroOpen(true)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[12.5px] font-bold text-text-2 transition hover:border-primary hover:text-primary"
+                >
+                  <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  Cobrar
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-px bg-border">
+                <div className="bg-surface px-5 py-3 text-center">
+                  <div className="text-[11.5px] text-text-3">Total</div>
+                  <div className="font-mono text-[15px] font-extrabold">{formatMoney(cobros?.total)}</div>
+                </div>
+                <div className="bg-surface px-5 py-3 text-center">
+                  <div className="text-[11.5px] text-text-3">Cobrado</div>
+                  <div className="font-mono text-[15px] font-extrabold text-success">{formatMoney(cobros?.cobrado)}</div>
+                </div>
+                <div className="bg-surface px-5 py-3 text-center">
+                  <div className="text-[11.5px] text-text-3">Saldo</div>
+                  <div className={`font-mono text-[15px] font-extrabold ${(cobros?.saldo ?? 0) > 0 ? 'text-warning' : 'text-text-2'}`}>
+                    {formatMoney(cobros?.saldo)}
+                  </div>
+                </div>
+              </div>
+
+              {cobros?.pagado && (
+                <div className="border-t border-border bg-success-soft px-5 py-2 text-center text-[12.5px] font-bold text-success">
+                  Pagado en su totalidad
+                </div>
+              )}
+
+              {(cobros?.cobros.length ?? 0) === 0 ? (
+                <div className="border-t border-border px-5 py-5 text-center text-[13.5px] text-text-3">Sin cobros registrados.</div>
+              ) : (
+                cobros!.cobros.map((c) => (
+                  <div key={c.id} className="group flex items-center gap-3 border-t border-border px-5 py-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[14px] font-semibold">{metodoLabel(c.metodo)}</div>
+                      <div className="text-[12px] text-text-3">
+                        {formatDate(c.fecha)}
+                        {c.observaciones ? ` · ${c.observaciones}` : ''}
+                      </div>
+                    </div>
+                    <span className="font-mono text-[14px] font-bold">{formatMoney(c.monto)}</span>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        title="Anular cobro"
+                        onClick={() => anularCobro.mutate({ reparacionId: rep.id, cobroId: c.id })}
+                        className="grid h-7 w-7 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 opacity-0 transition hover:border-danger hover:text-danger group-hover:opacity-100"
+                      >
+                        <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
           {/* Columna lateral */}
@@ -458,6 +544,7 @@ export const ReparacionDetallePage = () => {
         lockedReparacionId={rep.id}
       />
       <PresupuestoFormModal isOpen={presupuestoOpen} onClose={() => setPresupuestoOpen(false)} reparacionId={rep.id} />
+      <CobroFormModal isOpen={cobroOpen} onClose={() => setCobroOpen(false)} reparacionId={rep.id} saldo={cobros?.saldo} />
       <ConfirmDialog
         isOpen={!!repuestoToDelete}
         title="Eliminar repuesto"

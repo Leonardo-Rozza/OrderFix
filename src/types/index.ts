@@ -284,6 +284,70 @@ export interface RepuestoUpdate extends Partial<RepuestoCreate> {
   id: number;
 }
 
+// ========== COBROS / CAJA / RECIBO ==========
+export type MetodoPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA' | 'MERCADOPAGO' | 'OTRO';
+
+export interface Cobro {
+  id: number;
+  reparacionId: number;
+  monto: number;
+  metodo: MetodoPago;
+  observaciones: string | null;
+  fecha: string;
+}
+
+export interface CobroCreate {
+  monto: number;
+  metodo: MetodoPago;
+  observaciones?: string;
+}
+
+export interface CobrosReparacion {
+  total: number;
+  cobrado: number;
+  saldo: number;
+  pagado: boolean;
+  cobros: Cobro[];
+}
+
+export interface CajaResumen {
+  desde: string;
+  hasta: string;
+  totalCobrado: number;
+  cantidad: number;
+  porMetodo: Record<MetodoPago, number>;
+  cobros: Cobro[];
+}
+
+export interface ReciboItem {
+  nombre: string;
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+}
+
+export interface Recibo {
+  reparacionId: number;
+  codigoSeguimiento: string | null;
+  estado: EstadoReparacion;
+  tallerNombre: string;
+  tallerTelefono: string | null;
+  clienteNombre: string;
+  clienteApellido: string;
+  clienteTelefono: string | null;
+  equipoMarca: string;
+  equipoModelo: string;
+  descripcionProblema: string;
+  repuestos: ReciboItem[];
+  manoDeObra: number;
+  totalRepuestos: number;
+  total: number;
+  cobrado: number;
+  saldo: number;
+  pagado: boolean;
+  fecha: string;
+}
+
 // ========== INVENTARIO ==========
 export interface Articulo {
   id: number;

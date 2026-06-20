@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { EstadoBadge } from '../components/EstadoBadge';
 import { btnPrimary } from '../components/ui';
-import { ESTADOS_LIST } from '../config/estados';
 import { formatMoney } from '../utils/format';
 import { useReparacionesEnriquecidas } from '../hooks/useEnriched';
 import type { ReparacionEnriquecida } from '../hooks/useEnriched';
 import { useClientesQuery } from '../api/queries/clientes.queries';
 import { useAuth } from '../store/auth.store';
+import { computeDashboardMetrics } from './dashboard.metrics';
 
 const equipoLabel = (r: ReparacionEnriquecida) =>
   r.equipo ? `${r.equipo.marca} ${r.equipo.modelo}` : `Equipo #${r.equipoId}`;
@@ -45,25 +45,7 @@ export const DashboardPage = () => {
   const { data: reparaciones, isLoading } = useReparacionesEnriquecidas();
   const { data: clientes = [] } = useClientesQuery();
 
-  const m = useMemo(() => {
-    const counts = Object.fromEntries(ESTADOS_LIST.map((e) => [e.key, 0])) as Record<string, number>;
-    reparaciones.forEach((r) => (counts[r.estado] = (counts[r.estado] ?? 0) + 1));
-    const activas = reparaciones.filter((r) => r.estado !== 'ENTREGADO').length;
-    const sinRetirar = counts.COMPLETADO ?? 0;
-    const ingresosMes = reparaciones
-      .filter((r) => r.estado === 'COMPLETADO' || r.estado === 'ENTREGADO')
-      .reduce((acc, r) => acc + (r.precioFinal ?? r.precioEstimado ?? 0), 0);
-    const recientes = [...reparaciones]
-      .sort((a, b) => b.id - a.id)
-      .slice(0, 5);
-    const total = reparaciones.length || 1;
-    const stats = ESTADOS_LIST.map((e) => ({
-      meta: e,
-      count: counts[e.key] ?? 0,
-      pct: Math.round(((counts[e.key] ?? 0) / total) * 100),
-    }));
-    return { counts, activas, sinRetirar, ingresosMes, recientes, stats };
-  }, [reparaciones]);
+  const m = useMemo(() => computeDashboardMetrics(reparaciones), [reparaciones]);
 
   const nombre = email ? email.split('@')[0] : 'taller';
 

@@ -12,6 +12,7 @@ import { RepuestosPage } from '../pages/RepuestosPage';
 import { PlanesPage } from '../pages/PlanesPage';
 import { SuscripcionResultadoPage } from '../pages/SuscripcionResultadoPage';
 import { SeguimientoPage } from '../pages/SeguimientoPage';
+import { UsuariosPage } from '../pages/UsuariosPage';
 
 // Configuración de rutas
 const appRoutes = [
@@ -92,6 +93,14 @@ const appRoutes = [
     element: (
       <ProtectedRoute>
         <SuscripcionResultadoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/usuarios',
+    element: (
+      <ProtectedRoute>
+        <UsuariosPage />
       </ProtectedRoute>
     ),
   },

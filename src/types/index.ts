@@ -28,6 +28,29 @@ export interface TokenClaims {
   exp?: number;
 }
 
+// ========== USUARIOS / EMPLEADOS ==========
+export type Rol = 'ADMIN' | 'USER';
+
+export interface Usuario {
+  id: number;
+  username: string;
+  email: string;
+  role: Rol;
+  active: boolean;
+}
+
+export interface UsuarioCreate {
+  username: string;
+  email: string;
+  password: string;
+  role?: Rol;
+}
+
+export interface UsuarioUpdate {
+  role?: Rol;
+  active?: boolean;
+}
+
 export interface ApiErrorBody {
   timestamp?: string;
   status?: number;

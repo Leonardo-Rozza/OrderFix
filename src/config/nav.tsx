@@ -10,6 +10,8 @@ export interface NavItem {
   soon?: boolean;
   /** Aparece en la barra inferior mobile */
   mobile?: boolean;
+  /** Solo visible para administradores */
+  adminOnly?: boolean;
 }
 
 export const navItems: NavItem[] = [
@@ -53,6 +55,13 @@ export const navItems: NavItem[] = [
     path: '/planes',
     mobile: true,
     icon: <Svg><path d="m12 3 2.4 5 5.6.8-4 3.9.9 5.5L12 21l-4.9-2.8.9-5.5-4-3.9 5.6-.8z" /></Svg>,
+  },
+  {
+    key: 'usuarios',
+    label: 'Empleados',
+    path: '/usuarios',
+    adminOnly: true,
+    icon: <Svg><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></Svg>,
   },
   // Secciones futuras (roadmap) — deshabilitadas
   { key: 'caja', label: 'Caja', path: '#', soon: true, icon: <Svg><rect x="2" y="6" width="20" height="13" rx="2" /><path d="M2 10h20M16 14h2" /></Svg> },

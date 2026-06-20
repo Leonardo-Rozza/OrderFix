@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useSuscripcionQuery } from '../api/queries/suscripcion.queries';
-import { useIniciarPagoProMutation } from '../api/mutations/pagos.mutations';
+import { useIniciarPagoProMutation, useCancelarSuscripcionMutation } from '../api/mutations/pagos.mutations';
 import { useAuth } from '../store/auth.store';
 import type { Plan } from '../types';
 
@@ -51,6 +53,8 @@ export const PlanesPage = () => {
   const { data: sus } = useSuscripcionQuery();
   const { isAdmin } = useAuth();
   const iniciarPago = useIniciarPagoProMutation();
+  const cancelar = useCancelarSuscripcionMutation();
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   const plan: Plan = sus?.plan ?? 'FREE';
   const usados = sus?.reparacionesEsteMes ?? 0;
@@ -132,9 +136,20 @@ export const PlanesPage = () => {
               <span className="text-[14px] font-semibold text-text-3"> /mes</span>
             </div>
             {plan === 'PRO' ? (
-              <button type="button" disabled className="w-full rounded-xl bg-surface-3 py-3 text-[14px] font-bold text-text-2">
-                Tu plan actual
-              </button>
+              <div className="space-y-2">
+                <button type="button" disabled className="w-full rounded-xl bg-surface-3 py-3 text-[14px] font-bold text-text-2">
+                  Tu plan actual
+                </button>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmCancel(true)}
+                    className="w-full rounded-xl py-2 text-[12.5px] font-bold text-text-3 transition hover:text-danger"
+                  >
+                    Cancelar PRO
+                  </button>
+                )}
+              </div>
             ) : isAdmin ? (
               <button
                 type="button"
@@ -157,6 +172,19 @@ export const PlanesPage = () => {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmCancel}
+        title="Cancelar PRO"
+        message="Tu taller volverá al plan FREE (con el tope mensual de reparaciones). ¿Confirmás?"
+        confirmLabel="Cancelar PRO"
+        loading={cancelar.isPending}
+        onClose={() => setConfirmCancel(false)}
+        onConfirm={async () => {
+          await cancelar.mutateAsync();
+          setConfirmCancel(false);
+        }}
+      />
     </DashboardLayout>
   );
 };

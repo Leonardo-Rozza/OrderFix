@@ -5,7 +5,8 @@ import { useAuth } from '../store/auth.store';
 
 /** Sidebar de escritorio (oculto en mobile; en mobile se usa BottomNav). */
 export const Sidebar = () => {
-  const { email } = useAuth();
+  const { email, isAdmin } = useAuth();
+  const items = navItems.filter((item) => !item.adminOnly || isAdmin);
 
   return (
     <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-border bg-surface lg:flex">
@@ -16,7 +17,7 @@ export const Sidebar = () => {
       </div>
 
       <nav className="ofx-scroll flex-1 space-y-0.5 overflow-y-auto px-3 py-3">
-        {navItems.map((item) =>
+        {items.map((item) =>
           item.soon ? (
             <div
               key={item.key}

@@ -24,6 +24,20 @@ export const useReparacionesQuery = (params: ReparacionesParams, enabled = true)
   });
 };
 
+// Reparaciones de un equipo (sub-listado: array simple)
+const fetchReparacionesPorEquipo = async (equipoId: number): Promise<Reparacion[]> => {
+  const { data } = await apiClient.get<Reparacion[]>(`/reparaciones/equipo/${equipoId}`);
+  return data;
+};
+
+export const useReparacionesPorEquipoQuery = (equipoId: number | undefined) => {
+  return useQuery({
+    queryKey: ['reparaciones', 'equipo', equipoId],
+    queryFn: () => fetchReparacionesPorEquipo(equipoId as number),
+    enabled: !!equipoId,
+  });
+};
+
 // Reparación por ID (denormalizada: trae equipo + cliente)
 const fetchReparacionById = async (id: number): Promise<Reparacion> => {
   const { data } = await apiClient.get<Reparacion>(`/reparaciones/${id}`);

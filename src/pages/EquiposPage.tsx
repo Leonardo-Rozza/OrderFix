@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { EquipoFormModal } from '../components/EquipoFormModal';
+import { EquipoReparacionesModal } from '../components/EquipoReparacionesModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Pagination } from '../components/Pagination';
 import { btnPrimary } from '../components/ui';
@@ -32,6 +33,7 @@ export const EquiposPage = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Equipo | null>(null);
   const [toDelete, setToDelete] = useState<Equipo | null>(null);
+  const [verReparaciones, setVerReparaciones] = useState<Equipo | null>(null);
 
   const equipos = data?.content ?? [];
 
@@ -88,7 +90,11 @@ export const EquiposPage = () => {
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
             {equipos.map((e) => (
-              <div key={e.id} className="group flex flex-col rounded-2xl border border-border bg-surface p-4 shadow-sm transition hover:border-border-strong">
+              <div
+                key={e.id}
+                onClick={() => setVerReparaciones(e)}
+                className="group flex cursor-pointer flex-col rounded-2xl border border-border bg-surface p-4 shadow-sm transition hover:border-border-strong"
+              >
                 <div className="flex items-start gap-3">
                   <span className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-xl bg-surface-3 text-text-2">{deviceIcon}</span>
                   <div className="min-w-0 flex-1">
@@ -101,7 +107,10 @@ export const EquiposPage = () => {
                     <button
                       type="button"
                       title="Editar"
-                      onClick={() => openEdit(e)}
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        openEdit(e);
+                      }}
                       className="grid h-7 w-7 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-primary hover:text-primary"
                     >
                       <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
@@ -112,7 +121,10 @@ export const EquiposPage = () => {
                       <button
                         type="button"
                         title="Eliminar"
-                        onClick={() => setToDelete(e)}
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setToDelete(e);
+                        }}
                         className="grid h-7 w-7 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-danger hover:text-danger"
                       >
                         <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
@@ -145,6 +157,7 @@ export const EquiposPage = () => {
       </div>
 
       <EquipoFormModal isOpen={formOpen} onClose={() => setFormOpen(false)} editing={editing} clientes={clientes} />
+      {verReparaciones && <EquipoReparacionesModal equipo={verReparaciones} onClose={() => setVerReparaciones(null)} />}
 
       <ConfirmDialog
         isOpen={!!toDelete}

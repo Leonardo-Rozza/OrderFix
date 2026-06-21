@@ -4,6 +4,7 @@ import { DashboardLayout } from '../layouts/DashboardLayout';
 import { EstadoBadge } from '../components/EstadoBadge';
 import { ReparacionFormModal } from '../components/ReparacionFormModal';
 import { Pagination } from '../components/Pagination';
+import { SortSelect } from '../components/SortSelect';
 import { btnPrimary } from '../components/ui';
 import { ESTADOS, ESTADOS_LIST } from '../config/estados';
 import { formatMoney } from '../utils/format';
@@ -25,7 +26,7 @@ export const ReparacionesPage = () => {
   const { data: equipos = [] } = useEquiposOptions();
   const { data: stats } = useDashboardQuery();
 
-  const { q, onSearch, page, setPage, debouncedQ, size } = useListParams();
+  const { q, onSearch, page, setPage, debouncedQ, size, sort, setSort } = useListParams(20, 'id,desc');
   const [vista, setVista] = useState<Vista>('board');
   const [filtro, setFiltro] = useState<Filtro>('TODOS');
   const [localOpen, setLocalOpen] = useState(false);
@@ -85,6 +86,19 @@ export const ReparacionesPage = () => {
             />
           </div>
 
+          {vista === 'list' && (
+            <SortSelect
+              value={sort}
+              onChange={setSort}
+              options={[
+                { value: 'id,desc', label: 'Más recientes' },
+                { value: 'fechaIngreso,desc', label: 'Ingreso reciente' },
+                { value: 'precioFinal,desc', label: 'Mayor precio' },
+                { value: 'estado,asc', label: 'Estado' },
+              ]}
+            />
+          )}
+
           <button type="button" className={btnPrimary} onClick={() => setLocalOpen(true)}>
             <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 5v14M5 12h14" />
@@ -125,6 +139,7 @@ export const ReparacionesPage = () => {
             estado={filtro === 'TODOS' ? undefined : filtro}
             page={page}
             size={size}
+            sort={sort}
             onPage={setPage}
             onOpen={open}
             onAdvance={advance}
@@ -298,6 +313,7 @@ const Lista = ({
   estado,
   page,
   size,
+  sort,
   onPage,
   onOpen,
   onAdvance,
@@ -306,11 +322,12 @@ const Lista = ({
   estado?: EstadoReparacion;
   page: number;
   size: number;
+  sort?: string;
   onPage: (p: number) => void;
   onOpen: (id: number) => void;
   onAdvance: (r: Reparacion) => void;
 }) => {
-  const { data, isLoading } = useReparacionesQuery({ q, estado, page, size });
+  const { data, isLoading } = useReparacionesQuery({ q, estado, page, size, sort });
   const reparaciones = data?.content ?? [];
 
   if (!isLoading && reparaciones.length === 0) {

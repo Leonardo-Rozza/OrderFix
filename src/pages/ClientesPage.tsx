@@ -5,6 +5,7 @@ import { ClienteFichaModal } from '../components/ClienteFichaModal';
 import { EquipoFormModal } from '../components/EquipoFormModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Pagination } from '../components/Pagination';
+import { SortSelect } from '../components/SortSelect';
 import { btnPrimary } from '../components/ui';
 import { iniciales, formatDate } from '../utils/format';
 import { useListParams } from '../hooks/useListParams';
@@ -14,8 +15,8 @@ import { useAuth } from '../store/auth.store';
 import type { Cliente } from '../types';
 
 export const ClientesPage = () => {
-  const { q, onSearch, page, setPage, debouncedQ, size } = useListParams();
-  const { data, isLoading } = useClientesQuery({ q: debouncedQ, page, size });
+  const { q, onSearch, page, setPage, debouncedQ, size, sort, setSort } = useListParams(20, 'nombre,asc');
+  const { data, isLoading } = useClientesQuery({ q: debouncedQ, page, size, sort });
   const { data: clientesOptions = [] } = useClientesOptions();
   const { isAdmin } = useAuth();
   const deleteMutation = useDeleteClienteMutation();
@@ -59,6 +60,16 @@ export const ClientesPage = () => {
               className="w-full rounded-lg border border-border-strong bg-surface py-2 pl-9 pr-3 text-[13.5px] text-text outline-none transition placeholder:text-text-3 focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)]"
             />
           </div>
+          <SortSelect
+            value={sort}
+            onChange={setSort}
+            options={[
+              { value: 'nombre,asc', label: 'Nombre A-Z' },
+              { value: 'nombre,desc', label: 'Nombre Z-A' },
+              { value: 'apellido,asc', label: 'Apellido A-Z' },
+              { value: 'id,desc', label: 'Más recientes' },
+            ]}
+          />
           <button type="button" className={`${btnPrimary} ml-auto`} onClick={openNew}>
             <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 5v14M5 12h14" />

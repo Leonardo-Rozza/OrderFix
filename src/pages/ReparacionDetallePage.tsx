@@ -366,7 +366,7 @@ export const ReparacionDetallePage = () => {
                 </div>
               </div>
 
-              {cobros?.pagado && (
+              {cobros?.pagado && (cobros?.total ?? 0) > 0 && (
                 <div className="border-t border-border bg-success-soft px-5 py-2 text-center text-[12.5px] font-bold text-success">
                   Pagado en su totalidad
                 </div>

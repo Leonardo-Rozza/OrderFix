@@ -23,16 +23,59 @@ const pageOf = <T>(items: T[]) => ({
   page: { size: 1000, number: 0, totalElements: items.length, totalPages: 1 },
 });
 
+const defaultSuscripcion = {
+  plan: 'FREE',
+  estado: 'TRIAL',
+  fechaInicio: null,
+  fechaFinTrial: null,
+  proximoCobro: null,
+  reparacionesEsteMes: 0,
+  limiteReparacionesMes: 50,
+};
+
+const defaultSeguimiento = {
+  codigo: 'ABC123',
+  estado: 'EN_PROCESO',
+  marca: 'Apple',
+  modelo: 'iPhone 13',
+  taller: 'MVGR Reparaciones',
+  fechaIngreso: '2026-06-10',
+  fechaEstimadaEntrega: '2026-06-20',
+  presupuesto: {
+    id: 1,
+    reparacionId: 1,
+    estado: 'PENDIENTE',
+    items: [{ descripcion: 'Pantalla', cantidad: 1, precioUnitario: 50000 }],
+    total: 50000,
+    observaciones: null,
+    fechaRespuesta: null,
+    createdAt: '2026-06-10T00:00:00',
+  },
+};
+
 export interface MockData {
   reparaciones?: unknown[];
   equipos?: unknown[];
   clientes?: unknown[];
   repuestos?: unknown[];
+  articulos?: unknown[];
+  /** Sobrescribe la respuesta de /suscripcion (p. ej. para gating PRO). */
+  suscripcion?: Record<string, unknown>;
+  /** Estado inicial del seguimiento público; el approve/reject lo muta. */
+  seguimiento?: Record<string, unknown>;
+  /** Respuesta de /reparaciones/:id/cobros. */
+  cobros?: Record<string, unknown>;
+  /** Respuesta de /reparaciones/:id/recibo. */
+  recibo?: Record<string, unknown>;
 }
 
 /** Mockea toda la API (/api/**) a nivel de red, así los E2E no dependen del backend. */
 export const mockApi = async (page: Page, data: MockData = {}) => {
-  const { reparaciones = [], equipos = [], clientes = [], repuestos = [] } = data;
+  const { reparaciones = [], equipos = [], clientes = [], repuestos = [], articulos = [] } = data;
+  const suscripcion = data.suscripcion ?? defaultSuscripcion;
+  const cobros = data.cobros ?? { total: 0, cobrado: 0, saldo: 0, pagado: false, cobros: [] };
+  // Estado mutable del seguimiento (para que aprobar/rechazar cambie el badge al refetch).
+  const seguimiento = JSON.parse(JSON.stringify(data.seguimiento ?? defaultSeguimiento));
 
   // Solo interceptamos el backend (localhost:8080), NO los módulos que Vite
   // sirve en dev desde /src/api/... (un glob **/api/** los pisaría).
@@ -62,6 +105,25 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
       return route.fulfill({ json: { id, estado } });
     }
 
+    // Alta de reparación contra equipo existente
+    if (pathname.endsWith('/api/reparaciones') && method === 'POST') {
+      return route.fulfill({ status: 201, json: { id: 1000, ...(req.postDataJSON() as object) } });
+    }
+
+    // Recibo de una reparación
+    if (/\/api\/reparaciones\/\d+\/recibo$/.test(pathname) && method === 'GET') {
+      return route.fulfill({ json: data.recibo ?? {} });
+    }
+
+    // Cobros de una reparación
+    if (/\/api\/reparaciones\/\d+\/cobros$/.test(pathname) && method === 'GET') {
+      return route.fulfill({ json: cobros });
+    }
+    if (/\/api\/reparaciones\/\d+\/cobros$/.test(pathname) && method === 'POST') {
+      const body = req.postDataJSON() as { monto?: number; metodo?: string };
+      return route.fulfill({ status: 201, json: { id: 1, fecha: '2026-06-22T10:00:00', ...body } });
+    }
+
     // Listados (GET)
     if (pathname.endsWith('/api/reparaciones') && method === 'GET') {
       const estado = url.searchParams.get('estado');
@@ -75,29 +137,24 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
     if (pathname.endsWith('/api/repuestos') && method === 'GET') return route.fulfill({ json: pageOf(repuestos) });
     if (pathname.includes('/api/repuestos/reparacion/')) return route.fulfill({ json: pageOf([]) });
 
-    // Seguimiento público
+    // Inventario
+    if (pathname.endsWith('/api/inventario') && method === 'GET') return route.fulfill({ json: pageOf(articulos) });
+    if (pathname.endsWith('/api/inventario') && method === 'POST') {
+      return route.fulfill({ status: 201, json: { id: 1, stock: 0, ...(req.postDataJSON() as object) } });
+    }
+
+    // Seguimiento público: aprobar / rechazar presupuesto (muta el estado)
+    const accionMatch = pathname.match(/\/api\/seguimiento\/[^/]+\/presupuesto\/(aprobar|rechazar)$/);
+    if (accionMatch && method === 'POST') {
+      if (seguimiento.presupuesto) {
+        seguimiento.presupuesto.estado = accionMatch[1] === 'aprobar' ? 'APROBADO' : 'RECHAZADO';
+      }
+      return route.fulfill({ json: {} });
+    }
+
+    // Seguimiento público (GET)
     if (pathname.includes('/api/seguimiento/') && method === 'GET') {
-      return route.fulfill({
-        json: {
-          codigo: 'ABC123',
-          estado: 'EN_PROCESO',
-          marca: 'Apple',
-          modelo: 'iPhone 13',
-          taller: 'MVGR Reparaciones',
-          fechaIngreso: '2026-06-10',
-          fechaEstimadaEntrega: '2026-06-20',
-          presupuesto: {
-            id: 1,
-            reparacionId: 1,
-            estado: 'PENDIENTE',
-            items: [{ descripcion: 'Pantalla', cantidad: 1, precioUnitario: 50000 }],
-            total: 50000,
-            observaciones: null,
-            fechaRespuesta: null,
-            createdAt: '2026-06-10T00:00:00',
-          },
-        },
-      });
+      return route.fulfill({ json: seguimiento });
     }
 
     // Dashboard
@@ -117,17 +174,7 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
 
     // Suscripción
     if (pathname.endsWith('/api/suscripcion')) {
-      return route.fulfill({
-        json: {
-          plan: 'FREE',
-          estado: 'TRIAL',
-          fechaInicio: null,
-          fechaFinTrial: null,
-          proximoCobro: null,
-          reparacionesEsteMes: 0,
-          limiteReparacionesMes: 50,
-        },
-      });
+      return route.fulfill({ json: suscripcion });
     }
 
     // Default: lista vacía / OK

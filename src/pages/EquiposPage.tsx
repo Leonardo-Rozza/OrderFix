@@ -102,8 +102,17 @@ export const EquiposPage = () => {
             {equipos.map((e) => (
               <div
                 key={e.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`Ver reparaciones de ${e.marca} ${e.modelo}`}
                 onClick={() => setVerReparaciones(e)}
-                className="group flex cursor-pointer flex-col rounded-2xl border border-border bg-surface p-4 shadow-sm transition hover:border-border-strong"
+                onKeyDown={(ev) => {
+                  if (ev.key === 'Enter' || ev.key === ' ') {
+                    ev.preventDefault();
+                    setVerReparaciones(e);
+                  }
+                }}
+                className="group flex cursor-pointer flex-col rounded-2xl border border-border bg-surface p-4 shadow-sm transition hover:border-border-strong focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)]"
               >
                 <div className="flex items-start gap-3">
                   <span className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-xl bg-surface-3 text-text-2">{deviceIcon}</span>
@@ -116,7 +125,7 @@ export const EquiposPage = () => {
                   <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
                     <button
                       type="button"
-                      title="Editar"
+                      aria-label="Editar" title="Editar"
                       onClick={(ev) => {
                         ev.stopPropagation();
                         openEdit(e);
@@ -130,7 +139,7 @@ export const EquiposPage = () => {
                     {isAdmin && (
                       <button
                         type="button"
-                        title="Eliminar"
+                        aria-label="Eliminar" title="Eliminar"
                         onClick={(ev) => {
                           ev.stopPropagation();
                           setToDelete(e);

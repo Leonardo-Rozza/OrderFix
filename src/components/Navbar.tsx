@@ -38,6 +38,7 @@ export const Navbar = ({ title }: NavbarProps) => {
           <button
             type="button"
             onClick={handleLogout}
+            aria-label="Cerrar sesión"
             title="Cerrar sesión"
             className="grid h-9 w-9 place-items-center rounded-full border border-border-strong bg-surface text-text-2 transition-colors hover:border-danger hover:text-danger-fg"
           >

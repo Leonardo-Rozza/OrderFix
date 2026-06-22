@@ -3,7 +3,7 @@ import { mobileNavItems } from '../config/nav';
 
 /** Barra de navegación inferior (solo mobile). */
 export const BottomNav = () => (
-  <nav className="sticky bottom-0 z-30 flex border-t border-border bg-surface px-1 py-1.5 lg:hidden">
+  <nav aria-label="Principal" className="sticky bottom-0 z-30 flex border-t border-border bg-surface px-1 py-1.5 lg:hidden">
     {mobileNavItems.map((item) => (
       <NavLink
         key={item.key}

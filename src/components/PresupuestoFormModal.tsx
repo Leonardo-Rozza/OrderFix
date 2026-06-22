@@ -101,6 +101,7 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
                 onClick={() => fields.length > 1 && remove(i)}
                 disabled={fields.length === 1}
                 className="mt-1.5 grid h-7 w-7 place-items-center rounded-lg text-text-3 transition hover:text-danger disabled:opacity-30"
+                aria-label="Quitar ítem"
                 title="Quitar ítem"
               >
                 <svg viewBox="0 0 24 24" width={15} height={15} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">

@@ -83,7 +83,7 @@ export function DataTable<T extends { id: number }>({
                       <button
                         onClick={() => onEdit(row)}
                         className="text-indigo-600 transition-colors hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
-                        title="Editar"
+                        aria-label="Editar" title="Editar"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
@@ -99,7 +99,7 @@ export function DataTable<T extends { id: number }>({
                       <button
                         onClick={() => onDelete(row)}
                         className="text-red-600 transition-colors hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                        title="Eliminar"
+                        aria-label="Eliminar" title="Eliminar"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path

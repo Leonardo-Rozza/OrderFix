@@ -257,6 +257,9 @@ const BoardColumn = ({
           <div
             key={r.id}
             data-testid={`card-${r.id}`}
+            role="button"
+            tabIndex={0}
+            aria-label={`Abrir reparación #${r.id} — ${equipoLabel(r)}`}
             draggable
             onDragStart={(e) => {
               onDragStartCard(r);
@@ -264,7 +267,13 @@ const BoardColumn = ({
             }}
             onDragEnd={onDragEndCard}
             onClick={() => onOpen(r.id)}
-            className={`cursor-grab select-none rounded-xl border border-border bg-surface p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-border-strong active:cursor-grabbing ${
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onOpen(r.id);
+              }
+            }}
+            className={`cursor-grab select-none rounded-xl border border-border bg-surface p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-border-strong focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] active:cursor-grabbing ${
               draggingId === r.id ? 'opacity-50' : ''
             }`}
             style={{ borderLeft: `3px solid ${meta.cssVar}` }}
@@ -354,8 +363,17 @@ const Lista = ({
           return (
             <div
               key={r.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`Abrir reparación #${r.id} — ${equipoLabel(r)}`}
               onClick={() => onOpen(r.id)}
-              className="flex cursor-pointer items-center gap-3 border-b border-border px-4 py-3 transition last:border-0 hover:bg-surface-2"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onOpen(r.id);
+                }
+              }}
+              className="flex cursor-pointer items-center gap-3 border-b border-border px-4 py-3 transition last:border-0 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)]"
             >
               <div className="min-w-0 flex-[1.6]">
                 <div className="truncate text-[14px] font-bold">{equipoLabel(r)}</div>
@@ -369,7 +387,7 @@ const Lista = ({
               {meta.next ? (
                 <button
                   type="button"
-                  title="Avanzar estado"
+                  aria-label="Avanzar estado" title="Avanzar estado"
                   onClick={(e) => {
                     e.stopPropagation();
                     onAdvance(r);

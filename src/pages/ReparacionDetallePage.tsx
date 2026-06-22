@@ -181,7 +181,7 @@ export const ReparacionDetallePage = () => {
                   <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
                     <button
                       type="button"
-                      title="Editar"
+                      aria-label="Editar" title="Editar"
                       onClick={() => openEditRepuesto(rp)}
                       className="grid h-7 w-7 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-primary hover:text-primary"
                     >
@@ -192,7 +192,7 @@ export const ReparacionDetallePage = () => {
                     {isAdmin && (
                       <button
                         type="button"
-                        title="Eliminar"
+                        aria-label="Eliminar" title="Eliminar"
                         onClick={() => setRepuestoToDelete(rp)}
                         className="grid h-7 w-7 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-danger hover:text-danger"
                       >
@@ -388,7 +388,7 @@ export const ReparacionDetallePage = () => {
                     {isAdmin && (
                       <button
                         type="button"
-                        title="Anular cobro"
+                        aria-label="Anular cobro" title="Anular cobro"
                         onClick={() => anularCobro.mutate({ reparacionId: rep.id, cobroId: c.id })}
                         className="grid h-7 w-7 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 opacity-0 transition hover:border-danger hover:text-danger group-hover:opacity-100"
                       >

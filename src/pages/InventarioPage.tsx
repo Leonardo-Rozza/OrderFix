@@ -114,7 +114,7 @@ export const InventarioPage = () => {
                 <div className="flex w-[96px] justify-end gap-1">
                   <button
                     type="button"
-                    title="Ajustar stock"
+                    aria-label="Ajustar stock" title="Ajustar stock"
                     onClick={() => setAjuste(a)}
                     className="grid h-8 w-8 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-primary hover:text-primary"
                   >
@@ -124,7 +124,7 @@ export const InventarioPage = () => {
                   </button>
                   <button
                     type="button"
-                    title="Editar"
+                    aria-label="Editar" title="Editar"
                     onClick={() => {
                       setEditing(a);
                       setFormOpen(true);
@@ -138,7 +138,7 @@ export const InventarioPage = () => {
                   {isAdmin && (
                     <button
                       type="button"
-                      title="Eliminar"
+                      aria-label="Eliminar" title="Eliminar"
                       onClick={() => setToDelete(a)}
                       className="grid h-8 w-8 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-danger hover:text-danger"
                     >

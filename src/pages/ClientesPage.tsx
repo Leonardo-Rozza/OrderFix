@@ -105,8 +105,17 @@ export const ClientesPage = () => {
             clientes.map((c) => (
               <div
                 key={c.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`Ver ficha de ${c.nombre} ${c.apellido ?? ''}`.trim()}
                 onClick={() => setFicha(c)}
-                className="flex cursor-pointer items-center gap-3 border-b border-border px-4 py-3 transition last:border-0 hover:bg-surface-2"
+                onKeyDown={(ev) => {
+                  if (ev.key === 'Enter' || ev.key === ' ') {
+                    ev.preventDefault();
+                    setFicha(c);
+                  }
+                }}
+                className="flex cursor-pointer items-center gap-3 border-b border-border px-4 py-3 transition last:border-0 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)]"
               >
                 <div className="flex min-w-0 flex-[1.6] items-center gap-3">
                   <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary-soft text-[13px] font-extrabold text-primary-soft-fg">

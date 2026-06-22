@@ -26,7 +26,7 @@ export const Sidebar = () => {
         </Link>
       </div>
 
-      <nav className="ofx-scroll flex-1 space-y-0.5 overflow-y-auto px-3 py-3">
+      <nav aria-label="Principal" className="ofx-scroll flex-1 space-y-0.5 overflow-y-auto px-3 py-3">
         {items.map((item) =>
           item.soon ? (
             <div

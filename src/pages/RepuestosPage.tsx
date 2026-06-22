@@ -97,7 +97,7 @@ export const RepuestosPage = () => {
                 <div className="flex w-[72px] justify-end gap-1">
                   <button
                     type="button"
-                    title="Editar"
+                    aria-label="Editar" title="Editar"
                     onClick={() => openEdit(r)}
                     className="grid h-8 w-8 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-primary hover:text-primary"
                   >
@@ -108,7 +108,7 @@ export const RepuestosPage = () => {
                   {isAdmin && (
                     <button
                       type="button"
-                      title="Eliminar"
+                      aria-label="Eliminar" title="Eliminar"
                       onClick={() => setToDelete(r)}
                       className="grid h-8 w-8 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-danger hover:text-danger"
                     >

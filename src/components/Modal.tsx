@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 
 interface ModalProps {
   isOpen: boolean;
@@ -15,18 +15,86 @@ const sizeClasses: Record<NonNullable<ModalProps['size']>, string> = {
   xl: 'max-w-4xl',
 };
 
+const FOCUSABLE =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalProps) => {
+  const titleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const lastFocused = useRef<HTMLElement | null>(null);
+
+  // Cerrar con Escape + atrapar el foco dentro del diálogo (Tab cíclico).
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab' || !panelRef.current) return;
+      const focusables = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+        (el) => el.offsetParent !== null,
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
+
+  // Bloquear el scroll del fondo mientras está abierto.
+  useEffect(() => {
+    if (!isOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isOpen]);
+
+  // Mover el foco al abrir y restaurarlo al cerrar.
+  useEffect(() => {
+    if (!isOpen) return;
+    lastFocused.current = document.activeElement as HTMLElement | null;
+    const t = setTimeout(() => {
+      const panel = panelRef.current;
+      if (!panel) return;
+      const target = panel.querySelector<HTMLElement>(FOCUSABLE);
+      (target ?? panel).focus();
+    }, 0);
+    return () => {
+      clearTimeout(t);
+      lastFocused.current?.focus?.();
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div
-        className={`ofx-pop relative z-10 w-full ${sizeClasses[size]} overflow-hidden rounded-2xl border border-border bg-surface shadow-lg`}
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className={`ofx-pop relative z-10 w-full ${sizeClasses[size]} overflow-hidden rounded-2xl border border-border bg-surface shadow-lg outline-none`}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h3 className="text-[17px] font-extrabold tracking-tight">{title}</h3>
+          <h3 id={titleId} className="text-[17px] font-extrabold tracking-tight">
+            {title}
+          </h3>
           <button
             type="button"
             onClick={onClose}

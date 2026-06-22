@@ -34,7 +34,8 @@ describe('EquipoFormModal', () => {
 
     await user.type(screen.getByLabelText(/^marca/i), 'Samsung');
     await user.type(screen.getByLabelText(/^modelo/i), 'A52');
-    await user.selectOptions(screen.getByLabelText(/cliente/i), '1');
+    await user.click(screen.getByLabelText(/cliente/i));
+    await user.click(await screen.findByRole('option', { name: /ana/i }));
     await user.click(screen.getByRole('button', { name: /crear equipo/i }));
 
     await waitFor(() => expect(body).toBeDefined());
@@ -44,7 +45,6 @@ describe('EquipoFormModal', () => {
 
   it('preselecciona el cliente con defaultClienteId', async () => {
     renderUI(<EquipoFormModal isOpen onClose={vi.fn()} editing={null} clientes={clientes} defaultClienteId={1} />);
-    const select = screen.getByLabelText(/cliente/i) as HTMLSelectElement;
-    await waitFor(() => expect(select.value).toBe('1'));
+    await waitFor(() => expect(screen.getByLabelText(/cliente/i)).toHaveTextContent(/ana/i));
   });
 });

@@ -99,7 +99,8 @@ describe('ReparacionFormModal — equipo existente', () => {
     renderUI(<ReparacionFormModal isOpen onClose={onClose} editing={null} equipos={equipos} />);
 
     await user.click(screen.getByRole('button', { name: /elegir equipo existente/i }));
-    await user.selectOptions(screen.getByLabelText(/^equipo/i), '5');
+    await user.click(screen.getByLabelText(/^equipo/i));
+    await user.click(await screen.findByRole('option', { name: /samsung a52/i }));
     await user.type(screen.getByLabelText(/problema/i), 'No enciende');
     await user.click(screen.getByRole('button', { name: /crear reparación/i }));
 

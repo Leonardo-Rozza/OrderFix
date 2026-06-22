@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Modal } from './Modal';
 import { FormField } from './FormField';
+import { Combobox } from './Combobox';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import {
   useCreateEquipoMutation,
@@ -42,6 +43,7 @@ export const EquipoFormModal = ({ isOpen, onClose, editing, clientes, defaultCli
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
@@ -89,14 +91,23 @@ export const EquipoFormModal = ({ isOpen, onClose, editing, clientes, defaultCli
         </div>
 
         <FormField label="Cliente" required error={errors.clienteId?.message} htmlFor="clienteId">
-          <select id="clienteId" {...register('clienteId', { valueAsNumber: true })} className={inputClass(!!errors.clienteId)}>
-            <option value="">Seleccioná un cliente</option>
-            {clientes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nombre} {c.apellido}
-              </option>
-            ))}
-          </select>
+          <Controller
+            control={control}
+            name="clienteId"
+            render={({ field }) => (
+              <Combobox
+                id="clienteId"
+                value={field.value}
+                onChange={(v) => field.onChange(v)}
+                hasError={!!errors.clienteId}
+                placeholder="Seleccioná un cliente"
+                options={clientes.map((c) => ({
+                  value: c.id,
+                  label: `${c.nombre} ${c.apellido ?? ''}`.trim(),
+                }))}
+              />
+            )}
+          />
         </FormField>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

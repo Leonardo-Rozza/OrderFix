@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Modal } from './Modal';
 import { FormField } from './FormField';
+import { Combobox } from './Combobox';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import { ESTADOS_LIST } from '../config/estados';
 import {
@@ -89,6 +90,7 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
     reset,
     watch,
     setValue,
+    control,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -263,15 +265,27 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
         {/* MODO EXISTENTE: seleccionar equipo */}
         {(editing || modo === 'existente') && (
           <FormField label="Equipo" required error={errors.equipoId?.message} htmlFor="equipoId">
-            <select id="equipoId" {...register('equipoId', { valueAsNumber: true })} className={inputClass(!!errors.equipoId)} disabled={!!editing}>
-              <option value="">Seleccioná un equipo</option>
-              {equipos.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.marca} {e.modelo}
-                  {e.clienteNombre ? ` — ${e.clienteNombre} ${e.clienteApellido ?? ''}` : ''}
-                </option>
-              ))}
-            </select>
+            <Controller
+              control={control}
+              name="equipoId"
+              render={({ field }) => (
+                <Combobox
+                  id="equipoId"
+                  value={field.value}
+                  onChange={(v) => field.onChange(v)}
+                  hasError={!!errors.equipoId}
+                  disabled={!!editing}
+                  placeholder="Seleccioná un equipo"
+                  options={equipos.map((e) => ({
+                    value: e.id,
+                    label: `${e.marca} ${e.modelo}`,
+                    sublabel: e.clienteNombre
+                      ? `${e.clienteNombre} ${e.clienteApellido ?? ''}`.trim()
+                      : undefined,
+                  }))}
+                />
+              )}
+            />
           </FormField>
         )}
 

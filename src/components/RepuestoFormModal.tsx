@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Modal } from './Modal';
 import { FormField } from './FormField';
+import { Combobox } from './Combobox';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import {
   useCreateRepuestoMutation,
@@ -52,6 +53,7 @@ export const RepuestoFormModal = ({ isOpen, onClose, editing, reparaciones = [],
     reset,
     watch,
     setValue,
+    control,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
@@ -90,35 +92,38 @@ export const RepuestoFormModal = ({ isOpen, onClose, editing, reparaciones = [],
     onClose();
   };
 
-  const regArticulo = register('articuloId', { valueAsNumber: true });
-
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={editing ? 'Editar repuesto' : 'Nuevo repuesto'} size="md">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {/* Tomar del inventario (solo al crear) → descuenta stock */}
         {!editing && articulos.length > 0 && (
           <FormField label="Artículo del inventario (opcional)" htmlFor="articuloId">
-            <select
-              id="articuloId"
-              {...regArticulo}
-              onChange={(e) => {
-                regArticulo.onChange(e);
-                const art = articulos.find((a) => a.id === Number(e.target.value));
-                if (art) {
-                  setValue('nombre', art.nombre);
-                  setValue('precio', art.precio);
-                  setValue('cantidad', 1);
-                }
-              }}
-              className={inputClass()}
-            >
-              <option value="">Cargar a mano (sin descontar stock)</option>
-              {articulos.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.nombre} — stock {a.stock}
-                </option>
-              ))}
-            </select>
+            <Controller
+              control={control}
+              name="articuloId"
+              render={({ field }) => (
+                <Combobox
+                  id="articuloId"
+                  value={typeof field.value === 'number' && !Number.isNaN(field.value) ? field.value : undefined}
+                  emptyLabel="Cargar a mano (sin descontar stock)"
+                  placeholder="Cargar a mano (sin descontar stock)"
+                  onChange={(v) => {
+                    field.onChange(v ?? '');
+                    const art = articulos.find((a) => a.id === v);
+                    if (art) {
+                      setValue('nombre', art.nombre);
+                      setValue('precio', art.precio);
+                      setValue('cantidad', 1);
+                    }
+                  }}
+                  options={articulos.map((a) => ({
+                    value: a.id,
+                    label: a.nombre,
+                    sublabel: `stock ${a.stock}`,
+                  }))}
+                />
+              )}
+            />
           </FormField>
         )}
 

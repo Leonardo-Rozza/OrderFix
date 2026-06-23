@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { FeatureLocked } from '../components/FeatureLocked';
+import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
 import { formatMoney, formatDate } from '../utils/format';
 import { METODOS, metodoLabel } from '../config/cobros';
 import { useCajaQuery } from '../api/queries/cobros.queries';
@@ -10,7 +12,7 @@ export const CajaPage = () => {
   const { cobros: cobrosHabilitado } = useFunciones();
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
-  const { data, isLoading } = useCajaQuery({ desde: desde || undefined, hasta: hasta || undefined }, cobrosHabilitado);
+  const { data, isLoading, isError, refetch } = useCajaQuery({ desde: desde || undefined, hasta: hasta || undefined }, cobrosHabilitado);
 
   if (!cobrosHabilitado) {
     return (
@@ -76,7 +78,7 @@ export const CajaPage = () => {
         <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
           <div className="flex items-center gap-3 border-b border-border px-4 py-3 text-[11.5px] font-extrabold uppercase tracking-wide text-text-3">
             <div className="flex-1">Cobro</div>
-            <div className="w-[120px]">Método</div>
+            <div className="hidden w-[120px] sm:block">Método</div>
             <div className="w-[110px] text-right">Monto</div>
           </div>
           {isLoading ? (
@@ -85,11 +87,10 @@ export const CajaPage = () => {
                 <div className="ofx-skel h-4 flex-1 rounded" />
               </div>
             ))
+          ) : isError ? (
+            <ErrorState onRetry={() => refetch()} message="No pudimos cargar la caja." />
           ) : (data?.cobros.length ?? 0) === 0 ? (
-            <div className="py-12 text-center">
-              <div className="text-[15px] font-extrabold">Sin cobros en el período</div>
-              <div className="mt-1 text-[13px] text-text-3">Probá con otro rango de fechas.</div>
-            </div>
+            <EmptyState title="Sin cobros en el período" hint="Probá con otro rango de fechas." />
           ) : (
             data!.cobros.map((c) => (
               <div key={c.id} className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-0">
@@ -100,7 +101,7 @@ export const CajaPage = () => {
                     {c.observaciones ? ` · ${c.observaciones}` : ''}
                   </div>
                 </div>
-                <div className="w-[120px] text-[13px] text-text-2">{metodoLabel(c.metodo)}</div>
+                <div className="hidden w-[120px] text-[13px] text-text-2 sm:block">{metodoLabel(c.metodo)}</div>
                 <div className="w-[110px] text-right font-mono text-[13.5px] font-bold">{formatMoney(c.monto)}</div>
               </div>
             ))

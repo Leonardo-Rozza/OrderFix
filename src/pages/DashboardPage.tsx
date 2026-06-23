@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { EstadoBadge } from '../components/EstadoBadge';
+import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
 import { btnPrimary } from '../components/ui';
 import { ESTADOS_LIST } from '../config/estados';
 import { formatMoney } from '../utils/format';
@@ -37,7 +39,7 @@ const Kpi = ({ label, value, hint, iconD, iconBg, iconFg }: KpiProps) => (
 export const DashboardPage = () => {
   const navigate = useNavigate();
   const { email } = useAuth();
-  const { data: stats, isLoading } = useDashboardQuery();
+  const { data: stats, isLoading, isError, refetch } = useDashboardQuery();
   const { data: clientesPage } = useClientesQuery({ page: 0, size: 1 });
   const { inventario } = useFunciones();
   const stockBajo = stats?.articulosStockBajo ?? 0;
@@ -133,17 +135,25 @@ export const DashboardPage = () => {
                   <div className="ofx-skel h-4 flex-1 rounded" />
                 </div>
               ))
+            ) : isError ? (
+              <ErrorState onRetry={() => refetch()} message="No pudimos cargar el panel." />
             ) : recientes.length === 0 ? (
-              <div className="px-[18px] py-12 text-center">
-                <div className="text-[14px] font-extrabold">Todavía no hay reparaciones</div>
-                <div className="mt-1 text-[13px] text-text-3">Cargá la primera para verla acá.</div>
-              </div>
+              <EmptyState title="Todavía no hay reparaciones" hint="Cargá la primera para verla acá." />
             ) : (
               recientes.map((r) => (
                 <div
                   key={r.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Abrir reparación #${r.id} — ${equipoLabel(r)}`}
                   onClick={() => navigate(`/reparaciones/${r.id}`)}
-                  className="flex cursor-pointer items-center gap-3 border-b border-border px-[18px] py-3 transition last:border-0 hover:bg-surface-2"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigate(`/reparaciones/${r.id}`);
+                    }
+                  }}
+                  className="flex cursor-pointer items-center gap-3 border-b border-border px-[18px] py-3 transition last:border-0 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)]"
                 >
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-surface-3 text-text-2">
                     <svg viewBox="0 0 24 24" width={19} height={19} fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">

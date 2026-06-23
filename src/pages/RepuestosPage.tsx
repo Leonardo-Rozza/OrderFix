@@ -3,6 +3,8 @@ import { DashboardLayout } from '../layouts/DashboardLayout';
 import { RepuestoFormModal } from '../components/RepuestoFormModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Pagination } from '../components/Pagination';
+import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
 import { btnPrimary } from '../components/ui';
 import { formatMoney } from '../utils/format';
 import { useListParams } from '../hooks/useListParams';
@@ -13,7 +15,7 @@ import type { Repuesto } from '../types';
 
 export const RepuestosPage = () => {
   const { q, onSearch, page, setPage, debouncedQ, size } = useListParams();
-  const { data, isLoading } = useRepuestosQuery({ q: debouncedQ, page, size });
+  const { data, isLoading, isError, refetch } = useRepuestosQuery({ q: debouncedQ, page, size });
   const { isAdmin } = useAuth();
   const deleteMutation = useDeleteRepuestoMutation();
 
@@ -76,13 +78,13 @@ export const RepuestosPage = () => {
                 <div className="ofx-skel h-4 flex-1 rounded" />
               </div>
             ))
+          ) : isError ? (
+            <ErrorState onRetry={() => refetch()} message="No pudimos cargar los repuestos." />
           ) : repuestos.length === 0 ? (
-            <div className="py-12 text-center">
-              <div className="text-[15px] font-extrabold">Sin repuestos</div>
-              <div className="mt-1 text-[13px] text-text-3">
-                {debouncedQ ? 'Probá con otra búsqueda.' : 'Cargá repuestos o agregalos desde una reparación.'}
-              </div>
-            </div>
+            <EmptyState
+              title="Sin repuestos"
+              hint={debouncedQ ? 'Probá con otra búsqueda.' : 'Cargá repuestos o agregalos desde una reparación.'}
+            />
           ) : (
             repuestos.map((r) => (
               <div key={r.id} className="flex items-center gap-3 border-b border-border px-4 py-3 transition last:border-0 hover:bg-surface-2">

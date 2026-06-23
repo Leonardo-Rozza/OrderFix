@@ -5,6 +5,8 @@ import { AjusteStockModal } from '../components/AjusteStockModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { FeatureLocked } from '../components/FeatureLocked';
 import { Pagination } from '../components/Pagination';
+import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
 import { btnPrimary } from '../components/ui';
 import { formatMoney } from '../utils/format';
 import { useListParams } from '../hooks/useListParams';
@@ -17,7 +19,7 @@ import type { Articulo } from '../types';
 export const InventarioPage = () => {
   const { inventario } = useFunciones();
   const { q, onSearch, page, setPage, debouncedQ, size } = useListParams();
-  const { data, isLoading } = useInventarioQuery({ q: debouncedQ, page, size }, inventario);
+  const { data, isLoading, isError, refetch } = useInventarioQuery({ q: debouncedQ, page, size }, inventario);
   const { isAdmin } = useAuth();
   const deleteMutation = useDeleteArticuloMutation();
 
@@ -86,13 +88,13 @@ export const InventarioPage = () => {
                 <div className="ofx-skel h-4 flex-1 rounded" />
               </div>
             ))
+          ) : isError ? (
+            <ErrorState onRetry={() => refetch()} message="No pudimos cargar el inventario." />
           ) : articulos.length === 0 ? (
-            <div className="py-12 text-center">
-              <div className="text-[15px] font-extrabold">Sin artículos</div>
-              <div className="mt-1 text-[13px] text-text-3">
-                {debouncedQ ? 'Probá con otra búsqueda.' : 'Cargá tu primer artículo de inventario.'}
-              </div>
-            </div>
+            <EmptyState
+              title="Sin artículos"
+              hint={debouncedQ ? 'Probá con otra búsqueda.' : 'Cargá tu primer artículo de inventario.'}
+            />
           ) : (
             articulos.map((a) => (
               <div key={a.id} className="flex items-center gap-3 border-b border-border px-4 py-3 transition last:border-0 hover:bg-surface-2">

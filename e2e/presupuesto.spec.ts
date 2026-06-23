@@ -17,7 +17,8 @@ test('seguimiento público: aprobar presupuesto cambia el estado a Aprobado', as
   await reqPromise;
 
   // Tras aprobar (refetch), el badge pasa a "Aprobado" y desaparecen los botones
-  await expect(page.getByText('Aprobado')).toBeVisible();
+  // (exact: true para no chocar con el toast "¡Presupuesto aprobado!")
+  await expect(page.getByText('Aprobado', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /aprobar presupuesto/i })).toBeHidden();
   await expect(page.getByRole('button', { name: /^rechazar$/i })).toBeHidden();
 });
@@ -36,6 +37,6 @@ test('seguimiento público: rechazar presupuesto cambia el estado a Rechazado', 
   await rechazar.click();
   await reqPromise;
 
-  await expect(page.getByText('Rechazado')).toBeVisible();
+  await expect(page.getByText('Rechazado', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /aprobar presupuesto/i })).toBeHidden();
 });

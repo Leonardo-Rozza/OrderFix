@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { UsuarioFormModal } from '../components/UsuarioFormModal';
+import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
 import { btnPrimary } from '../components/ui';
 import { iniciales } from '../utils/format';
 import { useUsuariosQuery } from '../api/queries/usuarios.queries';
@@ -12,7 +14,7 @@ import type { Rol } from '../types';
 export const UsuariosPage = () => {
   const { isAdmin, email } = useAuth();
   const { empleadosMultiples } = useFunciones();
-  const { data: usuarios = [], isLoading } = useUsuariosQuery(isAdmin);
+  const { data: usuarios = [], isLoading, isError, refetch } = useUsuariosQuery(isAdmin);
   const updateUsuario = useUpdateUsuarioMutation();
   const [formOpen, setFormOpen] = useState(false);
 
@@ -63,6 +65,10 @@ export const UsuariosPage = () => {
                 <div className="ofx-skel h-4 flex-1 rounded" />
               </div>
             ))
+          ) : isError ? (
+            <ErrorState onRetry={() => refetch()} message="No pudimos cargar los empleados." />
+          ) : usuarios.length === 0 ? (
+            <EmptyState title="Sin empleados" hint="Sumá el primer usuario de tu taller." />
           ) : (
             usuarios.map((u) => {
               const esYo = u.email === email;

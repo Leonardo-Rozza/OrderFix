@@ -5,6 +5,8 @@ import { EquipoReparacionesModal } from '../components/EquipoReparacionesModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Pagination } from '../components/Pagination';
 import { SortSelect } from '../components/SortSelect';
+import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
 import { btnPrimary } from '../components/ui';
 import { iniciales } from '../utils/format';
 import { useListParams } from '../hooks/useListParams';
@@ -26,7 +28,7 @@ const deviceIcon = (
 
 export const EquiposPage = () => {
   const { q, onSearch, page, setPage, debouncedQ, size, sort, setSort } = useListParams(20, 'id,desc');
-  const { data, isLoading } = useEquiposQuery({ q: debouncedQ, page, size, sort });
+  const { data, isLoading, isError, refetch } = useEquiposQuery({ q: debouncedQ, page, size, sort });
   const { data: clientes = [] } = useClientesOptions();
   const { isAdmin } = useAuth();
   const deleteMutation = useDeleteEquipoMutation();
@@ -90,12 +92,16 @@ export const EquiposPage = () => {
               <div key={i} className="ofx-skel h-[150px] rounded-2xl" />
             ))}
           </div>
+        ) : isError ? (
+          <div className="rounded-2xl border border-border bg-surface">
+            <ErrorState onRetry={() => refetch()} message="No pudimos cargar los equipos." />
+          </div>
         ) : equipos.length === 0 ? (
-          <div className="rounded-2xl border border-border bg-surface py-12 text-center">
-            <div className="text-[15px] font-extrabold">Sin equipos</div>
-            <div className="mt-1 text-[13px] text-text-3">
-              {debouncedQ ? 'Probá con otra búsqueda.' : 'Registrá el primer equipo de un cliente.'}
-            </div>
+          <div className="rounded-2xl border border-border bg-surface">
+            <EmptyState
+              title="Sin equipos"
+              hint={debouncedQ ? 'Probá con otra búsqueda.' : 'Registrá el primer equipo de un cliente.'}
+            />
           </div>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">

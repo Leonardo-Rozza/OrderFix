@@ -10,6 +10,7 @@ import { CobroFormModal } from '../components/CobroFormModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { metodoLabel } from '../config/cobros';
 import { Loader } from '../components/Loader';
+import { ErrorState } from '../components/ErrorState';
 import { btnGhost, btnDanger, card } from '../components/ui';
 import { ESTADOS, ESTADOS_LIST } from '../config/estados';
 import { formatMoney, formatDate, iniciales } from '../utils/format';
@@ -36,7 +37,7 @@ export const ReparacionDetallePage = () => {
   const reparacionId = Number(id);
   const navigate = useNavigate();
 
-  const { data: rep, isLoading } = useReparacionQuery(reparacionId);
+  const { data: rep, isLoading, isError, refetch } = useReparacionQuery(reparacionId);
   const { data: equipos = [] } = useEquiposOptions();
   const { data: repuestos = [] } = useRepuestosPorReparacionQuery(reparacionId);
   const { data: presupuestos = [] } = usePresupuestosQuery(reparacionId);
@@ -72,6 +73,21 @@ export const ReparacionDetallePage = () => {
       <DashboardLayout title="Reparación">
         <div className="py-24">
           <Loader size="lg" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <DashboardLayout title="Reparación">
+        <div className="ofx-in mx-auto max-w-md py-16">
+          <ErrorState onRetry={() => refetch()} message="No pudimos cargar la reparación." />
+          <div className="mt-2 text-center">
+            <button className={btnGhost} onClick={() => navigate('/reparaciones')}>
+              Volver al tablero
+            </button>
+          </div>
         </div>
       </DashboardLayout>
     );

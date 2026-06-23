@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useParams } from 'react-router';
 import { Logo } from '../components/Logo';
+import { Loader } from '../components/Loader';
 import { EstadoBadge } from '../components/EstadoBadge';
 import { PresupuestoBadge } from '../components/PresupuestoBadge';
 import { ESTADOS, ESTADOS_ORDEN } from '../config/estados';
@@ -30,7 +31,7 @@ export const SeguimientoPage = () => {
     return (
       <Shell>
         <div className="grid place-items-center py-20">
-          <span className="h-10 w-10 animate-spin rounded-full border-4 border-surface-3 border-t-primary" />
+          <Loader size="lg" />
         </div>
       </Shell>
     );

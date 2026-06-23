@@ -5,6 +5,8 @@ import { EstadoBadge } from '../components/EstadoBadge';
 import { ReparacionFormModal } from '../components/ReparacionFormModal';
 import { Pagination } from '../components/Pagination';
 import { SortSelect } from '../components/SortSelect';
+import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
 import { btnPrimary } from '../components/ui';
 import { ESTADOS, ESTADOS_LIST } from '../config/estados';
 import { formatMoney } from '../utils/format';
@@ -43,10 +45,14 @@ export const ReparacionesPage = () => {
 
   const open = (id: number) => navigate(`/reparaciones/${id}`);
   const advance = (r: Reparacion) => {
+    if (cambiarEstado.isPending) return; // evita doble disparo
     const next = ESTADOS[r.estado].next;
     if (next) cambiarEstado.mutate({ id: r.id, estado: next });
   };
-  const move = (id: number, estado: EstadoReparacion) => cambiarEstado.mutate({ id, estado });
+  const move = (id: number, estado: EstadoReparacion) => {
+    if (cambiarEstado.isPending) return;
+    cambiarEstado.mutate({ id, estado });
+  };
 
   const counts = stats?.reparacionesPorEstado;
   const chips: { key: Filtro; label: string; count?: number }[] = [
@@ -224,7 +230,7 @@ const BoardColumn = ({
   onDropCol: () => void;
   draggingId: number | null;
 }) => {
-  const { data } = useReparacionesQuery({ q, estado: meta.key, page: 0, size: 100 });
+  const { data, isLoading } = useReparacionesQuery({ q, estado: meta.key, page: 0, size: 100 });
   const items = data?.content ?? [];
   const total = data?.page?.totalElements ?? items.length;
 
@@ -253,6 +259,8 @@ const BoardColumn = ({
         <span className="ml-auto rounded-full bg-surface-3 px-2 py-0.5 text-[12px] font-bold text-text-3">{total}</span>
       </div>
       <div className="flex min-h-[64px] flex-col gap-2.5 p-3">
+        {isLoading && items.length === 0 &&
+          Array.from({ length: 2 }).map((_, i) => <div key={`sk-${i}`} className="ofx-skel h-[92px] rounded-xl" />)}
         {items.map((r) => (
           <div
             key={r.id}
@@ -306,7 +314,7 @@ const BoardColumn = ({
             </div>
           </div>
         ))}
-        {items.length === 0 && (
+        {!isLoading && items.length === 0 && (
           <div className={`rounded-lg border border-dashed py-5 text-center text-[12.5px] transition ${isOver ? 'border-primary text-primary' : 'border-border text-text-3'}`}>
             {isOver ? 'Soltá acá' : 'Sin reparaciones'}
           </div>
@@ -336,14 +344,21 @@ const Lista = ({
   onOpen: (id: number) => void;
   onAdvance: (r: Reparacion) => void;
 }) => {
-  const { data, isLoading } = useReparacionesQuery({ q, estado, page, size, sort });
+  const { data, isLoading, isError, refetch } = useReparacionesQuery({ q, estado, page, size, sort });
   const reparaciones = data?.content ?? [];
+
+  if (isError) {
+    return (
+      <div className="rounded-2xl border border-border bg-surface">
+        <ErrorState onRetry={() => refetch()} message="No pudimos cargar las reparaciones." />
+      </div>
+    );
+  }
 
   if (!isLoading && reparaciones.length === 0) {
     return (
-      <div className="rounded-2xl border border-border bg-surface py-12 text-center">
-        <div className="text-[15px] font-extrabold">No encontramos reparaciones</div>
-        <div className="mt-1 text-[13px] text-text-3">Probá con otro filtro o término de búsqueda.</div>
+      <div className="rounded-2xl border border-border bg-surface">
+        <EmptyState title="No encontramos reparaciones" hint="Probá con otro filtro o término de búsqueda." />
       </div>
     );
   }
@@ -358,7 +373,17 @@ const Lista = ({
           <div className="w-[96px] text-right">Precio</div>
           <div className="w-10" />
         </div>
-        {reparaciones.map((r) => {
+        {isLoading
+          ? Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-0">
+                <div className="ofx-skel h-4 flex-[1.6] rounded" />
+                <div className="ofx-skel hidden h-4 flex-[1.6] rounded sm:block" />
+                <div className="ofx-skel h-5 w-[150px] rounded-full" />
+                <div className="ofx-skel h-4 w-[96px] rounded" />
+                <div className="w-10" />
+              </div>
+            ))
+          : reparaciones.map((r) => {
           const meta = ESTADOS[r.estado];
           return (
             <div

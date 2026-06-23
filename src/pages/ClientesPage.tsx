@@ -6,6 +6,8 @@ import { EquipoFormModal } from '../components/EquipoFormModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Pagination } from '../components/Pagination';
 import { SortSelect } from '../components/SortSelect';
+import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
 import { btnPrimary } from '../components/ui';
 import { iniciales, formatDate } from '../utils/format';
 import { useListParams } from '../hooks/useListParams';
@@ -16,7 +18,7 @@ import type { Cliente } from '../types';
 
 export const ClientesPage = () => {
   const { q, onSearch, page, setPage, debouncedQ, size, sort, setSort } = useListParams(20, 'nombre,asc');
-  const { data, isLoading } = useClientesQuery({ q: debouncedQ, page, size, sort });
+  const { data, isLoading, isError, refetch } = useClientesQuery({ q: debouncedQ, page, size, sort });
   const { data: clientesOptions = [] } = useClientesOptions();
   const { isAdmin } = useAuth();
   const deleteMutation = useDeleteClienteMutation();
@@ -94,13 +96,13 @@ export const ClientesPage = () => {
                 <div className="ofx-skel h-4 flex-1 rounded" />
               </div>
             ))
+          ) : isError ? (
+            <ErrorState onRetry={() => refetch()} message="No pudimos cargar los clientes." />
           ) : clientes.length === 0 ? (
-            <div className="py-12 text-center">
-              <div className="text-[15px] font-extrabold">Sin clientes</div>
-              <div className="mt-1 text-[13px] text-text-3">
-                {debouncedQ ? 'Probá con otra búsqueda.' : 'Cargá tu primer cliente para empezar.'}
-              </div>
-            </div>
+            <EmptyState
+              title="Sin clientes"
+              hint={debouncedQ ? 'Probá con otra búsqueda.' : 'Cargá tu primer cliente para empezar.'}
+            />
           ) : (
             clientes.map((c) => (
               <div

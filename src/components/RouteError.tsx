@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { useRouteError, useNavigate, isRouteErrorResponse } from 'react-router';
+import * as Sentry from '@sentry/react';
 import { Logo } from './Logo';
 import { btnPrimary, btnGhost } from './ui';
 
@@ -6,6 +8,11 @@ import { btnPrimary, btnGhost } from './ui';
 export const RouteError = () => {
   const error = useRouteError();
   const navigate = useNavigate();
+
+  // Reporta a Sentry los errores de render capturados por el router.
+  useEffect(() => {
+    if (error) Sentry.captureException(error);
+  }, [error]);
 
   const detalle = isRouteErrorResponse(error)
     ? `${error.status} ${error.statusText}`

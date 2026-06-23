@@ -4,9 +4,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Toaster } from 'react-hot-toast';
 import { AxiosError } from 'axios';
+import * as Sentry from '@sentry/react';
 import './index.css';
 import App from './App.tsx';
 import { ThemeBootstrapper } from './components/ThemeBootstrapper.tsx';
+import { AppCrash } from './components/AppCrash.tsx';
+import { initSentry } from './lib/sentry.ts';
+
+// Monitoreo de errores (no-op si no hay VITE_SENTRY_DSN).
+initSentry();
 
 // Configuración de React Query
 const queryClient = new QueryClient({
@@ -28,7 +34,9 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ThemeBootstrapper />
-      <App />
+      <Sentry.ErrorBoundary fallback={<AppCrash />}>
+        <App />
+      </Sentry.ErrorBoundary>
       <Toaster position="top-right" toastOptions={{ duration: 3500 }} />
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>

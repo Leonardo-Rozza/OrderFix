@@ -22,6 +22,7 @@ export default defineConfig({
           'react-vendor': ['react', 'react-dom', 'react-router'],
           'data-vendor': ['@tanstack/react-query', 'axios'],
           'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          'sentry-vendor': ['@sentry/react'],
         },
       },
     },

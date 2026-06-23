@@ -2,6 +2,7 @@ import axios, { AxiosError } from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
 import { authStore } from '../store/auth.store';
 import { getErrorMessage, showError } from '../utils/toast';
+import { captureError } from '../lib/sentry';
 
 // La base puede venir con o sin sufijo /api (el contrato sugiere VITE_API_URL=http://localhost:8080).
 // Normalizamos para que las llamadas sin /api funcionen en ambos casos.
@@ -66,6 +67,8 @@ apiClient.interceptors.response.use(
       if (method === 'get') {
         showError(getErrorMessage(error, 'No se pudo obtener la información.'));
       }
+      // Reportar a Sentry los errores de red/servidor (5xx o sin respuesta).
+      captureError(error);
     }
 
     return Promise.reject(error);

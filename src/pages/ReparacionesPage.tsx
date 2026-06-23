@@ -80,7 +80,7 @@ export const ReparacionesPage = () => {
             ))}
           </div>
 
-          <div className="relative ml-auto min-w-[180px] max-w-[320px] flex-1">
+          <div className="relative w-full sm:ml-auto sm:w-auto sm:min-w-[180px] sm:max-w-[320px] sm:flex-1">
             <svg viewBox="0 0 24 24" width={17} height={17} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-2.5">
               <path d="m21 21-4.3-4.3M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z" />
             </svg>
@@ -105,7 +105,7 @@ export const ReparacionesPage = () => {
             />
           )}
 
-          <button type="button" className={btnPrimary} onClick={() => setLocalOpen(true)}>
+          <button type="button" className={`${btnPrimary} w-full sm:w-auto`} onClick={() => setLocalOpen(true)}>
             <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 5v14M5 12h14" />
             </svg>
@@ -369,7 +369,7 @@ const Lista = ({
         <div className="flex items-center gap-3 border-b border-border px-4 py-3 text-[11.5px] font-extrabold uppercase tracking-wide text-text-3">
           <div className="min-w-0 flex-[1.6]">Equipo / Cliente</div>
           <div className="hidden min-w-0 flex-[1.6] sm:block">Problema</div>
-          <div className="w-[150px]">Estado</div>
+          <div className="hidden w-[150px] sm:block">Estado</div>
           <div className="w-[96px] text-right">Precio</div>
           <div className="w-10" />
         </div>
@@ -378,7 +378,7 @@ const Lista = ({
               <div key={i} className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-0">
                 <div className="ofx-skel h-4 flex-[1.6] rounded" />
                 <div className="ofx-skel hidden h-4 flex-[1.6] rounded sm:block" />
-                <div className="ofx-skel h-5 w-[150px] rounded-full" />
+                <div className="ofx-skel hidden h-5 w-[150px] rounded-full sm:block" />
                 <div className="ofx-skel h-4 w-[96px] rounded" />
                 <div className="w-10" />
               </div>
@@ -402,10 +402,14 @@ const Lista = ({
             >
               <div className="min-w-0 flex-[1.6]">
                 <div className="truncate text-[14px] font-bold">{equipoLabel(r)}</div>
-                <div className="text-[12.5px] text-text-2">{clienteLabel(r)}</div>
+                <div className="truncate text-[12.5px] text-text-2">{clienteLabel(r)}</div>
+                {/* En mobile el estado va acá (la columna dedicada se oculta). */}
+                <div className="mt-1.5 sm:hidden">
+                  <EstadoBadge estado={r.estado} />
+                </div>
               </div>
               <div className="hidden min-w-0 flex-[1.6] truncate text-[13px] text-text-3 sm:block">{r.descripcionProblema}</div>
-              <div className="w-[150px]">
+              <div className="hidden w-[150px] sm:block">
                 <EstadoBadge estado={r.estado} />
               </div>
               <div className="w-[96px] text-right font-mono text-[13.5px] font-bold">{formatMoney(r.precioFinal ?? r.precioEstimado)}</div>

@@ -17,13 +17,20 @@ test('export: el ADMIN descarga el Excel de sus datos desde Planes', async ({ pa
     })
   );
 
+  // El botón está tanto en el Dashboard como en Planes
+  await page.goto('/dashboard');
+  const botonDash = page.getByRole('button', { name: /exportar a excel/i });
+  await expect(botonDash).toBeVisible();
+
+  const dl1 = page.waitForEvent('download');
+  await botonDash.click();
+  expect((await dl1).suggestedFilename()).toBe('ordenfix-export-2026-07-05.xlsx');
+
   await page.goto('/planes');
+  const botonPlanes = page.getByRole('button', { name: /exportar a excel/i });
+  await expect(botonPlanes).toBeVisible();
 
-  const boton = page.getByRole('button', { name: /exportar a excel/i });
-  await expect(boton).toBeVisible();
-
-  const downloadPromise = page.waitForEvent('download');
-  await boton.click();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe('ordenfix-export-2026-07-05.xlsx');
+  const dl2 = page.waitForEvent('download');
+  await botonPlanes.click();
+  expect((await dl2).suggestedFilename()).toBe('ordenfix-export-2026-07-05.xlsx');
 });

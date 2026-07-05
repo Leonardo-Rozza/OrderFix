@@ -8,6 +8,7 @@ import { ESTADOS_LIST, ESTADOS_CERRADOS } from '../config/estados';
 import { formatMoney } from '../utils/format';
 import { equipoLabel, clienteLabel, ordenLabel } from '../utils/reparacion';
 import { PagoChip } from '../components/PagoChip';
+import { ExportExcelButton } from '../components/ExportExcelButton';
 import { useDashboardQuery } from '../api/queries/dashboard.queries';
 import { useClientesQuery } from '../api/queries/clientes.queries';
 import { useFunciones } from '../api/queries/suscripcion.queries';
@@ -63,12 +64,15 @@ export const DashboardPage = () => {
             <h1 className="text-[22px] font-extrabold tracking-tight">Hola, {nombre} 👋</h1>
             <p className="mt-0.5 text-[14px] text-text-2">Esto es lo que pasa hoy en el taller.</p>
           </div>
-          <button type="button" className={`${btnPrimary} ml-auto`} onClick={() => navigate('/reparaciones?nuevo=1')}>
-            <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            Nueva reparación
-          </button>
+          <div className="ml-auto flex flex-wrap items-center gap-2.5">
+            <ExportExcelButton />
+            <button type="button" className={btnPrimary} onClick={() => navigate('/reparaciones?nuevo=1')}>
+              <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              Nueva reparación
+            </button>
+          </div>
         </div>
 
         {inventario && stockBajo > 0 && (

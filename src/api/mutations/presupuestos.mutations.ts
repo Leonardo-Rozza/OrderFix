@@ -12,15 +12,76 @@ const crearPresupuesto = async ({
   return data;
 };
 
+/** Crear/responder/represupuestar pueden mover el estado de la reparación (auto-estado §4.11). */
+const invalidarPresupuestosYReparacion = (qc: ReturnType<typeof useQueryClient>, reparacionId: number) => {
+  qc.invalidateQueries({ queryKey: ['presupuestos', reparacionId] });
+  qc.invalidateQueries({ queryKey: ['reparacion', reparacionId] });
+  qc.invalidateQueries({ queryKey: ['reparaciones'] });
+};
+
 export const useCrearPresupuestoMutation = (reparacionId: number) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: crearPresupuesto,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['presupuestos', reparacionId] });
+      invalidarPresupuestosYReparacion(qc, reparacionId);
       showSuccess('Presupuesto enviado al cliente');
     },
     onError: (e) => showError(getErrorMessage(e, 'No se pudo crear el presupuesto')),
+  });
+};
+
+// Aprobar / rechazar desde el taller (el cliente respondió por teléfono o en persona)
+const responderPresupuestoTaller = async ({
+  reparacionId,
+  presupuestoId,
+  accion,
+}: {
+  reparacionId: number;
+  presupuestoId: number;
+  accion: 'aprobar' | 'rechazar';
+}): Promise<Presupuesto> => {
+  const { data } = await apiClient.post<Presupuesto>(
+    `/reparaciones/${reparacionId}/presupuestos/${presupuestoId}/${accion}`
+  );
+  return data;
+};
+
+export const useResponderPresupuestoTallerMutation = (reparacionId: number) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: responderPresupuestoTaller,
+    onSuccess: (_d, vars) => {
+      invalidarPresupuestosYReparacion(qc, reparacionId);
+      showSuccess(vars.accion === 'aprobar' ? 'Presupuesto aprobado' : 'Presupuesto rechazado');
+    },
+    onError: (e) => showError(getErrorMessage(e, 'No se pudo registrar la respuesta')),
+  });
+};
+
+// Re-presupuestar: clona un presupuesto vencido en uno nuevo PENDIENTE con validez fresca
+const represupuestar = async ({
+  reparacionId,
+  presupuestoId,
+}: {
+  reparacionId: number;
+  presupuestoId: number;
+}): Promise<Presupuesto> => {
+  const { data } = await apiClient.post<Presupuesto>(
+    `/reparaciones/${reparacionId}/presupuestos/${presupuestoId}/represupuestar`
+  );
+  return data;
+};
+
+export const useRepresupuestarMutation = (reparacionId: number) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: represupuestar,
+    onSuccess: () => {
+      invalidarPresupuestosYReparacion(qc, reparacionId);
+      showSuccess('Presupuesto renovado y enviado al cliente');
+    },
+    onError: (e) => showError(getErrorMessage(e, 'No se pudo re-presupuestar')),
   });
 };
 

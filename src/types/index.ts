@@ -203,27 +203,54 @@ export interface Reparacion {
 
 // ========== PRESUPUESTOS ==========
 export type PresupuestoEstado = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'VENCIDO';
+export type TipoPresupuesto = 'ORIGINAL' | 'ADICIONAL';
+export type TipoItemPresupuesto = 'MANO_DE_OBRA' | 'REPUESTO';
+export type CalidadRepuesto = 'ORIGINAL' | 'ALTERNATIVO' | 'USADO_REACONDICIONADO';
 
 export interface PresupuestoItem {
   descripcion: string;
   cantidad: number;
   precioUnitario: number;
+  tipoItem: TipoItemPresupuesto;
+  /** Solo para repuestos (null en mano de obra). */
+  calidad: CalidadRepuesto | null;
 }
 
 export interface Presupuesto {
   id: number;
   reparacionId: number;
   estado: PresupuestoEstado;
+  tipo: TipoPresupuesto;
   items: PresupuestoItem[];
   total: number;
+  manoDeObraTotal: number;
+  repuestosTotal: number;
+  validezDias: number;
+  validoHasta: string | null;
+  /** Derivado: PENDIENTE cuyo validoHasta ya pasó (estado también viene VENCIDO). */
+  vencido: boolean;
   observaciones: string | null;
   fechaRespuesta: string | null;
   createdAt: string;
 }
 
+export interface PresupuestoItemCreate {
+  descripcion: string;
+  cantidad: number;
+  precioUnitario: number;
+  /** Default del backend: MANO_DE_OBRA. */
+  tipoItem?: TipoItemPresupuesto;
+  /** Solo aplica a repuestos. */
+  calidad?: CalidadRepuesto;
+}
+
 export interface PresupuestoCreate {
-  items: PresupuestoItem[];
+  items: PresupuestoItemCreate[];
   observaciones?: string;
+  /** Default del backend: ORIGINAL. */
+  tipo?: TipoPresupuesto;
+  /** Default del backend: 7. */
+  validezDias?: number;
 }
 
 // Seguimiento público del equipo (GET /api/seguimiento/{codigo}, sin token)

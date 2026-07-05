@@ -21,6 +21,11 @@ import { useReparacionQuery } from '../api/queries/reparaciones.queries';
 import { useEquiposOptions } from '../api/queries/equipos.queries';
 import { useRepuestosPorReparacionQuery } from '../api/queries/repuestos.queries';
 import { usePresupuestosQuery } from '../api/queries/presupuestos.queries';
+import {
+  useResponderPresupuestoTallerMutation,
+  useRepresupuestarMutation,
+} from '../api/mutations/presupuestos.mutations';
+import { calidadLabel } from '../config/presupuestos';
 import { useCobrosQuery } from '../api/queries/cobros.queries';
 import { useFunciones } from '../api/queries/suscripcion.queries';
 import { useAnularCobroMutation } from '../api/mutations/cobros.mutations';
@@ -44,6 +49,8 @@ export const ReparacionDetallePage = () => {
   const { cobros: cobrosHabilitado } = useFunciones();
   const { data: cobros } = useCobrosQuery(cobrosHabilitado ? reparacionId : undefined);
   const anularCobro = useAnularCobroMutation(reparacionId);
+  const responderPresupuesto = useResponderPresupuestoTallerMutation(reparacionId);
+  const represupuestarPresupuesto = useRepresupuestarMutation(reparacionId);
   const { isAdmin } = useAuth();
   const cambiarEstado = useCambiarEstadoMutation();
   const deleteMutation = useDeleteReparacionMutation();
@@ -317,26 +324,92 @@ export const ReparacionDetallePage = () => {
                   Sin presupuestos. Creá uno para que el cliente lo apruebe desde el seguimiento.
                 </div>
               ) : (
-                presupuestos.map((p) => (
-                  <div key={p.id} className="border-b border-border px-5 py-3.5 last:border-0">
-                    <div className="flex items-center gap-2.5">
-                      <PresupuestoBadge estado={p.estado} />
-                      <span className="text-[12.5px] text-text-3">{formatDate(p.createdAt)}</span>
-                      <span className="ml-auto font-mono text-[15px] font-extrabold text-primary">{formatMoney(p.total)}</span>
-                    </div>
-                    <div className="mt-2 space-y-1">
-                      {p.items.map((it, idx) => (
-                        <div key={idx} className="flex justify-between text-[13px] text-text-2">
-                          <span className="truncate">
-                            {it.cantidad}× {it.descripcion}
+                presupuestos.map((p) => {
+                  const pendiente = p.estado === 'PENDIENTE' && !p.vencido;
+                  const vencido = p.estado === 'VENCIDO' || p.vencido;
+                  return (
+                    <div key={p.id} className="border-b border-border px-5 py-3.5 last:border-0">
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <PresupuestoBadge estado={p.estado} />
+                        {p.tipo === 'ADICIONAL' && (
+                          <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-text-2">
+                            Adicional
                           </span>
-                          <span className="font-mono">{formatMoney(it.cantidad * it.precioUnitario)}</span>
+                        )}
+                        <span className="text-[12.5px] text-text-3">{formatDate(p.createdAt)}</span>
+                        <span className="ml-auto font-mono text-[15px] font-extrabold text-primary">{formatMoney(p.total)}</span>
+                      </div>
+                      <div className="mt-2 space-y-1">
+                        {p.items.map((it, idx) => (
+                          <div key={idx} className="flex justify-between gap-3 text-[13px] text-text-2">
+                            <span className="min-w-0 truncate">
+                              {it.cantidad}× {it.descripcion}
+                              {calidadLabel(it.calidad) && (
+                                <span className="ml-1.5 rounded bg-surface-3 px-1.5 py-0.5 text-[10.5px] font-bold text-text-3">
+                                  {calidadLabel(it.calidad)}
+                                </span>
+                              )}
+                            </span>
+                            <span className="font-mono">{formatMoney(it.cantidad * it.precioUnitario)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {(p.manoDeObraTotal ?? 0) > 0 && (p.repuestosTotal ?? 0) > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-text-3">
+                          <span>
+                            Mano de obra: <span className="font-mono font-semibold">{formatMoney(p.manoDeObraTotal)}</span>
+                          </span>
+                          <span>
+                            Repuestos: <span className="font-mono font-semibold">{formatMoney(p.repuestosTotal)}</span>
+                          </span>
                         </div>
-                      ))}
+                      )}
+                      {pendiente && p.validoHasta && (
+                        <div className="mt-1.5 text-[12px] text-text-3">Válido hasta el {formatDate(p.validoHasta)}</div>
+                      )}
+                      {p.observaciones && <div className="mt-2 text-[12.5px] text-text-3">{p.observaciones}</div>}
+
+                      {pendiente && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            disabled={responderPresupuesto.isPending}
+                            onClick={() => responderPresupuesto.mutate({ reparacionId: rep.id, presupuestoId: p.id, accion: 'aprobar' })}
+                            className="inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[12.5px] font-bold text-success transition hover:border-success disabled:opacity-50"
+                          >
+                            Aprobar
+                          </button>
+                          <button
+                            type="button"
+                            disabled={responderPresupuesto.isPending}
+                            onClick={() => responderPresupuesto.mutate({ reparacionId: rep.id, presupuestoId: p.id, accion: 'rechazar' })}
+                            className="inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[12.5px] font-bold text-text-2 transition hover:border-danger hover:text-danger disabled:opacity-50"
+                          >
+                            Rechazar
+                          </button>
+                          <span className="self-center text-[11.5px] text-text-3">
+                            (si el cliente respondió en persona; también puede hacerlo desde el link)
+                          </span>
+                        </div>
+                      )}
+                      {vencido && (
+                        <div className="mt-3">
+                          <button
+                            type="button"
+                            disabled={represupuestarPresupuesto.isPending}
+                            onClick={() => represupuestarPresupuesto.mutate({ reparacionId: rep.id, presupuestoId: p.id })}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[12.5px] font-bold text-text-2 transition hover:border-primary hover:text-primary disabled:opacity-50"
+                          >
+                            <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" />
+                            </svg>
+                            Re-presupuestar
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    {p.observaciones && <div className="mt-2 text-[12.5px] text-text-3">{p.observaciones}</div>}
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
             {/* Cobros (PRO) */}

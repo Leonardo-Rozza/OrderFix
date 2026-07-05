@@ -5,6 +5,7 @@ import { Loader } from '../components/Loader';
 import { EstadoBadge } from '../components/EstadoBadge';
 import { PresupuestoBadge } from '../components/PresupuestoBadge';
 import { PASOS_SEGUIMIENTO, PASO_SEGUIMIENTO } from '../config/estados';
+import { calidadLabel } from '../config/presupuestos';
 import { formatMoney, formatDate } from '../utils/format';
 import { useSeguimientoQuery } from '../api/queries/seguimiento.queries';
 import { useResponderPresupuestoMutation } from '../api/mutations/presupuestos.mutations';
@@ -122,9 +123,14 @@ export const SeguimientoPage = () => {
             </div>
             <div className="space-y-1.5">
               {data.presupuesto.items.map((it, i) => (
-                <div key={i} className="flex justify-between text-[14px]">
-                  <span className="text-text-2">
+                <div key={i} className="flex justify-between gap-3 text-[14px]">
+                  <span className="min-w-0 text-text-2">
                     {it.cantidad}× {it.descripcion}
+                    {calidadLabel(it.calidad) && (
+                      <span className="ml-1.5 rounded bg-surface-3 px-1.5 py-0.5 text-[11px] font-bold text-text-3">
+                        {calidadLabel(it.calidad)}
+                      </span>
+                    )}
                   </span>
                   <span className="font-mono font-semibold">{formatMoney(it.cantidad * it.precioUnitario)}</span>
                 </div>
@@ -136,6 +142,14 @@ export const SeguimientoPage = () => {
             </div>
             {data.presupuesto.observaciones && (
               <p className="mt-2 text-[13px] text-text-3">{data.presupuesto.observaciones}</p>
+            )}
+            {data.presupuesto.estado === 'PENDIENTE' && data.presupuesto.validoHasta && (
+              <p className="mt-2 text-[12.5px] text-text-3">Válido hasta el {formatDate(data.presupuesto.validoHasta)}</p>
+            )}
+            {data.presupuesto.estado === 'VENCIDO' && (
+              <p className="mt-2 text-[12.5px] text-text-3">
+                Este presupuesto venció. Contactá al taller para pedir uno actualizado.
+              </p>
             )}
 
             {data.presupuesto.estado === 'PENDIENTE' && (

@@ -173,6 +173,9 @@ export type EstadoReparacion =
 /** Dimensión de pago de la reparación, independiente del estado (derivada por el backend). */
 export type EstadoPago = 'SIN_COBRAR' | 'PARCIAL' | 'PAGADO';
 
+/** Cuenta vinculada al equipo (iCloud / FRP): riesgo de no poder entregarlo activado. */
+export type CuentaVinculada = 'NINGUNA' | 'ICLOUD' | 'GOOGLE' | 'OTRA';
+
 export interface Reparacion {
   id: number;
   equipoId: number;
@@ -202,6 +205,15 @@ export interface Reparacion {
   tecnicoId?: number | null;
   tecnicoNombre?: string | null;
   fotos?: string[];
+  // Flags de riesgo del ingreso (contrato §4.5)
+  mojado?: boolean;
+  trabajoEnPlaca?: boolean;
+  noTesteableAlIngreso?: boolean;
+  tieneBloqueoPantalla?: boolean;
+  tieneCuentaVinculada?: CuentaVinculada;
+  clienteConoceCredenciales?: boolean;
+  /** Derivado (solo lectura): cuenta activa sin credenciales → bandera roja. */
+  riesgoCuentaSinCredenciales?: boolean;
   // Denormalizado por el backend (equipo + cliente del equipo)
   equipoMarca?: string;
   equipoModelo?: string;
@@ -300,6 +312,13 @@ export interface ReparacionCreate {
   observaciones?: string;
   tecnicoId?: number;
   fotos?: string[];
+  // Flags de riesgo del ingreso (default backend: false / NINGUNA)
+  mojado?: boolean;
+  trabajoEnPlaca?: boolean;
+  noTesteableAlIngreso?: boolean;
+  tieneBloqueoPantalla?: boolean;
+  tieneCuentaVinculada?: CuentaVinculada;
+  clienteConoceCredenciales?: boolean;
 }
 
 export interface ReparacionUpdate extends Partial<ReparacionCreate> {

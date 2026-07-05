@@ -27,6 +27,7 @@ import {
   useRepresupuestarMutation,
 } from '../api/mutations/presupuestos.mutations';
 import { calidadLabel } from '../config/presupuestos';
+import { cuentaLabel, RIESGO_CUENTA_MSG } from '../config/ingreso';
 import { useCobrosQuery } from '../api/queries/cobros.queries';
 import { useFunciones } from '../api/queries/suscripcion.queries';
 import { useAnularCobroMutation } from '../api/mutations/cobros.mutations';
@@ -120,6 +121,16 @@ export const ReparacionDetallePage = () => {
   const equipoNombre = equipoLabel(rep);
   const next = meta.next;
 
+  const flagsRiesgo = [
+    rep.mojado && 'Mojado / cayó al agua',
+    rep.trabajoEnPlaca && 'Trabajo en placa',
+    rep.noTesteableAlIngreso && 'No testeable al ingreso',
+    rep.tieneBloqueoPantalla && 'Bloqueo de pantalla',
+    rep.tieneCuentaVinculada &&
+      rep.tieneCuentaVinculada !== 'NINGUNA' &&
+      `Cuenta ${cuentaLabel(rep.tieneCuentaVinculada)} ${rep.clienteConoceCredenciales ? '(con credenciales)' : '(sin credenciales)'}`,
+  ].filter(Boolean) as string[];
+
   const handleEstadoSelect = (estado: EstadoReparacion) => {
     if (estado !== rep.estado) cambiarEstado.mutate({ id: rep.id, estado });
   };
@@ -181,6 +192,16 @@ export const ReparacionDetallePage = () => {
                 <div className="text-[15px] leading-relaxed">{rep.descripcionProblema}</div>
               </div>
             </div>
+
+            {/* Bandera roja: cuenta activa sin credenciales (derivada por el backend) */}
+            {rep.riesgoCuentaSinCredenciales && (
+              <div className="flex items-start gap-2.5 rounded-2xl border border-danger bg-danger-soft p-4 text-[13.5px] font-semibold text-danger-fg">
+                <svg viewBox="0 0 24 24" width={19} height={19} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0">
+                  <path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+                </svg>
+                {RIESGO_CUENTA_MSG}
+              </div>
+            )}
 
             {/* Repuestos */}
             <div className={`${card} overflow-hidden`}>
@@ -249,9 +270,19 @@ export const ReparacionDetallePage = () => {
               rep.condicionesIngreso ||
               rep.observaciones ||
               rep.tecnicoNombre ||
+              flagsRiesgo.length > 0 ||
               (rep.fotos?.length ?? 0) > 0) && (
               <div className={`${card} p-5`}>
                 <div className="mb-3.5 text-[15px] font-extrabold">Orden de trabajo</div>
+                {flagsRiesgo.length > 0 && (
+                  <div className="mb-3.5 flex flex-wrap gap-1.5">
+                    {flagsRiesgo.map((f) => (
+                      <span key={f} className="inline-flex items-center rounded-full bg-warning-soft px-2.5 py-1 text-[11.5px] font-extrabold text-warning">
+                        {f}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div className="grid grid-cols-1 gap-x-8 gap-y-3 text-[13.5px] sm:grid-cols-2">
                   {rep.tecnicoNombre && (
                     <div>

@@ -14,7 +14,8 @@ import {
 } from '../api/mutations/reparaciones.mutations';
 import { useUsuariosQuery } from '../api/queries/usuarios.queries';
 import { useAuth } from '../store/auth.store';
-import type { EstadoReparacion, Equipo, IngresoRapidoRequest, Reparacion, ReparacionCreate, ReparacionUpdate } from '../types';
+import { CUENTA_LABEL, RIESGO_CUENTA_MSG } from '../config/ingreso';
+import type { CuentaVinculada, EstadoReparacion, Equipo, IngresoRapidoRequest, Reparacion, ReparacionCreate, ReparacionUpdate } from '../types';
 
 const schema = z
   .object({
@@ -43,6 +44,13 @@ const schema = z
     observaciones: z.string().optional(),
     tecnicoId: z.union([z.number(), z.nan()]).optional(),
     fotosText: z.string().optional(),
+    // Riesgos del ingreso (contrato §4.5)
+    mojado: z.boolean(),
+    trabajoEnPlaca: z.boolean(),
+    noTesteableAlIngreso: z.boolean(),
+    tieneBloqueoPantalla: z.boolean(),
+    tieneCuentaVinculada: z.enum(['NINGUNA', 'ICLOUD', 'GOOGLE', 'OTRA']),
+    clienteConoceCredenciales: z.boolean(),
   })
   .superRefine((val, ctx) => {
     if (val.modo === 'existente') {
@@ -95,11 +103,22 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { modo: 'nuevo', estado: 'INGRESADO' },
+    defaultValues: {
+      modo: 'nuevo',
+      estado: 'INGRESADO',
+      mojado: false,
+      trabajoEnPlaca: false,
+      noTesteableAlIngreso: false,
+      tieneBloqueoPantalla: false,
+      tieneCuentaVinculada: 'NINGUNA',
+      clienteConoceCredenciales: false,
+    },
   });
 
   const modo = watch('modo');
   const esRapido = !editing && modo === 'nuevo';
+  const cuentaVinculada = watch('tieneCuentaVinculada');
+  const conoceCredenciales = watch('clienteConoceCredenciales');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -120,6 +139,12 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
         observaciones: editing.observaciones ?? '',
         tecnicoId: editing.tecnicoId ?? undefined,
         fotosText: (editing.fotos ?? []).join('\n'),
+        mojado: editing.mojado ?? false,
+        trabajoEnPlaca: editing.trabajoEnPlaca ?? false,
+        noTesteableAlIngreso: editing.noTesteableAlIngreso ?? false,
+        tieneBloqueoPantalla: editing.tieneBloqueoPantalla ?? false,
+        tieneCuentaVinculada: editing.tieneCuentaVinculada ?? 'NINGUNA',
+        clienteConoceCredenciales: editing.clienteConoceCredenciales ?? false,
       });
     } else {
       reset({
@@ -144,6 +169,12 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
         observaciones: '',
         tecnicoId: undefined,
         fotosText: '',
+        mojado: false,
+        trabajoEnPlaca: false,
+        noTesteableAlIngreso: false,
+        tieneBloqueoPantalla: false,
+        tieneCuentaVinculada: 'NINGUNA',
+        clienteConoceCredenciales: false,
       });
     }
   }, [isOpen, editing, reset]);
@@ -156,6 +187,12 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
     observaciones: str(data.observaciones),
     tecnicoId: numId(data.tecnicoId),
     fotos: fotosArray(data.fotosText),
+    mojado: data.mojado,
+    trabajoEnPlaca: data.trabajoEnPlaca,
+    noTesteableAlIngreso: data.noTesteableAlIngreso,
+    tieneBloqueoPantalla: data.tieneBloqueoPantalla,
+    tieneCuentaVinculada: data.tieneCuentaVinculada,
+    clienteConoceCredenciales: data.clienteConoceCredenciales,
   });
 
   const onSubmit = async (data: FormData) => {
@@ -353,6 +390,51 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
                 <FormField label="Condiciones de ingreso" htmlFor="condicionesIngreso">
                   <textarea id="condicionesIngreso" rows={2} {...register('condicionesIngreso')} className={`${inputClass()} resize-none`} placeholder="Rayones, golpes, etc." />
                 </FormField>
+
+                {/* Riesgos del ingreso: definen garantía limitada y la bandera de cuenta vinculada */}
+                <div className="space-y-3 border-t border-border pt-3.5">
+                  <div className="text-[12px] font-extrabold uppercase tracking-wide text-text-3">Riesgos del ingreso</div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <label className="flex items-center gap-2 text-[13.5px] font-semibold text-text-2">
+                      <input type="checkbox" {...register('mojado')} className="h-4 w-4 accent-[var(--primary)]" />
+                      Mojado / cayó al agua
+                    </label>
+                    <label className="flex items-center gap-2 text-[13.5px] font-semibold text-text-2">
+                      <input type="checkbox" {...register('trabajoEnPlaca')} className="h-4 w-4 accent-[var(--primary)]" />
+                      Trabajo en placa
+                    </label>
+                    <label className="flex items-center gap-2 text-[13.5px] font-semibold text-text-2">
+                      <input type="checkbox" {...register('noTesteableAlIngreso')} className="h-4 w-4 accent-[var(--primary)]" />
+                      No testeable al ingreso
+                    </label>
+                    <label className="flex items-center gap-2 text-[13.5px] font-semibold text-text-2">
+                      <input type="checkbox" {...register('tieneBloqueoPantalla')} className="h-4 w-4 accent-[var(--primary)]" />
+                      Tiene bloqueo de pantalla
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-1 items-end gap-4 sm:grid-cols-2">
+                    <FormField label="Cuenta vinculada" htmlFor="tieneCuentaVinculada">
+                      <select id="tieneCuentaVinculada" {...register('tieneCuentaVinculada')} className={inputClass()}>
+                        {(Object.keys(CUENTA_LABEL) as CuentaVinculada[]).map((k) => (
+                          <option key={k} value={k}>
+                            {CUENTA_LABEL[k]}
+                          </option>
+                        ))}
+                      </select>
+                    </FormField>
+                    {cuentaVinculada !== 'NINGUNA' && (
+                      <label className="mb-2 flex items-center gap-2 text-[13.5px] font-semibold text-text-2">
+                        <input type="checkbox" {...register('clienteConoceCredenciales')} className="h-4 w-4 accent-[var(--primary)]" />
+                        El cliente conoce las credenciales
+                      </label>
+                    )}
+                  </div>
+                  {cuentaVinculada !== 'NINGUNA' && !conoceCredenciales && (
+                    <p className="rounded-lg bg-danger-soft px-3 py-2 text-[12.5px] font-semibold text-danger-fg">
+                      {RIESGO_CUENTA_MSG}
+                    </p>
+                  )}
+                </div>
                 <FormField label="Observaciones internas" htmlFor="observaciones">
                   <textarea id="observaciones" rows={2} {...register('observaciones')} className={`${inputClass()} resize-none`} placeholder="Notas privadas (no se muestran al cliente)" />
                 </FormField>

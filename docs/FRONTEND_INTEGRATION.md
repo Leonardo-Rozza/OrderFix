@@ -30,6 +30,8 @@ Si venís de una versión anterior del contrato, esto es lo que cambió / se agr
    ofrecé el botón "Reclamo en garantía".
 8. **Seguridad**: un usuario desactivado pierde acceso **al instante** (su token viejo deja de
    servir → `403`); manejalo igual que un 401 (logout).
+9. **Exportar datos**: `GET /api/export/excel` (solo ADMIN, todos los planes) descarga un `.xlsx`
+   con clientes, órdenes, cobros y presupuestos del taller (§4.14).
 
 Los tipos TS de §7 ya reflejan todo esto.
 
@@ -583,6 +585,22 @@ Pagos de una reparación (parciales o totales), resumen de caja y recibo imprimi
 | GET | `/api/caja?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` | `200` CajaResumen |
 
 Sin params = **hoy**. Devuelve `{ desde, hasta, totalCobrado, cantidad, porMetodo: { EFECTIVO, TRANSFERENCIA, ... }, cobros: [...] }`.
+
+---
+
+### 4.14 Exportar datos — solo ADMIN  (`/api/export`)
+
+El dueño del taller se descarga **todos sus datos** en un Excel (disponible en todos los planes).
+
+| Método | Ruta | Resp |
+|--------|------|------|
+| GET | `/api/export/excel` | `200` archivo `.xlsx` (binario) |
+
+- Devuelve un `.xlsx` con 4 hojas: **Clientes**, **Órdenes** (estado, técnico, total/cobrado/saldo, estado de pago, garantía), **Cobros** y **Presupuestos**.
+- Responde con `Content-Disposition: attachment; filename="ordenfix-export-YYYY-MM-DD.xlsx"`.
+- En el front: `apiClient.get('/export/excel', { responseType: 'blob' })` + descarga con un `<a download>`.
+  Implementado en `src/api/mutations/export.mutations.ts`; botón "Exportar a Excel" en la pantalla de Planes (solo ADMIN).
+- Empleado con rol USER → `403`.
 
 ---
 

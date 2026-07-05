@@ -41,7 +41,7 @@ export const RegisterPage = () => {
       password: data.password,
       telefonoTaller: data.telefonoTaller?.trim() ? data.telefonoTaller : undefined,
     });
-    login(res.token, res.email);
+    login(res.token, res.email, res.emailVerificado);
     navigate('/dashboard', { replace: true });
   };
 

@@ -16,6 +16,9 @@ import { UsuariosPage } from '../pages/UsuariosPage';
 import { InventarioPage } from '../pages/InventarioPage';
 import { CajaPage } from '../pages/CajaPage';
 import { ReciboPage } from '../pages/ReciboPage';
+import { OlvidePasswordPage } from '../pages/OlvidePasswordPage';
+import { ResetPasswordPage } from '../pages/ResetPasswordPage';
+import { VerificarEmailPage } from '../pages/VerificarEmailPage';
 
 // Configuración de rutas
 const appRoutes = [
@@ -34,6 +37,24 @@ const appRoutes = [
         <RegisterPage />
       </PublicRoute>
     ),
+  },
+  {
+    path: '/olvide-password',
+    element: (
+      <PublicRoute>
+        <OlvidePasswordPage />
+      </PublicRoute>
+    ),
+  },
+  {
+    // Llega desde el link del email; debe funcionar con o sin sesión abierta.
+    path: '/reset-password',
+    element: <ResetPasswordPage />,
+  },
+  {
+    // Ídem: el link del email de bienvenida se puede abrir estando logueado o no.
+    path: '/verificar-email',
+    element: <VerificarEmailPage />,
   },
   {
     path: '/dashboard',

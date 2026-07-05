@@ -5,8 +5,11 @@ import { decodeToken, isTokenExpired } from '../utils/jwt';
 interface AuthState {
   token: string | null;
   email: string | null;
+  /** null = desconocido (sesiones viejas); false = mostrar banner de verificación. */
+  emailVerificado: boolean | null;
   isAuthenticated: boolean;
-  login: (token: string, email: string) => void;
+  login: (token: string, email: string, emailVerificado?: boolean) => void;
+  marcarEmailVerificado: () => void;
   logout: () => void;
 }
 
@@ -15,14 +18,19 @@ export const authStore = create<AuthState>()(
     (set) => ({
       token: null,
       email: null,
+      emailVerificado: null,
       isAuthenticated: false,
 
-      login: (token: string, email: string) => {
-        set({ token, email, isAuthenticated: true });
+      login: (token: string, email: string, emailVerificado?: boolean) => {
+        set({ token, email, emailVerificado: emailVerificado ?? null, isAuthenticated: true });
+      },
+
+      marcarEmailVerificado: () => {
+        set({ emailVerificado: true });
       },
 
       logout: () => {
-        set({ token: null, email: null, isAuthenticated: false });
+        set({ token: null, email: null, emailVerificado: null, isAuthenticated: false });
       },
     }),
     {
@@ -39,9 +47,9 @@ export const authStore = create<AuthState>()(
 
 // Selector hook para componentes
 export const useAuth = () => {
-  const { token, email, isAuthenticated, login, logout } = authStore();
+  const { token, email, emailVerificado, isAuthenticated, login, marcarEmailVerificado, logout } = authStore();
   const role = decodeToken(token)?.role ?? null;
   // El backend manda roles tipo "ROLE_ADMIN" / "ROLE_USER".
   const isAdmin = !!role && role.toUpperCase().includes('ADMIN');
-  return { token, email, role, isAdmin, isAuthenticated, login, logout };
+  return { token, email, emailVerificado, role, isAdmin, isAuthenticated, login, marcarEmailVerificado, logout };
 };

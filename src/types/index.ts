@@ -18,6 +18,8 @@ export interface AuthResponse {
   token: string;
   type: string; // "Bearer"
   email: string;
+  /** false = mostrar banner "Confirmá tu email" (verificación suave: puede operar igual). */
+  emailVerificado: boolean;
 }
 
 // Datos derivados del JWT (decodificado en el front, solo para mostrar)

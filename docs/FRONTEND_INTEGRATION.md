@@ -32,6 +32,12 @@ Si venís de una versión anterior del contrato, esto es lo que cambió / se agr
    servir → `403`); manejalo igual que un 401 (logout).
 9. **Exportar datos**: `GET /api/export/excel` (solo ADMIN, todos los planes) descarga un `.xlsx`
    con clientes, órdenes, cobros y presupuestos del taller (§4.14).
+10. **Cuentas por email** (§4.1): login/register devuelven **`emailVerificado`** (banner
+    "Confirmá tu email" si es `false` — puede operar igual). Olvidé mi contraseña
+    (`/password/olvide` + `/password/reset`) y verificación de email (`/verificar-email`
+    + `/reenviar`). Rutas del front: `/olvide-password`, `/reset-password?token=...` y
+    `/verificar-email?token=...` (la verificación se confirma con un click, no al montar:
+    el token es de un solo uso y los escáneres de email pre-abren los links).
 
 Los tipos TS de §7 ya reflejan todo esto.
 

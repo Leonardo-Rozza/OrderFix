@@ -30,7 +30,7 @@ export const LoginPage = () => {
 
   const onSubmit = async (data: LoginFormData) => {
     const res = await loginMutation.mutateAsync(data);
-    login(res.token, res.email);
+    login(res.token, res.email, res.emailVerificado);
     navigate('/dashboard', { replace: true });
   };
 
@@ -76,6 +76,11 @@ export const LoginPage = () => {
                 className={fieldClass}
               />
               {errors.password && <p className="mt-1.5 text-[12.5px] text-danger-fg">{errors.password.message}</p>}
+              <div className="mt-2 text-right">
+                <Link to="/olvide-password" className="text-[12.5px] font-bold text-primary hover:underline">
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
             </div>
 
             <button

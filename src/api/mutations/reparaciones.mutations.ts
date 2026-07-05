@@ -102,11 +102,17 @@ export const useCambiarEstadoMutation = () => {
     mutationFn: cambiarEstado,
     onMutate: async ({ id, estado }) => {
       await queryClient.cancelQueries({ queryKey: ['reparaciones'] });
-      // Snapshot de todas las páginas cacheadas y update optimista en cada una.
-      const prev = queryClient.getQueriesData<Page<Reparacion>>({ queryKey: ['reparaciones'] });
-      queryClient.setQueriesData<Page<Reparacion>>({ queryKey: ['reparaciones'] }, (old) =>
-        old ? { ...old, content: old.content.map((r) => (r.id === id ? { ...r, estado } : r)) } : old
-      );
+      // Snapshot de todas las caches que empiezan con ['reparaciones'] y update
+      // optimista en cada una. OJO: no todas son páginas — la de "reparaciones
+      // por equipo" (['reparaciones','equipo',id]) es un array plano.
+      const prev = queryClient.getQueriesData<Page<Reparacion> | Reparacion[]>({ queryKey: ['reparaciones'] });
+      queryClient.setQueriesData<Page<Reparacion> | Reparacion[]>({ queryKey: ['reparaciones'] }, (old) => {
+        if (!old) return old;
+        const patch = (r: Reparacion) => (r.id === id ? { ...r, estado } : r);
+        if (Array.isArray(old)) return old.map(patch);
+        if (!Array.isArray(old.content)) return old;
+        return { ...old, content: old.content.map(patch) };
+      });
       queryClient.setQueryData<Reparacion>(['reparacion', id], (old) => (old ? { ...old, estado } : old));
       return { prev };
     },

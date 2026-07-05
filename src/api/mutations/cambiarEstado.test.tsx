@@ -54,6 +54,29 @@ describe('useCambiarEstadoMutation (optimista)', () => {
     expect(body).toEqual({ estado: 'EN_PROCESO' });
   });
 
+  it('no crashea con la cache de reparaciones-por-equipo (array plano) y también la actualiza', async () => {
+    // Regresión: ['reparaciones','equipo',id] cachea Reparacion[] (sin .content);
+    // el update optimista hacía old.content.map y explotaba con "reading 'map'".
+    server.use(
+      http.patch(`${API}/reparaciones/1/estado`, () =>
+        HttpResponse.json({ ...baseRep, estado: 'EN_DIAGNOSTICO' })
+      )
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    client.setQueryData<Page>(KEY, { content: [baseRep], page: { size: 20, number: 0, totalElements: 1, totalPages: 1 } });
+    client.setQueryData<Reparacion[]>(['reparaciones', 'equipo', 10], [baseRep]);
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(() => useCambiarEstadoMutation(), { wrapper });
+
+    act(() => result.current.mutate({ id: 1, estado: 'EN_DIAGNOSTICO' }));
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(client.getQueryData<Page>(KEY)?.content[0].estado).toBe('EN_DIAGNOSTICO');
+    expect(client.getQueryData<Reparacion[]>(['reparaciones', 'equipo', 10])?.[0].estado).toBe('EN_DIAGNOSTICO');
+  });
+
   it('revierte la cache si el backend falla', async () => {
     server.use(
       http.patch(`${API}/reparaciones/1/estado`, () => new HttpResponse(null, { status: 500 }))

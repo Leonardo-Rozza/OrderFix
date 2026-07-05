@@ -15,7 +15,8 @@ import {
 import { useUsuariosQuery } from '../api/queries/usuarios.queries';
 import { useAuth } from '../store/auth.store';
 import { CUENTA_LABEL, RIESGO_CUENTA_MSG } from '../config/ingreso';
-import type { CuentaVinculada, EstadoReparacion, Equipo, IngresoRapidoRequest, Reparacion, ReparacionCreate, ReparacionUpdate } from '../types';
+import { fotosPorMomento } from '../utils/reparacion';
+import type { CuentaVinculada, EstadoReparacion, Equipo, Foto, IngresoRapidoRequest, Reparacion, ReparacionCreate, ReparacionUpdate } from '../types';
 
 const schema = z
   .object({
@@ -43,7 +44,8 @@ const schema = z
     condicionesIngreso: z.string().optional(),
     observaciones: z.string().optional(),
     tecnicoId: z.union([z.number(), z.nan()]).optional(),
-    fotosText: z.string().optional(),
+    fotosIngresoText: z.string().optional(),
+    fotosPostText: z.string().optional(),
     // Riesgos del ingreso (contrato §4.5)
     mojado: z.boolean(),
     trabajoEnPlaca: z.boolean(),
@@ -79,8 +81,12 @@ const num = (v: number | '' | undefined): number | undefined =>
 const numId = (v: number | undefined): number | undefined =>
   v === undefined || Number.isNaN(v) ? undefined : v;
 const str = (v: string | undefined): string | undefined => (v && v.trim() !== '' ? v : undefined);
-const fotosArray = (v: string | undefined): string[] | undefined => {
-  const arr = (v ?? '').split('\n').map((s) => s.trim()).filter(Boolean);
+const urls = (v: string | undefined): string[] => (v ?? '').split('\n').map((s) => s.trim()).filter(Boolean);
+const fotosArray = (ingreso: string | undefined, post: string | undefined): Foto[] | undefined => {
+  const arr: Foto[] = [
+    ...urls(ingreso).map((url): Foto => ({ url, momento: 'INGRESO' })),
+    ...urls(post).map((url): Foto => ({ url, momento: 'POST_REPARACION' })),
+  ];
   return arr.length ? arr : undefined;
 };
 
@@ -138,7 +144,8 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
         condicionesIngreso: editing.condicionesIngreso ?? '',
         observaciones: editing.observaciones ?? '',
         tecnicoId: editing.tecnicoId ?? undefined,
-        fotosText: (editing.fotos ?? []).join('\n'),
+        fotosIngresoText: fotosPorMomento(editing.fotos, 'INGRESO').join('\n'),
+        fotosPostText: fotosPorMomento(editing.fotos, 'POST_REPARACION').join('\n'),
         mojado: editing.mojado ?? false,
         trabajoEnPlaca: editing.trabajoEnPlaca ?? false,
         noTesteableAlIngreso: editing.noTesteableAlIngreso ?? false,
@@ -168,7 +175,8 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
         condicionesIngreso: '',
         observaciones: '',
         tecnicoId: undefined,
-        fotosText: '',
+        fotosIngresoText: '',
+        fotosPostText: '',
         mojado: false,
         trabajoEnPlaca: false,
         noTesteableAlIngreso: false,
@@ -186,7 +194,7 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
     condicionesIngreso: str(data.condicionesIngreso),
     observaciones: str(data.observaciones),
     tecnicoId: numId(data.tecnicoId),
-    fotos: fotosArray(data.fotosText),
+    fotos: fotosArray(data.fotosIngresoText, data.fotosPostText),
     mojado: data.mojado,
     trabajoEnPlaca: data.trabajoEnPlaca,
     noTesteableAlIngreso: data.noTesteableAlIngreso,
@@ -450,9 +458,14 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
                     </select>
                   </FormField>
                 )}
-                <FormField label="Fotos (una URL por línea)" htmlFor="fotosText">
-                  <textarea id="fotosText" rows={2} {...register('fotosText')} className={`${inputClass()} resize-none`} placeholder="https://…/foto1.jpg" />
-                </FormField>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <FormField label="Fotos del ingreso (una URL por línea)" htmlFor="fotosIngresoText">
+                    <textarea id="fotosIngresoText" rows={2} {...register('fotosIngresoText')} className={`${inputClass()} resize-none`} placeholder="https://…/ingreso1.jpg" />
+                  </FormField>
+                  <FormField label="Fotos post-reparación (una URL por línea)" htmlFor="fotosPostText">
+                    <textarea id="fotosPostText" rows={2} {...register('fotosPostText')} className={`${inputClass()} resize-none`} placeholder="https://…/post1.jpg" />
+                  </FormField>
+                </div>
               </div>
             </details>
           </>

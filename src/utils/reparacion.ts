@@ -1,4 +1,4 @@
-import type { Reparacion } from '../types';
+import type { Foto, MomentoFoto, Reparacion } from '../types';
 
 /** Etiqueta del equipo de una reparación (campos denormalizados del backend). */
 export const equipoLabel = (r: Reparacion): string => {
@@ -15,3 +15,14 @@ export const clienteLabel = (r: Reparacion): string => {
   const label = `${r.clienteNombre ?? ''} ${r.clienteApellido ?? ''}`.trim();
   return label || 'Sin cliente';
 };
+
+/**
+ * URLs de las fotos de un momento dado. Normaliza el formato viejo del
+ * contrato (string[] sin momento → se asume INGRESO) para no romper con
+ * datos guardados antes de la migración.
+ */
+export const fotosPorMomento = (fotos: Reparacion['fotos'], momento: MomentoFoto): string[] =>
+  (fotos ?? [])
+    .map((f): Foto => (typeof f === 'string' ? { url: f, momento: 'INGRESO' } : f))
+    .filter((f) => f.momento === momento)
+    .map((f) => f.url);

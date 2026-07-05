@@ -14,7 +14,7 @@ import { ErrorState } from '../components/ErrorState';
 import { btnGhost, btnDanger, card } from '../components/ui';
 import { getEstadoMeta, transicionesDesde } from '../config/estados';
 import { formatMoney, formatDate, iniciales } from '../utils/format';
-import { equipoLabel, clienteLabel, ordenLabel } from '../utils/reparacion';
+import { equipoLabel, clienteLabel, ordenLabel, fotosPorMomento } from '../utils/reparacion';
 import { PagoChip } from '../components/PagoChip';
 import { apiClient } from '../api/axios';
 import type { WhatsappLink } from '../types';
@@ -321,18 +321,28 @@ export const ReparacionDetallePage = () => {
                     <div className="text-[13.5px] leading-relaxed text-text-2">{rep.observaciones}</div>
                   </div>
                 )}
-                {(rep.fotos?.length ?? 0) > 0 && (
-                  <div className="mt-3.5 border-t border-border pt-3.5">
-                    <div className="mb-2 text-[12px] font-extrabold uppercase tracking-wide text-text-3">Fotos</div>
-                    <div className="flex flex-wrap gap-2">
-                      {rep.fotos!.map((url) => (
-                        <a key={url} href={url} target="_blank" rel="noreferrer" className="block">
-                          <img src={url} alt="Foto del equipo" className="h-16 w-16 rounded-lg border border-border object-cover" />
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {(rep.fotos?.length ?? 0) > 0 &&
+                  (
+                    [
+                      { momento: 'INGRESO', label: 'Fotos del ingreso', alt: 'Foto del ingreso' },
+                      { momento: 'POST_REPARACION', label: 'Fotos post-reparación', alt: 'Foto post-reparación' },
+                    ] as const
+                  ).map(({ momento, label, alt }) => {
+                    const fotos = fotosPorMomento(rep.fotos, momento);
+                    if (fotos.length === 0) return null;
+                    return (
+                      <div key={momento} className="mt-3.5 border-t border-border pt-3.5">
+                        <div className="mb-2 text-[12px] font-extrabold uppercase tracking-wide text-text-3">{label}</div>
+                        <div className="flex flex-wrap gap-2">
+                          {fotos.map((url) => (
+                            <a key={url} href={url} target="_blank" rel="noreferrer" className="block">
+                              <img src={url} alt={alt} className="h-16 w-16 rounded-lg border border-border object-cover" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
             )}
 

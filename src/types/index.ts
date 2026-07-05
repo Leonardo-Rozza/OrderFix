@@ -176,6 +176,14 @@ export type EstadoPago = 'SIN_COBRAR' | 'PARCIAL' | 'PAGADO';
 /** Cuenta vinculada al equipo (iCloud / FRP): riesgo de no poder entregarlo activado. */
 export type CuentaVinculada = 'NINGUNA' | 'ICLOUD' | 'GOOGLE' | 'OTRA';
 
+/** Momento de una foto: prueba de condición de entrada o del trabajo hecho (QA). */
+export type MomentoFoto = 'INGRESO' | 'POST_REPARACION';
+
+export interface Foto {
+  url: string;
+  momento: MomentoFoto;
+}
+
 export interface Reparacion {
   id: number;
   equipoId: number;
@@ -204,7 +212,8 @@ export interface Reparacion {
   observaciones?: string | null;
   tecnicoId?: number | null;
   tecnicoNombre?: string | null;
-  fotos?: string[];
+  /** BREAKING contrato v2: antes era string[]. */
+  fotos?: Foto[];
   // Flags de riesgo del ingreso (contrato §4.5)
   mojado?: boolean;
   trabajoEnPlaca?: boolean;
@@ -311,7 +320,7 @@ export interface ReparacionCreate {
   condicionesIngreso?: string;
   observaciones?: string;
   tecnicoId?: number;
-  fotos?: string[];
+  fotos?: Foto[];
   // Flags de riesgo del ingreso (default backend: false / NINGUNA)
   mojado?: boolean;
   trabajoEnPlaca?: boolean;

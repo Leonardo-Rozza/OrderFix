@@ -16,17 +16,20 @@ export const SuscripcionResultadoPage = () => {
   const navigate = useNavigate();
   const [timedOut, setTimedOut] = useState(false);
 
-  const { data: sus } = useQuery({
+  const { data: sus, isError, refetch } = useQuery({
     queryKey: SUSCRIPCION_KEY,
     queryFn: fetchSuscripcion,
     refetchInterval: (query) => {
       const d = query.state.data;
       const ok = d?.plan === 'PRO' && d?.estado === 'ACTIVA';
-      return ok || timedOut ? false : POLL_MS;
+      if (ok || timedOut || query.state.status === 'error') return false;
+      return POLL_MS;
     },
   });
   const confirmado = sus?.plan === 'PRO' && sus?.estado === 'ACTIVA';
-  const polling = !confirmado && !timedOut;
+  // Si la consulta falla (agotados los retries), mostramos el estado de "no
+  // confirmado" con reintento en vez de dejar el spinner girando hasta el timeout.
+  const polling = !confirmado && !timedOut && !isError;
 
   // Dejar de reintentar tras TIMEOUT_MS (el efecto se reinicia al volver a pollear).
   useEffect(() => {
@@ -35,7 +38,10 @@ export const SuscripcionResultadoPage = () => {
     return () => clearTimeout(t);
   }, [polling]);
 
-  const reintentar = () => setTimedOut(false);
+  const reintentar = () => {
+    setTimedOut(false);
+    refetch();
+  };
 
   return (
     <DashboardLayout title="Suscripción">

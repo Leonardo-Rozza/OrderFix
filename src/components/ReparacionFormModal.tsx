@@ -6,7 +6,7 @@ import { Modal } from './Modal';
 import { FormField } from './FormField';
 import { Combobox } from './Combobox';
 import { inputClass, btnGhost, btnPrimary } from './ui';
-import { ESTADOS_LIST } from '../config/estados';
+import { ESTADOS, ESTADOS_LIST } from '../config/estados';
 import {
   useCreateReparacionMutation,
   useUpdateReparacionMutation,
@@ -14,7 +14,7 @@ import {
 } from '../api/mutations/reparaciones.mutations';
 import { useUsuariosQuery } from '../api/queries/usuarios.queries';
 import { useAuth } from '../store/auth.store';
-import type { Equipo, IngresoRapidoRequest, Reparacion, ReparacionCreate, ReparacionUpdate } from '../types';
+import type { EstadoReparacion, Equipo, IngresoRapidoRequest, Reparacion, ReparacionCreate, ReparacionUpdate } from '../types';
 
 const schema = z
   .object({
@@ -29,7 +29,8 @@ const schema = z
     modelo: z.string().optional(),
     // Reparación
     descripcionProblema: z.string().min(1, 'Describí el problema'),
-    estado: z.enum(['INGRESADO', 'EN_PROCESO', 'ESPERANDO_REPUESTO', 'COMPLETADO', 'ENTREGADO']),
+    // Derivado de la config para no desincronizarse cuando se agreguen estados.
+    estado: z.enum(Object.keys(ESTADOS) as [EstadoReparacion, ...EstadoReparacion[]]),
     precioEstimado: z.union([z.number().min(0), z.nan(), z.literal('')]).optional(),
     precioFinal: z.union([z.number().min(0), z.nan(), z.literal('')]).optional(),
     fechaIngreso: z.string().optional().or(z.literal('')),

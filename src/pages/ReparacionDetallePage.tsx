@@ -12,7 +12,7 @@ import { metodoLabel } from '../config/cobros';
 import { Loader } from '../components/Loader';
 import { ErrorState } from '../components/ErrorState';
 import { btnGhost, btnDanger, card } from '../components/ui';
-import { ESTADOS, ESTADOS_LIST } from '../config/estados';
+import { getEstadoMeta, ESTADOS_LIST } from '../config/estados';
 import { formatMoney, formatDate, iniciales } from '../utils/format';
 import { equipoLabel, clienteLabel } from '../utils/reparacion';
 import { apiClient } from '../api/axios';
@@ -107,7 +107,7 @@ export const ReparacionDetallePage = () => {
     );
   }
 
-  const meta = ESTADOS[rep.estado];
+  const meta = getEstadoMeta(rep.estado);
   const clienteTelefono = rep.clienteTelefono ?? null;
   const equipoNombre = equipoLabel(rep);
   const next = meta.next;
@@ -125,6 +125,8 @@ export const ReparacionDetallePage = () => {
       if (win) win.location.href = data.url;
       else window.location.href = data.url;
     } catch {
+      // El interceptor de axios ya mostró el toast del error (es un GET);
+      // acá solo cerramos la pestaña vacía que habíamos abierto.
       win?.close();
     }
   };
@@ -469,7 +471,7 @@ export const ReparacionDetallePage = () => {
                   disabled={cambiarEstado.isPending}
                   className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary py-3 text-[14px] font-bold text-primary-fg shadow-sm transition hover:bg-primary-hover disabled:opacity-60"
                 >
-                  Marcar como {ESTADOS[next].label.toLowerCase()}
+                  Marcar como {getEstadoMeta(next).label.toLowerCase()}
                   <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
                     <path d="m9 6 6 6-6 6" />
                   </svg>

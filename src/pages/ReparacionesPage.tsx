@@ -8,7 +8,7 @@ import { SortSelect } from '../components/SortSelect';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { btnPrimary } from '../components/ui';
-import { ESTADOS, ESTADOS_LIST } from '../config/estados';
+import { getEstadoMeta, ESTADOS_LIST } from '../config/estados';
 import { formatMoney } from '../utils/format';
 import { equipoLabel, clienteLabel } from '../utils/reparacion';
 import { useListParams } from '../hooks/useListParams';
@@ -46,7 +46,7 @@ export const ReparacionesPage = () => {
   const open = (id: number) => navigate(`/reparaciones/${id}`);
   const advance = (r: Reparacion) => {
     if (cambiarEstado.isPending) return; // evita doble disparo
-    const next = ESTADOS[r.estado].next;
+    const next = getEstadoMeta(r.estado).next;
     if (next) cambiarEstado.mutate({ id: r.id, estado: next });
   };
   const move = (id: number, estado: EstadoReparacion) => {
@@ -384,7 +384,7 @@ const Lista = ({
               </div>
             ))
           : reparaciones.map((r) => {
-          const meta = ESTADOS[r.estado];
+          const meta = getEstadoMeta(r.estado);
           return (
             <div
               key={r.id}

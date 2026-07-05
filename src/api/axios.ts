@@ -59,8 +59,18 @@ apiClient.interceptors.response.use(
       const message = getErrorMessage(error, 'Alcanzaste el límite de tu plan.');
       window.dispatchEvent(new CustomEvent(LIMITE_PLAN_EVENT, { detail: { message } }));
     } else if (status === 403) {
-      // Autenticado pero sin permiso (acción solo de ADMIN)
-      showError(getErrorMessage(error, 'No tenés permisos para esta acción.'));
+      // Un usuario desactivado pierde acceso al instante: hasta sus GETs (que
+      // cualquier rol puede hacer) devuelven 403 → tratarlo como sesión inválida.
+      // Un 403 en una mutación es una acción solo-ADMIN: avisar sin desloguear.
+      const method = error.config?.method?.toLowerCase();
+      if (method === 'get') {
+        authStore.getState().logout();
+        if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+          window.location.href = '/login';
+        }
+      } else {
+        showError(getErrorMessage(error, 'No tenés permisos para esta acción.'));
+      }
     } else {
       // Errores de lectura: avisar por toast (las mutaciones manejan su propio onError)
       const method = error.config?.method?.toLowerCase();

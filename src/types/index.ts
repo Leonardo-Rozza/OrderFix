@@ -195,7 +195,7 @@ export interface Reparacion {
 }
 
 // ========== PRESUPUESTOS ==========
-export type PresupuestoEstado = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO';
+export type PresupuestoEstado = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'VENCIDO';
 
 export interface PresupuestoItem {
   descripcion: string;

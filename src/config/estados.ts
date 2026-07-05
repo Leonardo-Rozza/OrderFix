@@ -63,6 +63,22 @@ export const ESTADOS: Record<EstadoReparacion, EstadoMeta> = {
   },
 };
 
+/**
+ * Meta de un estado con fallback: si el backend devuelve un estado que este
+ * front todavía no conoce (el contrato nuevo tiene 12), mostramos un badge
+ * neutro con el nombre humanizado en vez de crashear.
+ */
+export const getEstadoMeta = (estado: EstadoReparacion): EstadoMeta =>
+  ESTADOS[estado] ?? {
+    key: estado,
+    label: estado.charAt(0) + estado.slice(1).toLowerCase().replace(/_/g, ' '),
+    textClass: 'text-text-2',
+    bgClass: 'bg-surface-3',
+    cssVar: 'var(--text-3)',
+    iconD: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z',
+    next: null,
+  };
+
 /** Orden de columnas del tablero / flujo. */
 export const ESTADOS_ORDEN: EstadoReparacion[] = [
   'INGRESADO',

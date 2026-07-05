@@ -1,4 +1,4 @@
-import { ESTADOS } from '../config/estados';
+import { getEstadoMeta } from '../config/estados';
 import type { EstadoReparacion } from '../types';
 
 interface EstadoBadgeProps {
@@ -8,7 +8,7 @@ interface EstadoBadgeProps {
 
 /** Pill de estado con color e ícono según el estado de la reparación. */
 export const EstadoBadge = ({ estado, size = 'sm' }: EstadoBadgeProps) => {
-  const meta = ESTADOS[estado];
+  const meta = getEstadoMeta(estado);
   const pad = size === 'md' ? 'px-3 py-1.5 text-[12.5px]' : 'px-2.5 py-1 text-[11.5px]';
   const ic = size === 'md' ? 14 : 13;
 

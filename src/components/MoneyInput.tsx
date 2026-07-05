@@ -2,9 +2,14 @@ import { inputClass } from './ui';
 
 const fmt = new Intl.NumberFormat('es-AR');
 
+// Tope de 8 dígitos ($99.999.999): de sobra para una reparación y es el máximo
+// del DECIMAL(10,2) del backend — con 9 dígitos desborda y devuelve un 409
+// engañoso ("Ya existe un registro con esos datos").
+const MAX_DIGITOS = 8;
+
 /** "40.000" | "$ 40000,–" | basura → 40000; vacío → ''. Solo enteros (pesos). */
 const parse = (s: string): number | '' => {
-  const digits = s.replace(/\D/g, '');
+  const digits = s.replace(/\D/g, '').slice(0, MAX_DIGITOS);
   return digits ? Number(digits) : '';
 };
 

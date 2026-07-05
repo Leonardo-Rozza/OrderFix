@@ -134,6 +134,7 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
                   {/* inputClass trae w-full: los anchos fijos van en wrappers para que no se pisen */}
                   <div className="min-w-0 flex-1">
                     <input
+                      maxLength={255}
                       {...register(`items.${i}.descripcion`)}
                       className={inputClass(!!errors.items?.[i]?.descripcion)}
                       placeholder="Ej: Pin de carga"

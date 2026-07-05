@@ -14,6 +14,14 @@ import { initSentry } from './lib/sentry.ts';
 // Monitoreo de errores (no-op si no hay VITE_SENTRY_DSN).
 initSentry();
 
+// Los errores HTTP ya tienen su manejo (toast del interceptor/mutaciones y
+// reporte a Sentry): si un `await mutateAsync()` de un form queda sin catch,
+// evitamos el "unhandled rejection" en consola — el modal queda abierto y el
+// toast ya avisó, que es el comportamiento buscado.
+window.addEventListener('unhandledrejection', (event) => {
+  if (event.reason instanceof AxiosError) event.preventDefault();
+});
+
 // Configuración de React Query
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -32,7 +32,7 @@ const schema = z
     marca: z.string().optional(),
     modelo: z.string().optional(),
     // Reparación
-    descripcionProblema: z.string().min(1, 'Describí el problema'),
+    descripcionProblema: z.string().min(1, 'Describí el problema').max(255, 'Máximo 255 caracteres'),
     // Derivado de la config para no desincronizarse cuando se agreguen estados.
     estado: z.enum(Object.keys(ESTADOS) as [EstadoReparacion, ...EstadoReparacion[]]),
     precioEstimado: z.union([z.number().min(0), z.nan(), z.literal('')]).optional(),
@@ -291,23 +291,23 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
             <div className="text-[12px] font-extrabold uppercase tracking-wide text-text-3">Cliente</div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField label="Nombre" required error={errors.clienteNombre?.message} htmlFor="clienteNombre">
-                <input id="clienteNombre" type="text" {...register('clienteNombre')} className={inputClass(!!errors.clienteNombre)} placeholder="Ej: Juan" />
+                <input id="clienteNombre" type="text" maxLength={60} {...register('clienteNombre')} className={inputClass(!!errors.clienteNombre)} placeholder="Ej: Juan" />
               </FormField>
               <FormField label="Apellido" error={errors.clienteApellido?.message} htmlFor="clienteApellido">
-                <input id="clienteApellido" type="text" {...register('clienteApellido')} className={inputClass(!!errors.clienteApellido)} placeholder="Opcional" />
+                <input id="clienteApellido" type="text" maxLength={60} {...register('clienteApellido')} className={inputClass(!!errors.clienteApellido)} placeholder="Opcional" />
               </FormField>
             </div>
             <FormField label="Teléfono" required error={errors.clienteTelefono?.message} htmlFor="clienteTelefono">
-              <input id="clienteTelefono" type="tel" {...register('clienteTelefono')} className={inputClass(!!errors.clienteTelefono)} placeholder="+54 9 11 5555-1234" />
+              <input id="clienteTelefono" type="tel" maxLength={20} {...register('clienteTelefono')} className={inputClass(!!errors.clienteTelefono)} placeholder="+54 9 11 5555-1234" />
             </FormField>
 
             <div className="pt-1 text-[12px] font-extrabold uppercase tracking-wide text-text-3">Equipo</div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField label="Marca" required error={errors.marca?.message} htmlFor="marca">
-                <input id="marca" type="text" {...register('marca')} className={inputClass(!!errors.marca)} placeholder="Ej: Apple" />
+                <input id="marca" type="text" maxLength={60} {...register('marca')} className={inputClass(!!errors.marca)} placeholder="Ej: Apple" />
               </FormField>
               <FormField label="Modelo" required error={errors.modelo?.message} htmlFor="modelo">
-                <input id="modelo" type="text" {...register('modelo')} className={inputClass(!!errors.modelo)} placeholder="Ej: iPhone 11" />
+                <input id="modelo" type="text" maxLength={60} {...register('modelo')} className={inputClass(!!errors.modelo)} placeholder="Ej: iPhone 11" />
               </FormField>
             </div>
 
@@ -349,6 +349,7 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
           <textarea
             id="descripcionProblema"
             rows={3}
+            maxLength={255}
             {...register('descripcionProblema')}
             className={`${inputClass(!!errors.descripcionProblema)} resize-none`}
             placeholder="Ej: No carga, pantalla rota, no enciende…"
@@ -430,17 +431,17 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
               <div className="mt-4 space-y-4">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <FormField label="Patrón de desbloqueo" htmlFor="patronDesbloqueo">
-                    <input id="patronDesbloqueo" type="text" {...register('patronDesbloqueo')} className={inputClass()} placeholder="Ej: L invertida" />
+                    <input id="patronDesbloqueo" type="text" maxLength={60} {...register('patronDesbloqueo')} className={inputClass()} placeholder="Ej: L invertida" />
                   </FormField>
                   <FormField label="PIN / contraseña" htmlFor="pinDesbloqueo">
-                    <input id="pinDesbloqueo" type="text" {...register('pinDesbloqueo')} className={inputClass()} placeholder="Ej: 1234" />
+                    <input id="pinDesbloqueo" type="text" maxLength={20} {...register('pinDesbloqueo')} className={inputClass()} placeholder="Ej: 1234" />
                   </FormField>
                 </div>
                 <FormField label="Accesorios que deja" htmlFor="accesorios">
-                  <input id="accesorios" type="text" {...register('accesorios')} className={inputClass()} placeholder="Cargador, funda, SIM…" />
+                  <input id="accesorios" type="text" maxLength={255} {...register('accesorios')} className={inputClass()} placeholder="Cargador, funda, SIM…" />
                 </FormField>
                 <FormField label="Condiciones de ingreso" htmlFor="condicionesIngreso">
-                  <textarea id="condicionesIngreso" rows={2} {...register('condicionesIngreso')} className={`${inputClass()} resize-none`} placeholder="Rayones, golpes, etc." />
+                  <textarea id="condicionesIngreso" rows={2} maxLength={500} {...register('condicionesIngreso')} className={`${inputClass()} resize-none`} placeholder="Rayones, golpes, etc." />
                 </FormField>
 
                 {/* Riesgos del ingreso: definen garantía limitada y la bandera de cuenta vinculada */}
@@ -488,7 +489,7 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
                   )}
                 </div>
                 <FormField label="Observaciones internas" htmlFor="observaciones">
-                  <textarea id="observaciones" rows={2} {...register('observaciones')} className={`${inputClass()} resize-none`} placeholder="Notas privadas (no se muestran al cliente)" />
+                  <textarea id="observaciones" rows={2} maxLength={1000} {...register('observaciones')} className={`${inputClass()} resize-none`} placeholder="Notas privadas (no se muestran al cliente)" />
                 </FormField>
                 {isAdmin && (
                   <FormField label="Técnico asignado" htmlFor="tecnicoId">

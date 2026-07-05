@@ -50,6 +50,7 @@ export const ReclamoGarantiaModal = ({ isOpen, onClose, reparacion }: Props) => 
           <textarea
             id="descripcionReclamo"
             rows={3}
+            maxLength={255}
             value={descripcion}
             onChange={(e) => {
               setDescripcion(e.target.value);

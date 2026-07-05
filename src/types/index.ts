@@ -223,6 +223,18 @@ export interface Reparacion {
   clienteConoceCredenciales?: boolean;
   /** Derivado (solo lectura): cuenta activa sin credenciales → bandera roja. */
   riesgoCuentaSinCredenciales?: boolean;
+  // Entrega y garantía (contrato §4.5)
+  /** Cuándo el cliente retiró conforme; se sella sola al pasar a ENTREGADO. */
+  fechaConformidadEntrega?: string | null;
+  garantiaDias?: number | null;
+  garantiaInicio?: string | null;
+  garantiaFin?: string | null;
+  garantiaCondiciones?: string | null;
+  /** Derivado: la garantía todavía no venció. */
+  garantiaVigente?: boolean;
+  /** Es un retrabajo en garantía (no consumió cupo del plan). */
+  esGarantia?: boolean;
+  reparacionOrigenId?: number | null;
   // Denormalizado por el backend (equipo + cliente del equipo)
   equipoMarca?: string;
   equipoModelo?: string;
@@ -328,6 +340,10 @@ export interface ReparacionCreate {
   tieneBloqueoPantalla?: boolean;
   tieneCuentaVinculada?: CuentaVinculada;
   clienteConoceCredenciales?: boolean;
+  // Entrega y garantía
+  fechaConformidadEntrega?: string;
+  garantiaDias?: number;
+  garantiaCondiciones?: string;
 }
 
 export interface ReparacionUpdate extends Partial<ReparacionCreate> {

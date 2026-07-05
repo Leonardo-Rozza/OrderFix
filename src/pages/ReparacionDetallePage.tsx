@@ -7,6 +7,7 @@ import { RepuestoFormModal } from '../components/RepuestoFormModal';
 import { PresupuestoFormModal } from '../components/PresupuestoFormModal';
 import { PresupuestoBadge } from '../components/PresupuestoBadge';
 import { CobroFormModal } from '../components/CobroFormModal';
+import { ReclamoGarantiaModal } from '../components/ReclamoGarantiaModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { metodoLabel } from '../config/cobros';
 import { Loader } from '../components/Loader';
@@ -65,6 +66,7 @@ export const ReparacionDetallePage = () => {
   const [repuestoToDelete, setRepuestoToDelete] = useState<Repuesto | null>(null);
   const [presupuestoOpen, setPresupuestoOpen] = useState(false);
   const [cobroOpen, setCobroOpen] = useState(false);
+  const [reclamoOpen, setReclamoOpen] = useState(false);
 
   const openNewRepuesto = () => {
     setEditingRepuesto(null);
@@ -178,8 +180,27 @@ export const ReparacionDetallePage = () => {
                   <div className="flex flex-wrap items-center gap-2.5">
                     <span className="text-[22px] font-extrabold tracking-tight">{equipoNombre}</span>
                     <span className="rounded-md bg-surface-3 px-2 py-0.5 font-mono text-[12px] font-bold text-text-3">{ordenLabel(rep)}</span>
+                    {rep.esGarantia && (
+                      <span className="rounded-md bg-primary-soft px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-primary-soft-fg">
+                        Garantía
+                      </span>
+                    )}
                   </div>
-                  <div className="mt-0.5 text-[14px] text-text-2">Ingresó el {formatDate(rep.fechaIngreso)}</div>
+                  <div className="mt-0.5 text-[14px] text-text-2">
+                    Ingresó el {formatDate(rep.fechaIngreso)}
+                    {rep.esGarantia && rep.reparacionOrigenId && (
+                      <>
+                        {' · '}
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/reparaciones/${rep.reparacionOrigenId}`)}
+                          className="font-bold text-primary hover:underline"
+                        >
+                          Ver orden original →
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <div className="flex flex-col items-end gap-1.5">
                   <EstadoBadge estado={rep.estado} size="md" />
@@ -612,6 +633,46 @@ export const ReparacionDetallePage = () => {
               </button>
             </div>
 
+            {/* Garantía y conformidad (aparecen a partir de la entrega) */}
+            {(rep.garantiaFin || rep.garantiaInicio || rep.fechaConformidadEntrega) && (
+              <div className={`${card} p-4`}>
+                <div className="text-[12px] font-extrabold uppercase tracking-wide text-text-3">Garantía</div>
+                {rep.garantiaFin && (
+                  <div className="mt-2">
+                    {rep.garantiaVigente ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2.5 py-1 text-[12px] font-extrabold text-success">
+                        Vigente hasta el {formatDate(rep.garantiaFin)}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-surface-3 px-2.5 py-1 text-[12px] font-extrabold text-text-2">
+                        Venció el {formatDate(rep.garantiaFin)}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {rep.garantiaCondiciones && (
+                  <p className="mt-2 text-[12.5px] leading-relaxed text-text-2">{rep.garantiaCondiciones}</p>
+                )}
+                {rep.fechaConformidadEntrega && (
+                  <div className="mt-2 text-[12.5px] text-text-3">
+                    Retiró conforme el {formatDate(rep.fechaConformidadEntrega)}
+                  </div>
+                )}
+                {rep.garantiaVigente && !rep.esGarantia && (
+                  <button
+                    type="button"
+                    onClick={() => setReclamoOpen(true)}
+                    className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-border-strong bg-surface py-2 text-[13px] font-bold text-text transition hover:border-primary hover:text-primary"
+                  >
+                    <svg viewBox="0 0 24 24" width={15} height={15} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
+                    Reclamo en garantía
+                  </button>
+                )}
+              </div>
+            )}
+
             {rep.codigoSeguimiento && (
               <div className={`${card} p-4`}>
                 <div className="text-[12px] font-extrabold uppercase tracking-wide text-text-3">Seguimiento del cliente</div>
@@ -670,6 +731,7 @@ export const ReparacionDetallePage = () => {
         lockedReparacionId={rep.id}
       />
       <PresupuestoFormModal isOpen={presupuestoOpen} onClose={() => setPresupuestoOpen(false)} reparacionId={rep.id} />
+      <ReclamoGarantiaModal isOpen={reclamoOpen} onClose={() => setReclamoOpen(false)} reparacion={rep} />
       <CobroFormModal isOpen={cobroOpen} onClose={() => setCobroOpen(false)} reparacionId={rep.id} saldo={cobros?.saldo} />
       <ConfirmDialog
         isOpen={!!repuestoToDelete}

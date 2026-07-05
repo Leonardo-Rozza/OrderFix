@@ -127,7 +127,7 @@ export const useCambiarEstadoMutation = () => {
 // Hook para eliminar reparación
 export const useDeleteReparacionMutation = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: deleteReparacion,
     onSuccess: () => {
@@ -136,6 +136,30 @@ export const useDeleteReparacionMutation = () => {
     },
     onError: (error) => {
       showError(getErrorMessage(error, 'No se pudo eliminar la reparación'));
+    },
+  });
+};
+
+// Reclamo en garantía: crea una reparación nueva vinculada al original
+// (mismo equipo, esGarantia, sin precio; no consume cupo del plan FREE)
+const crearReclamoGarantia = async (params: { id: number; descripcionProblema: string }): Promise<Reparacion> => {
+  const { data } = await apiClient.post<Reparacion>(`/reparaciones/${params.id}/garantia`, {
+    descripcionProblema: params.descripcionProblema,
+  });
+  return data;
+};
+
+export const useReclamoGarantiaMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: crearReclamoGarantia,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reparaciones'] });
+      showSuccess('Reclamo en garantía creado');
+    },
+    onError: (error) => {
+      showError(getErrorMessage(error, 'No se pudo crear el reclamo en garantía'));
     },
   });
 };

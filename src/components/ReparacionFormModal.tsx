@@ -53,6 +53,9 @@ const schema = z
     tieneBloqueoPantalla: z.boolean(),
     tieneCuentaVinculada: z.enum(['NINGUNA', 'ICLOUD', 'GOOGLE', 'OTRA']),
     clienteConoceCredenciales: z.boolean(),
+    // Garantía (opcional: si no se manda, el backend usa su default al entregar)
+    garantiaDias: z.union([z.number().min(1, 'Mín. 1'), z.nan(), z.literal('')]).optional(),
+    garantiaCondiciones: z.string().optional(),
   })
   .superRefine((val, ctx) => {
     if (val.modo === 'existente') {
@@ -152,6 +155,8 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
         tieneBloqueoPantalla: editing.tieneBloqueoPantalla ?? false,
         tieneCuentaVinculada: editing.tieneCuentaVinculada ?? 'NINGUNA',
         clienteConoceCredenciales: editing.clienteConoceCredenciales ?? false,
+        garantiaDias: editing.garantiaDias ?? '',
+        garantiaCondiciones: editing.garantiaCondiciones ?? '',
       });
     } else {
       reset({
@@ -183,6 +188,8 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
         tieneBloqueoPantalla: false,
         tieneCuentaVinculada: 'NINGUNA',
         clienteConoceCredenciales: false,
+        garantiaDias: '',
+        garantiaCondiciones: '',
       });
     }
   }, [isOpen, editing, reset]);
@@ -201,6 +208,8 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
     tieneBloqueoPantalla: data.tieneBloqueoPantalla,
     tieneCuentaVinculada: data.tieneCuentaVinculada,
     clienteConoceCredenciales: data.clienteConoceCredenciales,
+    garantiaDias: num(data.garantiaDias),
+    garantiaCondiciones: str(data.garantiaCondiciones),
   });
 
   const onSubmit = async (data: FormData) => {
@@ -458,6 +467,29 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
                     </select>
                   </FormField>
                 )}
+                <div className="grid grid-cols-1 gap-4 border-t border-border pt-3.5 sm:grid-cols-2">
+                  <FormField label="Garantía (días)" error={errors.garantiaDias?.message} htmlFor="garantiaDias">
+                    <input
+                      id="garantiaDias"
+                      type="number"
+                      min="1"
+                      step="1"
+                      {...register('garantiaDias', { valueAsNumber: true })}
+                      className={inputClass(!!errors.garantiaDias)}
+                      placeholder="90 (default del sistema)"
+                    />
+                  </FormField>
+                  <FormField label="Condiciones de garantía" htmlFor="garantiaCondiciones">
+                    <input
+                      id="garantiaCondiciones"
+                      type="text"
+                      {...register('garantiaCondiciones')}
+                      className={inputClass()}
+                      placeholder="Ej: cubre solo el repuesto cambiado"
+                    />
+                  </FormField>
+                </div>
+
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <FormField label="Fotos del ingreso (una URL por línea)" htmlFor="fotosIngresoText">
                     <textarea id="fotosIngresoText" rows={2} {...register('fotosIngresoText')} className={`${inputClass()} resize-none`} placeholder="https://…/ingreso1.jpg" />

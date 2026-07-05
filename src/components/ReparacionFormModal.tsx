@@ -116,6 +116,8 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
     defaultValues: {
       modo: 'nuevo',
       estado: 'INGRESADO',
+      fotosIngreso: [],
+      fotosPost: [],
       mojado: false,
       trabajoEnPlaca: false,
       noTesteableAlIngreso: false,
@@ -213,6 +215,21 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
     garantiaCondiciones: str(data.garantiaCondiciones),
   });
 
+  /**
+   * ¿El modo "nuevo" cargó algo más allá de lo que acepta el ingreso rápido?
+   * Si es así, hace falta un segundo request (update) para no perder esos datos.
+   */
+  const tieneDetallesExtra = (data: FormData): boolean => {
+    if (data.estado !== 'INGRESADO') return true;
+    if (num(data.precioFinal) !== undefined) return true;
+    if (str(data.fechaEstimadaEntrega) !== undefined) return true;
+    return Object.values(ordenTrabajo(data)).some((v) => {
+      if (typeof v === 'boolean') return v;
+      if (Array.isArray(v)) return v.length > 0;
+      return v !== undefined && v !== 'NINGUNA';
+    });
+  };
+
   const onSubmit = async (data: FormData) => {
     // Editar reparación existente
     if (editing) {
@@ -232,7 +249,9 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
       return;
     }
 
-    // Carga rápida: un solo endpoint crea cliente + equipo + reparación
+    // Cliente + equipo nuevos: el ingreso rápido crea los tres (cliente, equipo
+    // y reparación) en un endpoint mínimo; si además se cargaron detalles de la
+    // orden de trabajo, se completan con un update sobre la reparación recién creada.
     if (data.modo === 'nuevo') {
       const payload: IngresoRapidoRequest = {
         clienteNombre: data.clienteNombre!.trim(),
@@ -244,8 +263,22 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
         precioEstimado: num(data.precioEstimado),
       };
       const res = await ingresoRapido.mutateAsync(payload);
+      const rep = res.reparacion;
+      if (tieneDetallesExtra(data)) {
+        await updateMutation.mutateAsync({
+          id: rep.id,
+          equipoId: rep.equipoId,
+          descripcionProblema: data.descripcionProblema,
+          estado: data.estado,
+          precioEstimado: num(data.precioEstimado),
+          precioFinal: num(data.precioFinal),
+          fechaIngreso: str(data.fechaIngreso),
+          fechaEstimadaEntrega: str(data.fechaEstimadaEntrega),
+          ...ordenTrabajo(data),
+        });
+      }
       onClose();
-      onCreated?.(res.reparacion.id);
+      onCreated?.(rep.id);
       return;
     }
 
@@ -356,25 +389,9 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
           />
         </FormField>
 
-        {esRapido ? (
-          /* En carga rápida solo el precio estimado (lo demás se completa luego) */
-          <FormField label="Precio estimado" error={errors.precioEstimado?.message} htmlFor="precioEstimado">
-            <Controller
-              control={control}
-              name="precioEstimado"
-              render={({ field }) => (
-                <MoneyInput
-                  id="precioEstimado"
-                  value={field.value as number | ''}
-                  onChange={field.onChange}
-                  hasError={!!errors.precioEstimado}
-                  placeholder="0 (opcional)"
-                />
-              )}
-            />
-          </FormField>
-        ) : (
-          <>
+        {/* Estado, precios, fechas y detalles de ingreso: disponibles tanto al
+            elegir un equipo existente como al cargar cliente+equipo nuevos. */}
+        <div className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField label="Estado" error={errors.estado?.message} htmlFor="estado">
                 <select id="estado" {...register('estado')} className={inputClass(!!errors.estado)}>
@@ -546,8 +563,7 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
                 </FormField>
               </div>
             </details>
-          </>
-        )}
+        </div>
 
         <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
           <button type="button" className={btnGhost} onClick={onClose}>

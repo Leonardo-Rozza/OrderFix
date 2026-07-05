@@ -5,7 +5,7 @@ import { showError } from '../utils/toast';
 interface FotoUploaderProps {
   id: string;
   /** URLs ya subidas (el form las convierte a Foto[] con su momento al guardar). */
-  value: string[];
+  value?: string[];
   onChange: (urls: string[]) => void;
   disabled?: boolean;
 }
@@ -15,7 +15,7 @@ interface FotoUploaderProps {
  * Sube secuencialmente y va agregando cada URL apenas está lista, así una
  * foto que falla no tira las demás.
  */
-export const FotoUploader = ({ id, value, onChange, disabled }: FotoUploaderProps) => {
+export const FotoUploader = ({ id, value = [], onChange, disabled }: FotoUploaderProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [subiendo, setSubiendo] = useState(0);
 

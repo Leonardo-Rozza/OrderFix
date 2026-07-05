@@ -94,8 +94,14 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
     if (pathname.endsWith('/api/reparaciones/ingreso-rapido') && method === 'POST') {
       return route.fulfill({
         status: 201,
-        json: { clienteId: 1, equipoId: 1, clienteNuevo: true, reparacion: { id: 999 } },
+        json: { clienteId: 1, equipoId: 1, clienteNuevo: true, reparacion: { id: 999, equipoId: 1 } },
       });
+    }
+
+    // Update de reparación (PUT): el modo "nuevo" con detalles hace ingreso-rápido + este PUT
+    if (/\/api\/reparaciones\/\d+$/.test(pathname) && method === 'PUT') {
+      const id = Number(pathname.match(/reparaciones\/(\d+)$/)![1]);
+      return route.fulfill({ json: { id, ...(req.postDataJSON() as object) } });
     }
 
     // Cambiar estado: PATCH /api/reparaciones/:id/estado (body = "ESTADO")

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { Modal } from './Modal';
 import { FormField } from './FormField';
 import { Combobox } from './Combobox';
+import { FotoUploader } from './FotoUploader';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import { ESTADOS, ESTADOS_LIST } from '../config/estados';
 import {
@@ -44,8 +45,8 @@ const schema = z
     condicionesIngreso: z.string().optional(),
     observaciones: z.string().optional(),
     tecnicoId: z.union([z.number(), z.nan()]).optional(),
-    fotosIngresoText: z.string().optional(),
-    fotosPostText: z.string().optional(),
+    fotosIngreso: z.array(z.string()),
+    fotosPost: z.array(z.string()),
     // Riesgos del ingreso (contrato §4.5)
     mojado: z.boolean(),
     trabajoEnPlaca: z.boolean(),
@@ -84,11 +85,10 @@ const num = (v: number | '' | undefined): number | undefined =>
 const numId = (v: number | undefined): number | undefined =>
   v === undefined || Number.isNaN(v) ? undefined : v;
 const str = (v: string | undefined): string | undefined => (v && v.trim() !== '' ? v : undefined);
-const urls = (v: string | undefined): string[] => (v ?? '').split('\n').map((s) => s.trim()).filter(Boolean);
-const fotosArray = (ingreso: string | undefined, post: string | undefined): Foto[] | undefined => {
+const fotosArray = (ingreso: string[], post: string[]): Foto[] | undefined => {
   const arr: Foto[] = [
-    ...urls(ingreso).map((url): Foto => ({ url, momento: 'INGRESO' })),
-    ...urls(post).map((url): Foto => ({ url, momento: 'POST_REPARACION' })),
+    ...ingreso.map((url): Foto => ({ url, momento: 'INGRESO' })),
+    ...post.map((url): Foto => ({ url, momento: 'POST_REPARACION' })),
   ];
   return arr.length ? arr : undefined;
 };
@@ -147,8 +147,8 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
         condicionesIngreso: editing.condicionesIngreso ?? '',
         observaciones: editing.observaciones ?? '',
         tecnicoId: editing.tecnicoId ?? undefined,
-        fotosIngresoText: fotosPorMomento(editing.fotos, 'INGRESO').join('\n'),
-        fotosPostText: fotosPorMomento(editing.fotos, 'POST_REPARACION').join('\n'),
+        fotosIngreso: fotosPorMomento(editing.fotos, 'INGRESO'),
+        fotosPost: fotosPorMomento(editing.fotos, 'POST_REPARACION'),
         mojado: editing.mojado ?? false,
         trabajoEnPlaca: editing.trabajoEnPlaca ?? false,
         noTesteableAlIngreso: editing.noTesteableAlIngreso ?? false,
@@ -180,8 +180,8 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
         condicionesIngreso: '',
         observaciones: '',
         tecnicoId: undefined,
-        fotosIngresoText: '',
-        fotosPostText: '',
+        fotosIngreso: [],
+        fotosPost: [],
         mojado: false,
         trabajoEnPlaca: false,
         noTesteableAlIngreso: false,
@@ -201,7 +201,7 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
     condicionesIngreso: str(data.condicionesIngreso),
     observaciones: str(data.observaciones),
     tecnicoId: numId(data.tecnicoId),
-    fotos: fotosArray(data.fotosIngresoText, data.fotosPostText),
+    fotos: fotosArray(data.fotosIngreso, data.fotosPost),
     mojado: data.mojado,
     trabajoEnPlaca: data.trabajoEnPlaca,
     noTesteableAlIngreso: data.noTesteableAlIngreso,
@@ -490,14 +490,24 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
                   </FormField>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <FormField label="Fotos del ingreso (una URL por línea)" htmlFor="fotosIngresoText">
-                    <textarea id="fotosIngresoText" rows={2} {...register('fotosIngresoText')} className={`${inputClass()} resize-none`} placeholder="https://…/ingreso1.jpg" />
-                  </FormField>
-                  <FormField label="Fotos post-reparación (una URL por línea)" htmlFor="fotosPostText">
-                    <textarea id="fotosPostText" rows={2} {...register('fotosPostText')} className={`${inputClass()} resize-none`} placeholder="https://…/post1.jpg" />
-                  </FormField>
-                </div>
+                <FormField label="Fotos del ingreso" htmlFor="fotosIngreso">
+                  <Controller
+                    control={control}
+                    name="fotosIngreso"
+                    render={({ field }) => (
+                      <FotoUploader id="fotosIngreso" value={field.value} onChange={field.onChange} disabled={saving} />
+                    )}
+                  />
+                </FormField>
+                <FormField label="Fotos post-reparación" htmlFor="fotosPost">
+                  <Controller
+                    control={control}
+                    name="fotosPost"
+                    render={({ field }) => (
+                      <FotoUploader id="fotosPost" value={field.value} onChange={field.onChange} disabled={saving} />
+                    )}
+                  />
+                </FormField>
               </div>
             </details>
           </>

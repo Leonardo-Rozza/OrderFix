@@ -52,6 +52,8 @@ El repo ya tiene `vercel.json`. Lo único que falta son las **variables de entor
    |---|---|
    | `VITE_API_BASE_URL` | `https://TU-BACKEND.onrender.com` (con o sin `/api`, el front lo normaliza solo) |
    | `VITE_SENTRY_DSN` | el DSN de Sentry (opcional — ver sección 3; si no está, Sentry queda apagado sin romper nada) |
+   | `VITE_CLOUDINARY_CLOUD_NAME` | opcional: `dnd9rnidg` ya es el default en el código |
+   | `VITE_CLOUDINARY_UPLOAD_PRESET` | opcional: `ordenfix_unsigned` ya es el default en el código |
 
 2. **Redeploy** (Deployments → ⋯ → Redeploy) para que tome las variables. Las env de
    Vite se inyectan **en build**, no en runtime: cambiar la variable sin redeploy no hace nada.
@@ -139,9 +141,9 @@ Con backend y frontend arriba, probá el camino crítico completo en producción
 
 ## 6. Pendientes conocidos para DESPUÉS del deploy (no bloquean la beta cerrada)
 
-1. **Subida real de fotos**: hoy las fotos se cargan por URL. Para talleres reales hace
-   falta storage (Cloudinary free tier es lo más directo para arrancar) + un input de
-   archivo en el form. Es el bloqueante funcional #1 para distribución abierta.
+1. ~~Subida real de fotos~~ ✅ HECHO: las fotos se suben a Cloudinary (unsigned, cloud
+   `dnd9rnidg`, preset `ordenfix_unsigned`) directo desde el form, con miniaturas y quitar.
+   El plan free de Cloudinary da 25 GB; monitorear el uso cuando haya talleres reales.
 2. **Dominio propio** (ej. `app.ordenfix.com`): agregarlo en Vercel **y** en el CORS del
    backend, y actualizar `APP_PUBLIC_URL` y `MP_BACK_URL`.
 3. **Legal**: términos y condiciones + política de privacidad antes de cobrar a

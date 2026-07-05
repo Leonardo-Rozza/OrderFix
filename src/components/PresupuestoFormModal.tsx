@@ -8,14 +8,15 @@ import { inputClass, btnGhost, btnPrimary } from './ui';
 import { MoneyInput } from './MoneyInput';
 import { formatMoney } from '../utils/format';
 import { useCrearPresupuestoMutation } from '../api/mutations/presupuestos.mutations';
+import { showError } from '../utils/toast';
 
 const schema = z.object({
   items: z
     .array(
       z.object({
-        descripcion: z.string().min(1, 'Requerido'),
-        cantidad: z.number({ message: 'Cant.' }).min(1, 'Mín. 1'),
-        precioUnitario: z.number({ message: 'Precio' }).min(0, 'Mín. 0'),
+        descripcion: z.string().min(1, 'Escribí el detalle del ítem'),
+        cantidad: z.number({ message: 'Cargá la cantidad' }).min(1, 'La cantidad mínima es 1'),
+        precioUnitario: z.number({ message: 'Cargá el precio' }).min(0, 'El precio no puede ser negativo'),
         tipoItem: z.enum(['MANO_DE_OBRA', 'REPUESTO']),
         // '' = sin especificar (el backend la acepta solo en repuestos)
         calidad: z.enum(['', 'ORIGINAL', 'ALTERNATIVO', 'USADO_REACONDICIONADO']),
@@ -92,9 +93,12 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
     onClose();
   };
 
+  // Los errores de ítems son fáciles de pasar por alto: avisar también por toast.
+  const onInvalid = () => showError('Revisá los campos marcados en rojo.');
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Nuevo presupuesto" size="lg">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField label="Tipo" error={errors.tipo?.message} htmlFor="tipo">
             <select id="tipo" {...register('tipo')} className={inputClass(!!errors.tipo)}>
@@ -193,6 +197,13 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
                     </select>
                   )}
                 </div>
+                {(errors.items?.[i]?.descripcion || errors.items?.[i]?.cantidad || errors.items?.[i]?.precioUnitario) && (
+                  <p role="alert" className="text-[12.5px] font-semibold text-danger-fg">
+                    {errors.items?.[i]?.descripcion?.message ??
+                      errors.items?.[i]?.cantidad?.message ??
+                      errors.items?.[i]?.precioUnitario?.message}
+                  </p>
+                )}
               </div>
             );
           })}

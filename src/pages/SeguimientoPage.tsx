@@ -4,7 +4,7 @@ import { Logo } from '../components/Logo';
 import { Loader } from '../components/Loader';
 import { EstadoBadge } from '../components/EstadoBadge';
 import { PresupuestoBadge } from '../components/PresupuestoBadge';
-import { ESTADOS, ESTADOS_ORDEN } from '../config/estados';
+import { PASOS_SEGUIMIENTO, PASO_SEGUIMIENTO } from '../config/estados';
 import { formatMoney, formatDate } from '../utils/format';
 import { useSeguimientoQuery } from '../api/queries/seguimiento.queries';
 import { useResponderPresupuestoMutation } from '../api/mutations/presupuestos.mutations';
@@ -50,7 +50,11 @@ export const SeguimientoPage = () => {
     );
   }
 
-  const currentIndex = ESTADOS_ORDEN.indexOf(data.estado);
+  // Los 12 estados internos colapsan en 5 hitos para el cliente; el badge de
+  // arriba ya muestra el estado exacto. Si el flujo se cortó (cancelada /
+  // abandonada), la línea de progreso no aplica y se oculta.
+  const currentIndex = PASO_SEGUIMIENTO[data.estado] ?? 0;
+  const flujoCortado = data.estado === 'CANCELADO' || data.estado === 'ABANDONADO';
 
   return (
     <Shell>
@@ -67,32 +71,33 @@ export const SeguimientoPage = () => {
         </div>
 
         {/* Progreso */}
-        <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
-          <div className="mb-4 text-[13px] font-extrabold uppercase tracking-wide text-text-3">Estado de la reparación</div>
-          <ol className="space-y-3">
-            {ESTADOS_ORDEN.map((key, i) => {
-              const meta = ESTADOS[key];
-              const done = i < currentIndex;
-              const active = i === currentIndex;
-              return (
-                <li key={key} className="flex items-center gap-3">
-                  <span
-                    className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-extrabold"
-                    style={{
-                      background: done || active ? meta.cssVar : 'var(--surface-3)',
-                      color: done || active ? '#fff' : 'var(--text-3)',
-                    }}
-                  >
-                    {done ? '✓' : i + 1}
-                  </span>
-                  <span className={`text-[14px] ${active ? 'font-extrabold' : done ? 'font-semibold text-text-2' : 'text-text-3'}`}>
-                    {meta.label}
-                  </span>
-                </li>
-              );
-            })}
-          </ol>
-        </div>
+        {!flujoCortado && (
+          <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+            <div className="mb-4 text-[13px] font-extrabold uppercase tracking-wide text-text-3">Estado de la reparación</div>
+            <ol className="space-y-3">
+              {PASOS_SEGUIMIENTO.map((label, i) => {
+                const done = i < currentIndex;
+                const active = i === currentIndex;
+                return (
+                  <li key={label} className="flex items-center gap-3">
+                    <span
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-extrabold"
+                      style={{
+                        background: done || active ? 'var(--primary)' : 'var(--surface-3)',
+                        color: done || active ? 'var(--primary-fg)' : 'var(--text-3)',
+                      }}
+                    >
+                      {done ? '✓' : i + 1}
+                    </span>
+                    <span className={`text-[14px] ${active ? 'font-extrabold' : done ? 'font-semibold text-text-2' : 'text-text-3'}`}>
+                      {label}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        )}
 
         {/* Datos */}
         <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">

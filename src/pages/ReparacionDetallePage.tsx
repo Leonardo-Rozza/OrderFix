@@ -12,7 +12,7 @@ import { metodoLabel } from '../config/cobros';
 import { Loader } from '../components/Loader';
 import { ErrorState } from '../components/ErrorState';
 import { btnGhost, btnDanger, card } from '../components/ui';
-import { getEstadoMeta, ESTADOS_LIST } from '../config/estados';
+import { getEstadoMeta, transicionesDesde } from '../config/estados';
 import { formatMoney, formatDate, iniciales } from '../utils/format';
 import { equipoLabel, clienteLabel } from '../utils/reparacion';
 import { apiClient } from '../api/axios';
@@ -459,11 +459,15 @@ export const ReparacionDetallePage = () => {
                 onChange={(e) => handleEstadoSelect(e.target.value as EstadoReparacion)}
                 className="mb-2.5 w-full cursor-pointer rounded-lg border border-border-strong bg-surface px-3 py-2.5 text-[14px] text-text outline-none focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)]"
               >
-                {ESTADOS_LIST.map((e) => (
-                  <option key={e.key} value={e.key}>
-                    {e.label}
-                  </option>
-                ))}
+                {/* Solo el estado actual + las transiciones legales (un salto ilegal daría 409). */}
+                {[rep.estado, ...transicionesDesde(rep.estado)].map((k) => {
+                  const e = getEstadoMeta(k);
+                  return (
+                    <option key={e.key} value={e.key}>
+                      {e.label}
+                    </option>
+                  );
+                })}
               </select>
               {next && (
                 <button

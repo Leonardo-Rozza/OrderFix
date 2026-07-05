@@ -8,7 +8,9 @@ import { SortSelect } from '../components/SortSelect';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { btnPrimary } from '../components/ui';
-import { getEstadoMeta, ESTADOS_LIST } from '../config/estados';
+import { getEstadoMeta, esTransicionValida, ESTADOS_LIST, FASES } from '../config/estados';
+import { showError } from '../utils/toast';
+import type { EstadoMeta, FaseMeta } from '../config/estados';
 import { formatMoney } from '../utils/format';
 import { equipoLabel, clienteLabel } from '../utils/reparacion';
 import { useListParams } from '../hooks/useListParams';
@@ -49,9 +51,15 @@ export const ReparacionesPage = () => {
     const next = getEstadoMeta(r.estado).next;
     if (next) cambiarEstado.mutate({ id: r.id, estado: next });
   };
-  const move = (id: number, estado: EstadoReparacion) => {
-    if (cambiarEstado.isPending) return;
-    cambiarEstado.mutate({ id, estado });
+  const move = (id: number, desde: EstadoReparacion, hacia: EstadoReparacion) => {
+    if (cambiarEstado.isPending || desde === hacia) return;
+    // La máquina de estados del backend rechazaría el salto con 409: avisamos
+    // antes de llamar para que el drag & drop no "rebote" sin explicación.
+    if (!esTransicionValida(desde, hacia)) {
+      showError(`No se puede pasar de "${getEstadoMeta(desde).label}" a "${getEstadoMeta(hacia).label}".`);
+      return;
+    }
+    cambiarEstado.mutate({ id, estado: hacia });
   };
 
   const counts = stats?.reparacionesPorEstado;
@@ -164,7 +172,10 @@ export const ReparacionesPage = () => {
   );
 };
 
-/* ---------- Tablero kanban: una query por columna (?estado=) ---------- */
+/* ----------------------------------------------------------------------
+   Tablero kanban por FASES: cada columna agrupa estados afines y cada
+   estado es una zona droppable con su propia query (?estado=).
+   ---------------------------------------------------------------------- */
 const Board = ({
   q,
   onOpen,
@@ -174,91 +185,106 @@ const Board = ({
   q: string;
   onOpen: (id: number) => void;
   onAdvance: (r: Reparacion) => void;
-  onMove: (id: number, estado: EstadoReparacion) => void;
+  onMove: (id: number, desde: EstadoReparacion, hacia: EstadoReparacion) => void;
 }) => {
   const [drag, setDrag] = useState<{ id: number; estado: EstadoReparacion } | null>(null);
-  const [overCol, setOverCol] = useState<EstadoReparacion | null>(null);
+  const [overZona, setOverZona] = useState<EstadoReparacion | null>(null);
 
   return (
     <div className="ofx-scroll flex items-start gap-3.5 overflow-x-auto pb-2">
-      {ESTADOS_LIST.map((meta) => (
-        <BoardColumn
-          key={meta.key}
-          meta={meta}
+      {FASES.map((fase) => (
+        <FaseColumn
+          key={fase.key}
+          fase={fase}
           q={q}
-          isOver={overCol === meta.key && drag !== null && drag.estado !== meta.key}
+          drag={drag}
+          overZona={overZona}
           onOpen={onOpen}
           onAdvance={onAdvance}
           onDragStartCard={(r) => setDrag({ id: r.id, estado: r.estado })}
           onDragEndCard={() => {
             setDrag(null);
-            setOverCol(null);
+            setOverZona(null);
           }}
-          onOver={() => setOverCol(meta.key)}
-          onDropCol={() => {
-            if (drag && drag.estado !== meta.key) onMove(drag.id, meta.key);
+          onOverZona={setOverZona}
+          onDropZona={(estado) => {
+            if (drag) onMove(drag.id, drag.estado, estado);
             setDrag(null);
-            setOverCol(null);
+            setOverZona(null);
           }}
-          draggingId={drag?.id ?? null}
         />
       ))}
     </div>
   );
 };
 
-const BoardColumn = ({
-  meta,
-  q,
-  isOver,
-  onOpen,
-  onAdvance,
-  onDragStartCard,
-  onDragEndCard,
-  onOver,
-  onDropCol,
-  draggingId,
-}: {
-  meta: (typeof ESTADOS_LIST)[number];
-  q: string;
-  isOver: boolean;
+interface ZonaDnD {
+  drag: { id: number; estado: EstadoReparacion } | null;
+  overZona: EstadoReparacion | null;
   onOpen: (id: number) => void;
   onAdvance: (r: Reparacion) => void;
   onDragStartCard: (r: Reparacion) => void;
   onDragEndCard: () => void;
-  onOver: () => void;
-  onDropCol: () => void;
-  draggingId: number | null;
-}) => {
+  onOverZona: (estado: EstadoReparacion) => void;
+  onDropZona: (estado: EstadoReparacion) => void;
+}
+
+const FaseColumn = ({ fase, q, ...dnd }: { fase: FaseMeta; q: string } & ZonaDnD) => (
+  <div className="flex w-[296px] flex-shrink-0 flex-col rounded-2xl border border-border bg-surface-2">
+    <div className="border-b border-border px-3.5 py-3 text-[12px] font-extrabold uppercase tracking-wide text-text-2">
+      {fase.label}
+    </div>
+    <div className="flex flex-col gap-3 p-3">
+      {fase.estados.map((estado) => (
+        <EstadoZona key={estado} meta={getEstadoMeta(estado)} q={q} {...dnd} />
+      ))}
+    </div>
+  </div>
+);
+
+const EstadoZona = ({
+  meta,
+  q,
+  drag,
+  overZona,
+  onOpen,
+  onAdvance,
+  onDragStartCard,
+  onDragEndCard,
+  onOverZona,
+  onDropZona,
+}: { meta: EstadoMeta; q: string } & ZonaDnD) => {
   const { data, isLoading } = useReparacionesQuery({ q, estado: meta.key, page: 0, size: 100 });
   const items = data?.content ?? [];
   const total = data?.page?.totalElements ?? items.length;
+  const isOver = overZona === meta.key && drag !== null && drag.estado !== meta.key;
+  const draggingId = drag?.id ?? null;
 
   return (
     <div
       data-testid={`col-${meta.key}`}
       onDragOver={(e) => {
         e.preventDefault();
-        onOver();
+        onOverZona(meta.key);
       }}
       onDrop={(e) => {
         e.preventDefault();
-        onDropCol();
+        onDropZona(meta.key);
       }}
-      className={`flex w-[296px] flex-shrink-0 flex-col rounded-2xl border bg-surface-2 transition ${
-        isOver ? 'border-primary ring-2 ring-[var(--ring)]' : 'border-border'
+      className={`rounded-xl border transition ${
+        isOver ? 'border-primary ring-2 ring-[var(--ring)]' : 'border-transparent'
       }`}
     >
-      <div className="flex items-center gap-2.5 border-b border-border px-3.5 py-3">
+      <div className="flex items-center gap-2 px-1 pb-2">
         <span className={`grid h-6 w-6 place-items-center rounded-lg ${meta.textClass} ${meta.bgClass}`}>
           <svg viewBox="0 0 24 24" width={15} height={15} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
             <path d={meta.iconD} />
           </svg>
         </span>
-        <span className="text-[13.5px] font-extrabold">{meta.label}</span>
-        <span className="ml-auto rounded-full bg-surface-3 px-2 py-0.5 text-[12px] font-bold text-text-3">{total}</span>
+        <span className="text-[13px] font-extrabold">{meta.label}</span>
+        <span className="ml-auto rounded-full bg-surface-3 px-2 py-0.5 text-[11.5px] font-bold text-text-3">{total}</span>
       </div>
-      <div className="flex min-h-[64px] flex-col gap-2.5 p-3">
+      <div className="flex min-h-[48px] flex-col gap-2.5">
         {isLoading && items.length === 0 &&
           Array.from({ length: 2 }).map((_, i) => <div key={`sk-${i}`} className="ofx-skel h-[92px] rounded-xl" />)}
         {items.map((r) => (

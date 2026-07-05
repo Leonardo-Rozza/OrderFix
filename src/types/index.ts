@@ -158,10 +158,17 @@ export interface EquipoUpdate extends Partial<EquipoCreate> {
 // ========== REPARACIÓN ==========
 export type EstadoReparacion =
   | 'INGRESADO'
+  | 'EN_DIAGNOSTICO'
+  | 'PRESUPUESTADO'
   | 'EN_PROCESO'
   | 'ESPERANDO_REPUESTO'
+  | 'ESPERANDO_ADICIONAL'
+  | 'NO_REPARABLE'
   | 'COMPLETADO'
-  | 'ENTREGADO';
+  | 'LISTO_SIN_REPARAR'
+  | 'ENTREGADO'
+  | 'ABANDONADO'
+  | 'CANCELADO';
 
 export interface Reparacion {
   id: number;

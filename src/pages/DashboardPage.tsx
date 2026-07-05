@@ -4,7 +4,7 @@ import { EstadoBadge } from '../components/EstadoBadge';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { btnPrimary } from '../components/ui';
-import { ESTADOS_LIST } from '../config/estados';
+import { ESTADOS_LIST, ESTADOS_CERRADOS } from '../config/estados';
 import { formatMoney } from '../utils/format';
 import { equipoLabel, clienteLabel } from '../utils/reparacion';
 import { useDashboardQuery } from '../api/queries/dashboard.queries';
@@ -46,7 +46,9 @@ export const DashboardPage = () => {
 
   const counts = stats?.reparacionesPorEstado;
   const total = stats?.totalReparaciones ?? 0;
-  const activas = total - (counts?.ENTREGADO ?? 0);
+  // Activas = equipos todavía en el taller (excluye entregadas, abandonadas y canceladas).
+  const cerradas = ESTADOS_CERRADOS.reduce((sum, k) => sum + (counts?.[k] ?? 0), 0);
+  const activas = total - cerradas;
   const recientes = stats?.ultimasReparaciones ?? [];
   const clientesTotal = clientesPage?.page?.totalElements ?? 0;
 

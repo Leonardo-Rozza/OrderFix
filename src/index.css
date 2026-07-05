@@ -20,6 +20,10 @@
   --st-esperando: #7C3AED; --st-esperando-bg: #EBE2FE;
   --st-completado: #15924F; --st-completado-bg: #D6F2E0;
   --st-entregado: #5A6B82; --st-entregado-bg: #E5EAF1;
+  --st-diagnostico: #0891B2; --st-diagnostico-bg: #D3EFF7;
+  --st-presupuestado: #DB2777; --st-presupuestado-bg: #FBE2EE;
+  --st-noreparable: #DC2626; --st-noreparable-bg: #FDE0E0;
+  --st-listosin: #4F46E5; --st-listosin-bg: #E4E2FD;
   --shadow-sm: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .05);
   --shadow-md: 0 4px 14px rgba(16, 24, 40, .08);
   --shadow-lg: 0 18px 48px rgba(16, 24, 40, .16);
@@ -42,6 +46,10 @@
   --st-esperando: #B79BFA; --st-esperando-bg: #271A40;
   --st-completado: #42D585; --st-completado-bg: #0E3322;
   --st-entregado: #9CABC0; --st-entregado-bg: #1B2533;
+  --st-diagnostico: #55C6E8; --st-diagnostico-bg: #0E2E3A;
+  --st-presupuestado: #F179B6; --st-presupuestado-bg: #3A1229;
+  --st-noreparable: #F87171; --st-noreparable-bg: #3A1518;
+  --st-listosin: #8B90F5; --st-listosin-bg: #1B1D40;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
   --shadow-md: 0 6px 18px rgba(0, 0, 0, .45);
   --shadow-lg: 0 22px 54px rgba(0, 0, 0, .6);
@@ -84,6 +92,14 @@
   --color-st-completado-bg: var(--st-completado-bg);
   --color-st-entregado: var(--st-entregado);
   --color-st-entregado-bg: var(--st-entregado-bg);
+  --color-st-diagnostico: var(--st-diagnostico);
+  --color-st-diagnostico-bg: var(--st-diagnostico-bg);
+  --color-st-presupuestado: var(--st-presupuestado);
+  --color-st-presupuestado-bg: var(--st-presupuestado-bg);
+  --color-st-noreparable: var(--st-noreparable);
+  --color-st-noreparable-bg: var(--st-noreparable-bg);
+  --color-st-listosin: var(--st-listosin);
+  --color-st-listosin-bg: var(--st-listosin-bg);
 
   --radius-sm: var(--r-sm);
   --radius-md: var(--r-md);

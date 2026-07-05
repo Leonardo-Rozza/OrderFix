@@ -11,10 +11,10 @@ describe('EstadoBadge', () => {
   });
 
   it('no crashea si el backend manda un estado que el front no conoce', () => {
-    // El contrato nuevo tiene 12 estados; hasta absorberlos, el badge debe
-    // degradar a un pill neutro con el nombre humanizado.
-    render(<EstadoBadge estado={'NO_REPARABLE' as unknown as EstadoReparacion} />);
-    expect(screen.getByText('No reparable')).toBeInTheDocument();
+    // Ante un estado futuro del contrato, el badge degrada a un pill neutro
+    // con el nombre humanizado en vez de crashear.
+    render(<EstadoBadge estado={'EN_REVISION_TECNICA' as unknown as EstadoReparacion} />);
+    expect(screen.getByText('En revision tecnica')).toBeInTheDocument();
   });
 });
 

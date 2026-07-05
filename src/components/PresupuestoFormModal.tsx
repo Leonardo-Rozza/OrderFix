@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { Controller, useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Modal } from './Modal';
 import { FormField } from './FormField';
 import { inputClass, btnGhost, btnPrimary } from './ui';
+import { MoneyInput } from './MoneyInput';
 import { formatMoney } from '../utils/format';
 import { useCrearPresupuestoMutation } from '../api/mutations/presupuestos.mutations';
 
@@ -37,7 +38,8 @@ interface Props {
 const filaVacia = {
   descripcion: '',
   cantidad: 1,
-  precioUnitario: 0,
+  // Vacío para que se vea el placeholder y obligue a cargar un precio (0 es válido).
+  precioUnitario: '' as unknown as number,
   tipoItem: 'MANO_DE_OBRA' as const,
   calidad: '' as const,
 };
@@ -114,10 +116,10 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
 
         <div className="space-y-2.5">
           <div className="flex items-center gap-2 px-1 text-[11.5px] font-extrabold uppercase tracking-wide text-text-3">
-            <div className="flex-1">Detalle</div>
-            <div className="w-[64px] text-center">Cant.</div>
-            <div className="w-[110px] text-right">Precio unit.</div>
-            <div className="w-7" />
+            <div className="min-w-0 flex-1">Detalle</div>
+            <div className="w-[64px] shrink-0 text-center">Cant.</div>
+            <div className="w-[128px] shrink-0 text-right">Precio unit.</div>
+            <div className="w-7 shrink-0" />
           </div>
 
           {fields.map((field, i) => {
@@ -125,28 +127,37 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
             return (
               <div key={field.id} className="space-y-2 rounded-xl border border-border bg-surface-2 p-2.5">
                 <div className="flex items-start gap-2">
-                  <div className="flex-1">
+                  {/* inputClass trae w-full: los anchos fijos van en wrappers para que no se pisen */}
+                  <div className="min-w-0 flex-1">
                     <input
                       {...register(`items.${i}.descripcion`)}
                       className={inputClass(!!errors.items?.[i]?.descripcion)}
                       placeholder="Ej: Pin de carga"
                     />
                   </div>
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    {...register(`items.${i}.cantidad`, { valueAsNumber: true })}
-                    className={`w-[64px] ${inputClass(!!errors.items?.[i]?.cantidad)}`}
-                  />
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    {...register(`items.${i}.precioUnitario`, { valueAsNumber: true })}
-                    className={`w-[110px] ${inputClass(!!errors.items?.[i]?.precioUnitario)}`}
-                    placeholder="0"
-                  />
+                  <div className="w-[64px] shrink-0">
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      aria-label="Cantidad"
+                      {...register(`items.${i}.cantidad`, { valueAsNumber: true })}
+                      className={inputClass(!!errors.items?.[i]?.cantidad)}
+                    />
+                  </div>
+                  <div className="w-[128px] shrink-0">
+                    <Controller
+                      control={control}
+                      name={`items.${i}.precioUnitario`}
+                      render={({ field }) => (
+                        <MoneyInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          hasError={!!errors.items?.[i]?.precioUnitario}
+                        />
+                      )}
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={() => fields.length > 1 && remove(i)}
@@ -160,11 +171,11 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
                     </svg>
                   </button>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <select
                     aria-label="Tipo de ítem"
                     {...register(`items.${i}.tipoItem`)}
-                    className={`w-[150px] ${inputClass()} !py-1.5 text-[13px]`}
+                    className={`${inputClass()} !py-1.5 text-[13px]`}
                   >
                     <option value="MANO_DE_OBRA">Mano de obra</option>
                     <option value="REPUESTO">Repuesto</option>
@@ -173,7 +184,7 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
                     <select
                       aria-label="Calidad del repuesto"
                       {...register(`items.${i}.calidad`)}
-                      className={`w-[190px] ${inputClass()} !py-1.5 text-[13px]`}
+                      className={`${inputClass()} !py-1.5 text-[13px]`}
                     >
                       <option value="">Calidad (opcional)</option>
                       <option value="ORIGINAL">Original</option>

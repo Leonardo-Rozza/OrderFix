@@ -6,6 +6,7 @@ import { Modal } from './Modal';
 import { FormField } from './FormField';
 import { Combobox } from './Combobox';
 import { FotoUploader } from './FotoUploader';
+import { MoneyInput } from './MoneyInput';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import { ESTADOS, ESTADOS_LIST } from '../config/estados';
 import {
@@ -357,7 +358,19 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
         {esRapido ? (
           /* En carga rápida solo el precio estimado (lo demás se completa luego) */
           <FormField label="Precio estimado" error={errors.precioEstimado?.message} htmlFor="precioEstimado">
-            <input id="precioEstimado" type="number" step="0.01" min="0" {...register('precioEstimado', { valueAsNumber: true })} className={inputClass(!!errors.precioEstimado)} placeholder="0 (opcional)" />
+            <Controller
+              control={control}
+              name="precioEstimado"
+              render={({ field }) => (
+                <MoneyInput
+                  id="precioEstimado"
+                  value={field.value as number | ''}
+                  onChange={field.onChange}
+                  hasError={!!errors.precioEstimado}
+                  placeholder="0 (opcional)"
+                />
+              )}
+            />
           </FormField>
         ) : (
           <>
@@ -378,10 +391,32 @@ export const ReparacionFormModal = ({ isOpen, onClose, editing, equipos, onCreat
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField label="Precio estimado" error={errors.precioEstimado?.message} htmlFor="precioEstimado">
-                <input id="precioEstimado" type="number" step="0.01" min="0" {...register('precioEstimado', { valueAsNumber: true })} className={inputClass(!!errors.precioEstimado)} placeholder="0" />
+                <Controller
+                  control={control}
+                  name="precioEstimado"
+                  render={({ field }) => (
+                    <MoneyInput
+                      id="precioEstimado"
+                      value={field.value as number | ''}
+                      onChange={field.onChange}
+                      hasError={!!errors.precioEstimado}
+                    />
+                  )}
+                />
               </FormField>
               <FormField label="Precio final" error={errors.precioFinal?.message} htmlFor="precioFinal">
-                <input id="precioFinal" type="number" step="0.01" min="0" {...register('precioFinal', { valueAsNumber: true })} className={inputClass(!!errors.precioFinal)} placeholder="0" />
+                <Controller
+                  control={control}
+                  name="precioFinal"
+                  render={({ field }) => (
+                    <MoneyInput
+                      id="precioFinal"
+                      value={field.value as number | ''}
+                      onChange={field.onChange}
+                      hasError={!!errors.precioFinal}
+                    />
+                  )}
+                />
               </FormField>
             </div>
 

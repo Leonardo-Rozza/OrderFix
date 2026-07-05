@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { Modal } from './Modal';
 import { FormField } from './FormField';
 import { Combobox } from './Combobox';
+import { MoneyInput } from './MoneyInput';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import {
   useCreateRepuestoMutation,
@@ -144,7 +145,13 @@ export const RepuestoFormModal = ({ isOpen, onClose, editing, reparaciones = [],
 
         <div className={`grid gap-4 ${usaInventario ? 'grid-cols-2' : 'grid-cols-1'}`}>
           <FormField label="Precio" required error={errors.precio?.message} htmlFor="precio">
-            <input id="precio" type="number" step="0.01" min="0" {...register('precio', { valueAsNumber: true })} className={inputClass(!!errors.precio)} placeholder="0" />
+            <Controller
+              control={control}
+              name="precio"
+              render={({ field }) => (
+                <MoneyInput id="precio" value={field.value} onChange={field.onChange} hasError={!!errors.precio} />
+              )}
+            />
           </FormField>
           {usaInventario && (
             <FormField label="Cantidad (descuenta stock)" htmlFor="cantidad">

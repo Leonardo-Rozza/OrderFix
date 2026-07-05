@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Modal } from './Modal';
+import { MoneyInput } from './MoneyInput';
 import { FormField } from './FormField';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import { METODOS } from '../config/cobros';
@@ -33,6 +34,7 @@ export const CobroFormModal = ({ isOpen, onClose, reparacionId, saldo }: Props) 
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema), defaultValues: { metodo: 'EFECTIVO' } });
 
@@ -65,7 +67,13 @@ export const CobroFormModal = ({ isOpen, onClose, reparacionId, saldo }: Props) 
           </div>
         )}
         <FormField label="Monto" required error={errors.monto?.message} htmlFor="monto">
-          <input id="monto" type="number" step="0.01" min="0" {...register('monto', { valueAsNumber: true })} className={inputClass(!!errors.monto)} placeholder="0" />
+          <Controller
+            control={control}
+            name="monto"
+            render={({ field }) => (
+              <MoneyInput id="monto" value={field.value} onChange={field.onChange} hasError={!!errors.monto} />
+            )}
+          />
         </FormField>
         <FormField label="Método" error={errors.metodo?.message} htmlFor="metodo">
           <select id="metodo" {...register('metodo')} className={inputClass(!!errors.metodo)}>

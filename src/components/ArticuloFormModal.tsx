@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Modal } from './Modal';
+import { MoneyInput } from './MoneyInput';
 import { FormField } from './FormField';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import { useCreateArticuloMutation, useUpdateArticuloMutation } from '../api/mutations/inventario.mutations';
@@ -41,6 +42,7 @@ export const ArticuloFormModal = ({ isOpen, onClose, editing }: Props) => {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
@@ -95,10 +97,22 @@ export const ArticuloFormModal = ({ isOpen, onClose, editing }: Props) => {
 
         <div className="grid grid-cols-2 gap-4">
           <FormField label="Precio venta" required error={errors.precio?.message} htmlFor="precio">
-            <input id="precio" type="number" step="0.01" min="0" {...register('precio', { valueAsNumber: true })} className={inputClass(!!errors.precio)} placeholder="0" />
+            <Controller
+              control={control}
+              name="precio"
+              render={({ field }) => (
+                <MoneyInput id="precio" value={field.value} onChange={field.onChange} hasError={!!errors.precio} />
+              )}
+            />
           </FormField>
           <FormField label="Costo" error={errors.costo?.message} htmlFor="costo">
-            <input id="costo" type="number" step="0.01" min="0" {...register('costo', { valueAsNumber: true })} className={inputClass(!!errors.costo)} placeholder="0" />
+            <Controller
+              control={control}
+              name="costo"
+              render={({ field }) => (
+                <MoneyInput id="costo" value={field.value} onChange={field.onChange} hasError={!!errors.costo} />
+              )}
+            />
           </FormField>
         </div>
 

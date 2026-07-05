@@ -132,7 +132,8 @@ export const PlanesPage = () => {
             </div>
             <div className="mt-0.5 text-[13px] text-text-3">Todo lo que tu taller necesita</div>
             <div className="my-4">
-              <span className="text-[36px] font-extrabold tracking-tight">$12.900</span>
+              {/* Debe coincidir con MP_AMOUNT del backend (lo que cobra MercadoPago). */}
+              <span className="text-[36px] font-extrabold tracking-tight">$24.900</span>
               <span className="text-[14px] font-semibold text-text-3"> /mes</span>
             </div>
             {plan === 'PRO' ? (

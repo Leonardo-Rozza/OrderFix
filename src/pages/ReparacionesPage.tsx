@@ -12,11 +12,13 @@ import { getEstadoMeta, esTransicionValida, ESTADOS_LIST, FASES } from '../confi
 import { showError } from '../utils/toast';
 import type { EstadoMeta, FaseMeta } from '../config/estados';
 import { formatMoney } from '../utils/format';
-import { equipoLabel, clienteLabel } from '../utils/reparacion';
+import { equipoLabel, clienteLabel, ordenLabel } from '../utils/reparacion';
+import { PagoChip } from '../components/PagoChip';
 import { useListParams } from '../hooks/useListParams';
 import { useReparacionesQuery } from '../api/queries/reparaciones.queries';
 import { useEquiposOptions } from '../api/queries/equipos.queries';
 import { useDashboardQuery } from '../api/queries/dashboard.queries';
+import { useFunciones } from '../api/queries/suscripcion.queries';
 import { useCambiarEstadoMutation } from '../api/mutations/reparaciones.mutations';
 import type { EstadoReparacion, Reparacion } from '../types';
 
@@ -29,6 +31,8 @@ export const ReparacionesPage = () => {
   const cambiarEstado = useCambiarEstadoMutation();
   const { data: equipos = [] } = useEquiposOptions();
   const { data: stats } = useDashboardQuery();
+  // El chip de pago solo aplica con cobros habilitados (PRO): en FREE cobrado siempre es 0.
+  const { cobros: pagoVisible } = useFunciones();
 
   const { q, onSearch, page, setPage, debouncedQ, size, sort, setSort } = useListParams(20, 'id,desc');
   const [vista, setVista] = useState<Vista>('board');
@@ -146,10 +150,11 @@ export const ReparacionesPage = () => {
         )}
 
         {vista === 'board' ? (
-          <Board q={debouncedQ} onOpen={open} onAdvance={advance} onMove={move} />
+          <Board q={debouncedQ} showPago={pagoVisible} onOpen={open} onAdvance={advance} onMove={move} />
         ) : (
           <Lista
             q={debouncedQ}
+            showPago={pagoVisible}
             estado={filtro === 'TODOS' ? undefined : filtro}
             page={page}
             size={size}
@@ -178,11 +183,13 @@ export const ReparacionesPage = () => {
    ---------------------------------------------------------------------- */
 const Board = ({
   q,
+  showPago,
   onOpen,
   onAdvance,
   onMove,
 }: {
   q: string;
+  showPago: boolean;
   onOpen: (id: number) => void;
   onAdvance: (r: Reparacion) => void;
   onMove: (id: number, desde: EstadoReparacion, hacia: EstadoReparacion) => void;
@@ -197,6 +204,7 @@ const Board = ({
           key={fase.key}
           fase={fase}
           q={q}
+          showPago={showPago}
           drag={drag}
           overZona={overZona}
           onOpen={onOpen}
@@ -229,14 +237,14 @@ interface ZonaDnD {
   onDropZona: (estado: EstadoReparacion) => void;
 }
 
-const FaseColumn = ({ fase, q, ...dnd }: { fase: FaseMeta; q: string } & ZonaDnD) => (
+const FaseColumn = ({ fase, q, showPago, ...dnd }: { fase: FaseMeta; q: string; showPago: boolean } & ZonaDnD) => (
   <div className="flex w-[296px] flex-shrink-0 flex-col rounded-2xl border border-border bg-surface-2">
     <div className="border-b border-border px-3.5 py-3 text-[12px] font-extrabold uppercase tracking-wide text-text-2">
       {fase.label}
     </div>
     <div className="flex flex-col gap-3 p-3">
       {fase.estados.map((estado) => (
-        <EstadoZona key={estado} meta={getEstadoMeta(estado)} q={q} {...dnd} />
+        <EstadoZona key={estado} meta={getEstadoMeta(estado)} q={q} showPago={showPago} {...dnd} />
       ))}
     </div>
   </div>
@@ -245,6 +253,7 @@ const FaseColumn = ({ fase, q, ...dnd }: { fase: FaseMeta; q: string } & ZonaDnD
 const EstadoZona = ({
   meta,
   q,
+  showPago,
   drag,
   overZona,
   onOpen,
@@ -253,7 +262,7 @@ const EstadoZona = ({
   onDragEndCard,
   onOverZona,
   onDropZona,
-}: { meta: EstadoMeta; q: string } & ZonaDnD) => {
+}: { meta: EstadoMeta; q: string; showPago: boolean } & ZonaDnD) => {
   const { data, isLoading } = useReparacionesQuery({ q, estado: meta.key, page: 0, size: 100 });
   const items = data?.content ?? [];
   const total = data?.page?.totalElements ?? items.length;
@@ -293,7 +302,7 @@ const EstadoZona = ({
             data-testid={`card-${r.id}`}
             role="button"
             tabIndex={0}
-            aria-label={`Abrir reparación #${r.id} — ${equipoLabel(r)}`}
+            aria-label={`Abrir reparación ${ordenLabel(r)} — ${equipoLabel(r)}`}
             draggable
             onDragStart={(e) => {
               onDragStartCard(r);
@@ -314,13 +323,16 @@ const EstadoZona = ({
           >
             <div className="flex items-center gap-2">
               <div className="min-w-0 flex-1 truncate text-[14px] font-extrabold">{equipoLabel(r)}</div>
-              <span className="font-mono text-[10.5px] font-bold text-text-3">#{r.id}</span>
+              <span className="font-mono text-[10.5px] font-bold text-text-3">{ordenLabel(r)}</span>
             </div>
             <div className="mt-0.5 text-[12.5px] font-semibold text-text-2">{clienteLabel(r)}</div>
             <div className="mt-1.5 line-clamp-2 text-[12.5px] leading-snug text-text-3">{r.descripcionProblema}</div>
-            <div className="mt-2.5 flex items-center justify-between">
-              <span className="font-mono text-[13.5px] font-extrabold" style={{ color: meta.cssVar }}>
-                {formatMoney(r.precioFinal ?? r.precioEstimado)}
+            <div className="mt-2.5 flex items-center justify-between gap-2">
+              <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+                <span className="font-mono text-[13.5px] font-extrabold" style={{ color: meta.cssVar }}>
+                  {formatMoney(r.precioFinal ?? r.precioEstimado)}
+                </span>
+                {showPago && <PagoChip estadoPago={r.estadoPago} saldo={r.saldo} />}
               </span>
               {meta.next && (
                 <button
@@ -354,6 +366,7 @@ const EstadoZona = ({
 const Lista = ({
   q,
   estado,
+  showPago,
   page,
   size,
   sort,
@@ -363,6 +376,7 @@ const Lista = ({
 }: {
   q: string;
   estado?: EstadoReparacion;
+  showPago: boolean;
   page: number;
   size: number;
   sort?: string;
@@ -416,7 +430,7 @@ const Lista = ({
               key={r.id}
               role="button"
               tabIndex={0}
-              aria-label={`Abrir reparación #${r.id} — ${equipoLabel(r)}`}
+              aria-label={`Abrir reparación ${ordenLabel(r)} — ${equipoLabel(r)}`}
               onClick={() => onOpen(r.id)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -430,13 +444,19 @@ const Lista = ({
                 <div className="truncate text-[14px] font-bold">{equipoLabel(r)}</div>
                 <div className="truncate text-[12.5px] text-text-2">{clienteLabel(r)}</div>
                 {/* En mobile el estado va acá (la columna dedicada se oculta). */}
-                <div className="mt-1.5 sm:hidden">
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 sm:hidden">
                   <EstadoBadge estado={r.estado} />
+                  {showPago && <PagoChip estadoPago={r.estadoPago} saldo={r.saldo} />}
                 </div>
               </div>
               <div className="hidden min-w-0 flex-[1.6] truncate text-[13px] text-text-3 sm:block">{r.descripcionProblema}</div>
               <div className="hidden w-[150px] sm:block">
                 <EstadoBadge estado={r.estado} />
+                {showPago && (
+                  <div className="mt-1">
+                    <PagoChip estadoPago={r.estadoPago} saldo={r.saldo} />
+                  </div>
+                )}
               </div>
               <div className="w-[96px] text-right font-mono text-[13.5px] font-bold">{formatMoney(r.precioFinal ?? r.precioEstimado)}</div>
               {meta.next ? (

@@ -12,6 +12,7 @@ import {
 } from '../api/mutations/repuestos.mutations';
 import { useArticulosOptions } from '../api/queries/inventario.queries';
 import { useFunciones } from '../api/queries/suscripcion.queries';
+import { ordenLabel } from '../utils/reparacion';
 import type { Reparacion, Repuesto, RepuestoCreate, RepuestoUpdate } from '../types';
 
 const schema = z.object({
@@ -159,7 +160,7 @@ export const RepuestoFormModal = ({ isOpen, onClose, editing, reparaciones = [],
               <option value="">Sin asociar</option>
               {reparaciones.map((r) => (
                 <option key={r.id} value={r.id}>
-                  #{r.id} — {r.descripcionProblema.slice(0, 40)}
+                  {ordenLabel(r)} — {r.descripcionProblema.slice(0, 40)}
                   {r.descripcionProblema.length > 40 ? '…' : ''}
                 </option>
               ))}

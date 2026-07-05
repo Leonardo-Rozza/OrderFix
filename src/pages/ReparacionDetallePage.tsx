@@ -14,7 +14,8 @@ import { ErrorState } from '../components/ErrorState';
 import { btnGhost, btnDanger, card } from '../components/ui';
 import { getEstadoMeta, transicionesDesde } from '../config/estados';
 import { formatMoney, formatDate, iniciales } from '../utils/format';
-import { equipoLabel, clienteLabel } from '../utils/reparacion';
+import { equipoLabel, clienteLabel, ordenLabel } from '../utils/reparacion';
+import { PagoChip } from '../components/PagoChip';
 import { apiClient } from '../api/axios';
 import type { WhatsappLink } from '../types';
 import { useReparacionQuery } from '../api/queries/reparaciones.queries';
@@ -165,11 +166,14 @@ export const ReparacionDetallePage = () => {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2.5">
                     <span className="text-[22px] font-extrabold tracking-tight">{equipoNombre}</span>
-                    <span className="rounded-md bg-surface-3 px-2 py-0.5 font-mono text-[12px] font-bold text-text-3">#{rep.id}</span>
+                    <span className="rounded-md bg-surface-3 px-2 py-0.5 font-mono text-[12px] font-bold text-text-3">{ordenLabel(rep)}</span>
                   </div>
                   <div className="mt-0.5 text-[14px] text-text-2">Ingresó el {formatDate(rep.fechaIngreso)}</div>
                 </div>
-                <EstadoBadge estado={rep.estado} size="md" />
+                <div className="flex flex-col items-end gap-1.5">
+                  <EstadoBadge estado={rep.estado} size="md" />
+                  {cobrosHabilitado && <PagoChip estadoPago={rep.estadoPago} saldo={rep.saldo} />}
+                </div>
               </div>
 
               <div className="mt-4 border-t border-border pt-4">
@@ -608,7 +612,7 @@ export const ReparacionDetallePage = () => {
       <ConfirmDialog
         isOpen={confirmOpen}
         title="Eliminar reparación"
-        message={`¿Seguro que querés eliminar la reparación #${rep.id}? Esta acción no se puede deshacer.`}
+        message={`¿Seguro que querés eliminar la reparación ${ordenLabel(rep)}? Esta acción no se puede deshacer.`}
         loading={deleteMutation.isPending}
         onClose={() => setConfirmOpen(false)}
         onConfirm={async () => {

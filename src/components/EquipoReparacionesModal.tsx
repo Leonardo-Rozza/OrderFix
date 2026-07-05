@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router';
 import { Modal } from './Modal';
 import { EstadoBadge } from './EstadoBadge';
 import { formatMoney, formatDate } from '../utils/format';
+import { ordenLabel } from '../utils/reparacion';
 import { useReparacionesPorEquipoQuery } from '../api/queries/reparaciones.queries';
 import type { Equipo } from '../types';
 
@@ -42,7 +43,7 @@ export const EquipoReparacionesModal = ({ equipo, onClose }: Props) => {
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[13.5px] font-bold">{r.descripcionProblema}</div>
                 <div className="text-[12px] text-text-3">
-                  #{r.id} · {formatDate(r.fechaIngreso)}
+                  {ordenLabel(r)} · {formatDate(r.fechaIngreso)}
                 </div>
               </div>
               <EstadoBadge estado={r.estado} />

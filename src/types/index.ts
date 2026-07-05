@@ -170,6 +170,9 @@ export type EstadoReparacion =
   | 'ABANDONADO'
   | 'CANCELADO';
 
+/** Dimensión de pago de la reparación, independiente del estado (derivada por el backend). */
+export type EstadoPago = 'SIN_COBRAR' | 'PARCIAL' | 'PAGADO';
+
 export interface Reparacion {
   id: number;
   equipoId: number;
@@ -182,8 +185,15 @@ export interface Reparacion {
   fechaEntrega: string | null;
   // Agregados por el backend (orden de trabajo ampliada / seguimiento)
   codigoSeguimiento?: string | null;
+  /** Correlativo por taller (ORD-2026-0042), inmutable; null en datos viejos. */
+  numeroOrden?: string | null;
   total?: number | null;
   totalRepuestos?: number | null;
+  /** Suma de cobros (0 en planes FREE, que no usan cobros). */
+  cobrado?: number | null;
+  /** max(0, total - cobrado). */
+  saldo?: number | null;
+  estadoPago?: EstadoPago;
   patronDesbloqueo?: string | null;
   pinDesbloqueo?: string | null;
   accesorios?: string | null;

@@ -6,7 +6,8 @@ import { ErrorState } from '../components/ErrorState';
 import { btnPrimary } from '../components/ui';
 import { ESTADOS_LIST, ESTADOS_CERRADOS } from '../config/estados';
 import { formatMoney } from '../utils/format';
-import { equipoLabel, clienteLabel } from '../utils/reparacion';
+import { equipoLabel, clienteLabel, ordenLabel } from '../utils/reparacion';
+import { PagoChip } from '../components/PagoChip';
 import { useDashboardQuery } from '../api/queries/dashboard.queries';
 import { useClientesQuery } from '../api/queries/clientes.queries';
 import { useFunciones } from '../api/queries/suscripcion.queries';
@@ -41,7 +42,7 @@ export const DashboardPage = () => {
   const { email } = useAuth();
   const { data: stats, isLoading, isError, refetch } = useDashboardQuery();
   const { data: clientesPage } = useClientesQuery({ page: 0, size: 1 });
-  const { inventario } = useFunciones();
+  const { inventario, cobros: cobrosHabilitado } = useFunciones();
   const stockBajo = stats?.articulosStockBajo ?? 0;
 
   const counts = stats?.reparacionesPorEstado;
@@ -147,7 +148,7 @@ export const DashboardPage = () => {
                   key={r.id}
                   role="button"
                   tabIndex={0}
-                  aria-label={`Abrir reparación #${r.id} — ${equipoLabel(r)}`}
+                  aria-label={`Abrir reparación ${ordenLabel(r)} — ${equipoLabel(r)}`}
                   onClick={() => navigate(`/reparaciones/${r.id}`)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
@@ -169,8 +170,9 @@ export const DashboardPage = () => {
                     </div>
                     <div className="truncate text-[12.5px] text-text-3">{r.descripcionProblema}</div>
                   </div>
-                  <div className="hidden sm:block">
+                  <div className="hidden flex-col items-end gap-1 sm:flex">
                     <EstadoBadge estado={r.estado} />
+                    {cobrosHabilitado && <PagoChip estadoPago={r.estadoPago} saldo={r.saldo} />}
                   </div>
                   <div className="w-[84px] text-right font-mono text-[13.5px] font-bold">{formatMoney(r.precioFinal ?? r.precioEstimado)}</div>
                 </div>

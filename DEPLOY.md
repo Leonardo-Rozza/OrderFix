@@ -104,10 +104,13 @@ Para activarlo (config del **backend**, contrato §10):
    | Variable | Valor |
    |---|---|
    | `MP_ENABLED` | `true` |
+   | `MP_CHECKOUT_ENABLED` | `true` para habilitar nuevos checkouts; `false` funciona como kill switch sin apagar webhooks ni cancelaciones |
    | `MP_ACCESS_TOKEN` | el access token |
    | `MP_WEBHOOK_SECRET` | la clave del webhook (**obligatoria** con MP activo: sin ella el webhook rechaza todo) |
-   | `MP_BACK_URL` | `https://TU-FRONTEND.vercel.app/suscripcion/resultado` |
-   | `MP_AMOUNT` / `MP_CURRENCY` / `MP_REASON` | opcional (default 4999 ARS "OrdenFix PRO - Suscripción mensual") |
+   | `MP_COLLECTOR_ID` | ID de la cuenta cobradora esperada (**obligatorio** con MP activo) |
+   | `MP_APPLICATION_ID` | ID de la aplicación esperada (**obligatorio** con MP activo) |
+   | `MP_BACK_URL` | `https://TU-FRONTEND.vercel.app/suscripcion/resultado` (debe ser HTTPS con MP activo) |
+   | `MP_AMOUNT` / `MP_CURRENCY` / `MP_REASON` | opcional (default 24900 ARS "OrdenFix PRO - Suscripción mensual") |
 
 4. Prueba end-to-end en sandbox con el comprador de test:
    `test_user_7460087649239330478@testuser.com` / `i8AGgyMs78` — pagás, MercadoPago te

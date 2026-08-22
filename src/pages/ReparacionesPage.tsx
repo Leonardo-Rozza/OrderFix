@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { EstadoBadge } from '../components/EstadoBadge';
@@ -15,10 +15,10 @@ import { formatMoney } from '../utils/format';
 import { equipoLabel, clienteLabel, ordenLabel } from '../utils/reparacion';
 import { PagoChip } from '../components/PagoChip';
 import { useListParams } from '../hooks/useListParams';
+import { usePageBounds } from '../hooks/usePageBounds';
 import { useReparacionesQuery } from '../api/queries/reparaciones.queries';
 import { useEquiposOptions } from '../api/queries/equipos.queries';
 import { useDashboardQuery } from '../api/queries/dashboard.queries';
-import { useFunciones } from '../api/queries/suscripcion.queries';
 import { useCambiarEstadoMutation } from '../api/mutations/reparaciones.mutations';
 import type { EstadoReparacion, Reparacion } from '../types';
 
@@ -29,15 +29,20 @@ export const ReparacionesPage = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const cambiarEstado = useCambiarEstadoMutation();
-  const { data: equipos = [] } = useEquiposOptions();
+  const {
+    data: equipos = [],
+    isLoading: equiposLoading,
+    isError: equiposError,
+    refetch: refetchEquipos,
+  } = useEquiposOptions();
   const { data: stats } = useDashboardQuery();
-  // El chip de pago solo aplica con cobros habilitados (PRO): en FREE cobrado siempre es 0.
-  const { cobros: pagoVisible } = useFunciones();
-
   const { q, onSearch, page, setPage, debouncedQ, size, sort, setSort } = useListParams(20, 'id,desc');
   const [vista, setVista] = useState<Vista>('board');
   const [filtro, setFiltro] = useState<Filtro>('TODOS');
   const [localOpen, setLocalOpen] = useState(false);
+  const transitionLock = useRef(false);
+  const [transitionInFlight, setTransitionInFlight] = useState(false);
+  const transitionPending = cambiarEstado.isPending || transitionInFlight;
 
   const nuevoParam = searchParams.get('nuevo') !== null;
   const formOpen = localOpen || nuevoParam;
@@ -50,20 +55,34 @@ export const ReparacionesPage = () => {
   };
 
   const open = (id: number) => navigate(`/reparaciones/${id}`);
+  const requestStateChange = (id: number, estado: EstadoReparacion) => {
+    if (transitionLock.current || cambiarEstado.isPending) return;
+    transitionLock.current = true;
+    setTransitionInFlight(true);
+    cambiarEstado.mutate(
+      { id, estado },
+      {
+        onSettled: () => {
+          transitionLock.current = false;
+          setTransitionInFlight(false);
+        },
+      },
+    );
+  };
   const advance = (r: Reparacion) => {
-    if (cambiarEstado.isPending) return; // evita doble disparo
+    if (transitionLock.current || cambiarEstado.isPending) return;
     const next = getEstadoMeta(r.estado).next;
-    if (next) cambiarEstado.mutate({ id: r.id, estado: next });
+    if (next) requestStateChange(r.id, next);
   };
   const move = (id: number, desde: EstadoReparacion, hacia: EstadoReparacion) => {
-    if (cambiarEstado.isPending || desde === hacia) return;
+    if (transitionLock.current || cambiarEstado.isPending || desde === hacia) return;
     // La máquina de estados del backend rechazaría el salto con 409: avisamos
     // antes de llamar para que el drag & drop no "rebote" sin explicación.
     if (!esTransicionValida(desde, hacia)) {
       showError(`No se puede pasar de "${getEstadoMeta(desde).label}" a "${getEstadoMeta(hacia).label}".`);
       return;
     }
-    cambiarEstado.mutate({ id, estado: hacia });
+    requestStateChange(id, hacia);
   };
 
   const counts = stats?.reparacionesPorEstado;
@@ -93,14 +112,16 @@ export const ReparacionesPage = () => {
           </div>
 
           <div className="relative w-full sm:ml-auto sm:w-auto sm:min-w-[180px] sm:max-w-[320px] sm:flex-1">
-            <svg viewBox="0 0 24 24" width={17} height={17} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-2.5">
+            <svg viewBox="0 0 24 24" width={17} height={17} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
               <path d="m21 21-4.3-4.3M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z" />
             </svg>
             <input
+              type="search"
+              aria-label="Buscar reparaciones"
               value={q}
               onChange={(e) => onSearch(e.target.value)}
               placeholder="Buscar equipo, cliente o problema…"
-              className="w-full rounded-lg border border-border-strong bg-surface py-2 pl-9 pr-3 text-[13.5px] text-text outline-none transition placeholder:text-text-3 focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)]"
+              className="min-h-11 w-full rounded-lg border border-border-strong bg-surface py-2 pl-9 pr-3 text-base text-text outline-none transition placeholder:text-text-3 focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)] sm:min-h-0 sm:text-[13.5px]"
             />
           </div>
 
@@ -150,11 +171,17 @@ export const ReparacionesPage = () => {
         )}
 
         {vista === 'board' ? (
-          <Board q={debouncedQ} showPago={pagoVisible} onOpen={open} onAdvance={advance} onMove={move} />
+          <Board
+            q={debouncedQ}
+            transitionsDisabled={transitionPending}
+            onOpen={open}
+            onAdvance={advance}
+            onMove={move}
+          />
         ) : (
           <Lista
             q={debouncedQ}
-            showPago={pagoVisible}
+            transitionsDisabled={transitionPending}
             estado={filtro === 'TODOS' ? undefined : filtro}
             page={page}
             size={size}
@@ -171,6 +198,9 @@ export const ReparacionesPage = () => {
         onClose={closeForm}
         editing={null}
         equipos={equipos}
+        equiposLoading={equiposLoading}
+        equiposError={equiposError}
+        onRetryEquipos={() => void refetchEquipos()}
         onCreated={(id) => navigate(`/reparaciones/${id}`)}
       />
     </DashboardLayout>
@@ -183,13 +213,13 @@ export const ReparacionesPage = () => {
    ---------------------------------------------------------------------- */
 const Board = ({
   q,
-  showPago,
+  transitionsDisabled,
   onOpen,
   onAdvance,
   onMove,
 }: {
   q: string;
-  showPago: boolean;
+  transitionsDisabled: boolean;
   onOpen: (id: number) => void;
   onAdvance: (r: Reparacion) => void;
   onMove: (id: number, desde: EstadoReparacion, hacia: EstadoReparacion) => void;
@@ -204,7 +234,7 @@ const Board = ({
           key={fase.key}
           fase={fase}
           q={q}
-          showPago={showPago}
+          transitionsDisabled={transitionsDisabled}
           drag={drag}
           overZona={overZona}
           onOpen={onOpen}
@@ -227,6 +257,7 @@ const Board = ({
 };
 
 interface ZonaDnD {
+  transitionsDisabled: boolean;
   drag: { id: number; estado: EstadoReparacion } | null;
   overZona: EstadoReparacion | null;
   onOpen: (id: number) => void;
@@ -237,14 +268,14 @@ interface ZonaDnD {
   onDropZona: (estado: EstadoReparacion) => void;
 }
 
-const FaseColumn = ({ fase, q, showPago, ...dnd }: { fase: FaseMeta; q: string; showPago: boolean } & ZonaDnD) => (
+const FaseColumn = ({ fase, q, ...dnd }: { fase: FaseMeta; q: string } & ZonaDnD) => (
   <div className="flex w-[296px] flex-shrink-0 flex-col rounded-2xl border border-border bg-surface-2">
     <div className="border-b border-border px-3.5 py-3 text-[12px] font-extrabold uppercase tracking-wide text-text-2">
       {fase.label}
     </div>
     <div className="flex flex-col gap-3 p-3">
       {fase.estados.map((estado) => (
-        <EstadoZona key={estado} meta={getEstadoMeta(estado)} q={q} showPago={showPago} {...dnd} />
+        <EstadoZona key={estado} meta={getEstadoMeta(estado)} q={q} {...dnd} />
       ))}
     </div>
   </div>
@@ -253,7 +284,7 @@ const FaseColumn = ({ fase, q, showPago, ...dnd }: { fase: FaseMeta; q: string; 
 const EstadoZona = ({
   meta,
   q,
-  showPago,
+  transitionsDisabled,
   drag,
   overZona,
   onOpen,
@@ -262,21 +293,35 @@ const EstadoZona = ({
   onDragEndCard,
   onOverZona,
   onDropZona,
-}: { meta: EstadoMeta; q: string; showPago: boolean } & ZonaDnD) => {
-  const { data, isLoading } = useReparacionesQuery({ q, estado: meta.key, page: 0, size: 100 });
-  const items = data?.content ?? [];
-  const total = data?.page?.totalElements ?? items.length;
-  const isOver = overZona === meta.key && drag !== null && drag.estado !== meta.key;
+}: { meta: EstadoMeta; q: string } & ZonaDnD) => {
+  const {
+    data,
+    isLoading,
+    isError,
+    isFetching,
+    isPlaceholderData,
+    refetch,
+  } = useReparacionesQuery({ q, estado: meta.key, page: 0, size: 100 });
+  const queryReady = !isLoading && !isError && data !== undefined;
+  const items = queryReady ? data.content : [];
+  const total = queryReady ? (data.page?.totalElements ?? items.length) : undefined;
+  const refreshing = isFetching && isPlaceholderData;
+  const interactionsDisabled = transitionsDisabled || refreshing;
+  const isOver = !interactionsDisabled && overZona === meta.key && drag !== null && drag.estado !== meta.key;
   const draggingId = drag?.id ?? null;
+  const resultIsPartial = total !== undefined && total > items.length;
 
   return (
     <div
       data-testid={`col-${meta.key}`}
+      aria-busy={isLoading || refreshing}
       onDragOver={(e) => {
+        if (interactionsDisabled) return;
         e.preventDefault();
         onOverZona(meta.key);
       }}
       onDrop={(e) => {
+        if (interactionsDisabled) return;
         e.preventDefault();
         onDropZona(meta.key);
       }}
@@ -291,71 +336,108 @@ const EstadoZona = ({
           </svg>
         </span>
         <span className="text-[13px] font-extrabold">{meta.label}</span>
-        <span className="ml-auto rounded-full bg-surface-3 px-2 py-0.5 text-[11.5px] font-bold text-text-3">{total}</span>
+        {isLoading ? (
+          <span className="ofx-skel ml-auto h-5 w-8 rounded-full" aria-label={`Cargando ${meta.label}`} />
+        ) : (
+          <span
+            className="ml-auto rounded-full bg-surface-3 px-2 py-0.5 text-[11.5px] font-bold text-text-3"
+            aria-label={total === undefined ? `Cantidad de ${meta.label} no disponible` : undefined}
+          >
+            {total ?? '—'}
+          </span>
+        )}
       </div>
       <div className="flex min-h-[48px] flex-col gap-2.5">
-        {isLoading && items.length === 0 &&
-          Array.from({ length: 2 }).map((_, i) => <div key={`sk-${i}`} className="ofx-skel h-[92px] rounded-xl" />)}
-        {items.map((r) => (
-          <div
+        {refreshing && (
+          <div role="status" className="rounded-lg bg-surface-3 px-3 py-2 text-[12px] font-semibold text-text-3">
+            Actualizando resultados…
+          </div>
+        )}
+        {isLoading ? (
+          Array.from({ length: 2 }).map((_, index) => (
+            <div key={`sk-${index}`} className="ofx-skel h-[92px] rounded-xl" aria-hidden="true" />
+          ))
+        ) : isError || !data ? (
+          <div className="overflow-hidden rounded-lg border border-border bg-surface">
+            <ErrorState
+              onRetry={() => void refetch()}
+              title="No se pudo cargar esta etapa"
+              message={`No pudimos consultar ${meta.label.toLowerCase()}. Reintentá sin perder el resto del tablero.`}
+            />
+          </div>
+        ) : (
+          <>
+            {items.map((r) => (
+          <article
             key={r.id}
             data-testid={`card-${r.id}`}
-            role="button"
-            tabIndex={0}
-            aria-label={`Abrir reparación ${ordenLabel(r)} — ${equipoLabel(r)}`}
-            draggable
+            draggable={!interactionsDisabled}
             onDragStart={(e) => {
+              if (interactionsDisabled) {
+                e.preventDefault();
+                return;
+              }
               onDragStartCard(r);
               e.dataTransfer.effectAllowed = 'move';
             }}
             onDragEnd={onDragEndCard}
-            onClick={() => onOpen(r.id)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onOpen(r.id);
-              }
-            }}
-            className={`cursor-grab select-none rounded-xl border border-border bg-surface p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-border-strong focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] active:cursor-grabbing ${
+            className={`relative select-none rounded-xl border border-border bg-surface p-3 shadow-sm transition ${
+              interactionsDisabled
+                ? 'cursor-default'
+                : 'cursor-grab hover:-translate-y-0.5 hover:border-border-strong active:cursor-grabbing'
+            } ${
               draggingId === r.id ? 'opacity-50' : ''
             }`}
             style={{ borderLeft: `3px solid ${meta.cssVar}` }}
           >
-            <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-label={`Abrir reparación ${ordenLabel(r)} — ${equipoLabel(r)}`}
+              onClick={() => onOpen(r.id)}
+              disabled={interactionsDisabled}
+              className="absolute inset-0 z-0 cursor-pointer rounded-xl focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:cursor-wait"
+            />
+            <div className="pointer-events-none relative z-10 flex items-center gap-2">
               <div className="min-w-0 flex-1 truncate text-[14px] font-extrabold">{equipoLabel(r)}</div>
               <span className="font-mono text-[10.5px] font-bold text-text-3">{ordenLabel(r)}</span>
             </div>
-            <div className="mt-0.5 text-[12.5px] font-semibold text-text-2">{clienteLabel(r)}</div>
-            <div className="mt-1.5 line-clamp-2 text-[12.5px] leading-snug text-text-3">{r.descripcionProblema}</div>
-            <div className="mt-2.5 flex items-center justify-between gap-2">
+            <div className="pointer-events-none relative z-10 mt-0.5 text-[12.5px] font-semibold text-text-2">{clienteLabel(r)}</div>
+            <div className="pointer-events-none relative z-10 mt-1.5 line-clamp-2 text-[12.5px] leading-snug text-text-3">{r.descripcionProblema}</div>
+            <div className={`pointer-events-none relative z-10 mt-2.5 flex items-center gap-2 ${meta.next ? 'min-h-11 pr-[92px] sm:min-h-0 sm:pr-[82px]' : ''}`}>
               <span className="flex min-w-0 flex-wrap items-center gap-1.5">
                 <span className="font-mono text-[13.5px] font-extrabold" style={{ color: meta.cssVar }}>
-                  {formatMoney(r.precioFinal ?? r.precioEstimado)}
+                  {formatMoney(r.total ?? r.precioFinal ?? r.precioEstimado)}
                 </span>
-                {showPago && <PagoChip estadoPago={r.estadoPago} saldo={r.saldo} />}
+                <PagoChip estadoPago={r.estadoPago} saldo={r.saldo} />
               </span>
-              {meta.next && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAdvance(r);
-                  }}
-                  className="inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[11.5px] font-bold text-text-2 transition hover:border-primary hover:text-primary"
-                >
-                  Avanzar
-                  <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
-                    <path d="m9 6 6 6-6 6" />
-                  </svg>
-                </button>
-              )}
             </div>
-          </div>
-        ))}
-        {!isLoading && items.length === 0 && (
-          <div className={`rounded-lg border border-dashed py-5 text-center text-[12.5px] transition ${isOver ? 'border-primary text-primary' : 'border-border text-text-3'}`}>
-            {isOver ? 'Soltá acá' : 'Sin reparaciones'}
-          </div>
+            {meta.next && (
+              <button
+                type="button"
+                onClick={() => onAdvance(r)}
+                disabled={interactionsDisabled}
+                aria-busy={interactionsDisabled}
+                className="absolute bottom-3 right-3 z-20 inline-flex min-h-11 items-center gap-1 rounded-lg border border-border-strong bg-surface px-3 py-2 text-[12px] font-bold text-text-2 transition hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-0 sm:px-2.5 sm:py-1 sm:text-[11.5px]"
+              >
+                Avanzar
+                <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m9 6 6 6-6 6" />
+                </svg>
+              </button>
+            )}
+          </article>
+            ))}
+            {items.length === 0 && total === 0 && (
+              <div className={`rounded-lg border border-dashed py-5 text-center text-[12.5px] transition ${isOver ? 'border-primary text-primary' : 'border-border text-text-3'}`}>
+                {isOver ? 'Soltá acá' : 'Sin reparaciones'}
+              </div>
+            )}
+            {resultIsPartial && (
+              <div role="status" className="rounded-lg border border-warning bg-warning-soft px-3 py-2 text-[12px] font-semibold text-warning">
+                Mostrando {items.length} de {total}. El tablero carga hasta 100 por estado.
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -365,8 +447,8 @@ const EstadoZona = ({
 /* ---------- Vista lista (paginada) ---------- */
 const Lista = ({
   q,
+  transitionsDisabled,
   estado,
-  showPago,
   page,
   size,
   sort,
@@ -375,8 +457,8 @@ const Lista = ({
   onAdvance,
 }: {
   q: string;
+  transitionsDisabled: boolean;
   estado?: EstadoReparacion;
-  showPago: boolean;
   page: number;
   size: number;
   sort?: string;
@@ -384,18 +466,27 @@ const Lista = ({
   onOpen: (id: number) => void;
   onAdvance: (r: Reparacion) => void;
 }) => {
-  const { data, isLoading, isError, refetch } = useReparacionesQuery({ q, estado, page, size, sort });
+  const {
+    data,
+    isLoading,
+    isError,
+    isFetching,
+    isPlaceholderData,
+    refetch,
+  } = useReparacionesQuery({ q, estado, page, size, sort });
   const reparaciones = data?.content ?? [];
+  const refreshing = isFetching && isPlaceholderData;
+  usePageBounds(page, onPage, data?.page, !isPlaceholderData);
 
-  if (isError) {
+  if (isError || (!isLoading && !data)) {
     return (
       <div className="rounded-2xl border border-border bg-surface">
-        <ErrorState onRetry={() => refetch()} message="No pudimos cargar las reparaciones." />
+        <ErrorState onRetry={() => void refetch()} message="No pudimos cargar las reparaciones." />
       </div>
     );
   }
 
-  if (!isLoading && reparaciones.length === 0) {
+  if (!isLoading && !isPlaceholderData && reparaciones.length === 0) {
     return (
       <div className="rounded-2xl border border-border bg-surface">
         <EmptyState title="No encontramos reparaciones" hint="Probá con otro filtro o término de búsqueda." />
@@ -405,13 +496,18 @@ const Lista = ({
 
   return (
     <>
-      <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+      {refreshing && (
+        <div role="status" className="mb-2 px-1 text-[12.5px] font-semibold text-text-3">
+          Actualizando resultados…
+        </div>
+      )}
+      <div aria-busy={isLoading || refreshing} className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
         <div className="flex items-center gap-3 border-b border-border px-4 py-3 text-[11.5px] font-extrabold uppercase tracking-wide text-text-3">
           <div className="min-w-0 flex-[1.6]">Equipo / Cliente</div>
           <div className="hidden min-w-0 flex-[1.6] sm:block">Problema</div>
           <div className="hidden w-[150px] sm:block">Estado</div>
-          <div className="w-[96px] text-right">Precio</div>
-          <div className="w-10" />
+          <div className="w-[80px] text-right sm:w-[96px]">Precio</div>
+          <div className="w-11 sm:w-10" />
         </div>
         {isLoading
           ? Array.from({ length: 6 }).map((_, i) => (
@@ -426,62 +522,56 @@ const Lista = ({
           : reparaciones.map((r) => {
           const meta = getEstadoMeta(r.estado);
           return (
-            <div
+            <article
               key={r.id}
-              role="button"
-              tabIndex={0}
-              aria-label={`Abrir reparación ${ordenLabel(r)} — ${equipoLabel(r)}`}
-              onClick={() => onOpen(r.id)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onOpen(r.id);
-                }
-              }}
-              className="flex cursor-pointer items-center gap-3 border-b border-border px-4 py-3 transition last:border-0 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)]"
+              className="relative flex items-center gap-3 border-b border-border px-4 py-3 transition last:border-0 hover:bg-surface-2"
             >
-              <div className="min-w-0 flex-[1.6]">
+              <button
+                type="button"
+                aria-label={`Abrir reparación ${ordenLabel(r)} — ${equipoLabel(r)}`}
+                onClick={() => onOpen(r.id)}
+                disabled={refreshing}
+                className="absolute inset-0 z-0 cursor-pointer focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:cursor-wait"
+              />
+              <div className="pointer-events-none relative z-10 min-w-0 flex-[1.6]">
                 <div className="truncate text-[14px] font-bold">{equipoLabel(r)}</div>
                 <div className="truncate text-[12.5px] text-text-2">{clienteLabel(r)}</div>
                 {/* En mobile el estado va acá (la columna dedicada se oculta). */}
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5 sm:hidden">
                   <EstadoBadge estado={r.estado} />
-                  {showPago && <PagoChip estadoPago={r.estadoPago} saldo={r.saldo} />}
+                  <PagoChip estadoPago={r.estadoPago} saldo={r.saldo} />
                 </div>
               </div>
-              <div className="hidden min-w-0 flex-[1.6] truncate text-[13px] text-text-3 sm:block">{r.descripcionProblema}</div>
-              <div className="hidden w-[150px] sm:block">
+              <div className="pointer-events-none relative z-10 hidden min-w-0 flex-[1.6] truncate text-[13px] text-text-3 sm:block">{r.descripcionProblema}</div>
+              <div className="pointer-events-none relative z-10 hidden w-[150px] sm:block">
                 <EstadoBadge estado={r.estado} />
-                {showPago && (
-                  <div className="mt-1">
-                    <PagoChip estadoPago={r.estadoPago} saldo={r.saldo} />
-                  </div>
-                )}
+                <div className="mt-1">
+                  <PagoChip estadoPago={r.estadoPago} saldo={r.saldo} />
+                </div>
               </div>
-              <div className="w-[96px] text-right font-mono text-[13.5px] font-bold">{formatMoney(r.precioFinal ?? r.precioEstimado)}</div>
+              <div className="pointer-events-none relative z-10 w-[80px] text-right font-mono text-[13.5px] font-bold sm:w-[96px]">{formatMoney(r.total ?? r.precioFinal ?? r.precioEstimado)}</div>
               {meta.next ? (
                 <button
                   type="button"
                   aria-label="Avanzar estado" title="Avanzar estado"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAdvance(r);
-                  }}
-                  className="grid h-8 w-10 flex-shrink-0 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-primary hover:text-primary"
+                  onClick={() => onAdvance(r)}
+                  disabled={transitionsDisabled || refreshing}
+                  aria-busy={transitionsDisabled || refreshing}
+                  className="relative z-20 grid h-11 w-11 flex-shrink-0 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-60 sm:h-8 sm:w-10"
                 >
                   <svg viewBox="0 0 24 24" width={15} height={15} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
                     <path d="m9 6 6 6-6 6" />
                   </svg>
                 </button>
               ) : (
-                <div className="w-10" />
+                <div className="w-11 sm:w-10" />
               )}
-            </div>
+            </article>
           );
         })}
       </div>
       <div className="mt-3">
-        <Pagination meta={data?.page} onChange={onPage} />
+        <Pagination meta={data?.page} onChange={onPage} disabled={refreshing} />
       </div>
     </>
   );

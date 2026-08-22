@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { useBlocker } from 'react-router';
 
 export interface UnsavedChangesCopy {
@@ -16,13 +16,15 @@ export interface UseUnsavedChangesGuardOptions {
 }
 
 export interface UnsavedChangesGuardResult {
-  requestClose: () => void;
+  requestClose: (source?: HTMLElement | { currentTarget: EventTarget | null } | null) => void;
   commitAndClose: () => void;
   isSuspended: boolean;
   dialog: {
     isOpen: boolean;
     isBusy: boolean;
     copy?: UnsavedChangesCopy;
+    restoreFocusRef: RefObject<HTMLElement | null>;
+    restoreFocusOnCloseRef: RefObject<boolean>;
     onContinueEditing: () => void;
     onDiscardChanges: () => void;
   };
@@ -43,6 +45,8 @@ export const useUnsavedChangesGuard = ({
 }: UseUnsavedChangesGuardOptions): UnsavedChangesGuardResult => {
   const [localCloseRequested, setLocalCloseRequested] = useState(false);
   const releasedRef = useRef(false);
+  const localCloseInvokerRef = useRef<HTMLElement | null>(null);
+  const restoreFocusOnCloseRef = useRef(true);
 
   useEffect(() => {
     if (isOpen) releasedRef.current = false;
@@ -66,26 +70,40 @@ export const useUnsavedChangesGuard = ({
     return () => window.removeEventListener('beforeunload', handleBeforeUnload, { capture: true });
   }, [isBusy, isDirty, isOpen]);
 
-  const requestClose = useCallback(() => {
+  const requestClose = useCallback((
+    source?: HTMLElement | { currentTarget: EventTarget | null } | null,
+  ) => {
     if (!isOpen || releasedRef.current) return;
     if (isBusy) return;
     if (!isDirty) {
       onClose();
       return;
     }
+    const explicitInvoker = source instanceof HTMLElement
+      ? source
+      : source?.currentTarget instanceof HTMLElement
+        ? source.currentTarget
+        : null;
+    localCloseInvokerRef.current = explicitInvoker
+      ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+    restoreFocusOnCloseRef.current = true;
     setLocalCloseRequested(true);
   }, [isBusy, isDirty, isOpen, onClose]);
 
   const onContinueEditing = useCallback(() => {
+    restoreFocusOnCloseRef.current = true;
     setLocalCloseRequested(false);
     if (blocker.state === 'blocked') blocker.reset();
+    localCloseInvokerRef.current = null;
   }, [blocker]);
 
   const onDiscardChanges = useCallback(() => {
     if (isBusy || releasedRef.current) return;
 
     releasedRef.current = true;
+    restoreFocusOnCloseRef.current = false;
     setLocalCloseRequested(false);
+    localCloseInvokerRef.current = null;
 
     if (blocker.state === 'blocked') {
       blocker.proceed();
@@ -99,7 +117,9 @@ export const useUnsavedChangesGuard = ({
   const commitAndClose = useCallback(() => {
     if (releasedRef.current) return;
     releasedRef.current = true;
+    restoreFocusOnCloseRef.current = false;
     setLocalCloseRequested(false);
+    localCloseInvokerRef.current = null;
     if (blocker.state === 'blocked') blocker.reset();
     onClose();
   }, [blocker, onClose]);
@@ -124,6 +144,8 @@ export const useUnsavedChangesGuard = ({
       isOpen: isSuspended,
       isBusy,
       copy,
+      restoreFocusRef: localCloseInvokerRef,
+      restoreFocusOnCloseRef,
       onContinueEditing,
       onDiscardChanges,
     },

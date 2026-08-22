@@ -62,7 +62,7 @@ describe('Modal', () => {
         </Modal>
       </>,
     );
-    expect(opener).toHaveFocus();
+    await waitFor(() => expect(opener).toHaveFocus());
   });
 
   it('preventClose bloquea Escape, backdrop y botón de cierre', () => {
@@ -96,6 +96,20 @@ describe('Modal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('informa el botón de cierre como invocador aunque el navegador no lo enfoque al hacer click', () => {
+    const onClose = vi.fn();
+    render(
+      <Modal isOpen onClose={onClose} title="Orden">
+        <p>Contenido</p>
+      </Modal>,
+    );
+
+    const close = screen.getByRole('button', { name: 'Cerrar' });
+    fireEvent.click(close);
+
+    expect(onClose).toHaveBeenCalledWith(close);
+  });
+
   it('suspende el diálogo inferior y deja activa sólo la capa superior', () => {
     const onCloseBase = vi.fn();
     const onCloseGuard = vi.fn();
@@ -125,6 +139,119 @@ describe('Modal', () => {
     const suspendedBackdrop = suspended?.firstElementChild;
     fireEvent.click(suspendedBackdrop as Element);
     expect(onCloseBase).not.toHaveBeenCalled();
+  });
+
+  it('restaura el foco al invocador capturado aunque el diálogo inferior pierda el foco al suspenderse', async () => {
+    const invokerRef = createRef<HTMLButtonElement>();
+    const { rerender } = render(
+      <>
+        <Modal isOpen onClose={vi.fn()} title="Editar orden">
+          <button ref={invokerRef} type="button">Cancelar</button>
+        </Modal>
+        <Modal isOpen={false} layer="guard" onClose={vi.fn()} title="Descartar">
+          <button type="button">Seguir editando</button>
+        </Modal>
+      </>,
+    );
+
+    const cancel = screen.getByRole('button', { name: 'Cancelar' });
+    cancel.focus();
+    cancel.blur();
+
+    rerender(
+      <>
+        <Modal isOpen suspended onClose={vi.fn()} title="Editar orden">
+          <button ref={invokerRef} type="button">Cancelar</button>
+        </Modal>
+        <Modal
+          isOpen
+          layer="guard"
+          onClose={vi.fn()}
+          title="Descartar"
+          restoreFocusRef={invokerRef}
+        >
+          <button type="button">Seguir editando</button>
+        </Modal>
+      </>,
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Seguir editando' })).toHaveFocus());
+
+    rerender(
+      <>
+        <Modal isOpen onClose={vi.fn()} title="Editar orden">
+          <button ref={invokerRef} type="button">Cancelar</button>
+        </Modal>
+        <Modal
+          isOpen={false}
+          layer="guard"
+          onClose={vi.fn()}
+          title="Descartar"
+          restoreFocusRef={invokerRef}
+        >
+          <button type="button">Seguir editando</button>
+        </Modal>
+      </>,
+    );
+
+    expect(document.querySelector('[data-modal-suspended="true"]')).toBeNull();
+    await waitFor(() => expect(cancel).toHaveFocus());
+  });
+
+  it('omite la restauración cuando el cierre continúa con un descarte o navegación', async () => {
+    const invokerRef = createRef<HTMLButtonElement>();
+    const restoreFocusOnCloseRef = { current: true };
+    const { rerender } = render(
+      <>
+        <button ref={invokerRef} type="button">Abrir</button>
+        <Modal
+          isOpen={false}
+          onClose={vi.fn()}
+          title="Descartar"
+          restoreFocusRef={invokerRef}
+          restoreFocusOnCloseRef={restoreFocusOnCloseRef}
+        >
+          <button type="button">Seguir editando</button>
+        </Modal>
+      </>,
+    );
+
+    const invoker = screen.getByRole('button', { name: 'Abrir' });
+    invoker.focus();
+    rerender(
+      <>
+        <button ref={invokerRef} type="button">Abrir</button>
+        <Modal
+          isOpen
+          onClose={vi.fn()}
+          title="Descartar"
+          restoreFocusRef={invokerRef}
+          restoreFocusOnCloseRef={restoreFocusOnCloseRef}
+        >
+          <button type="button">Seguir editando</button>
+        </Modal>
+      </>,
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Seguir editando' })).toHaveFocus());
+
+    const focusSpy = vi.spyOn(invoker, 'focus');
+    restoreFocusOnCloseRef.current = false;
+    rerender(
+      <>
+        <button ref={invokerRef} type="button">Abrir</button>
+        <Modal
+          isOpen={false}
+          onClose={vi.fn()}
+          title="Descartar"
+          restoreFocusRef={invokerRef}
+          restoreFocusOnCloseRef={restoreFocusOnCloseRef}
+        >
+          <button type="button">Seguir editando</button>
+        </Modal>
+      </>,
+    );
+    await Promise.resolve();
+
+    expect(focusSpy).not.toHaveBeenCalled();
   });
 
   it('respeta el foco inicial explícito', async () => {

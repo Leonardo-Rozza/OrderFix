@@ -77,14 +77,16 @@ describe('useUnsavedChangesGuard', () => {
     const onClose = vi.fn();
     renderGuard({ initialDirty: true, onClose });
 
-    await user.click(screen.getByRole('button', { name: 'Cerrar formulario' }));
+    const close = screen.getByRole('button', { name: 'Cerrar formulario' });
+    await user.click(close);
     expect(screen.getByTestId('suspended')).toHaveTextContent('true');
     await user.click(screen.getByRole('button', { name: 'Seguir editando' }));
 
     expect(screen.getByLabelText('Detalle')).toHaveValue('Cambio local');
+    await waitFor(() => expect(close).toHaveFocus());
     expect(onClose).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole('button', { name: 'Cerrar formulario' }));
+    await user.click(close);
     const discard = screen.getByRole('button', { name: 'Descartar cambios' });
     act(() => {
       discard.click();

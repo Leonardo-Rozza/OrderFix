@@ -1,4 +1,4 @@
-import { useId, useRef } from 'react';
+import { useId, useRef, type RefObject } from 'react';
 import type { UnsavedChangesCopy } from '../hooks/useUnsavedChangesGuard';
 import { FormActions, Modal } from './Modal';
 import { btnDanger, btnGhost } from './ui';
@@ -7,6 +7,8 @@ interface DiscardChangesDialogProps {
   isOpen: boolean;
   isBusy?: boolean;
   copy?: UnsavedChangesCopy;
+  restoreFocusRef?: RefObject<HTMLElement | null>;
+  restoreFocusOnCloseRef?: RefObject<boolean>;
   onContinueEditing: () => void;
   onDiscardChanges: () => void;
 }
@@ -15,6 +17,8 @@ export const DiscardChangesDialog = ({
   isOpen,
   isBusy = false,
   copy,
+  restoreFocusRef,
+  restoreFocusOnCloseRef,
   onContinueEditing,
   onDiscardChanges,
 }: DiscardChangesDialogProps) => {
@@ -30,6 +34,8 @@ export const DiscardChangesDialog = ({
       layer="guard"
       showCloseButton={false}
       initialFocusRef={continueButtonRef}
+      restoreFocusRef={restoreFocusRef}
+      restoreFocusOnCloseRef={restoreFocusOnCloseRef}
       ariaDescribedBy={descriptionId}
       footer={(
         <FormActions>

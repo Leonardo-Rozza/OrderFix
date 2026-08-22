@@ -10,7 +10,7 @@ import {
 
 interface ModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose: (invoker?: HTMLElement | null) => void;
   title: string;
   children: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
@@ -25,6 +25,7 @@ interface ModalProps {
   initialFocusRef?: RefObject<HTMLElement | null>;
   restoreFocusRef?: RefObject<HTMLElement | null>;
   restoreFocusOnClose?: boolean;
+  restoreFocusOnCloseRef?: RefObject<boolean>;
   showCloseButton?: boolean;
   ariaDescribedBy?: string;
   bodyClassName?: string;
@@ -91,6 +92,7 @@ export const Modal = ({
   initialFocusRef,
   restoreFocusRef,
   restoreFocusOnClose = true,
+  restoreFocusOnCloseRef,
   showCloseButton = true,
   ariaDescribedBy,
   bodyClassName = '',
@@ -157,9 +159,26 @@ export const Modal = ({
       hasAutoFocused.current = false;
       if (!restoreFocusOnClose) return;
       const restoreTarget = explicitRestoreTarget ?? lastFocused.current;
-      if (restoreTarget?.isConnected) restoreTarget.focus();
+      // React limpia los layout effects antes de terminar todas las mutaciones
+      // del commit. En WebKit, enfocar en ese instante falla si el destino aún
+      // pertenece al modal inferior marcado como `inert`. Esperar al microtask
+      // permite que React quite la suspensión antes de restaurar el foco.
+      queueMicrotask(() => {
+        // Se consulta el valor más reciente a propósito: descartar puede
+        // desactivar la restauración después de montar esta capa.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        if (restoreFocusOnCloseRef?.current === false) return;
+        if (!restoreTarget?.isConnected || restoreTarget.closest('[inert]')) return;
+
+        // Si otra capa distinta quedó activa en el mismo commit, su foco
+        // inicial tiene prioridad sobre el invocador del modal que cerró.
+        const activeDialog = document.querySelector<HTMLElement>('[role="dialog"][aria-modal="true"]');
+        if (activeDialog && !activeDialog.contains(restoreTarget)) return;
+
+        restoreTarget.focus();
+      });
     };
-  }, [isOpen, restoreFocusOnClose, restoreFocusRef]);
+  }, [isOpen, restoreFocusOnClose, restoreFocusOnCloseRef, restoreFocusRef]);
 
   // Enfocar una sola vez. Suspender/reanudar el modal inferior no roba foco.
   useLayoutEffect(() => {
@@ -178,8 +197,10 @@ export const Modal = ({
   if (!isOpen) return null;
   const hasFooter = footer !== undefined && footer !== null;
 
-  const requestClose = () => {
-    if (!preventClose && !suspended) onClose();
+  const requestClose = (invoker?: HTMLElement | null) => {
+    if (!preventClose && !suspended) {
+      onClose(invoker ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null));
+    }
   };
 
   const layerClass = layer === 'guard' ? 'z-[90]' : 'z-50';
@@ -194,7 +215,7 @@ export const Modal = ({
     >
       <div
         className="absolute inset-0 bg-black/55 backdrop-blur-sm"
-        onClick={requestClose}
+        onClick={() => requestClose()}
         aria-hidden="true"
       />
       <div
@@ -215,7 +236,7 @@ export const Modal = ({
           {showCloseButton ? (
             <button
               type="button"
-              onClick={requestClose}
+              onClick={(event) => requestClose(event.currentTarget)}
               disabled={preventClose || suspended}
               aria-label="Cerrar"
               className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-text-3 transition hover:bg-surface-2 hover:text-text focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-8"

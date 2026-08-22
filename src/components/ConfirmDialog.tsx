@@ -1,4 +1,4 @@
-import { Modal } from './Modal';
+import { FormActions, Modal } from './Modal';
 import { btnGhost, btnDanger } from './ui';
 
 interface ConfirmDialogProps {
@@ -21,15 +21,23 @@ export const ConfirmDialog = ({
   onConfirm,
   onClose,
 }: ConfirmDialogProps) => (
-  <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
+  <Modal
+    isOpen={isOpen}
+    onClose={onClose}
+    title={title}
+    size="sm"
+    preventClose={loading}
+    footer={(
+      <FormActions>
+        <button type="button" className={btnGhost} onClick={onClose} disabled={loading}>
+          Cancelar
+        </button>
+        <button type="button" className={btnDanger} onClick={onConfirm} disabled={loading}>
+          {loading ? 'Procesando…' : confirmLabel}
+        </button>
+      </FormActions>
+    )}
+  >
     <p className="text-[14px] leading-relaxed text-text-2">{message}</p>
-    <div className="mt-6 flex justify-end gap-3">
-      <button type="button" className={btnGhost} onClick={onClose}>
-        Cancelar
-      </button>
-      <button type="button" className={btnDanger} onClick={onConfirm} disabled={loading}>
-        {loading ? 'Eliminando…' : confirmLabel}
-      </button>
-    </div>
   </Modal>
 );

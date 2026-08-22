@@ -51,4 +51,35 @@ describe('MoneyInput', () => {
     await user.type(input, 'abc12de34');
     expect(input).toHaveValue('1.234');
   });
+
+  it('reenvía atributos ARIA y usa teclado numérico móvil', () => {
+    render(
+      <MoneyInput
+        id="monto"
+        value=""
+        onChange={vi.fn()}
+        hasError
+        aria-describedby="monto-error"
+        aria-required
+      />,
+    );
+    const input = screen.getByRole('textbox');
+    expect(input).toHaveAttribute('inputmode', 'numeric');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAttribute('aria-describedby', 'monto-error');
+    expect(input).toHaveAttribute('aria-required', 'true');
+  });
+
+  it('conserva el caret al editar en el medio del monto formateado', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    await user.type(input, '12345');
+    expect(input).toHaveValue('12.345');
+
+    input.setSelectionRange(2, 2);
+    await user.type(input, '9', { skipClick: true });
+    expect(input).toHaveValue('129.345');
+    expect(input.selectionStart).toBe(3);
+  });
 });

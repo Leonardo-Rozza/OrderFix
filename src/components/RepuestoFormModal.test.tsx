@@ -46,9 +46,11 @@ describe('RepuestoFormModal', () => {
     // El selector de reparación no debe mostrarse cuando viene bloqueada
     expect(screen.queryByLabelText(/reparación asociada/i)).not.toBeInTheDocument();
 
-    await user.type(screen.getByLabelText(/^nombre/i), 'Módulo pantalla');
+    const submit = await screen.findByRole('button', { name: /crear repuesto/i });
+    expect(submit).toHaveAttribute('form', 'repuesto-form');
+    await user.type(screen.getByLabelText(/^nombre/i), '  Módulo pantalla  ');
     await user.type(screen.getByLabelText(/precio/i), '8000');
-    await user.click(screen.getByRole('button', { name: /crear repuesto/i }));
+    await user.click(submit);
 
     await waitFor(() => expect(body).toBeDefined());
     expect(body).toMatchObject({ nombre: 'Módulo pantalla', precio: 8000, reparacionId: 7 });
@@ -59,7 +61,16 @@ describe('RepuestoFormModal', () => {
     const user = userEvent.setup();
     renderUI(<RepuestoFormModal isOpen onClose={vi.fn()} editing={null} lockedReparacionId={1} />);
     await user.type(screen.getByLabelText(/^nombre/i), 'X');
-    await user.click(screen.getByRole('button', { name: /crear repuesto/i }));
+    await user.click(await screen.findByRole('button', { name: /crear repuesto/i }));
     expect(await screen.findByText(/el precio es requerido/i)).toBeInTheDocument();
+  });
+
+  it('no acepta un nombre compuesto sólo por espacios', async () => {
+    const user = userEvent.setup();
+    renderUI(<RepuestoFormModal isOpen onClose={vi.fn()} editing={null} lockedReparacionId={1} />);
+    await user.type(screen.getByLabelText(/^nombre/i), '   ');
+    await user.type(screen.getByLabelText(/precio/i), '100');
+    await user.click(await screen.findByRole('button', { name: /crear repuesto/i }));
+    expect(await screen.findByText(/el nombre es requerido/i)).toBeInTheDocument();
   });
 });

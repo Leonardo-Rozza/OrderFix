@@ -1,37 +1,70 @@
-import { cloneElement, isValidElement, useId, type ReactNode } from 'react';
+import { cloneElement, isValidElement, useId, type ReactElement, type ReactNode } from 'react';
+
+export interface FormFieldAccessibilityProps {
+  errorId: string;
+  'aria-invalid'?: true;
+  'aria-describedby'?: string;
+  'aria-required'?: true;
+}
 
 interface FormFieldProps {
   label: string;
   error?: string;
   required?: boolean;
-  children: ReactNode;
+  children: ReactNode | ((accessibility: FormFieldAccessibilityProps) => ReactNode);
   htmlFor?: string;
+  /** Permite compartir un id estable con controles compuestos que gestionan su propio ARIA. */
+  errorId?: string;
 }
 
-export const FormField = ({ label, error, required, children, htmlFor }: FormFieldProps) => {
-  const errorId = useId();
+const mergeIds = (...values: unknown[]) => {
+  const ids = values
+    .filter((value): value is string => typeof value === 'string')
+    .flatMap((value) => value.trim().split(/\s+/))
+    .filter(Boolean);
+  return ids.length > 0 ? [...new Set(ids)].join(' ') : undefined;
+};
 
-  // Vincula el error al control (aria-invalid + aria-describedby) sin tocar cada form.
-  const field =
-    error && isValidElement(children)
-      ? cloneElement(children as React.ReactElement<Record<string, unknown>>, {
-          'aria-invalid': true,
-          'aria-describedby': errorId,
-        })
-      : children;
+export const FormField = ({ label, error, required, children, htmlFor, errorId: providedErrorId }: FormFieldProps) => {
+  const generatedErrorId = useId();
+  const errorId = providedErrorId ?? generatedErrorId;
+  const accessibility: FormFieldAccessibilityProps = {
+    errorId,
+    ...(error ? { 'aria-invalid': true as const, 'aria-describedby': errorId } : {}),
+    ...(required ? { 'aria-required': true as const } : {}),
+  };
+
+  let field: ReactNode;
+  if (typeof children === 'function') {
+    field = children(accessibility);
+  } else if (isValidElement(children)) {
+    const element = children as ReactElement<Record<string, unknown>>;
+    const describedBy = mergeIds(element.props['aria-describedby'], error ? errorId : undefined);
+    field = cloneElement(element, {
+      ...(error ? { 'aria-invalid': true } : {}),
+      ...(describedBy ? { 'aria-describedby': describedBy } : {}),
+      ...(required ? { 'aria-required': true } : {}),
+    });
+  } else {
+    field = children;
+  }
 
   return (
-    <div className="space-y-1.5">
+    <div className="min-w-0 space-y-1.5">
       <label htmlFor={htmlFor} className="block text-[13px] font-bold text-text">
         {label}
-        {required && <span className="ml-1 text-danger">*</span>}
+        {required ? (
+          <span className="ml-1 text-danger" aria-hidden="true">
+            *
+          </span>
+        ) : null}
       </label>
       {field}
-      {error && (
+      {error ? (
         <p id={errorId} role="alert" className="text-[12.5px] text-danger-fg">
           {error}
         </p>
-      )}
+      ) : null}
     </div>
   );
 };

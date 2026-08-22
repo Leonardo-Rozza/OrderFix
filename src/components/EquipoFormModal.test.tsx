@@ -47,4 +47,24 @@ describe('EquipoFormModal', () => {
     renderUI(<EquipoFormModal isOpen onClose={vi.fn()} editing={null} clientes={clientes} defaultClienteId={1} />);
     await waitFor(() => expect(screen.getByLabelText(/cliente/i)).toHaveTextContent(/ana/i));
   });
+
+  it('bloquea el alta y permite reintentar si no cargan los clientes', async () => {
+    const user = userEvent.setup();
+    const onRetry = vi.fn();
+    renderUI(
+      <EquipoFormModal
+        isOpen
+        onClose={vi.fn()}
+        editing={null}
+        clientes={[]}
+        clientesError
+        onRetryClientes={onRetry}
+      />,
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/no pudimos cargar los clientes/i);
+    expect(screen.getByRole('button', { name: /no se cargaron clientes/i })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: /reintentar/i }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
 });

@@ -29,7 +29,7 @@ describe('UsuarioFormModal', () => {
 
     await user.type(screen.getByLabelText(/usuario/i), 'juan');
     await user.type(screen.getByLabelText(/email/i), 'juan@taller.com');
-    await user.type(screen.getByLabelText(/contraseña/i), 'secreto1');
+    await user.type(screen.getByLabelText(/contraseña/i, { selector: 'input' }), 'secreto1');
     await user.click(screen.getByRole('button', { name: /crear empleado/i }));
 
     await waitFor(() => expect(body).toBeDefined());
@@ -42,7 +42,7 @@ describe('UsuarioFormModal', () => {
     renderUI(<UsuarioFormModal isOpen onClose={vi.fn()} />);
     await user.type(screen.getByLabelText(/usuario/i), 'x');
     await user.type(screen.getByLabelText(/email/i), 'x@x.com');
-    await user.type(screen.getByLabelText(/contraseña/i), '123');
+    await user.type(screen.getByLabelText(/contraseña/i, { selector: 'input' }), '123');
     await user.click(screen.getByRole('button', { name: /crear empleado/i }));
     expect(await screen.findByText(/mínimo 6/i)).toBeInTheDocument();
   });

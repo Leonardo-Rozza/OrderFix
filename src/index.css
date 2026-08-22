@@ -136,14 +136,33 @@
    ============================================================ */
 * { box-sizing: border-box; }
 
+html {
+  min-height: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  min-height: 100dvh;
   font-family: var(--font-sans);
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   font-variant-numeric: tabular-nums;
 }
+
+#root { min-height: 100vh; min-height: 100dvh; }
+
+button,
+input,
+select,
+textarea { font: inherit; }
+
+button,
+[role="button"] { touch-action: manipulation; }
 
 ::selection { background: rgba(13, 148, 136, .22); }
 
@@ -161,4 +180,61 @@ body {
   border-radius: 99px;
   border: 3px solid transparent;
   background-clip: padding-box;
+}
+
+/* Viewport y safe areas para los paneles inferiores de formularios. */
+.ofx-modal-viewport {
+  height: 100vh;
+  height: 100dvh;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.ofx-modal-footer {
+  padding-bottom: calc(.75rem + env(safe-area-inset-bottom, 0px));
+}
+
+.ofx-modal-body-no-footer {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 640px) {
+  .ofx-modal-viewport { padding: 1rem; }
+  .ofx-modal-footer { padding-bottom: 1rem; }
+  .ofx-modal-body-no-footer { padding-bottom: 1.25rem; }
+}
+
+/* `sm:` describe ancho, no tipo de dispositivo. Un teléfono en landscape
+   supera 640px pero sigue necesitando texto editable de 16px y targets de 44px. */
+@media (max-width: 639px), (hover: none), (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+  select,
+  textarea {
+    min-height: 44px !important;
+    font-size: 16px !important;
+  }
+
+  /* WebKit conserva la altura intrínseca del select aun con min-height. */
+  select {
+    block-size: 44px !important;
+    height: 44px !important;
+  }
+
+  button,
+  summary,
+  [role="option"] {
+    min-height: 44px !important;
+  }
+
+  button { min-width: 44px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
 }

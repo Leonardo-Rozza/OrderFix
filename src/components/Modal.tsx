@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type HTMLAttributes, type ReactNode } from 'react';
 
 interface ModalProps {
   isOpen: boolean;
@@ -6,19 +6,48 @@ interface ModalProps {
   title: string;
   children: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  /** Contenido persistente fuera de la zona desplazable (normalmente FormActions). */
+  footer?: ReactNode;
+  /** Impide cerrar por Escape, backdrop o el botón de cierre durante una operación crítica. */
+  preventClose?: boolean;
+  bodyClassName?: string;
 }
 
 const sizeClasses: Record<NonNullable<ModalProps['size']>, string> = {
-  sm: 'max-w-md',
-  md: 'max-w-lg',
-  lg: 'max-w-2xl',
-  xl: 'max-w-4xl',
+  sm: 'sm:max-w-md',
+  md: 'sm:max-w-lg',
+  lg: 'sm:max-w-2xl',
+  xl: 'sm:max-w-4xl',
 };
 
 const FOCUSABLE =
-  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
 
-export const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalProps) => {
+const getFocusable = (container: HTMLElement) =>
+  Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((element) => {
+    const style = window.getComputedStyle(element);
+    return style.display !== 'none' && style.visibility !== 'hidden' && !element.closest('[hidden]');
+  });
+
+export const FormActions = ({ className = '', children, ...props }: HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={`flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end [&>*]:min-h-11 [&>*]:w-full sm:[&>*]:min-h-0 sm:[&>*]:w-auto ${className}`}
+    {...props}
+  >
+    {children}
+  </div>
+);
+
+export const Modal = ({
+  isOpen,
+  onClose,
+  title,
+  children,
+  size = 'md',
+  footer,
+  preventClose = false,
+  bodyClassName = '',
+}: ModalProps) => {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const lastFocused = useRef<HTMLElement | null>(null);
@@ -26,38 +55,50 @@ export const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalPr
   // Cerrar con Escape + atrapar el foco dentro del diálogo (Tab cíclico).
   useEffect(() => {
     if (!isOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      // Un control compuesto (por ejemplo Combobox) puede consumir Escape primero.
+      if (event.defaultPrevented) return;
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        if (!preventClose) onClose();
         return;
       }
-      if (e.key !== 'Tab' || !panelRef.current) return;
-      const focusables = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-        (el) => el.offsetParent !== null,
-      );
-      if (focusables.length === 0) return;
+
+      if (event.key !== 'Tab' || !panelRef.current) return;
+      const focusables = getFocusable(panelRef.current);
+      if (focusables.length === 0) {
+        event.preventDefault();
+        panelRef.current.focus();
+        return;
+      }
+
       const first = focusables[0];
       const last = focusables[focusables.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === panelRef.current)) {
+        event.preventDefault();
         last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
         first.focus();
       }
     };
+
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, preventClose]);
 
   // Bloquear el scroll del fondo mientras está abierto.
   useEffect(() => {
     if (!isOpen) return;
-    const prev = document.body.style.overflow;
+    const previousOverflow = document.body.style.overflow;
+    const previousOverscroll = document.body.style.overscrollBehavior;
     document.body.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'none';
     return () => {
-      document.body.style.overflow = prev;
+      document.body.style.overflow = previousOverflow;
+      document.body.style.overscrollBehavior = previousOverscroll;
     };
   }, [isOpen]);
 
@@ -65,48 +106,72 @@ export const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalPr
   useEffect(() => {
     if (!isOpen) return;
     lastFocused.current = document.activeElement as HTMLElement | null;
-    const t = setTimeout(() => {
+    const timeout = window.setTimeout(() => {
       const panel = panelRef.current;
       if (!panel) return;
-      const target = panel.querySelector<HTMLElement>(FOCUSABLE);
-      (target ?? panel).focus();
+      const body = panel.querySelector<HTMLElement>('[data-modal-body]');
+      const initialFocus = (body ? getFocusable(body)[0] : undefined) ?? getFocusable(panel)[0] ?? panel;
+      initialFocus.focus();
     }, 0);
+
     return () => {
-      clearTimeout(t);
+      window.clearTimeout(timeout);
       lastFocused.current?.focus?.();
     };
   }, [isOpen]);
 
   if (!isOpen) return null;
+  const hasFooter = footer !== undefined && footer !== null;
+
+  const requestClose = () => {
+    if (!preventClose) onClose();
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+    <div className="ofx-modal-viewport fixed inset-0 z-50 flex min-h-0 items-end justify-center overflow-hidden sm:items-center sm:p-4">
+      <div
+        className="absolute inset-0 bg-black/55 backdrop-blur-sm"
+        onClick={requestClose}
+        aria-hidden="true"
+      />
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className={`ofx-pop relative z-10 w-full ${sizeClasses[size]} overflow-hidden rounded-2xl border border-border bg-surface shadow-lg outline-none`}
+        className={`ofx-modal-panel relative z-10 flex max-h-full w-full min-w-0 flex-col overflow-visible rounded-t-2xl border border-border bg-surface shadow-lg outline-none sm:max-h-[calc(100dvh-2rem)] ${sizeClasses[size]} sm:rounded-2xl`}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h3 id={titleId} className="text-[17px] font-extrabold tracking-tight">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-6 sm:py-4">
+          <h3 id={titleId} className="min-w-0 flex-1 text-[17px] font-extrabold leading-snug tracking-tight">
             {title}
           </h3>
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
+            disabled={preventClose}
             aria-label="Cerrar"
-            className="grid h-8 w-8 place-items-center rounded-full text-text-3 transition hover:bg-surface-2 hover:text-text"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-text-3 transition hover:bg-surface-2 hover:text-text focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-8"
           >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-        <div className="ofx-scroll max-h-[80vh] overflow-y-auto px-6 py-5">{children}</div>
+
+        <div
+          data-modal-body
+          className={`ofx-scroll min-h-0 flex-1 overscroll-contain overflow-y-auto px-4 py-4 sm:px-6 sm:py-5 ${hasFooter ? '' : 'ofx-modal-body-no-footer'} ${bodyClassName}`}
+        >
+          {children}
+        </div>
+
+        {hasFooter ? (
+          <div className="ofx-modal-footer shrink-0 border-t border-border bg-surface px-4 pt-3 sm:px-6 sm:pb-4 sm:pt-4">
+            {footer}
+          </div>
+        ) : null}
       </div>
     </div>
   );

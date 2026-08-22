@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Modal } from './Modal';
+import { FormActions, Modal } from './Modal';
 import { FormField } from './FormField';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import {
@@ -12,10 +12,13 @@ import {
 import type { Cliente, ClienteCreate, ClienteUpdate } from '../types';
 
 const schema = z.object({
-  nombre: z.string().min(1, 'El nombre es requerido').max(60, 'Máximo 60 caracteres'),
-  apellido: z.string().min(1, 'El apellido es requerido').max(60, 'Máximo 60 caracteres'),
-  telefono: z.string().min(1, 'El teléfono es requerido').max(20, 'Máximo 20 caracteres'),
-  email: z.string().email('Email inválido').max(120).optional().or(z.literal('')),
+  nombre: z.string().trim().min(1, 'El nombre es requerido').max(60, 'Máximo 60 caracteres'),
+  apellido: z.string().trim().min(1, 'El apellido es requerido').max(60, 'Máximo 60 caracteres'),
+  telefono: z.string().trim().min(1, 'El teléfono es requerido').max(20, 'Máximo 20 caracteres'),
+  email: z.string().trim().max(120).refine(
+    (value) => value === '' || z.string().email().safeParse(value).success,
+    'Email inválido',
+  ).optional(),
   direccion: z.string().max(255, 'Máximo 255 caracteres').optional().or(z.literal('')),
 });
 
@@ -54,9 +57,9 @@ export const ClienteFormModal = ({ isOpen, onClose, editing }: Props) => {
 
   const onSubmit = async (data: FormData) => {
     const base: ClienteCreate = {
-      nombre: data.nombre,
-      apellido: data.apellido,
-      telefono: data.telefono,
+      nombre: data.nombre.trim(),
+      apellido: data.apellido.trim(),
+      telefono: data.telefono.trim(),
       email: str(data.email),
       direccion: str(data.direccion),
     };
@@ -71,8 +74,24 @@ export const ClienteFormModal = ({ isOpen, onClose, editing }: Props) => {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={editing ? 'Editar cliente' : 'Nuevo cliente'} size="md">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={editing ? 'Editar cliente' : 'Nuevo cliente'}
+      size="md"
+      preventClose={saving}
+      footer={(
+        <FormActions>
+          <button type="button" className={btnGhost} onClick={onClose} disabled={saving}>
+            Cancelar
+          </button>
+          <button type="submit" form="cliente-form" className={btnPrimary} disabled={saving}>
+            {saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear cliente'}
+          </button>
+        </FormActions>
+      )}
+    >
+      <form id="cliente-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField label="Nombre" required error={errors.nombre?.message} htmlFor="nombre">
             <input id="nombre" type="text" maxLength={60} {...register('nombre')} className={inputClass(!!errors.nombre)} />
@@ -94,14 +113,6 @@ export const ClienteFormModal = ({ isOpen, onClose, editing }: Props) => {
           <input id="direccion" type="text" maxLength={255} {...register('direccion')} className={inputClass(!!errors.direccion)} />
         </FormField>
 
-        <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-          <button type="button" className={btnGhost} onClick={onClose}>
-            Cancelar
-          </button>
-          <button type="submit" className={btnPrimary} disabled={saving}>
-            {saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear cliente'}
-          </button>
-        </div>
       </form>
     </Modal>
   );

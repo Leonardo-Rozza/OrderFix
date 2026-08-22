@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Modal } from './Modal';
+import { FormActions, Modal } from './Modal';
 import { MoneyInput } from './MoneyInput';
 import { FormField } from './FormField';
 import { inputClass, btnGhost, btnPrimary } from './ui';
@@ -12,7 +12,7 @@ import type { Articulo, ArticuloCreate, ArticuloUpdate } from '../types';
 const opt = z.union([z.number().min(0), z.nan(), z.literal('')]).optional();
 
 const schema = z.object({
-  nombre: z.string().min(1, 'El nombre es requerido'),
+  nombre: z.string().trim().min(1, 'El nombre es requerido'),
   sku: z.string().optional(),
   descripcion: z.string().optional(),
   precio: z.number({ message: 'El precio es requerido' }).min(0, 'Mínimo 0'),
@@ -61,7 +61,7 @@ export const ArticuloFormModal = ({ isOpen, onClose, editing }: Props) => {
 
   const onSubmit = async (data: FormData) => {
     const base: ArticuloCreate = {
-      nombre: data.nombre,
+      nombre: data.nombre.trim(),
       sku: str(data.sku),
       descripcion: str(data.descripcion),
       precio: data.precio,
@@ -80,8 +80,24 @@ export const ArticuloFormModal = ({ isOpen, onClose, editing }: Props) => {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={editing ? 'Editar artículo' : 'Nuevo artículo'} size="md">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={editing ? 'Editar artículo' : 'Nuevo artículo'}
+      size="md"
+      preventClose={saving}
+      footer={(
+        <FormActions>
+          <button type="button" className={btnGhost} onClick={onClose} disabled={saving}>
+            Cancelar
+          </button>
+          <button type="submit" form="articulo-form" className={btnPrimary} disabled={saving}>
+            {saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear artículo'}
+          </button>
+        </FormActions>
+      )}
+    >
+      <form id="articulo-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1.6fr_1fr]">
           <FormField label="Nombre" required error={errors.nombre?.message} htmlFor="nombre">
             <input id="nombre" type="text" {...register('nombre')} className={inputClass(!!errors.nombre)} placeholder="Ej: Pantalla iPhone 11" />
@@ -95,28 +111,53 @@ export const ArticuloFormModal = ({ isOpen, onClose, editing }: Props) => {
           <input id="descripcion" type="text" {...register('descripcion')} className={inputClass(!!errors.descripcion)} placeholder="Opcional" />
         </FormField>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField label="Precio venta" required error={errors.precio?.message} htmlFor="precio">
-            <Controller
-              control={control}
-              name="precio"
-              render={({ field }) => (
-                <MoneyInput id="precio" value={field.value} onChange={field.onChange} hasError={!!errors.precio} />
-              )}
-            />
+            {(accessibility) => (
+              <Controller
+                control={control}
+                name="precio"
+                render={({ field }) => (
+                  <MoneyInput
+                    ref={field.ref}
+                    id="precio"
+                    name={field.name}
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    hasError={!!errors.precio}
+                    aria-invalid={accessibility['aria-invalid']}
+                    aria-describedby={accessibility['aria-describedby']}
+                    aria-required={accessibility['aria-required']}
+                  />
+                )}
+              />
+            )}
           </FormField>
           <FormField label="Costo" error={errors.costo?.message} htmlFor="costo">
-            <Controller
-              control={control}
-              name="costo"
-              render={({ field }) => (
-                <MoneyInput id="costo" value={field.value} onChange={field.onChange} hasError={!!errors.costo} />
-              )}
-            />
+            {(accessibility) => (
+              <Controller
+                control={control}
+                name="costo"
+                render={({ field }) => (
+                  <MoneyInput
+                    ref={field.ref}
+                    id="costo"
+                    name={field.name}
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    hasError={!!errors.costo}
+                    aria-invalid={accessibility['aria-invalid']}
+                    aria-describedby={accessibility['aria-describedby']}
+                  />
+                )}
+              />
+            )}
           </FormField>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {!editing && (
             <FormField label="Stock inicial" error={errors.stock?.message} htmlFor="stock">
               <input id="stock" type="number" step="1" min="0" {...register('stock', { valueAsNumber: true })} className={inputClass(!!errors.stock)} placeholder="0" />
@@ -130,14 +171,6 @@ export const ArticuloFormModal = ({ isOpen, onClose, editing }: Props) => {
           <p className="text-[12px] text-text-3">El stock se mueve con ajustes (+/−), no desde acá.</p>
         )}
 
-        <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-          <button type="button" className={btnGhost} onClick={onClose}>
-            Cancelar
-          </button>
-          <button type="submit" className={btnPrimary} disabled={saving}>
-            {saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear artículo'}
-          </button>
-        </div>
       </form>
     </Modal>
   );

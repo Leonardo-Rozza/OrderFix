@@ -32,6 +32,57 @@ export const publicClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// Cliente aislado para comprobar la vigencia de una sesión después de un 403.
+// No usa el interceptor de respuesta de apiClient, por lo que no recursa.
+const sessionValidationClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+type SessionValidationResult = 'valida' | 'invalida' | 'indeterminada';
+
+let pendingSessionValidation: {
+  token: string;
+  promise: Promise<SessionValidationResult>;
+} | null = null;
+
+const isBaseSessionRequest = (url?: string) => {
+  if (!url) return false;
+  try {
+    const pathname = new URL(url, `${API_BASE_URL}/`).pathname.replace(/\/+$/, '');
+    return pathname.endsWith('/suscripcion');
+  } catch {
+    return url.replace(/\?.*$/, '').replace(/\/+$/, '').endsWith('/suscripcion');
+  }
+};
+
+const redirectToLogin = () => {
+  if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+    window.location.href = '/login';
+  }
+};
+
+const validateBaseSession = (token: string | null): Promise<SessionValidationResult> => {
+  if (!token) return Promise.resolve('invalida');
+  if (pendingSessionValidation?.token === token) return pendingSessionValidation.promise;
+
+  const promise = sessionValidationClient
+    .get('/suscripcion', { headers: { Authorization: `Bearer ${token}` } })
+    .then<SessionValidationResult>(() => 'valida')
+    .catch((validationError: unknown): SessionValidationResult => {
+      const validationStatus = axios.isAxiosError(validationError)
+        ? validationError.response?.status
+        : undefined;
+      return validationStatus === 401 || validationStatus === 403 ? 'invalida' : 'indeterminada';
+    });
+
+  pendingSessionValidation = { token, promise };
+  void promise.finally(() => {
+    if (pendingSessionValidation?.promise === promise) pendingSessionValidation = null;
+  });
+  return promise;
+};
+
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = authStore.getState().token;
@@ -45,31 +96,39 @@ apiClient.interceptors.request.use(
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
+  async (error: AxiosError) => {
     const status = error.response?.status;
 
     if (status === 401) {
       // Token inválido o vencido → cerrar sesión
       authStore.getState().logout();
-      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
-        window.location.href = '/login';
-      }
+      redirectToLogin();
     } else if (status === 402) {
       // Límite del plan / suscripción no vigente → modal de upgrade
       const message = getErrorMessage(error, 'Alcanzaste el límite de tu plan.');
       window.dispatchEvent(new CustomEvent(LIMITE_PLAN_EVENT, { detail: { message } }));
     } else if (status === 403) {
-      // Un usuario desactivado pierde acceso al instante: hasta sus GETs (que
-      // cualquier rol puede hacer) devuelven 403 → tratarlo como sesión inválida.
-      // Un 403 en una mutación es una acción solo-ADMIN: avisar sin desloguear.
-      const method = error.config?.method?.toLowerCase();
-      if (method === 'get') {
+      if (isBaseSessionRequest(error.config?.url)) {
+        // /suscripcion es la validación base: su 403 significa sesión revocada.
         authStore.getState().logout();
-        if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
-          window.location.href = '/login';
-        }
+        redirectToLogin();
       } else {
-        showError(getErrorMessage(error, 'No tenés permisos para esta acción.'));
+        // En cualquier otro endpoint un 403 puede ser falta de rol o una cuenta
+        // desactivada. La consulta base deduplicada permite distinguirlos.
+        const token = authStore.getState().token;
+        const validation = await validateBaseSession(token);
+
+        // Si la identidad cambió mientras validábamos, no afectamos la nueva sesión.
+        if (authStore.getState().token === token) {
+          if (validation === 'valida') {
+            showError(getErrorMessage(error, 'No tenés permisos para esta acción.'));
+          } else if (validation === 'invalida') {
+            authStore.getState().logout();
+            redirectToLogin();
+          } else {
+            showError('No pudimos verificar tu sesión. Revisá tu conexión e intentá de nuevo.');
+          }
+        }
       }
     } else {
       // Errores de lectura: avisar por toast (las mutaciones manejan su propio onError)
@@ -81,7 +140,7 @@ apiClient.interceptors.response.use(
       captureError(error);
     }
 
-    return Promise.reject(error);
+    throw error;
   }
 );
 

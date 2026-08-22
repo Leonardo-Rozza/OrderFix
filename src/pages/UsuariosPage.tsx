@@ -32,7 +32,7 @@ export const UsuariosPage = () => {
   return (
     <DashboardLayout title="Empleados">
       <div className="ofx-in mx-auto max-w-[900px] space-y-4">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[13.5px] text-text-2">Gestioná los usuarios de tu taller y sus permisos.</p>
           {empleadosMultiples ? (
             <button type="button" className={btnPrimary} onClick={() => setFormOpen(true)}>
@@ -52,7 +52,7 @@ export const UsuariosPage = () => {
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
-          <div className="flex items-center gap-3 border-b border-border px-4 py-3 text-[11.5px] font-extrabold uppercase tracking-wide text-text-3">
+          <div className="hidden items-center gap-3 border-b border-border px-4 py-3 text-[11.5px] font-extrabold uppercase tracking-wide text-text-3 sm:flex">
             <div className="min-w-0 flex-[1.6]">Usuario</div>
             <div className="w-[150px]">Rol</div>
             <div className="w-[110px] text-right">Estado</div>
@@ -73,8 +73,8 @@ export const UsuariosPage = () => {
             usuarios.map((u) => {
               const esYo = u.email === email;
               return (
-                <div key={u.id} className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-0">
-                  <div className="flex min-w-0 flex-[1.6] items-center gap-3">
+                <div key={u.id} className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3 last:border-0 sm:flex-nowrap">
+                  <div className="flex min-w-0 basis-full items-center gap-3 sm:flex-[1.6] sm:basis-auto">
                     <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary-soft text-[13px] font-extrabold text-primary-soft-fg">
                       {iniciales(u.username)}
                     </div>
@@ -87,24 +87,24 @@ export const UsuariosPage = () => {
                     </div>
                   </div>
 
-                  <div className="w-[150px]">
+                  <div className="min-w-0 flex-1 sm:w-[150px] sm:flex-none">
                     <select
                       value={u.role}
                       disabled={esYo || updateUsuario.isPending}
                       onChange={(e) => updateUsuario.mutate({ id: u.id, role: e.target.value as Rol })}
-                      className="w-full rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-[13px] text-text outline-none transition focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)] disabled:opacity-60"
+                      className="min-h-11 w-full rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-base text-text outline-none transition focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)] disabled:opacity-60 sm:min-h-0 sm:text-[13px]"
                     >
                       <option value="USER">Empleado</option>
                       <option value="ADMIN">Admin</option>
                     </select>
                   </div>
 
-                  <div className="flex w-[110px] justify-end">
+                  <div className="flex justify-end sm:w-[110px]">
                     <button
                       type="button"
                       disabled={esYo || updateUsuario.isPending}
                       onClick={() => updateUsuario.mutate({ id: u.id, active: !u.active })}
-                      className={`rounded-full px-3 py-1 text-[12px] font-bold transition disabled:opacity-60 ${
+                      className={`min-h-11 rounded-full px-4 py-2 text-[12px] font-bold transition focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:opacity-60 sm:min-h-0 sm:px-3 sm:py-1 ${
                         u.active
                           ? 'bg-st-completado-bg text-st-completado'
                           : 'bg-danger-soft text-danger-fg'

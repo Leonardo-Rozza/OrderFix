@@ -21,8 +21,8 @@ export const RouteError = () => {
       : 'Error inesperado';
 
   return (
-    <div className="grid min-h-screen place-items-center bg-bg px-6 text-text">
-      <div className="ofx-in w-full max-w-[440px] rounded-2xl border border-border bg-surface p-8 text-center shadow-sm">
+    <div className="grid min-h-dvh min-w-0 place-items-center bg-bg px-4 py-6 text-text sm:px-6">
+      <div className="ofx-in w-full min-w-0 max-w-[440px] rounded-2xl border border-border bg-surface p-5 text-center shadow-sm sm:p-8">
         <div className="mb-5 flex justify-center">
           <Logo size={40} withText={false} />
         </div>
@@ -30,7 +30,7 @@ export const RouteError = () => {
         <p className="mt-2 text-[14px] text-text-2">
           Tuvimos un problema al mostrar esta pantalla. Podés reintentar o volver al inicio.
         </p>
-        <pre className="ofx-scroll mt-4 max-h-28 overflow-auto rounded-lg bg-surface-2 p-3 text-left font-mono text-[12px] text-text-3">
+        <pre className="ofx-scroll mt-4 max-h-28 min-w-0 max-w-full overflow-auto whitespace-pre-wrap break-words rounded-lg bg-surface-2 p-3 text-left font-mono text-[12px] text-text-3">
           {detalle}
         </pre>
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">

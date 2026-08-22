@@ -32,12 +32,18 @@ Si venís de una versión anterior del contrato, esto es lo que cambió / se agr
    servir → `403`); manejalo igual que un 401 (logout).
 9. **Exportar datos**: `GET /api/export/excel` (solo ADMIN, todos los planes) descarga un `.xlsx`
    con clientes, órdenes, cobros y presupuestos del taller (§4.14).
-10. **Cuentas por email** (§4.1): login/register devuelven **`emailVerificado`** (banner
-    "Confirmá tu email" si es `false` — puede operar igual). Olvidé mi contraseña
-    (`/password/olvide` + `/password/reset`) y verificación de email (`/verificar-email`
-    + `/reenviar`). Rutas del front: `/olvide-password`, `/reset-password?token=...` y
-    `/verificar-email?token=...` (la verificación se confirma con un click, no al montar:
-    el token es de un solo uso y los escáneres de email pre-abren los links).
+10. **Cuentas por email** (§4.1): login/register ahora devuelven **`emailVerificado`** (mostrar
+    banner "Confirmá tu email" si es `false` — puede operar igual). Nuevas pantallas:
+    **olvidé mi contraseña** (`/password/olvide` + `/password/reset`) y **verificación de email**
+    (`/verificar-email` + `/verificar-email/reenviar`). El front necesita las rutas
+    `/reset-password?token=...` y `/verificar-email?token=...` (ahí llegan los links del email).
+11. **Credenciales del dispositivo protegidas** (§4.5): PIN/patrón se aceptan en altas y ediciones,
+    pero el backend solo los devuelve en el **detalle autenticado**. Nunca aparecen en altas, PUT,
+    PATCH, listados, dashboard, ingreso rápido ni seguimiento público. Se borran al entregar.
+12. **TRIAL con experiencia PRO** (§4.2 y §6): mientras `estado: "TRIAL"`, el taller tiene
+    reparaciones ilimitadas y todas las capacidades habilitadas aunque `plan` todavía sea `FREE`.
+13. **Checkout MP endurecido** (§4.7): abono mensual de **ARS 24.900**, respuesta validada contra
+    `collector_id`/`application_id`, kill switch para nuevos checkouts y reintentos idempotentes.
 
 Los tipos TS de §7 ya reflejan todo esto.
 
@@ -80,21 +86,33 @@ CORS habilitado para:
 
 ## 3. Autenticación (JWT)
 
-- Endpoints públicos: todo bajo `/api/auth/**`. **El resto requiere token.**
+- Endpoints públicos: `/api/auth/**`, `/api/seguimiento/**`, `/api/pagos/webhook` y
+  `/actuator/health`. **El resto requiere token.** El webhook es exclusivo de Mercado Pago;
+  el frontend nunca debe invocarlo.
 - Header en cada request autenticada:
   `Authorization: Bearer <token>`
 - El token es un JWT que contiene `sub` (email), `role`, `tallerId` y `exp`.
+  El claim `role` llega con formato Spring Security: `ROLE_ADMIN` o `ROLE_USER`. Si el front usa
+  `ADMIN`/`USER` en sus guards, debe normalizar el prefijo de forma explícita.
   Se puede decodificar en el front para mostrar email/rol, **pero la seguridad la
   valida siempre el backend** (no confíes en el token para habilitar acciones críticas).
-- Duración del token: definida por el backend (por defecto 24 h). Cuando vence → 401.
+- Duración del token: la define cada entorno mediante `JWT_EXPIRATION`. El front debe guiarse por
+  el claim `exp`, no asumir una duración fija. Un token ausente, inválido, revocado o perteneciente
+  a un usuario desactivado puede terminar en `403`; ver el manejo de sesión debajo.
 - **Roles**: `ADMIN` (dueño) y `USER` (empleado). Hoy el registro crea siempre ADMIN.
   Operaciones **solo ADMIN** (un USER recibe `403`): iniciar suscripción PRO (`POST /api/pagos/suscripcion`)
   y los **borrados** (DELETE de clientes/equipos/reparaciones/repuestos). El resto del CRUD lo puede hacer cualquier usuario autenticado.
 
 ### Flujo
-1. **Registro** (`POST /api/auth/register`) o **Login** (`POST /api/auth/login`) → devuelven `{ token, type, email }`.
+1. **Registro** (`POST /api/auth/register`) o **Login** (`POST /api/auth/login`) → devuelven
+   `{ token, type, email, emailVerificado }`.
 2. Guardar el token (localStorage) y mandarlo en el header en todas las llamadas.
 3. Ante un **401**, borrar el token y redirigir a `/login`.
+4. Un **403** puede significar tanto sesión inválida/revocada como falta de rol. No lo conviertas
+   ciegamente en logout ni en "sin permisos": al iniciar la app validá la sesión con
+   `GET /api/suscripcion`; un `403` en esa ruta base implica logout. En una acción conocida como
+   solo-ADMIN, mostrale "sin permisos" al USER. Si aparece un `403` inesperado durante la sesión,
+   repetí esa validación base antes de decidir.
 
 ---
 
@@ -117,9 +135,10 @@ Request:
 ```
 Respuesta `201`:
 ```json
-{ "token": "eyJ...", "type": "Bearer", "email": "juan@celexpress.com" }
+{ "token": "eyJ...", "type": "Bearer", "email": "juan@celexpress.com", "emailVerificado": false }
 ```
 Errores: `400` (email ya registrado o validación).
+> Además manda el email de bienvenida con el link de verificación (ver más abajo).
 
 #### `POST /api/auth/login`
 Request:
@@ -128,9 +147,34 @@ Request:
 ```
 Respuesta `200`:
 ```json
-{ "token": "eyJ...", "type": "Bearer", "email": "juan@celexpress.com" }
+{ "token": "eyJ...", "type": "Bearer", "email": "juan@celexpress.com", "emailVerificado": true }
 ```
 Errores: `401` (email o contraseña incorrectos).
+
+> **`emailVerificado`** también viene en el register (siempre `false` ahí). Si es `false`,
+> mostrá un banner "Confirmá tu email (revisá tu casilla)" con botón de reenviar — el usuario
+> **puede operar igual** (verificación suave).
+
+#### Olvidé mi contraseña — `POST /api/auth/password/olvide` / `POST /api/auth/password/reset`
+
+1. `POST /api/auth/password/olvide` con `{ "email": "..." }` → **siempre `200`** (no revela si
+   el email existe). Si existe, le llega un email con un link a `{front}/reset-password?token=...`
+   (el token vence en **1 hora**).
+2. En esa pantalla del front, pedís la contraseña nueva y mandás
+   `POST /api/auth/password/reset` con `{ "token": "...", "nuevaPassword": "..." }` → `200`.
+   El token es de **un solo uso**; inválido/vencido/usado → `400` ("El link no es válido o ya venció").
+3. Pedir un link nuevo invalida el anterior.
+
+#### Verificación de email — `POST /api/auth/verificar-email` (+ `/reenviar`)
+
+- Al registrarse, llega un email de bienvenida con link a `{front}/verificar-email?token=...` (vence en 48 h).
+- En esa pantalla el front manda `POST /api/auth/verificar-email` con `{ "token": "..." }` → `200`
+  (inválido/vencido → `400`).
+- `POST /api/auth/verificar-email/reenviar` con `{ "email": "..." }` → siempre `200` (reenvía solo
+  si la cuenta existe y no está verificada).
+
+> **Rutas nuevas que el front debe tener**: `/reset-password` y `/verificar-email` (leen `?token=`
+> de la URL). El link "¿Olvidaste tu contraseña?" va en la pantalla de login.
 
 ---
 
@@ -146,20 +190,23 @@ Plan y consumo del taller actual. Úsalo para la pantalla de Planes y el banner 
   "fechaFinTrial": "2026-06-30",   // null si no aplica
   "proximoCobro": null,            // fecha del próximo cobro PRO (la setea el webhook de MercadoPago)
   "reparacionesEsteMes": 12,
-  "limiteReparacionesMes": 25,     // null = ilimitado (PRO)
+  "limiteReparacionesMes": null,   // null = ilimitado (TRIAL o PRO/ACTIVA)
   "funciones": {                   // capacidades del plan: el front habilita/oculta según esto
-    "inventario": false,
-    "cobros": false,               // cobros + caja + recibo
-    "empleadosMultiples": false    // agregar más de 1 usuario
+    "inventario": true,
+    "cobros": true,                // cobros + caja + recibo
+    "empleadosMultiples": true     // agregar más de 1 usuario
   }
 }
 ```
 
-**Funciones PRO:** `inventario`, `cobros` (cobros/caja/recibo) y `empleadosMultiples` son **exclusivas de PRO**.
-El front debe leer `funciones` y **deshabilitar/ocultar** esas secciones cuando estén en `false`. Si igual se
-llama a un endpoint PRO con plan FREE, el backend responde **`402`** con un `message` accionable (modal "Pasá a PRO").
-El plan FREE mantiene clientes, equipos, reparaciones (con tope mensual), repuestos, presupuestos, **dashboard**
-y seguimiento público.
+**Entitlements:** durante `estado: "TRIAL"`, el taller recibe la experiencia PRO completa aunque el campo
+`plan` sea `"FREE"`: funciones habilitadas y reparaciones ilimitadas. En `estado: "ACTIVA"`, las funciones
+`inventario`, `cobros` (cobros/caja/recibo) y `empleadosMultiples` quedan habilitadas solo para `plan: "PRO"`.
+El front debe usar siempre `funciones` y `limiteReparacionesMes` como fuente de verdad, **no inferir permisos
+solo desde `plan`**. Debe deshabilitar/ocultar las secciones cuyo flag esté en `false`. Si igual se llama a un
+endpoint sin entitlement, el backend responde **`402`** con un `message` accionable (modal "Pasá a PRO").
+El plan `FREE/ACTIVA` mantiene clientes, equipos, reparaciones (con tope mensual), repuestos,
+presupuestos, **dashboard** y seguimiento público.
 
 ---
 
@@ -212,7 +259,9 @@ ClienteRequest:
 ClienteResponse: `{ id, nombre, apellido, telefono, email, direccion, equiposCount, reparacionesCount, ultimaVisita }`
 - `equiposCount` / `reparacionesCount`: agregados del cliente. `ultimaVisita`: fecha-hora de su última reparación (`null` si no tiene).
 
-Errores: `400` si el teléfono ya existe en el taller (al crear); `409` si choca la unicidad al actualizar.
+Errores: `400` si el teléfono ya existe en el taller (al crear); `409` si choca la unicidad al actualizar
+o si se intenta borrar un cliente que todavía tiene equipos. Ante el `409`, conservá la fila y mostrale
+al usuario el `message` del backend.
 
 ---
 
@@ -240,7 +289,8 @@ EquipoRequest:
 ```
 EquipoResponse: `{ id, marca, modelo, imei, color, descripcion, clienteId, clienteNombre, clienteApellido, clienteTelefono, reparacionesCount }`
 
-Errores: `404` si el `clienteId` no pertenece a tu taller.
+Errores: `404` si el `clienteId` no pertenece a tu taller; `409` si se intenta borrar un equipo que
+todavía tiene reparaciones. No elimines optimistamente la fila antes de recibir el `204`.
 
 ---
 
@@ -252,7 +302,7 @@ Errores: `404` si el `clienteId` no pertenece a tu taller.
 | POST   | `/api/reparaciones/{id}/garantia` | `{ "descripcionProblema": "..." }` | `201` ReparacionResponse (reclamo en garantía) |
 | PUT    | `/api/reparaciones/{id}` | ReparacionRequest | `200` ReparacionResponse |
 | PATCH  | `/api/reparaciones/{id}/estado` | `{ "estado": "EN_PROCESO" }` | `200` ReparacionResponse · `409` si la transición no es legal |
-| GET    | `/api/reparaciones/{id}` | — | `200` ReparacionResponse |
+| GET    | `/api/reparaciones/{id}` | — | `200` ReparacionDetalleResponse |
 | GET    | `/api/reparaciones?q=&estado=&page=&size=` | — | `200` Page de ReparacionResponse |
 | GET    | `/api/reparaciones/equipo/{equipoId}` | — | `200` ReparacionResponse[] |
 | GET    | `/api/reparaciones/estado?estado=EN_PROCESO` | — | `200` ReparacionResponse[] |
@@ -299,9 +349,18 @@ ReparacionRequest:
 > reinicio anual, ej. `ORD-2026-0042`) y es inmutable. El ingreso rápido también lo asigna; los
 > flags de riesgo se pueden completar después editando la reparación.
 
-ReparacionResponse: `{ ...campos de arriba..., numeroOrden, equipoMarca, equipoModelo, clienteId, clienteNombre, clienteApellido, clienteTelefono, codigoSeguimiento, tecnicoId, tecnicoNombre, fotos (FotoDTO[]), fechaConformidadEntrega, totalRepuestos, total, cobrado, saldo, estadoPago, mojado, trabajoEnPlaca, noTesteableAlIngreso, tieneBloqueoPantalla, tieneCuentaVinculada, clienteConoceCredenciales, riesgoCuentaSinCredenciales, garantiaDias, garantiaInicio, garantiaFin, garantiaCondiciones, garantiaVigente, esGarantia, reparacionOrigenId }`
+> **PIN/patrón al escribir:** el alta acepta ambos campos pero su `201` no los devuelve. En un `PUT`,
+> omitir el campo conserva el valor ya guardado; enviar string vacío (`""`, también si contiene solo
+> espacios) lo borra. Nunca uses la respuesta de un alta/PUT/PATCH para reemplazar en el formulario el
+> secreto que el usuario acaba de escribir. Al pasar a `ENTREGADO`, el backend borra ambos valores.
+
+ReparacionResponse: `{ ...campos no sensibles de ReparacionRequest, numeroOrden, equipoMarca, equipoModelo, clienteId, clienteNombre, clienteApellido, clienteTelefono, codigoSeguimiento, tecnicoId, tecnicoNombre, fotos (FotoDTO[]), fechaConformidadEntrega, totalRepuestos, total, cobrado, saldo, estadoPago, mojado, trabajoEnPlaca, noTesteableAlIngreso, tieneBloqueoPantalla, tieneCuentaVinculada, clienteConoceCredenciales, riesgoCuentaSinCredenciales, garantiaDias, garantiaInicio, garantiaFin, garantiaCondiciones, garantiaVigente, esGarantia, reparacionOrigenId }`. Los campos sensibles excluidos son `patronDesbloqueo` y `pinDesbloqueo`.
 - **Denormalizado**: cada reparación trae el `equipoMarca/Modelo` y los datos del cliente, así el listado/tablero es autocontenido (no hace falta cruzar con otros endpoints).
-> **Privacidad:** `patronDesbloqueo`, `pinDesbloqueo` y `observaciones` se ven en la app (con token) pero **nunca** en el seguimiento público (§4.9).
+> **Contrato de credenciales:** `ReparacionResponse` **no contiene** `patronDesbloqueo` ni
+> `pinDesbloqueo`. Es la respuesta segura usada por POST, PUT, PATCH, reclamos en garantía, listados,
+> dashboard e ingreso rápido. Solo `GET /api/reparaciones/{id}` autenticado devuelve
+> `ReparacionDetalleResponse`, que agrega esos dos campos (pueden ser `null`) y respeta el tenant.
+> El seguimiento público nunca los expone. Después de `ENTREGADO`, el detalle devuelve ambos en `null`.
 - `codigoSeguimiento`: código público para compartir con el cliente (ver §4.9).
 - `totalRepuestos`: suma de los repuestos. `total`: mano de obra (`precioFinal ?? precioEstimado ?? 0`) + repuestos.
 - **Estado de pago** (dimensión independiente del estado de reparación): `cobrado` (suma de cobros; **0 en planes FREE**, que no usan cobros), `saldo` = `max(0, total - cobrado)`, y `estadoPago` derivado: `SIN_COBRAR | PARCIAL | PAGADO`.
@@ -325,7 +384,9 @@ El front abre `url` (wa.me con mensaje prearmado que incluye el link de seguimie
 - Estado inexistente (no está en el enum) → `400`.
 - **Transición no permitida** (el salto desde el estado actual no es legal) → **`409`**. Repetir el estado actual (X → X) es un no-op válido (`200`).
 
-Errores: `404` si el equipo/reparación no es de tu taller; **`402` si alcanzaste el límite del plan** (ver §6).
+Errores: `404` si el equipo/reparación no es de tu taller; **`402` si alcanzaste el límite del plan**
+(ver §6); `400` si se intenta borrar una reparación con cobros registrados. En ese caso el historial
+de caja se preserva y el front debe mostrar el `message` sin quitar la reparación de la vista.
 
 Estados posibles (enum `EstadoReparacion`):
 `INGRESADO`, `EN_DIAGNOSTICO`, `PRESUPUESTADO`, `EN_PROCESO`, `ESPERANDO_REPUESTO`,
@@ -414,6 +475,9 @@ RepuestoResponse: `{ id, nombre, descripcion, precio, reparacionId, reparacionEq
 
 Suscripción PRO con **cobro mensual recurrente** vía MercadoPago (preapproval).
 
+El precio contractual es **ARS 24.900 por mes** (`24900.00`). El monto y la moneda los fija el backend:
+el frontend no los envía ni debe calcularlos.
+
 #### `POST /api/pagos/suscripcion`
 Inicia el checkout. No lleva body (el taller sale del token). Devuelve la URL de MercadoPago.
 ```json
@@ -424,8 +488,21 @@ Inicia el checkout. No lleva body (el taller sale del token). Devuelve la URL de
 ```
 El front **redirige** al usuario a `initPoint` (`window.location.href = data.initPoint`).
 Al terminar, MercadoPago lo devuelve a `MP_BACK_URL` (por defecto `/suscripcion/resultado` del front).
+Cuando MP está habilitado, esa URL debe ser **HTTPS**. Para probar el retorno desde un frontend local
+se necesita una URL HTTPS pública/túnel; `http://localhost:5173/...` sirve únicamente con MP apagado.
 
-- `502` (`"Error con el proveedor de pagos"`) si MercadoPago falla o la integración no está habilitada en el backend.
+- El backend valida la preferencia recibida contra su monto/moneda, `external_reference`,
+  `collector_id: MP_COLLECTOR_ID` y `application_id: MP_APPLICATION_ID`, además de exigir un
+  `initPoint` HTTPS de MercadoPago. Si algo no coincide, no entrega el checkout al front.
+- `MP_CHECKOUT_ENABLED=false` es un **kill switch solo para crear nuevos checkouts**: el POST devuelve
+  `502` ("Los nuevos checkouts están temporalmente deshabilitados"), pero siguen funcionando webhooks,
+  cancelación y reconciliación. `MP_ENABLED=false` desactiva las llamadas de la integración completa.
+- El POST es **idempotente del lado backend**: persiste una `external_reference` y una
+  `X-Idempotency-Key` estables antes de llamar a MP. Ante timeout/`502`, el front puede reintentar el
+  mismo POST; no debe generar ni mandar una clave propia. El backend reutiliza el intento recuperable
+  y, si ya existe un checkout pendiente con URL, devuelve el mismo `preapprovalId`/`initPoint`.
+- Si otro request ya lo está creando o ya existe una suscripción activa/pausada, devuelve `409`; mostrá
+  el `message` y re-consultá la suscripción en vez de abrir dos checkouts.
 - Tras el pago, el plan **no cambia al instante**: se confirma por webhook (server-to-server). El front debe **re-consultar `GET /api/suscripcion`** al volver (y/o reintentar unos segundos) para ver `plan: "PRO"` / `estado: "ACTIVA"`.
 
 #### `POST /api/pagos/suscripcion/cancelar` — solo ADMIN
@@ -433,8 +510,26 @@ Cancela la suscripción PRO (cancela el preapproval en MercadoPago si existe) y 
 (el taller sigue operando con el tope gratuito). Devuelve la suscripción actualizada (`200`).
 
 #### `POST /api/pagos/webhook` — PÚBLICO (uso interno de MercadoPago)
-Lo llama MercadoPago, **no el frontend**. Actualiza el plan/estado de la suscripción automáticamente
-(`authorized` → PRO/ACTIVA, `paused` → VENCIDA, `cancelled` → vuelve a FREE/ACTIVA).
+Lo llama MercadoPago, **no el frontend**. Los eventos se guardan y procesan de forma durable e idempotente;
+los reintentos y la reconciliación no duplican efectos, y un evento histórico fuera de orden no puede
+revertir un estado de pago más nuevo. El frontend solo consulta `GET /api/suscripcion`.
+
+Estados relevantes del preapproval:
+
+- `pending`: no activa PRO por sí solo. Si ese vínculo ya había concedido PRO, pasa a
+  `PRO/VENCIDA` hasta recibir una confirmación autorizada; un TRIAL/FREE no se convierte en PRO.
+- `authorized`: `PRO/ACTIVA`, salvo que el pago autorizado más reciente esté en un estado bloqueante.
+- `paused`: conserva `plan: "PRO"`, pasa a `estado: "VENCIDA"` y pierde los entitlements.
+- `canceled`/`cancelled`: vuelve a `FREE/ACTIVA`.
+- Desconocido: nunca concede acceso por defecto y cierra un entitlement PRO previamente concedido
+  dejándolo en `PRO/VENCIDA`.
+
+Estados relevantes de cada cobro autorizado:
+
+- `approved`: activa `PRO/ACTIVA` únicamente si el preapproval vigente está `authorized`; con
+  `pending`, `paused`, cancelado o desconocido se audita sin abrir acceso.
+- `rejected`, `cancelled`/`canceled`, `refunded` o `charged_back`: deja `PRO/VENCIDA` y cierra
+  los entitlements; un `approved` posterior para la misma factura puede reactivar la suscripción.
 
 ---
 
@@ -604,9 +699,19 @@ El dueño del taller se descarga **todos sus datos** en un Excel (disponible en 
 
 - Devuelve un `.xlsx` con 4 hojas: **Clientes**, **Órdenes** (estado, técnico, total/cobrado/saldo, estado de pago, garantía), **Cobros** y **Presupuestos**.
 - Responde con `Content-Disposition: attachment; filename="ordenfix-export-YYYY-MM-DD.xlsx"`.
-- En el front: `apiClient.get('/export/excel', { responseType: 'blob' })` + descarga con un `<a download>`.
-  Implementado en `src/api/mutations/export.mutations.ts`; botón "Exportar a Excel" en la pantalla de Planes (solo ADMIN).
-- Empleado con rol USER → `403`.
+- En el front: pedirlo con `responseType: 'blob'` (Axios) y disparar la descarga:
+
+```ts
+const { data } = await api.get('/api/export/excel', { responseType: 'blob' });
+const url = URL.createObjectURL(data);
+const a = document.createElement('a');
+a.href = url;
+a.download = `ordenfix-export-${new Date().toISOString().slice(0, 10)}.xlsx`;
+a.click();
+URL.revokeObjectURL(url);
+```
+
+- Empleado con rol USER → `403`. Botón sugerido: "Exportar mis datos" en Configuración.
 
 ---
 
@@ -617,7 +722,7 @@ El dueño del taller se descarga **todos sus datos** en un Excel (disponible en 
   "timestamp": "2026-06-16T22:02:21.43",
   "status": 402,
   "error": "Límite del plan alcanzado",
-  "message": "Alcanzaste el límite de 50 reparaciones por mes del plan FREE...",
+  "message": "Alcanzaste el límite de 25 reparaciones por mes del plan FREE...",
   "path": "/api/reparaciones"
 }
 ```
@@ -625,34 +730,41 @@ El dueño del taller se descarga **todos sus datos** en un Excel (disponible en 
 | Código | Significado | Qué hace el front |
 |--------|-------------|-------------------|
 | 400 | Validación / dato inválido (incl. teléfono duplicado al crear cliente) | Mostrar `message` en el form/toast |
-| 401 | No autenticado, login inválido o token vencido | Logout + redirigir a `/login` |
+| 401 | Login rechazado o respuesta explícita de no autenticado | Logout + redirigir a `/login` |
 | 402 | **Límite del plan / suscripción no vigente** | Modal "Pasá a PRO" con el `message` |
-| 403 | Falta token o sin permiso | Logout o "sin permisos" |
+| 403 | Token ausente/inválido/revocado, usuario desactivado o rol insuficiente | Validar sesión base; logout si falla, o "sin permisos" si la sesión sigue válida |
 | 404 | No encontrado (o recurso de otro taller) | "No existe" |
-| 409 | Conflicto: unicidad (al actualizar) o **transición de estado ilegal** (§4.5) | Mostrar `message` |
+| 409 | Conflicto: unicidad, **transición de estado ilegal** (§4.5) o checkout MP ya activo/en creación | Mostrar `message`; para MP, re-consultar suscripción |
+| 429 | Demasiadas solicitudes en login, registro, recuperación o seguimiento público | Mostrar espera, respetar `Retry-After` y no reintentar en loop |
 | 500 | Error interno (mensaje genérico) | Toast genérico "Intentá más tarde" |
-| 502 | Falló el proveedor de pagos (MercadoPago) | Toast "No pudimos iniciar el pago, probá de nuevo" |
+| 502 | Falló MP o están pausados los nuevos checkouts | Toast con `message`; el POST de checkout se puede reintentar |
 
 ---
 
 ## 6. Freemium / límites de plan
 
-- Plan **FREE/TRIAL**: tope de **25 reparaciones por mes** (configurable por env `FREE_MAX_REPARACIONES`).
-- Plan **PRO**: reparaciones **ilimitadas** + funciones PRO (inventario, cobros/caja, multi-empleado).
+- `estado: "TRIAL"` (aunque `plan: "FREE"`): reparaciones **ilimitadas** + funciones PRO completas.
+- `plan: "FREE"` + `estado: "ACTIVA"`: tope de **25 reparaciones por mes** (configurable por env
+  `FREE_MAX_REPARACIONES`) y sin inventario, cobros/caja ni multi-empleado.
+- `plan: "PRO"` + `estado: "ACTIVA"`: reparaciones **ilimitadas** + funciones PRO.
 - **Cómo cuenta:** suma 1 por cada reparación **creada** (`POST /api/reparaciones` o `/ingreso-rapido`).
   - **Borrar una reparación NO baja el contador** (no se puede esquivar el límite).
   - El contador **se reinicia el día 1 de cada mes** (mes calendario).
-- Suscripción `VENCIDA`/`CANCELADA`: bloquea la creación de reparaciones.
+- Suscripción `VENCIDA`/`CANCELADA`: bloquea la creación de reparaciones y no concede funciones PRO.
 - Al superar el tope, crear una reparación devuelve **`402`** con un `message` accionable.
 - El front lee `GET /api/suscripcion` → `reparacionesEsteMes` / `limiteReparacionesMes` (null = ilimitado)
-  para mostrar el consumo (ej: "12/25 este mes") y el modal de upgrade ante un 402.
+  y `funciones` como fuente de verdad para mostrar consumo/permisos y el modal de upgrade ante un 402.
+  No deduzcas los entitlements solo desde `plan`, porque durante TRIAL el plan puede ser FREE.
+- Al vencer el TRIAL, el backend pasa la suscripción a `FREE/ACTIVA`; recién entonces aplica el límite
+  mensual y se cierran las funciones PRO.
 
 **Flujo de upgrade a PRO:**
 1. Ante el 402 (o desde la pantalla de Plan), el usuario toca "Pasar a PRO".
 2. `POST /api/pagos/suscripcion` → tomás `initPoint` y hacés `window.location.href = initPoint`.
 3. El usuario paga en MercadoPago y vuelve a `MP_BACK_URL` (`/suscripcion/resultado`).
-4. En esa página, re-consultás `GET /api/suscripcion`. Si todavía figura FREE, reintentá cada
-   pocos segundos (el webhook puede tardar unos instantes en confirmar) hasta ver `plan: "PRO"`.
+4. En esa página, re-consultás `GET /api/suscripcion` con reintentos acotados hasta ver
+   `plan: "PRO"` + `estado: "ACTIVA"`. Si todavía no se confirmó, mostrás "Pago pendiente" y
+   permitís volver a consultar; `plan: "FREE"` durante TRIAL no significa que el pago haya fallado.
 
 ---
 
@@ -679,6 +791,9 @@ api.interceptors.response.use(
       localStorage.removeItem("token");
       window.location.href = "/login";
     }
+    // Un 403 requiere contexto: puede ser rol insuficiente o sesión revocada.
+    // Validá la sesión con GET /api/suscripcion antes de desloguear globalmente.
+    // Para 429, respetá Number(err.response.headers["retry-after"]).
     // err.response.data.message trae el mensaje del backend para toasts
     return Promise.reject(err);
   }
@@ -698,7 +813,7 @@ export type CuentaVinculada = "NINGUNA" | "ICLOUD" | "GOOGLE" | "OTRA";
 export type MomentoFoto = "INGRESO" | "POST_REPARACION";
 export interface Foto { url: string; momento: MomentoFoto; }
 
-export interface AuthResponse { token: string; type: string; email: string; }
+export interface AuthResponse { token: string; type: string; email: string; emailVerificado: boolean; }
 export interface Suscripcion {
   plan: Plan; estado: EstadoSuscripcion;
   fechaInicio: string | null; fechaFinTrial: string | null; proximoCobro: string | null;
@@ -725,13 +840,17 @@ export interface Reparacion {
   mojado: boolean; trabajoEnPlaca: boolean; noTesteableAlIngreso: boolean;
   tieneBloqueoPantalla: boolean; tieneCuentaVinculada: CuentaVinculada;
   clienteConoceCredenciales: boolean; riesgoCuentaSinCredenciales: boolean;
-  patronDesbloqueo: string | null; pinDesbloqueo: string | null; accesorios: string | null;
-  condicionesIngreso: string | null; observaciones: string | null;
+  accesorios: string | null; condicionesIngreso: string | null; observaciones: string | null;
   tecnicoId: number | null; tecnicoNombre: string | null;
   fotos: Foto[]; fechaConformidadEntrega: string | null;
   garantiaDias: number | null; garantiaInicio: string | null; garantiaFin: string | null;
   garantiaCondiciones: string | null; garantiaVigente: boolean;
   esGarantia: boolean; reparacionOrigenId: number | null;
+}
+// Solo GET /api/reparaciones/{id}; nunca usar este tipo para listados, altas, PUT o PATCH.
+export interface ReparacionDetalle extends Reparacion {
+  patronDesbloqueo: string | null;
+  pinDesbloqueo: string | null;
 }
 export interface Repuesto { id: number; nombre: string; descripcion: string | null; precio: number; reparacionId: number | null; reparacionEquipo: string | null; articuloId: number | null; cantidad: number; }
 export type EstadoPresupuesto = "PENDIENTE" | "APROBADO" | "RECHAZADO" | "VENCIDO";
@@ -762,6 +881,9 @@ localStorage.setItem("token", data.token);
 // cambiar estado de una reparación
 await api.patch(`/api/reparaciones/${id}/estado`, { estado: "EN_PROCESO" });
 
+// detalle autenticado: único response que puede incluir PIN/patrón
+const { data: detalle } = await api.get<ReparacionDetalle>(`/api/reparaciones/${id}`);
+
 // listar por estado
 const { data } = await api.get<Reparacion[]>("/api/reparaciones/estado", { params: { estado: "EN_PROCESO" } });
 
@@ -779,15 +901,18 @@ window.location.href = data.initPoint;
 3. **Clientes**: tabla + búsqueda + ABM; ficha con sus equipos.
 4. **Equipos**: tabla + ABM (selector de cliente); ver reparaciones del equipo.
 5. **Reparaciones** (pantalla estrella): tablero/lista por estado, ABM, cambio rápido de estado,
-   detalle con repuestos y total (suma de precios).
+   detalle con repuestos y total (suma de precios). PIN/patrón se muestran únicamente en esta ficha
+   autenticada; no los copies al estado de tablas, tarjetas ni búsquedas.
    - **Carga rápida** (`POST /api/reparaciones/ingreso-rapido`): un formulario corto (nombre + teléfono
      del cliente, marca + modelo del equipo, problema) que crea todo de una. Con el `clienteId`/`equipoId`
      que devuelve, ofrecé "completar datos" para ir a las pantallas de Cliente/Equipo.
 6. **Repuestos**: ABM, asociación a reparación.
 7. **Plan**: muestra `GET /api/suscripcion` (consumo + estado), comparativa FREE/PRO, botón
-   "Pasar a PRO" (`POST /api/pagos/suscripcion` → redirige a MercadoPago), y maneja el 402.
+   "Pasar a PRO" (`POST /api/pagos/suscripcion` → redirige a MercadoPago), y maneja el 402. Durante
+   TRIAL presenta las capacidades PRO activas aunque el campo `plan` sea FREE.
 8. **Resultado de pago** (`/suscripcion/resultado`): página de retorno de MercadoPago que
-   re-consulta `GET /api/suscripcion` hasta confirmar el plan PRO.
+   re-consulta `GET /api/suscripcion` hasta confirmar el plan PRO; un checkout `pending` no equivale
+   a pago aprobado.
 
 ---
 
@@ -795,14 +920,18 @@ window.location.href = data.initPoint;
 
 **Listo y funcionando:**
 - Auth (registro + login por email), JWT con tenant.
+- **Recuperación de contraseña** por email y **verificación de email** suave (§4.1) — emails vía Resend.
 - Multi-tenancy con aislamiento total por taller.
 - CRUD de Clientes, Equipos, Reparaciones, Repuestos.
 - Suscripciones freemium (FREE/PRO) con límite mensual y gating 402.
 - **MercadoPago**: checkout de suscripción PRO (`POST /api/pagos/suscripcion`) + **cancelación**
-  (`/cancelar`) + webhook con **firma validada**. *(Requiere Access Token y webhook-secret; ver §10.)*
+  (`/cancelar`) + webhook con **firma validada**, inbox idempotente, reconciliación y validación de
+  collector/aplicación/monto. *(Requiere la configuración de §10.)*
 - **Carga rápida** de reparación (§4.5), **total** de reparación (mano de obra + repuestos).
 - **Máquina de estados** (12 estados, transición ilegal → 409) y **estado de pago** derivado (cobrado/saldo/estadoPago).
-- **Orden de trabajo ampliada**: checklist de ingreso (patrón/PIN, accesorios, condiciones), técnico asignado, observaciones internas y **fotos con momento** (INGRESO/POST_REPARACION).
+- **Orden de trabajo ampliada**: checklist de ingreso (patrón/PIN cifrados y visibles solo en detalle
+  autenticado, accesorios, condiciones), técnico asignado, observaciones internas y **fotos con momento**
+  (INGRESO/POST_REPARACION).
 - **Ingreso enriquecido**: flags de riesgo, bloqueo de cuenta (iCloud/FRP) con bandera roja, y `numeroOrden` correlativo por taller.
 - **Conformidad de entrega** (sellada al ENTREGADO) y **garantía** (default 90 días) con **reclamo en garantía** que no consume cupo.
 - **Paginación + búsqueda** en todos los listados (§4.2.bis).
@@ -811,6 +940,7 @@ window.location.href = data.initPoint;
 - **Presupuestos** con aprobación del cliente desde el link público (§4.11).
 - **Inventario** con stock, ajustes, descuento automático y aviso de stock bajo (§4.12).
 - **Cobros / Caja / Recibo** (§4.13): pagos parciales, saldo, caja por período y recibo imprimible.
+- **Exportación a Excel** (§4.14): el ADMIN descarga todos los datos del taller en un `.xlsx`.
 - **Gating por plan**: inventario, cobros/caja y multi-empleado son PRO (402 + mapa `funciones` en §4.2). Dashboard es FREE.
 - **Salud** (`/actuator/health`) y **tests** (aislamiento de tenant, 402, firma de webhook).
 - Spring Boot 4 / Java 21, migraciones con Flyway.
@@ -819,24 +949,33 @@ window.location.href = data.initPoint;
 - **WhatsApp Business API** (envío automático real; hoy es link wa.me manual).
 - Cargo por diagnóstico y seña/anticipo; recordatorio de retiro + ABANDONADO automático.
 - Inventario fino (catálogo por modelo/SKU, orden a proveedor con ETA) y **reportes** (tiempo de ciclo, margen).
-- Verificación de email en el registro; auditoría de eventos.
+- Login con Google; auditoría de eventos.
 
 ---
 
 ## 10. Configuración del backend para MercadoPago (no es del front)
 
 La integración viene **desactivada por defecto** (`mercadopago.enabled=false`): el backend arranca igual
-sin tocar nada. Para operar pagos en vivo, definí estas variables de entorno (o en `application-secret.properties`):
+sin tocar nada. Para operar pagos en vivo, definí estas variables **solo en el entorno/secret manager**
+(nunca en el frontend ni versionadas):
 
 | Variable | Default | Descripción |
 |----------|---------|-------------|
 | `MP_ENABLED` | `false` | `true` para activar las llamadas a MercadoPago |
+| `MP_CHECKOUT_ENABLED` | `true` | Kill switch operativo: en `false` frena nuevos checkouts sin apagar webhooks, cancelación ni reconciliación |
 | `MP_ACCESS_TOKEN` | *(vacío)* | Access Token de MercadoPago (las de prueba también empiezan con `APP_USR-`) |
 | `MP_WEBHOOK_SECRET` | *(vacío)* | Clave secreta del webhook (panel MP → Webhooks). **Obligatoria si `MP_ENABLED=true`**: con MP activo y sin secreto, el webhook rechaza todo (fail-closed). |
-| `MP_AMOUNT` | `4999` | Monto mensual de la suscripción PRO |
+| `MP_COLLECTOR_ID` | *(vacío)* | ID esperado de la cuenta cobradora; obligatorio con `MP_ENABLED=true` y validado en cada checkout |
+| `MP_APPLICATION_ID` | *(vacío)* | ID esperado de la aplicación MP; obligatorio con `MP_ENABLED=true` y validado en cada checkout |
+| `MP_AMOUNT` | `24900` | Monto mensual de la suscripción PRO (ARS 24.900) |
 | `MP_CURRENCY` | `ARS` | Moneda |
 | `MP_REASON` | `OrdenFix PRO - Suscripción mensual` | Texto que ve el usuario en el checkout |
-| `MP_BACK_URL` | `http://localhost:5173/suscripcion/resultado` | URL del front a la que vuelve el usuario tras pagar |
+| `MP_BACK_URL` | `http://localhost:5173/suscripcion/resultado` con MP apagado | URL del front a la que vuelve el usuario; debe ser HTTPS cuando `MP_ENABLED=true` |
+
+Con `MP_ENABLED=true`, el backend valida al arrancar que Access Token, webhook secret,
+`MP_COLLECTOR_ID` y `MP_APPLICATION_ID` estén presentes y que el monto sea positivo. Collector y
+application ID son datos de confianza del backend: el frontend no debe recibirlos ni enviarlos.
+También exige una `MP_BACK_URL` HTTPS y la API oficial `https://api.mercadopago.com`.
 
 Además, en el panel de MercadoPago hay que configurar la **URL de notificaciones (webhook)** apuntando a
 `https://<tu-backend>/api/pagos/webhook` (en local se usa un túnel tipo ngrok). El endpoint `/api/pagos/webhook`
@@ -847,3 +986,55 @@ configurar los probes de readiness/liveness en Render/Railway. No expone otros e
 
 > Diseñá la navegación contemplando estas secciones futuras (Dashboard, Caja, Inventario, Reportes)
 > para no rehacer el layout más adelante.
+
+---
+
+## 11. Checklist de integración y validación del frontend
+
+Usá esta lista para marcar qué está integrado en el repo del frontend.
+
+### Entorno y sesión
+
+- [ ] `VITE_API_URL=http://localhost:8080` en desarrollo y URL HTTPS correcta en producción.
+- [ ] Limpiar cualquier token de producción guardado antes de probar contra localhost.
+- [ ] Login/registro guardan `token`, `email` y `emailVerificado`; todas las rutas privadas envían Bearer.
+- [ ] Los guards entienden `ROLE_ADMIN` / `ROLE_USER` o normalizan el prefijo de manera consistente.
+- [ ] La carga inicial valida sesión con `GET /api/suscripcion` y distingue sesión inválida de falta de rol.
+- [ ] `401`, `403`, `402`, `409`, `429` y `502` tienen tratamiento explícito; `429` respeta `Retry-After`.
+- [ ] Existen `/reset-password?token=...` y `/verificar-email?token=...`.
+
+### Datos y navegación
+
+- [ ] Listados consumen `data.content` + `data.page`; no esperan un array directo.
+- [ ] Búsqueda, filtros, orden y paginación conservan el estado en la URL o store de la pantalla.
+- [ ] Las bajas esperan el `204`; ante `409`/`400` mantienen la fila y muestran `message`.
+- [ ] El dashboard muestra por separado estado de reparación y estado/saldo de pago.
+- [ ] Descarga Excel usa respuesta `blob` y respeta el nombre del archivo.
+
+### PIN, patrón y reparación
+
+- [ ] Listados, tarjetas, dashboard y tracking usan `Reparacion`, nunca `ReparacionDetalle`.
+- [ ] Solo la ficha autenticada llama `GET /api/reparaciones/{id}` y puede mostrar PIN/patrón.
+- [ ] PIN/patrón no se guardan en localStorage, analytics, logs, caché global ni mensajes de error.
+- [ ] En PUT, campo omitido conserva; `""` borra; después de POST/PUT/PATCH se refresca el detalle.
+- [ ] Al pasar a `ENTREGADO`, la UI elimina inmediatamente cualquier copia en memoria de esos valores.
+- [ ] La UI ofrece únicamente las transiciones legales y maneja igualmente un `409` del backend.
+
+### Plan y Mercado Pago
+
+- [ ] Capacidades se toman de `funciones` y `limiteReparacionesMes`, no solo de `plan`.
+- [ ] TRIAL se muestra como experiencia PRO ilimitada aunque `plan` sea `FREE`.
+- [ ] Solo ADMIN ve iniciar/cancelar suscripción; el front nunca envía monto, moneda ni IDs de MP.
+- [ ] Checkout redirige exclusivamente al `initPoint` recibido y maneja `409`/`502` sin duplicarlo.
+- [ ] `/suscripcion/resultado` reconsulta el plan con reintentos acotados y contempla estado pendiente.
+- [ ] Sandbox valida approved, rejected, paused, canceled, refunded, charged_back y eventos duplicados.
+- [ ] Retorno y webhook usan URLs HTTPS públicas; secretos de MP nunca existen en variables `VITE_*`.
+
+### Aceptación mínima
+
+- [ ] Registro, login, logout, expiración/revocación y usuario desactivado.
+- [ ] CRUD y búsquedas de clientes, equipos, reparaciones y repuestos con aislamiento por taller.
+- [ ] Ingreso rápido, máquina de estados, presupuestos públicos, garantía y conformidad de entrega.
+- [ ] FREE/ACTIVA, TRIAL, PRO/ACTIVA y PRO/VENCIDA con sus capacidades correctas.
+- [ ] Tracking público no expone observaciones internas, PIN, patrón ni datos de otro cliente.
+- [ ] Flujo MP completo probado en sandbox antes de habilitar `MP_CHECKOUT_ENABLED` en producción.

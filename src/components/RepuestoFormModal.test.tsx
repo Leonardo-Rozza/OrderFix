@@ -1,10 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { ReactElement } from 'react';
 import { server, API } from '../test/server';
+import { renderWithProviders } from '../test/renderWithProviders';
 import { RepuestoFormModal } from './RepuestoFormModal';
 import type { Repuesto } from '../types';
 
@@ -24,10 +23,7 @@ beforeEach(() => {
   );
 });
 
-const renderUI = (ui: ReactElement) => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-};
+const renderUI = renderWithProviders;
 
 describe('RepuestoFormModal', () => {
   it('crea un repuesto asociado a la reparación bloqueada (oculta el selector)', async () => {
@@ -56,6 +52,7 @@ describe('RepuestoFormModal', () => {
     await waitFor(() => expect(body).toBeDefined());
     expect(body).toMatchObject({ nombre: 'Módulo pantalla', precio: 8000, reparacionId: 7 });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(screen.queryByRole('dialog', { name: /¿descartar los cambios\?/i })).not.toBeInTheDocument();
   });
 
   it('valida que el precio sea requerido', async () => {

@@ -1,16 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { ReactElement } from 'react';
 import { server, API } from '../test/server';
+import { renderWithProviders } from '../test/renderWithProviders';
 import { ClienteFormModal } from './ClienteFormModal';
 
-const renderUI = (ui: ReactElement) => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-};
+const renderUI = renderWithProviders;
 
 describe('ClienteFormModal', () => {
   it('crea un cliente con los datos mínimos (email/dirección quedan fuera si vacíos)', async () => {
@@ -36,6 +32,7 @@ describe('ClienteFormModal', () => {
     expect(body).toMatchObject({ nombre: 'Pedro', apellido: 'Gómez', telefono: '1144556677' });
     expect(body).not.toHaveProperty('email');
     await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(screen.queryByRole('dialog', { name: /¿descartar los cambios\?/i })).not.toBeInTheDocument();
   });
 
   it('valida los campos requeridos', async () => {
@@ -43,5 +40,25 @@ describe('ClienteFormModal', () => {
     renderUI(<ClienteFormModal isOpen onClose={vi.fn()} editing={null} />);
     await user.click(screen.getByRole('button', { name: /crear cliente/i }));
     expect(await screen.findByText(/el nombre es requerido/i)).toBeInTheDocument();
+  });
+
+  it('conserva los datos al seguir editando y cierra sólo al confirmar el descarte', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    renderUI(<ClienteFormModal isOpen onClose={onClose} editing={null} />);
+
+    await user.type(screen.getByLabelText(/^nombre/i), 'Pedro');
+    await user.click(screen.getByRole('button', { name: /cancelar/i }));
+
+    expect(await screen.findByRole('dialog', { name: /¿descartar los cambios\?/i })).toBeVisible();
+    expect(onClose).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: /seguir editando/i }));
+    expect(screen.queryByRole('dialog', { name: /¿descartar los cambios\?/i })).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/^nombre/i)).toHaveValue('Pedro');
+
+    await user.click(screen.getByRole('button', { name: /cancelar/i }));
+    await user.click(await screen.findByRole('button', { name: /descartar cambios/i }));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,10 +1,9 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { ReactElement } from 'react';
 import { server, API } from '../test/server';
+import { renderWithProviders } from '../test/renderWithProviders';
 import { EquipoFormModal } from './EquipoFormModal';
 import type { Cliente } from '../types';
 
@@ -18,10 +17,7 @@ const clientesPage = (content = clientes, page = 0, totalPages = 1) => ({
   page: { size: 20, number: page, totalElements: content.length, totalPages },
 });
 
-const renderUI = (ui: ReactElement) => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-};
+const renderUI = renderWithProviders;
 
 describe('EquipoFormModal', () => {
   beforeEach(() => {
@@ -53,6 +49,7 @@ describe('EquipoFormModal', () => {
     await waitFor(() => expect(body).toBeDefined());
     expect(body).toMatchObject({ marca: 'Samsung', modelo: 'A52', clienteId: 1 });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(screen.queryByRole('dialog', { name: /¿descartar los cambios\?/i })).not.toBeInTheDocument();
   });
 
   it('preselecciona el cliente conocido sin consultar hasta abrir el selector', async () => {

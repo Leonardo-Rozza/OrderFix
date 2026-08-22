@@ -6,6 +6,7 @@ import { FormActions, Modal } from './Modal';
 import { FormField } from './FormField';
 import { AsyncCombobox, type AsyncComboboxOption } from './AsyncCombobox';
 import { MoneyInput } from './MoneyInput';
+import { UnsavedChangesGuard } from './UnsavedChangesGuard';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import {
   useCreateRepuestoMutation,
@@ -68,7 +69,7 @@ export const RepuestoFormModal = ({
     watch,
     setValue,
     control,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
   const articuloId = watch('articuloId');
@@ -86,7 +87,7 @@ export const RepuestoFormModal = ({
     });
   }, [isOpen, editing, lockedReparacionId, reset]);
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (data: FormData, commitAndClose: () => void) => {
     const artId = editing ? undefined : numOpt(data.articuloId);
     const base: RepuestoCreate = {
       nombre: data.nombre.trim(),
@@ -97,34 +98,51 @@ export const RepuestoFormModal = ({
       cantidad: artId ? (numOpt(data.cantidad) ?? 1) : undefined,
     };
 
-    if (editing) {
-      const payload: RepuestoUpdate = { id: editing.id, ...base };
-      await updateMutation.mutateAsync(payload);
-    } else {
-      await createMutation.mutateAsync(base);
+    try {
+      if (editing) {
+        const payload: RepuestoUpdate = { id: editing.id, ...base };
+        await updateMutation.mutateAsync(payload);
+      } else {
+        await createMutation.mutateAsync(base);
+      }
+    } catch {
+      // La mutación muestra el error; el formulario y su guard quedan activos.
+      return;
     }
-    onClose();
+    commitAndClose();
   };
 
   return (
-    <Modal
+    <UnsavedChangesGuard
       isOpen={isOpen}
+      isDirty={isDirty}
+      isBusy={saving}
       onClose={onClose}
-      title={editing ? 'Editar repuesto' : 'Nuevo repuesto'}
-      size="md"
-      preventClose={saving}
-      footer={(
-        <FormActions>
-          <button type="button" className={btnGhost} onClick={onClose} disabled={saving}>
-            Cancelar
-          </button>
-          <button type="submit" form="repuesto-form" className={btnPrimary} disabled={saving}>
-            {saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear repuesto'}
-          </button>
-        </FormActions>
-      )}
     >
-      <form id="repuesto-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {({ requestClose, commitAndClose, isSuspended }) => (
+        <Modal
+          isOpen
+          onClose={requestClose}
+          title={editing ? 'Editar repuesto' : 'Nuevo repuesto'}
+          size="md"
+          preventClose={saving}
+          suspended={isSuspended}
+          footer={(
+            <FormActions>
+              <button type="button" className={btnGhost} onClick={requestClose} disabled={saving}>
+                Cancelar
+              </button>
+              <button type="submit" form="repuesto-form" className={btnPrimary} disabled={saving}>
+                {saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear repuesto'}
+              </button>
+            </FormActions>
+          )}
+        >
+          <form
+            id="repuesto-form"
+            onSubmit={handleSubmit((data) => onSubmit(data, commitAndClose))}
+            className="space-y-4"
+          >
         {/* Tomar del inventario (solo al crear) → descuenta stock */}
         {!editing && inventario ? (
           <FormField label="Artículo del inventario (opcional)" htmlFor="articuloId">
@@ -247,7 +265,9 @@ export const RepuestoFormModal = ({
           </FormField>
         ) : null}
 
-      </form>
-    </Modal>
+          </form>
+        </Modal>
+      )}
+    </UnsavedChangesGuard>
   );
 };

@@ -9,6 +9,7 @@ import { MoneyInput } from './MoneyInput';
 import { formatMoney } from '../utils/format';
 import { useCrearPresupuestoMutation } from '../api/mutations/presupuestos.mutations';
 import { showError } from '../utils/toast';
+import { UnsavedChangesGuard } from './UnsavedChangesGuard';
 
 const schema = z.object({
   items: z
@@ -55,7 +56,7 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
     handleSubmit,
     reset,
     watch,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<FormData>({ resolver: zodResolver(schema), defaultValues: defaults });
 
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
@@ -76,44 +77,61 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
   const repuestos = subtotal((t) => t === 'REPUESTO');
   const total = manoDeObra + repuestos;
 
-  const onSubmit = async (data: FormData) => {
-    await crear.mutateAsync({
-      items: data.items.map((it) => ({
-        descripcion: it.descripcion.trim(),
-        cantidad: it.cantidad,
-        precioUnitario: it.precioUnitario,
-        tipoItem: it.tipoItem,
-        calidad: it.tipoItem === 'REPUESTO' && it.calidad ? it.calidad : undefined,
-      })),
-      observaciones: data.observaciones?.trim() || undefined,
-      tipo: data.tipo,
-      validezDias: data.validezDias,
-    });
-    onClose();
+  const onSubmit = async (data: FormData, commitAndClose: () => void) => {
+    try {
+      await crear.mutateAsync({
+        items: data.items.map((it) => ({
+          descripcion: it.descripcion.trim(),
+          cantidad: it.cantidad,
+          precioUnitario: it.precioUnitario,
+          tipoItem: it.tipoItem,
+          calidad: it.tipoItem === 'REPUESTO' && it.calidad ? it.calidad : undefined,
+        })),
+        observaciones: data.observaciones?.trim() || undefined,
+        tipo: data.tipo,
+        validezDias: data.validezDias,
+      });
+    } catch {
+      // La mutación muestra el error; el formulario y su guard quedan activos.
+      return;
+    }
+    commitAndClose();
   };
 
   // Los errores de ítems son fáciles de pasar por alto: avisar también por toast.
   const onInvalid = () => showError('Revisá los campos marcados en rojo.');
 
   return (
-    <Modal
+    <UnsavedChangesGuard
       isOpen={isOpen}
+      isDirty={isDirty}
+      isBusy={crear.isPending}
       onClose={onClose}
-      title="Nuevo presupuesto"
-      size="lg"
-      preventClose={crear.isPending}
-      footer={(
-        <FormActions>
-          <button type="button" className={btnGhost} onClick={onClose} disabled={crear.isPending}>
-            Cancelar
-          </button>
-          <button type="submit" form="presupuesto-form" className={btnPrimary} disabled={crear.isPending}>
-            {crear.isPending ? 'Enviando…' : 'Crear presupuesto'}
-          </button>
-        </FormActions>
-      )}
     >
-      <form id="presupuesto-form" onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4">
+      {({ requestClose, commitAndClose, isSuspended }) => (
+        <Modal
+          isOpen
+          onClose={requestClose}
+          title="Nuevo presupuesto"
+          size="lg"
+          preventClose={crear.isPending}
+          suspended={isSuspended}
+          footer={(
+            <FormActions>
+              <button type="button" className={btnGhost} onClick={requestClose} disabled={crear.isPending}>
+                Cancelar
+              </button>
+              <button type="submit" form="presupuesto-form" className={btnPrimary} disabled={crear.isPending}>
+                {crear.isPending ? 'Enviando…' : 'Crear presupuesto'}
+              </button>
+            </FormActions>
+          )}
+        >
+          <form
+            id="presupuesto-form"
+            onSubmit={handleSubmit((data) => onSubmit(data, commitAndClose), onInvalid)}
+            className="space-y-4"
+          >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField label="Tipo" error={errors.tipo?.message} htmlFor="tipo">
             <select id="tipo" {...register('tipo')} className={inputClass(!!errors.tipo)}>
@@ -288,8 +306,9 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
         <FormField label="Observaciones" error={errors.observaciones?.message} htmlFor="observaciones">
           <textarea id="observaciones" rows={2} {...register('observaciones')} className={`${inputClass()} resize-none`} placeholder="Ej: demora 48hs, garantía 30 días…" />
         </FormField>
-
-      </form>
-    </Modal>
+          </form>
+        </Modal>
+      )}
+    </UnsavedChangesGuard>
   );
 };

@@ -8,6 +8,7 @@ import { FormField } from './FormField';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import { useCreateArticuloMutation, useUpdateArticuloMutation } from '../api/mutations/inventario.mutations';
 import type { Articulo, ArticuloCreate, ArticuloUpdate } from '../types';
+import { UnsavedChangesGuard } from './UnsavedChangesGuard';
 
 const opt = z.union([z.number().min(0), z.nan(), z.literal('')]).optional();
 
@@ -43,7 +44,7 @@ export const ArticuloFormModal = ({ isOpen, onClose, editing }: Props) => {
     handleSubmit,
     reset,
     control,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
   useEffect(() => {
@@ -54,12 +55,14 @@ export const ArticuloFormModal = ({ isOpen, onClose, editing }: Props) => {
       descripcion: editing?.descripcion ?? '',
       precio: editing?.precio ?? ('' as unknown as number),
       costo: editing?.costo ?? '',
-      stock: editing?.stock ?? '',
-      stockMinimo: editing?.stockMinimo ?? '',
+      // Los inputs nativos con `valueAsNumber` representan el vacío como NaN;
+      // usar el mismo valor como baseline evita un dirty espurio.
+      stock: Number.NaN,
+      stockMinimo: editing?.stockMinimo ?? Number.NaN,
     });
   }, [isOpen, editing, reset]);
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (data: FormData, commitAndClose: () => void) => {
     const base: ArticuloCreate = {
       nombre: data.nombre.trim(),
       sku: str(data.sku),
@@ -69,35 +72,52 @@ export const ArticuloFormModal = ({ isOpen, onClose, editing }: Props) => {
       stockMinimo: num(data.stockMinimo),
     };
 
-    if (editing) {
-      // El stock no se cambia con PUT (se mueve con ajustes)
-      const payload: ArticuloUpdate = { id: editing.id, ...base };
-      await updateMutation.mutateAsync(payload);
-    } else {
-      await createMutation.mutateAsync({ ...base, stock: num(data.stock) });
+    try {
+      if (editing) {
+        // El stock no se cambia con PUT (se mueve con ajustes)
+        const payload: ArticuloUpdate = { id: editing.id, ...base };
+        await updateMutation.mutateAsync(payload);
+      } else {
+        await createMutation.mutateAsync({ ...base, stock: num(data.stock) });
+      }
+    } catch {
+      // La mutación muestra el error; el formulario y su guard quedan activos.
+      return;
     }
-    onClose();
+    commitAndClose();
   };
 
   return (
-    <Modal
+    <UnsavedChangesGuard
       isOpen={isOpen}
+      isDirty={isDirty}
+      isBusy={saving}
       onClose={onClose}
-      title={editing ? 'Editar artículo' : 'Nuevo artículo'}
-      size="md"
-      preventClose={saving}
-      footer={(
-        <FormActions>
-          <button type="button" className={btnGhost} onClick={onClose} disabled={saving}>
-            Cancelar
-          </button>
-          <button type="submit" form="articulo-form" className={btnPrimary} disabled={saving}>
-            {saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear artículo'}
-          </button>
-        </FormActions>
-      )}
     >
-      <form id="articulo-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {({ requestClose, commitAndClose, isSuspended }) => (
+        <Modal
+          isOpen
+          onClose={requestClose}
+          title={editing ? 'Editar artículo' : 'Nuevo artículo'}
+          size="md"
+          preventClose={saving}
+          suspended={isSuspended}
+          footer={(
+            <FormActions>
+              <button type="button" className={btnGhost} onClick={requestClose} disabled={saving}>
+                Cancelar
+              </button>
+              <button type="submit" form="articulo-form" className={btnPrimary} disabled={saving}>
+                {saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear artículo'}
+              </button>
+            </FormActions>
+          )}
+        >
+          <form
+            id="articulo-form"
+            onSubmit={handleSubmit((data) => onSubmit(data, commitAndClose))}
+            className="space-y-4"
+          >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1.6fr_1fr]">
           <FormField label="Nombre" required error={errors.nombre?.message} htmlFor="nombre">
             <input id="nombre" type="text" {...register('nombre')} className={inputClass(!!errors.nombre)} placeholder="Ej: Pantalla iPhone 11" />
@@ -170,8 +190,9 @@ export const ArticuloFormModal = ({ isOpen, onClose, editing }: Props) => {
         {editing && (
           <p className="text-[12px] text-text-3">El stock se mueve con ajustes (+/−), no desde acá.</p>
         )}
-
-      </form>
-    </Modal>
+          </form>
+        </Modal>
+      )}
+    </UnsavedChangesGuard>
   );
 };

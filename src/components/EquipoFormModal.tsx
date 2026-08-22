@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { FormActions, Modal } from './Modal';
 import { FormField } from './FormField';
 import { AsyncCombobox, type AsyncComboboxOption } from './AsyncCombobox';
+import { UnsavedChangesGuard } from './UnsavedChangesGuard';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import {
   useCreateEquipoMutation,
@@ -51,7 +52,7 @@ export const EquipoFormModal = ({
     reset,
     control,
     watch,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
   useEffect(() => {
@@ -84,7 +85,7 @@ export const EquipoFormModal = ({
       : undefined;
   const submitBlocked = saving || !selectedClienteId;
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (data: FormData, commitAndClose: () => void) => {
     const base: EquipoCreate = {
       marca: data.marca.trim(),
       modelo: data.modelo.trim(),
@@ -94,40 +95,57 @@ export const EquipoFormModal = ({
       descripcion: str(data.descripcion),
     };
 
-    if (editing) {
-      const payload: EquipoUpdate = { id: editing.id, ...base };
-      await updateMutation.mutateAsync(payload);
-    } else {
-      await createMutation.mutateAsync(base);
+    try {
+      if (editing) {
+        const payload: EquipoUpdate = { id: editing.id, ...base };
+        await updateMutation.mutateAsync(payload);
+      } else {
+        await createMutation.mutateAsync(base);
+      }
+    } catch {
+      // La mutación muestra el error; el formulario y su guard quedan activos.
+      return;
     }
-    onClose();
+    commitAndClose();
   };
 
   return (
-    <Modal
+    <UnsavedChangesGuard
       isOpen={isOpen}
+      isDirty={isDirty}
+      isBusy={saving}
       onClose={onClose}
-      title={editing ? 'Editar equipo' : 'Nuevo equipo'}
-      size="md"
-      preventClose={saving}
-      footer={(
-        <FormActions>
-          <button type="button" className={btnGhost} onClick={onClose} disabled={saving}>
-            Cancelar
-          </button>
-          <button type="submit" form="equipo-form" className={btnPrimary} disabled={submitBlocked}>
-            {saving
-              ? 'Guardando…'
-              : !selectedClienteId
-                ? 'Seleccioná un cliente'
-                : editing
-                  ? 'Guardar cambios'
-                  : 'Crear equipo'}
-          </button>
-        </FormActions>
-      )}
     >
-      <form id="equipo-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {({ requestClose, commitAndClose, isSuspended }) => (
+        <Modal
+          isOpen
+          onClose={requestClose}
+          title={editing ? 'Editar equipo' : 'Nuevo equipo'}
+          size="md"
+          preventClose={saving}
+          suspended={isSuspended}
+          footer={(
+            <FormActions>
+              <button type="button" className={btnGhost} onClick={requestClose} disabled={saving}>
+                Cancelar
+              </button>
+              <button type="submit" form="equipo-form" className={btnPrimary} disabled={submitBlocked}>
+                {saving
+                  ? 'Guardando…'
+                  : !selectedClienteId
+                    ? 'Seleccioná un cliente'
+                    : editing
+                      ? 'Guardar cambios'
+                      : 'Crear equipo'}
+              </button>
+            </FormActions>
+          )}
+        >
+          <form
+            id="equipo-form"
+            onSubmit={handleSubmit((data) => onSubmit(data, commitAndClose))}
+            className="space-y-4"
+          >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField label="Marca" required error={errors.marca?.message} htmlFor="marca">
             <input id="marca" type="text" maxLength={60} {...register('marca')} className={inputClass(!!errors.marca)} placeholder="Ej: Apple" />
@@ -192,7 +210,9 @@ export const EquipoFormModal = ({
           />
         </FormField>
 
-      </form>
-    </Modal>
+          </form>
+        </Modal>
+      )}
+    </UnsavedChangesGuard>
   );
 };

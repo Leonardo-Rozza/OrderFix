@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { FormActions, Modal } from './Modal';
 import { FormField } from './FormField';
+import { UnsavedChangesGuard } from './UnsavedChangesGuard';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import {
   useCreateClienteMutation,
@@ -41,7 +42,7 @@ export const ClienteFormModal = ({ isOpen, onClose, editing }: Props) => {
     register,
     handleSubmit,
     reset,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
   useEffect(() => {
@@ -55,7 +56,7 @@ export const ClienteFormModal = ({ isOpen, onClose, editing }: Props) => {
     });
   }, [isOpen, editing, reset]);
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (data: FormData, commitAndClose: () => void) => {
     const base: ClienteCreate = {
       nombre: data.nombre.trim(),
       apellido: data.apellido.trim(),
@@ -64,56 +65,75 @@ export const ClienteFormModal = ({ isOpen, onClose, editing }: Props) => {
       direccion: str(data.direccion),
     };
 
-    if (editing) {
-      const payload: ClienteUpdate = { id: editing.id, ...base };
-      await updateMutation.mutateAsync(payload);
-    } else {
-      await createMutation.mutateAsync(base);
+    try {
+      if (editing) {
+        const payload: ClienteUpdate = { id: editing.id, ...base };
+        await updateMutation.mutateAsync(payload);
+      } else {
+        await createMutation.mutateAsync(base);
+      }
+    } catch {
+      // La mutación muestra el error; el formulario y su guard quedan activos.
+      return;
     }
-    onClose();
+    commitAndClose();
   };
 
   return (
-    <Modal
+    <UnsavedChangesGuard
       isOpen={isOpen}
+      isDirty={isDirty}
+      isBusy={saving}
       onClose={onClose}
-      title={editing ? 'Editar cliente' : 'Nuevo cliente'}
-      size="md"
-      preventClose={saving}
-      footer={(
-        <FormActions>
-          <button type="button" className={btnGhost} onClick={onClose} disabled={saving}>
-            Cancelar
-          </button>
-          <button type="submit" form="cliente-form" className={btnPrimary} disabled={saving}>
-            {saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear cliente'}
-          </button>
-        </FormActions>
-      )}
     >
-      <form id="cliente-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormField label="Nombre" required error={errors.nombre?.message} htmlFor="nombre">
-            <input id="nombre" type="text" maxLength={60} {...register('nombre')} className={inputClass(!!errors.nombre)} />
-          </FormField>
-          <FormField label="Apellido" required error={errors.apellido?.message} htmlFor="apellido">
-            <input id="apellido" type="text" maxLength={60} {...register('apellido')} className={inputClass(!!errors.apellido)} />
-          </FormField>
-        </div>
+      {({ requestClose, commitAndClose, isSuspended }) => (
+        <Modal
+          isOpen
+          onClose={requestClose}
+          title={editing ? 'Editar cliente' : 'Nuevo cliente'}
+          size="md"
+          preventClose={saving}
+          suspended={isSuspended}
+          footer={(
+            <FormActions>
+              <button type="button" className={btnGhost} onClick={requestClose} disabled={saving}>
+                Cancelar
+              </button>
+              <button type="submit" form="cliente-form" className={btnPrimary} disabled={saving}>
+                {saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear cliente'}
+              </button>
+            </FormActions>
+          )}
+        >
+          <form
+            id="cliente-form"
+            onSubmit={handleSubmit((data) => onSubmit(data, commitAndClose))}
+            className="space-y-4"
+          >
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField label="Nombre" required error={errors.nombre?.message} htmlFor="nombre">
+                <input id="nombre" type="text" maxLength={60} {...register('nombre')} className={inputClass(!!errors.nombre)} />
+              </FormField>
+              <FormField label="Apellido" required error={errors.apellido?.message} htmlFor="apellido">
+                <input id="apellido" type="text" maxLength={60} {...register('apellido')} className={inputClass(!!errors.apellido)} />
+              </FormField>
+            </div>
 
-        <FormField label="Teléfono" required error={errors.telefono?.message} htmlFor="telefono">
-          <input id="telefono" type="tel" maxLength={20} {...register('telefono')} className={inputClass(!!errors.telefono)} placeholder="+54 9 11 5555-1234" />
-        </FormField>
+            <FormField label="Teléfono" required error={errors.telefono?.message} htmlFor="telefono">
+              <input id="telefono" type="tel" maxLength={20} {...register('telefono')} className={inputClass(!!errors.telefono)} placeholder="+54 9 11 5555-1234" />
+            </FormField>
 
-        <FormField label="Email" error={errors.email?.message} htmlFor="email">
-          <input id="email" type="email" maxLength={120} {...register('email')} className={inputClass(!!errors.email)} placeholder="cliente@email.com" />
-        </FormField>
+            <FormField label="Email" error={errors.email?.message} htmlFor="email">
+              <input id="email" type="email" maxLength={120} {...register('email')} className={inputClass(!!errors.email)} placeholder="cliente@email.com" />
+            </FormField>
 
-        <FormField label="Dirección" error={errors.direccion?.message} htmlFor="direccion">
-          <input id="direccion" type="text" maxLength={255} {...register('direccion')} className={inputClass(!!errors.direccion)} />
-        </FormField>
+            <FormField label="Dirección" error={errors.direccion?.message} htmlFor="direccion">
+              <input id="direccion" type="text" maxLength={255} {...register('direccion')} className={inputClass(!!errors.direccion)} />
+            </FormField>
 
-      </form>
-    </Modal>
+          </form>
+        </Modal>
+      )}
+    </UnsavedChangesGuard>
   );
 };

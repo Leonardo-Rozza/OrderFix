@@ -17,7 +17,6 @@ import { PagoChip } from '../components/PagoChip';
 import { useListParams } from '../hooks/useListParams';
 import { usePageBounds } from '../hooks/usePageBounds';
 import { useReparacionesQuery } from '../api/queries/reparaciones.queries';
-import { useEquiposOptions } from '../api/queries/equipos.queries';
 import { useDashboardQuery } from '../api/queries/dashboard.queries';
 import { useCambiarEstadoMutation } from '../api/mutations/reparaciones.mutations';
 import type { EstadoReparacion, Reparacion } from '../types';
@@ -29,12 +28,6 @@ export const ReparacionesPage = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const cambiarEstado = useCambiarEstadoMutation();
-  const {
-    data: equipos = [],
-    isLoading: equiposLoading,
-    isError: equiposError,
-    refetch: refetchEquipos,
-  } = useEquiposOptions();
   const { data: stats } = useDashboardQuery();
   const { q, onSearch, page, setPage, debouncedQ, size, sort, setSort } = useListParams(20, 'id,desc');
   const [vista, setVista] = useState<Vista>('board');
@@ -197,10 +190,6 @@ export const ReparacionesPage = () => {
         isOpen={formOpen}
         onClose={closeForm}
         editing={null}
-        equipos={equipos}
-        equiposLoading={equiposLoading}
-        equiposError={equiposError}
-        onRetryEquipos={() => void refetchEquipos()}
         onCreated={(id) => navigate(`/reparaciones/${id}`)}
       />
     </DashboardLayout>

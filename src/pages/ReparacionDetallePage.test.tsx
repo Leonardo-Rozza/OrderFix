@@ -52,10 +52,6 @@ vi.mock('../api/queries/reparaciones.queries', () => ({
   }),
 }));
 
-vi.mock('../api/queries/equipos.queries', () => ({
-  useEquiposOptions: () => ({ data: [] }),
-}));
-
 vi.mock('../api/queries/repuestos.queries', () => ({
   useRepuestosPorReparacionQuery: mocks.useRepuestosQuery,
 }));

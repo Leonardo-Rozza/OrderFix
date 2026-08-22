@@ -2,7 +2,6 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '../axios';
 import {
   requirePageMeta,
-  unwrapList,
   toQueryParams,
   type Page,
   type ListParams,
@@ -61,20 +60,6 @@ export const useEquiposQuery = (params: ListParams) => {
     queryKey: queryKeys.equipos.list(params),
     queryFn: () => fetchEquipos(params),
     placeholderData: keepPreviousData,
-  });
-};
-
-// Opciones para selects (ej: elegir equipo en una reparación) — lista acotada
-const fetchEquiposOptions = async (): Promise<Equipo[]> => {
-  const { data } = await apiClient.get<Page<Equipo> | Equipo[]>('/equipos', { params: { size: 200 } });
-  return unwrapList(data);
-};
-
-export const useEquiposOptions = (enabled = true) => {
-  return useQuery({
-    queryKey: queryKeys.equipos.options,
-    queryFn: fetchEquiposOptions,
-    enabled,
   });
 };
 

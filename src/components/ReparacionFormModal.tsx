@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { FormActions, Modal } from './Modal';
 import { FormField } from './FormField';
-import { Combobox } from './Combobox';
+import { AsyncCombobox } from './AsyncCombobox';
 import { FotoUploader } from './FotoUploader';
 import { MoneyInput } from './MoneyInput';
 import { inputClass, btnGhost, btnPrimary } from './ui';
@@ -16,15 +16,15 @@ import {
   useIngresoRapidoMutation,
 } from '../api/mutations/reparaciones.mutations';
 import { useUsuariosQuery } from '../api/queries/usuarios.queries';
+import { equiposOptionsSource } from '../api/queries/equipos.queries';
 import { useAuth } from '../store/auth.store';
 import { CUENTA_LABEL, RIESGO_CUENTA_MSG } from '../config/ingreso';
-import { fotosPorMomento } from '../utils/reparacion';
+import { clienteLabel, equipoLabel, fotosPorMomento } from '../utils/reparacion';
 import { toLocalDateInputValue } from '../utils/date';
 import { showSuccess } from '../utils/toast';
 import type {
   CuentaVinculada,
   EstadoReparacion,
-  Equipo,
   Foto,
   IngresoRapidoRequest,
   IngresoRapidoResponse,
@@ -90,10 +90,6 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   editing: Reparacion | null;
-  equipos: Equipo[];
-  equiposLoading?: boolean;
-  equiposError?: boolean;
-  onRetryEquipos?: () => void;
   /** Se llama tras crear por carga rápida, con el id de la reparación nueva. */
   onCreated?: (reparacionId: number) => void;
   /** Solo la ficha autenticada conoce estos valores; un listado nunca los pasa. */
@@ -135,10 +131,6 @@ export const ReparacionFormModal = ({
   isOpen,
   onClose,
   editing,
-  equipos,
-  equiposLoading = false,
-  equiposError = false,
-  onRetryEquipos,
   onCreated,
   credenciales,
   onLimpiarCredenciales,
@@ -190,26 +182,14 @@ export const ReparacionFormModal = ({
 
   const modo = watch('modo');
   const esRapido = !editing && modo === 'nuevo';
-  const needsEquipoOptions = !editing && modo === 'existente';
-  const equipoSelectionBlocked = needsEquipoOptions
-    && (equiposLoading || equiposError || equipos.length === 0);
-  const submitBlocked = blocking || equipoSelectionBlocked;
-  const equipoOptions = equipos.map((equipo) => ({
-    value: equipo.id,
-    label: `${equipo.marca} ${equipo.modelo}`,
-    sublabel: equipo.clienteNombre
-      ? `${equipo.clienteNombre} ${equipo.clienteApellido ?? ''}`.trim()
-      : undefined,
-  }));
-  if (editing && !equipoOptions.some((option) => option.value === editing.equipoId)) {
-    equipoOptions.unshift({
+  const submitBlocked = blocking;
+  const editingEquipoOption = editing
+    ? {
       value: editing.equipoId,
-      label: `${editing.equipoMarca} ${editing.equipoModelo}`,
-      sublabel: editing.clienteNombre
-        ? `${editing.clienteNombre} ${editing.clienteApellido ?? ''}`.trim()
-        : undefined,
-    });
-  }
+      label: equipoLabel(editing),
+      sublabel: editing.clienteNombre ? clienteLabel(editing) : undefined,
+    }
+    : undefined;
   const cuentaVinculada = watch('tieneCuentaVinculada');
   const conoceCredenciales = watch('clienteConoceCredenciales');
   const estadosDisponibles = editing
@@ -363,7 +343,6 @@ export const ReparacionFormModal = ({
   };
 
   const onSubmit = async (data: FormData) => {
-    if (equipoSelectionBlocked) return;
     // El botón externo queda deshabilitado, pero este guard también cubre un
     // submit implícito por Enter mientras el input de archivos sigue trabajando.
     if (uploadingPhotos) return;
@@ -497,12 +476,6 @@ export const ReparacionFormModal = ({
               ? 'Subiendo fotos…'
               : saving
                 ? 'Guardando…'
-                : equipoSelectionBlocked && equiposLoading
-                  ? 'Cargando equipos…'
-                  : equipoSelectionBlocked && equiposError
-                    ? 'No se cargaron equipos'
-                    : equipoSelectionBlocked
-                      ? 'Primero cargá un equipo'
                 : ingresoRapidoPendiente
                   ? 'Reintentar detalles'
                   : editing
@@ -576,47 +549,34 @@ export const ReparacionFormModal = ({
         {(editing || modo === 'existente') && (
           <FormField label="Equipo" required error={errors.equipoId?.message} htmlFor="equipoId">
             {(accessibility) => (
-              <div className="min-w-0 space-y-2">
-                {!editing && equiposLoading ? (
-                  <p role="status" className="rounded-lg bg-surface-2 px-3 py-2 text-[12.5px] font-semibold text-text-2">
-                    Cargando equipos…
-                  </p>
-                ) : !editing && equiposError ? (
-                  <div role="alert" className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg bg-danger-soft px-3 py-2 text-[12.5px] font-semibold text-danger-fg">
-                    <span>No pudimos cargar los equipos.</span>
-                    {onRetryEquipos ? (
-                      <button type="button" className="min-h-11 rounded-md px-3 font-bold underline sm:min-h-0" onClick={onRetryEquipos}>
-                        Reintentar
-                      </button>
-                    ) : null}
-                  </div>
-                ) : !editing && equipoOptions.length === 0 ? (
-                  <p role="status" className="rounded-lg bg-warning-soft px-3 py-2 text-[12.5px] font-semibold text-warning">
-                    Primero cargá un equipo o usá “Cliente y equipo nuevos”.
-                  </p>
-                ) : null}
-                <Controller
-                  control={control}
-                  name="equipoId"
-                  render={({ field }) => (
-                    <Combobox
-                      ref={field.ref}
-                      id="equipoId"
-                      name={field.name}
-                      value={field.value}
-                      onChange={(v) => field.onChange(v)}
-                      onBlur={field.onBlur}
-                      hasError={!!errors.equipoId}
-                      aria-invalid={accessibility['aria-invalid']}
-                      aria-describedby={accessibility['aria-describedby']}
-                      aria-required={accessibility['aria-required']}
-                      disabled={!!editing || equiposLoading || equiposError || equipoOptions.length === 0}
-                      placeholder={equiposLoading ? 'Cargando equipos…' : 'Seleccioná un equipo'}
-                      options={equipoOptions}
-                    />
-                  )}
-                />
-              </div>
+              <Controller
+                control={control}
+                name="equipoId"
+                render={({ field }) => (
+                  <AsyncCombobox
+                    ref={field.ref}
+                    id="equipoId"
+                    name={field.name}
+                    source={equiposOptionsSource}
+                    enabled={isOpen && !editing && modo === 'existente'}
+                    value={field.value}
+                    selectedOption={editingEquipoOption}
+                    onChange={(value) => field.onChange(value)}
+                    onBlur={field.onBlur}
+                    hasError={!!errors.equipoId}
+                    aria-invalid={accessibility['aria-invalid']}
+                    aria-describedby={accessibility['aria-describedby']}
+                    aria-required={accessibility['aria-required']}
+                    disabled={!!editing || blocking}
+                    placeholder="Seleccioná un equipo"
+                    searchPlaceholder="Buscar por equipo, cliente o IMEI…"
+                    searchAriaLabel="Buscar equipo"
+                    entityName="equipo"
+                    entityNamePlural="equipos"
+                    errorMessage="No pudimos cargar los equipos."
+                  />
+                )}
+              />
             )}
           </FormField>
         )}

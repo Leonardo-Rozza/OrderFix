@@ -20,7 +20,6 @@ import { PagoChip } from '../components/PagoChip';
 import { apiClient } from '../api/axios';
 import type { WhatsappLink } from '../types';
 import { useReparacionQuery } from '../api/queries/reparaciones.queries';
-import { useEquiposOptions } from '../api/queries/equipos.queries';
 import { useRepuestosPorReparacionQuery } from '../api/queries/repuestos.queries';
 import { usePresupuestosQuery } from '../api/queries/presupuestos.queries';
 import {
@@ -67,7 +66,6 @@ export const ReparacionDetallePage = () => {
     limpiarCredenciales,
     refetchCredenciales,
   } = useReparacionQuery(reparacionId);
-  const { data: equipos = [] } = useEquiposOptions();
   const {
     data: repuestosData,
     isPending: repuestosPending,
@@ -847,7 +845,6 @@ export const ReparacionDetallePage = () => {
         isOpen={editOpen}
         onClose={() => setEditOpen(false)}
         editing={rep}
-        equipos={equipos}
         credenciales={credenciales}
         onLimpiarCredenciales={limpiarCredenciales}
         onRefetchCredenciales={refetchCredenciales}

@@ -43,8 +43,16 @@ describe('ReparacionFormModal — alta rápida (modo nuevo)', () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     let body: Record<string, unknown> | undefined;
+    let equiposRequests = 0;
 
     server.use(
+      http.get(`${API}/equipos`, () => {
+        equiposRequests += 1;
+        return HttpResponse.json({
+          content: [],
+          page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
+        });
+      }),
       http.post(`${API}/reparaciones/ingreso-rapido`, async ({ request }) => {
         body = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(
@@ -54,7 +62,7 @@ describe('ReparacionFormModal — alta rápida (modo nuevo)', () => {
       })
     );
 
-    renderUI(<ReparacionFormModal isOpen onClose={onClose} editing={null} equipos={[]} />);
+    renderUI(<ReparacionFormModal isOpen onClose={onClose} editing={null} />);
 
     await completarMinimos(user, '  Pantalla rota  ');
     await user.click(screen.getByRole('button', { name: /crear reparación/i }));
@@ -68,6 +76,7 @@ describe('ReparacionFormModal — alta rápida (modo nuevo)', () => {
       descripcionProblema: 'Pantalla rota',
     });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(equiposRequests).toBe(0);
   });
 
   it('si falla el PUT, conserva la orden creada y el siguiente submit reintenta sólo ese PUT', async () => {
@@ -101,7 +110,6 @@ describe('ReparacionFormModal — alta rápida (modo nuevo)', () => {
         isOpen
         onClose={onClose}
         editing={null}
-        equipos={[]}
         onCreated={onCreated}
       />,
     );
@@ -147,7 +155,7 @@ describe('ReparacionFormModal — alta rápida (modo nuevo)', () => {
       }),
     );
 
-    renderUI(<ReparacionFormModal isOpen onClose={vi.fn()} editing={null} equipos={[]} />);
+    renderUI(<ReparacionFormModal isOpen onClose={vi.fn()} editing={null} />);
     await completarMinimos(user);
     fireEvent.change(screen.getByLabelText(/fecha de ingreso/i), {
       target: { value: '2026-01-15' },
@@ -168,7 +176,7 @@ describe('ReparacionFormModal — alta rápida (modo nuevo)', () => {
       })
     );
 
-    renderUI(<ReparacionFormModal isOpen onClose={vi.fn()} editing={null} equipos={[]} />);
+    renderUI(<ReparacionFormModal isOpen onClose={vi.fn()} editing={null} />);
     await user.click(screen.getByRole('button', { name: /crear reparación/i }));
 
     expect(await screen.findByText(/nombre requerido/i)).toBeInTheDocument();
@@ -177,7 +185,7 @@ describe('ReparacionFormModal — alta rápida (modo nuevo)', () => {
 
   it('reabre los detalles y enfoca una garantía inválida antes de enviar', async () => {
     const user = userEvent.setup();
-    renderUI(<ReparacionFormModal isOpen onClose={vi.fn()} editing={null} equipos={[]} />);
+    renderUI(<ReparacionFormModal isOpen onClose={vi.fn()} editing={null} />);
     await completarMinimos(user);
 
     const summary = screen.getByText('Detalles de ingreso (opcional)', { exact: true });
@@ -198,58 +206,54 @@ describe('ReparacionFormModal — alta rápida (modo nuevo)', () => {
 });
 
 describe('ReparacionFormModal — equipo existente', () => {
-  it('bloquea el envío mientras carga las opciones de equipos', async () => {
-    const user = userEvent.setup();
-    renderUI(
-      <ReparacionFormModal
-        isOpen
-        onClose={vi.fn()}
-        editing={null}
-        equipos={[]}
-        equiposLoading
-      />,
-    );
-
-    await user.click(screen.getByRole('button', { name: /elegir equipo existente/i }));
-    expect(screen.getByRole('status')).toHaveTextContent(/cargando equipos/i);
-    expect(screen.getByRole('button', { name: /cargando equipos/i })).toBeDisabled();
-  });
-
-  it('crea la reparación contra el equipo elegido', async () => {
+  it('consulta bajo demanda, pagina y crea la reparación contra el equipo elegido', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     let body: Record<string, unknown> | undefined;
+    const requestedPages: number[] = [];
 
-    const equipos: Equipo[] = [
-      {
-        id: 5,
-        marca: 'Samsung',
-        modelo: 'A52',
-        imei: null,
-        color: null,
-        descripcion: null,
-        clienteId: 1,
-        clienteNombre: 'Ana',
-        clienteApellido: 'Gómez',
-      },
-    ];
+    const equipo: Equipo = {
+      id: 5,
+      marca: 'Samsung',
+      modelo: 'A52',
+      imei: '359999',
+      color: null,
+      descripcion: null,
+      clienteId: 1,
+      clienteNombre: 'Ana',
+      clienteApellido: 'Gómez',
+    };
 
     server.use(
+      http.get(`${API}/equipos`, ({ request }) => {
+        const url = new URL(request.url);
+        const page = Number(url.searchParams.get('page'));
+        requestedPages.push(page);
+        expect(url.searchParams.get('size')).toBe('20');
+        expect(url.searchParams.get('sort')).toBe('id,desc');
+        return HttpResponse.json({
+          content: page === 1 ? [equipo] : [],
+          page: { size: 20, number: page, totalElements: 21, totalPages: 2 },
+        });
+      }),
       http.post(`${API}/reparaciones`, async ({ request }) => {
         body = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json({ id: 10, ...body }, { status: 201 });
       })
     );
 
-    renderUI(<ReparacionFormModal isOpen onClose={onClose} editing={null} equipos={equipos} />);
+    renderUI(<ReparacionFormModal isOpen onClose={onClose} editing={null} />);
 
     await user.click(screen.getByRole('button', { name: /elegir equipo existente/i }));
+    expect(requestedPages).toEqual([]);
     await user.click(screen.getByLabelText(/^equipo/i));
+    await user.click(await screen.findByRole('button', { name: /cargar más/i }));
     await user.click(await screen.findByRole('option', { name: /samsung a52/i }));
     await user.type(screen.getByLabelText(/problema/i), 'No enciende');
     await user.click(screen.getByRole('button', { name: /crear reparación/i }));
 
     await waitFor(() => expect(body).toBeDefined());
+    expect(requestedPages).toEqual([0, 1]);
     expect(body).toMatchObject({ equipoId: 5, descripcionProblema: 'No enciende' });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
@@ -278,7 +282,15 @@ describe('ReparacionFormModal — edición segura de credenciales', () => {
   it('omite PIN/patrón sin cambios para conservarlos en el backend', async () => {
     const user = userEvent.setup();
     let body: Record<string, unknown> | undefined;
+    let equiposRequests = 0;
     server.use(
+      http.get(`${API}/equipos`, () => {
+        equiposRequests += 1;
+        return HttpResponse.json({
+          content: [],
+          page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
+        });
+      }),
       http.put(`${API}/reparaciones/15`, async ({ request }) => {
         body = await request.json() as Record<string, unknown>;
         return HttpResponse.json({ ...reparacionEnEdicion, ...body });
@@ -290,15 +302,18 @@ describe('ReparacionFormModal — edición segura de credenciales', () => {
         isOpen
         onClose={vi.fn()}
         editing={reparacionEnEdicion}
-        equipos={[]}
         credenciales={credencialesGuardadas}
       />,
     );
+    const equipo = screen.getByLabelText(/^equipo/i);
+    expect(equipo).toBeDisabled();
+    expect(equipo).toHaveTextContent('Samsung A52');
     await user.click(screen.getByRole('button', { name: /guardar cambios/i }));
 
     await waitFor(() => expect(body).toBeDefined());
     expect(body).not.toHaveProperty('pinDesbloqueo');
     expect(body).not.toHaveProperty('patronDesbloqueo');
+    expect(equiposRequests).toBe(0);
   });
 
   it('manda string vacío cuando el técnico borra una credencial', async () => {
@@ -316,7 +331,6 @@ describe('ReparacionFormModal — edición segura de credenciales', () => {
         isOpen
         onClose={vi.fn()}
         editing={reparacionEnEdicion}
-        equipos={[]}
         credenciales={credencialesGuardadas}
       />,
     );
@@ -347,7 +361,6 @@ describe('ReparacionFormModal — edición segura de credenciales', () => {
         isOpen
         onClose={onClose}
         editing={{ ...reparacionEnEdicion, estado: 'COMPLETADO' }}
-        equipos={[]}
         credenciales={credencialesGuardadas}
         onLimpiarCredenciales={onLimpiarCredenciales}
         onRefetchCredenciales={onRefetchCredenciales}

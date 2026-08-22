@@ -51,15 +51,6 @@ vi.mock('../api/queries/equipos.queries', () => ({
   }),
 }));
 
-vi.mock('../api/queries/clientes.queries', () => ({
-  useClientesOptions: () => ({
-    data: [],
-    isLoading: false,
-    isError: false,
-    refetch: mocks.refetch,
-  }),
-}));
-
 vi.mock('../api/mutations/equipos.mutations', () => ({
   useDeleteEquipoMutation: () => ({
     isPending: false,

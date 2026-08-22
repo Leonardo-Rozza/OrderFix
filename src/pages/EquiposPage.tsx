@@ -12,7 +12,6 @@ import { iniciales } from '../utils/format';
 import { useListParams } from '../hooks/useListParams';
 import { usePageBounds } from '../hooks/usePageBounds';
 import { useEquiposQuery } from '../api/queries/equipos.queries';
-import { useClientesOptions } from '../api/queries/clientes.queries';
 import { useDeleteEquipoMutation } from '../api/mutations/equipos.mutations';
 import { useAuth } from '../store/auth.store';
 import type { Equipo } from '../types';
@@ -30,12 +29,6 @@ const deviceIcon = (
 export const EquiposPage = () => {
   const { q, onSearch, page, setPage, debouncedQ, size, sort, setSort } = useListParams(20, 'id,desc');
   const { data, isLoading, isError, isFetching, isPlaceholderData, refetch } = useEquiposQuery({ q: debouncedQ, page, size, sort });
-  const {
-    data: clientes = [],
-    isLoading: clientesLoading,
-    isError: clientesError,
-    refetch: refetchClientes,
-  } = useClientesOptions();
   const { isAdmin } = useAuth();
   const deleteMutation = useDeleteEquipoMutation();
 
@@ -200,10 +193,6 @@ export const EquiposPage = () => {
         isOpen={formOpen}
         onClose={() => setFormOpen(false)}
         editing={editing}
-        clientes={clientes}
-        clientesLoading={clientesLoading}
-        clientesError={clientesError}
-        onRetryClientes={() => void refetchClientes()}
       />
       {verReparaciones && <EquipoReparacionesModal equipo={verReparaciones} onClose={() => setVerReparaciones(null)} />}
 

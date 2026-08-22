@@ -2,7 +2,6 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '../axios';
 import {
   requirePageMeta,
-  unwrapList,
   toQueryParams,
   type Page,
   type ListParams,
@@ -54,20 +53,6 @@ export const useClientesQuery = (params: ListParams) => {
     queryKey: queryKeys.clientes.list(params),
     queryFn: () => fetchClientes(params),
     placeholderData: keepPreviousData,
-  });
-};
-
-// Opciones para selects (ej: elegir cliente en un equipo) — lista acotada
-const fetchClientesOptions = async (): Promise<Cliente[]> => {
-  const { data } = await apiClient.get<Page<Cliente> | Cliente[]>('/clientes', { params: { size: 200, sort: CLIENTES_OPTIONS_SORT } });
-  return unwrapList(data);
-};
-
-export const useClientesOptions = (enabled = true) => {
-  return useQuery({
-    queryKey: queryKeys.clientes.options,
-    queryFn: fetchClientesOptions,
-    enabled,
   });
 };
 

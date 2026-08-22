@@ -4,12 +4,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { FormActions, Modal } from './Modal';
 import { FormField } from './FormField';
-import { Combobox } from './Combobox';
+import { AsyncCombobox, type AsyncComboboxOption } from './AsyncCombobox';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import {
   useCreateEquipoMutation,
   useUpdateEquipoMutation,
 } from '../api/mutations/equipos.mutations';
+import { clientesOptionsSource } from '../api/queries/clientes.queries';
 import type { Cliente, Equipo, EquipoCreate, EquipoUpdate } from '../types';
 
 const schema = z.object({
@@ -27,12 +28,8 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   editing: Equipo | null;
-  clientes: Cliente[];
-  clientesLoading?: boolean;
-  clientesError?: boolean;
-  onRetryClientes?: () => void;
   /** Cliente preseleccionado al crear (p. ej. desde la ficha de un cliente). */
-  defaultClienteId?: number;
+  defaultCliente?: Cliente | null;
 }
 
 const str = (v: string | undefined): string | undefined => (v && v.trim() !== '' ? v : undefined);
@@ -41,21 +38,19 @@ export const EquipoFormModal = ({
   isOpen,
   onClose,
   editing,
-  clientes,
-  clientesLoading = false,
-  clientesError = false,
-  onRetryClientes,
-  defaultClienteId,
+  defaultCliente,
 }: Props) => {
   const createMutation = useCreateEquipoMutation();
   const updateMutation = useUpdateEquipoMutation();
   const saving = createMutation.isPending || updateMutation.isPending;
+  const defaultClienteId = defaultCliente?.id;
 
   const {
     register,
     handleSubmit,
     reset,
     control,
+    watch,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
@@ -71,26 +66,24 @@ export const EquipoFormModal = ({
     });
   }, [isOpen, editing, defaultClienteId, reset]);
 
-  const selectedClienteId = editing?.clienteId ?? defaultClienteId;
-  const clienteOptions = clientes.map((cliente) => ({
-    value: cliente.id,
-    label: `${cliente.nombre} ${cliente.apellido ?? ''}`.trim(),
-  }));
-  if (selectedClienteId && !clienteOptions.some((option) => option.value === selectedClienteId)) {
-    clienteOptions.unshift({
-      value: selectedClienteId,
-      label: editing?.clienteNombre
-        ? `${editing.clienteNombre} ${editing.clienteApellido ?? ''}`.trim()
-        : `Cliente #${selectedClienteId}`,
-    });
-  }
-  const needsClientOptions = !editing && !selectedClienteId;
-  const clientSelectionBlocked = needsClientOptions
-    && (clientesLoading || clientesError || clienteOptions.length === 0);
-  const submitBlocked = saving || clientSelectionBlocked;
+  const selectedClienteId = watch('clienteId');
+  const selectedClienteOption: AsyncComboboxOption | undefined = editing
+    ? {
+        value: editing.clienteId,
+        label: editing.clienteNombre
+          ? `${editing.clienteNombre} ${editing.clienteApellido ?? ''}`.trim()
+          : `Cliente #${editing.clienteId}`,
+      }
+    : defaultCliente
+      ? {
+          value: defaultCliente.id,
+          label: `${defaultCliente.nombre} ${defaultCliente.apellido ?? ''}`.trim(),
+          sublabel: defaultCliente.telefono || undefined,
+        }
+      : undefined;
+  const submitBlocked = saving || !selectedClienteId;
 
   const onSubmit = async (data: FormData) => {
-    if (clientSelectionBlocked) return;
     const base: EquipoCreate = {
       marca: data.marca.trim(),
       modelo: data.modelo.trim(),
@@ -124,15 +117,11 @@ export const EquipoFormModal = ({
           <button type="submit" form="equipo-form" className={btnPrimary} disabled={submitBlocked}>
             {saving
               ? 'Guardando…'
-              : clientSelectionBlocked && clientesLoading
-                ? 'Cargando clientes…'
-                : clientSelectionBlocked && clientesError
-                  ? 'No se cargaron clientes'
-                  : clientSelectionBlocked
-                    ? 'Primero cargá un cliente'
-                    : editing
-                      ? 'Guardar cambios'
-                      : 'Crear equipo'}
+              : !selectedClienteId
+                ? 'Seleccioná un cliente'
+                : editing
+                  ? 'Guardar cambios'
+                  : 'Crear equipo'}
           </button>
         </FormActions>
       )}
@@ -149,43 +138,32 @@ export const EquipoFormModal = ({
 
         <FormField label="Cliente" required error={errors.clienteId?.message} htmlFor="clienteId">
           {(accessibility) => (
-            <div className="min-w-0 space-y-2">
-              {clientesLoading ? (
-                <p role="status" className="rounded-lg bg-surface-2 px-3 py-2 text-[12.5px] font-semibold text-text-2">
-                  Cargando clientes…
-                </p>
-              ) : clientesError ? (
-                <div role="alert" className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg bg-danger-soft px-3 py-2 text-[12.5px] font-semibold text-danger-fg">
-                  <span>No pudimos cargar los clientes.</span>
-                  {onRetryClientes ? (
-                    <button type="button" className="min-h-11 rounded-md px-3 font-bold underline sm:min-h-0" onClick={onRetryClientes}>
-                      Reintentar
-                    </button>
-                  ) : null}
-                </div>
-              ) : clienteOptions.length === 0 ? (
-                <p role="status" className="rounded-lg bg-warning-soft px-3 py-2 text-[12.5px] font-semibold text-warning">
-                  Primero cargá un cliente para poder registrar el equipo.
-                </p>
-              ) : null}
+            <div className="min-w-0">
               <Controller
                 control={control}
                 name="clienteId"
                 render={({ field }) => (
-                  <Combobox
+                  <AsyncCombobox
                     ref={field.ref}
                     id="clienteId"
                     name={field.name}
                     value={field.value}
+                    selectedOption={selectedClienteOption}
+                    source={clientesOptionsSource}
+                    enabled={isOpen}
                     onChange={(v) => field.onChange(v)}
                     onBlur={field.onBlur}
                     hasError={!!errors.clienteId}
                     aria-invalid={accessibility['aria-invalid']}
                     aria-describedby={accessibility['aria-describedby']}
                     aria-required={accessibility['aria-required']}
-                    disabled={clientesLoading || clientesError || clienteOptions.length === 0}
-                    placeholder={clientesLoading ? 'Cargando clientes…' : 'Seleccioná un cliente'}
-                    options={clienteOptions}
+                    disabled={saving}
+                    placeholder="Seleccioná un cliente"
+                    searchAriaLabel="Buscar cliente"
+                    entityName="cliente"
+                    entityNamePlural="clientes"
+                    emptyMessage="No hay clientes disponibles. Cargá uno antes de registrar el equipo."
+                    errorMessage="No pudimos cargar los clientes."
                   />
                 )}
               />

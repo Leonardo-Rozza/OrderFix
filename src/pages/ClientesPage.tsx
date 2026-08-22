@@ -12,7 +12,7 @@ import { btnPrimary } from '../components/ui';
 import { iniciales, formatDate } from '../utils/format';
 import { useListParams } from '../hooks/useListParams';
 import { usePageBounds } from '../hooks/usePageBounds';
-import { useClientesQuery, useClientesOptions } from '../api/queries/clientes.queries';
+import { useClientesQuery } from '../api/queries/clientes.queries';
 import { useDeleteClienteMutation } from '../api/mutations/clientes.mutations';
 import { useAuth } from '../store/auth.store';
 import type { Cliente } from '../types';
@@ -20,12 +20,6 @@ import type { Cliente } from '../types';
 export const ClientesPage = () => {
   const { q, onSearch, page, setPage, debouncedQ, size, sort, setSort } = useListParams(20, 'nombre,asc');
   const { data, isLoading, isError, isFetching, isPlaceholderData, refetch } = useClientesQuery({ q: debouncedQ, page, size, sort });
-  const {
-    data: clientesOptions = [],
-    isLoading: clientesOptionsLoading,
-    isError: clientesOptionsError,
-    refetch: refetchClientesOptions,
-  } = useClientesOptions();
   const { isAdmin } = useAuth();
   const deleteMutation = useDeleteClienteMutation();
 
@@ -196,15 +190,7 @@ export const ClientesPage = () => {
         isOpen={!!equipoFor}
         onClose={() => setEquipoFor(null)}
         editing={null}
-        clientes={
-          equipoFor && !clientesOptions.some((cliente) => cliente.id === equipoFor.id)
-            ? [equipoFor, ...clientesOptions]
-            : clientesOptions
-        }
-        clientesLoading={clientesOptionsLoading}
-        clientesError={clientesOptionsError}
-        onRetryClientes={() => void refetchClientesOptions()}
-        defaultClienteId={equipoFor?.id}
+        defaultCliente={equipoFor}
       />
 
       <ConfirmDialog

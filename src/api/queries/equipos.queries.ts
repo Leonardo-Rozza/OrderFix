@@ -1,6 +1,7 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '../axios';
 import { unwrapList, toQueryParams, type Page, type ListParams } from '../pagination';
+import { queryKeys } from '../queryKeys';
 import type { Equipo } from '../../types';
 
 // Listado paginado + búsqueda (server-side)
@@ -11,7 +12,7 @@ const fetchEquipos = async (params: ListParams): Promise<Page<Equipo>> => {
 
 export const useEquiposQuery = (params: ListParams) => {
   return useQuery({
-    queryKey: ['equipos', params],
+    queryKey: queryKeys.equipos.list(params),
     queryFn: () => fetchEquipos(params),
     placeholderData: keepPreviousData,
   });
@@ -25,7 +26,7 @@ const fetchEquiposOptions = async (): Promise<Equipo[]> => {
 
 export const useEquiposOptions = (enabled = true) => {
   return useQuery({
-    queryKey: ['equipos', 'options'],
+    queryKey: queryKeys.equipos.options,
     queryFn: fetchEquiposOptions,
     enabled,
   });
@@ -39,7 +40,7 @@ const fetchEquiposPorCliente = async (clienteId: number): Promise<Equipo[]> => {
 
 export const useEquiposPorClienteQuery = (clienteId: number | undefined) => {
   return useQuery({
-    queryKey: ['equipos', 'cliente', clienteId],
+    queryKey: queryKeys.equipos.byCliente(clienteId),
     queryFn: () => fetchEquiposPorCliente(clienteId as number),
     enabled: !!clienteId,
   });
@@ -53,7 +54,7 @@ const fetchEquipoById = async (id: number): Promise<Equipo> => {
 
 export const useEquipoQuery = (id: number) => {
   return useQuery({
-    queryKey: ['equipo', id],
+    queryKey: queryKeys.equipos.detail(id),
     queryFn: () => fetchEquipoById(id),
     enabled: !!id,
   });

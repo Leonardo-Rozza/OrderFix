@@ -1,6 +1,7 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '../axios';
 import { unwrapList, toQueryParams, FETCH_ALL_PARAMS, type Page, type ListParams } from '../pagination';
+import { queryKeys } from '../queryKeys';
 import type { Repuesto } from '../../types';
 
 // Listado de repuestos paginado + búsqueda (server-side)
@@ -11,7 +12,7 @@ const fetchRepuestos = async (params: ListParams): Promise<Page<Repuesto>> => {
 
 export const useRepuestosQuery = (params: ListParams) => {
   return useQuery({
-    queryKey: ['repuestos', params],
+    queryKey: queryKeys.repuestos.list(params),
     queryFn: () => fetchRepuestos(params),
     placeholderData: keepPreviousData,
   });
@@ -26,7 +27,7 @@ const fetchRepuestoById = async (id: number): Promise<Repuesto> => {
 // Hook para obtener un repuesto por ID
 export const useRepuestoQuery = (id: number) => {
   return useQuery({
-    queryKey: ['repuesto', id],
+    queryKey: queryKeys.repuestos.detail(id),
     queryFn: () => fetchRepuestoById(id),
     enabled: !!id,
   });
@@ -43,7 +44,7 @@ const fetchRepuestosPorReparacion = async (reparacionId: number): Promise<Repues
 // Hook para obtener repuestos por reparación
 export const useRepuestosPorReparacionQuery = (reparacionId: number | undefined) => {
   return useQuery({
-    queryKey: ['repuestos', 'reparacion', reparacionId],
+    queryKey: queryKeys.repuestos.byReparacion(reparacionId),
     queryFn: () => fetchRepuestosPorReparacion(reparacionId as number),
     enabled: !!reparacionId,
   });

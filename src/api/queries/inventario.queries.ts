@@ -1,6 +1,7 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '../axios';
 import { unwrapList, toQueryParams, type Page, type ListParams } from '../pagination';
+import { queryKeys } from '../queryKeys';
 import type { Articulo } from '../../types';
 
 // Listado de inventario paginado + búsqueda (server-side)
@@ -11,7 +12,7 @@ const fetchInventario = async (params: ListParams): Promise<Page<Articulo>> => {
 
 export const useInventarioQuery = (params: ListParams, enabled = true) => {
   return useQuery({
-    queryKey: ['inventario', params],
+    queryKey: queryKeys.inventario.list(params),
     queryFn: () => fetchInventario(params),
     enabled,
     placeholderData: keepPreviousData,
@@ -26,7 +27,7 @@ const fetchArticulosOptions = async (): Promise<Articulo[]> => {
 
 export const useArticulosOptions = (enabled = true) => {
   return useQuery({
-    queryKey: ['inventario', 'options'],
+    queryKey: queryKeys.inventario.options,
     queryFn: fetchArticulosOptions,
     enabled,
   });

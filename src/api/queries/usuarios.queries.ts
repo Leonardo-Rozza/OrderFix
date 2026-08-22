@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../axios';
 import { unwrapList, type Page } from '../pagination';
+import { queryKeys } from '../queryKeys';
 import type { Usuario } from '../../types';
 
 // Empleados del taller (solo ADMIN)
@@ -11,7 +12,7 @@ const fetchUsuarios = async (): Promise<Usuario[]> => {
 
 export const useUsuariosQuery = (enabled = true) => {
   return useQuery({
-    queryKey: ['usuarios'],
+    queryKey: queryKeys.usuarios.all,
     queryFn: fetchUsuarios,
     enabled,
   });

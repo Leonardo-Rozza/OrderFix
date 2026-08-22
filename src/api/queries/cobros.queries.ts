@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../axios';
+import { queryKeys } from '../queryKeys';
 import type { CajaResumen, CobrosReparacion, Recibo } from '../../types';
 
 // Cobros + resumen de una reparación
@@ -10,7 +11,7 @@ const fetchCobros = async (reparacionId: number): Promise<CobrosReparacion> => {
 
 export const useCobrosQuery = (reparacionId: number | undefined) => {
   return useQuery({
-    queryKey: ['cobros', reparacionId],
+    queryKey: queryKeys.cobros.byReparacion(reparacionId),
     queryFn: () => fetchCobros(reparacionId as number),
     enabled: !!reparacionId,
   });
@@ -24,7 +25,7 @@ const fetchRecibo = async (reparacionId: number): Promise<Recibo> => {
 
 export const useReciboQuery = (reparacionId: number | undefined) => {
   return useQuery({
-    queryKey: ['recibo', reparacionId],
+    queryKey: queryKeys.recibos.byReparacion(reparacionId),
     queryFn: () => fetchRecibo(reparacionId as number),
     enabled: !!reparacionId,
   });
@@ -38,7 +39,7 @@ const fetchCaja = async (rango: { desde?: string; hasta?: string }): Promise<Caj
 
 export const useCajaQuery = (rango: { desde?: string; hasta?: string }, enabled = true) => {
   return useQuery({
-    queryKey: ['caja', rango.desde ?? null, rango.hasta ?? null],
+    queryKey: queryKeys.caja.range(rango),
     queryFn: () => fetchCaja(rango),
     enabled,
   });

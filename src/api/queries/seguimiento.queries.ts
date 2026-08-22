@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { publicClient } from '../axios';
+import { queryKeys } from '../queryKeys';
 import type { Seguimiento } from '../../types';
 
 // Seguimiento público (sin token) por código
@@ -10,7 +11,7 @@ const fetchSeguimiento = async (codigo: string): Promise<Seguimiento> => {
 
 export const useSeguimientoQuery = (codigo: string | undefined) => {
   return useQuery({
-    queryKey: ['seguimiento', codigo],
+    queryKey: queryKeys.seguimiento.byCodigo(codigo),
     queryFn: () => fetchSeguimiento(codigo as string),
     enabled: !!codigo,
     retry: false,

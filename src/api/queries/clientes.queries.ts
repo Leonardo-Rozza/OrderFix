@@ -1,6 +1,7 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '../axios';
 import { unwrapList, toQueryParams, type Page, type ListParams } from '../pagination';
+import { queryKeys } from '../queryKeys';
 import type { Cliente } from '../../types';
 
 // Listado paginado + búsqueda (server-side)
@@ -11,7 +12,7 @@ const fetchClientes = async (params: ListParams): Promise<Page<Cliente>> => {
 
 export const useClientesQuery = (params: ListParams) => {
   return useQuery({
-    queryKey: ['clientes', params],
+    queryKey: queryKeys.clientes.list(params),
     queryFn: () => fetchClientes(params),
     placeholderData: keepPreviousData,
   });
@@ -25,7 +26,7 @@ const fetchClientesOptions = async (): Promise<Cliente[]> => {
 
 export const useClientesOptions = (enabled = true) => {
   return useQuery({
-    queryKey: ['clientes', 'options'],
+    queryKey: queryKeys.clientes.options,
     queryFn: fetchClientesOptions,
     enabled,
   });
@@ -39,7 +40,7 @@ const fetchClienteById = async (id: number): Promise<Cliente> => {
 
 export const useClienteQuery = (id: number) => {
   return useQuery({
-    queryKey: ['cliente', id],
+    queryKey: queryKeys.clientes.detail(id),
     queryFn: () => fetchClienteById(id),
     enabled: !!id,
   });

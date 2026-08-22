@@ -1,6 +1,7 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '../axios';
-import { toQueryParams, type Page, type ListParams } from '../pagination';
+import { FETCH_ALL_PARAMS, toQueryParams, unwrapList, type Page, type ListParams } from '../pagination';
+import { queryKeys } from '../queryKeys';
 import type { EstadoReparacion, Reparacion } from '../../types';
 
 export interface ReparacionesParams extends ListParams {
@@ -17,10 +18,26 @@ const fetchReparaciones = async (params: ReparacionesParams): Promise<Page<Repar
 
 export const useReparacionesQuery = (params: ReparacionesParams, enabled = true) => {
   return useQuery({
-    queryKey: ['reparaciones', params],
+    queryKey: queryKeys.reparaciones.list(params),
     queryFn: () => fetchReparaciones(params),
     enabled,
     placeholderData: keepPreviousData,
+  });
+};
+
+// Opciones globales para asociar recursos (por ejemplo, un repuesto) a una orden.
+const fetchReparacionesOptions = async (): Promise<Reparacion[]> => {
+  const { data } = await apiClient.get<Page<Reparacion> | Reparacion[]>('/reparaciones', {
+    params: { ...FETCH_ALL_PARAMS, sort: 'id,desc' },
+  });
+  return unwrapList(data);
+};
+
+export const useReparacionesOptions = (enabled = true) => {
+  return useQuery({
+    queryKey: queryKeys.reparaciones.options,
+    queryFn: fetchReparacionesOptions,
+    enabled,
   });
 };
 
@@ -32,7 +49,7 @@ const fetchReparacionesPorEquipo = async (equipoId: number): Promise<Reparacion[
 
 export const useReparacionesPorEquipoQuery = (equipoId: number | undefined) => {
   return useQuery({
-    queryKey: ['reparaciones', 'equipo', equipoId],
+    queryKey: queryKeys.reparaciones.byEquipo(equipoId),
     queryFn: () => fetchReparacionesPorEquipo(equipoId as number),
     enabled: !!equipoId,
   });

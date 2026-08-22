@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { useParams } from 'react-router';
 import { Logo } from '../components/Logo';
 import { Loader } from '../components/Loader';
@@ -10,6 +10,8 @@ import { formatMoney, formatDate } from '../utils/format';
 import { useSeguimientoQuery } from '../api/queries/seguimiento.queries';
 import { useResponderPresupuestoMutation } from '../api/mutations/presupuestos.mutations';
 import { btnPrimary, btnGhost } from '../components/ui';
+import { useRetryAfter } from '../hooks/useRetryAfter';
+import { getHttpStatus } from '../utils/retryAfter';
 
 const Shell = ({ children }: { children: ReactNode }) => (
   <div className="min-h-screen bg-bg text-text">
@@ -25,8 +27,21 @@ const Shell = ({ children }: { children: ReactNode }) => (
 
 export const SeguimientoPage = () => {
   const { codigo } = useParams();
-  const { data, isLoading, isError } = useSeguimientoQuery(codigo);
+  const { data, error, isLoading, isError, isFetching, refetch } = useSeguimientoQuery(codigo);
   const responder = useResponderPresupuestoMutation(codigo ?? '');
+  const { isCoolingDown, secondsRemaining, startRetryAfter } = useRetryAfter();
+
+  useEffect(() => {
+    startRetryAfter(error);
+  }, [error, startRetryAfter]);
+
+  const responderPresupuesto = async (accion: 'aprobar' | 'rechazar') => {
+    try {
+      await responder.mutateAsync({ accion });
+    } catch (mutationError) {
+      startRetryAfter(mutationError);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -39,13 +54,49 @@ export const SeguimientoPage = () => {
   }
 
   if (isError || !data) {
+    const status = getHttpStatus(error);
+
+    if (status === 429) {
+      return (
+        <Shell>
+          <div className="rounded-2xl border border-border bg-surface p-8 text-center shadow-sm">
+            <div className="text-[18px] font-extrabold">Demasiadas consultas</div>
+            <p className="mt-2 text-[14px] text-text-2">
+              Por seguridad, esperá antes de volver a consultar este seguimiento.
+            </p>
+            <button
+              type="button"
+              className={`${btnPrimary} mt-5 w-full sm:w-auto`}
+              disabled={isCoolingDown || isFetching}
+              onClick={() => void refetch()}
+            >
+              {isCoolingDown
+                ? `Reintentá en ${secondsRemaining} s`
+                : isFetching
+                  ? 'Consultando…'
+                  : 'Volver a consultar'}
+            </button>
+          </div>
+        </Shell>
+      );
+    }
+
     return (
       <Shell>
         <div className="rounded-2xl border border-border bg-surface p-8 text-center shadow-sm">
-          <div className="text-[18px] font-extrabold">Código no encontrado</div>
+          <div className="text-[18px] font-extrabold">
+            {status === 404 ? 'Código no encontrado' : 'No pudimos consultar el seguimiento'}
+          </div>
           <p className="mt-2 text-[14px] text-text-2">
-            Revisá el enlace que te pasó el taller. Si el problema sigue, contactalos directamente.
+            {status === 404
+              ? 'Revisá el enlace que te pasó el taller. Si el problema sigue, contactalos directamente.'
+              : 'Intentá de nuevo en unos minutos. Si el problema sigue, contactá al taller directamente.'}
           </p>
+          {status !== 404 && (
+            <button type="button" className={`${btnPrimary} mt-5 w-full sm:w-auto`} disabled={isFetching} onClick={() => void refetch()}>
+              {isFetching ? 'Consultando…' : 'Volver a intentar'}
+            </button>
+          )}
         </div>
       </Shell>
     );
@@ -157,20 +208,25 @@ export const SeguimientoPage = () => {
                 <button
                   type="button"
                   className={`${btnPrimary} flex-1`}
-                  disabled={responder.isPending}
-                  onClick={() => responder.mutate({ accion: 'aprobar' })}
+                  disabled={responder.isPending || isCoolingDown}
+                  onClick={() => void responderPresupuesto('aprobar')}
                 >
                   Aprobar presupuesto
                 </button>
                 <button
                   type="button"
                   className={`${btnGhost} flex-1`}
-                  disabled={responder.isPending}
-                  onClick={() => responder.mutate({ accion: 'rechazar' })}
+                  disabled={responder.isPending || isCoolingDown}
+                  onClick={() => void responderPresupuesto('rechazar')}
                 >
                   Rechazar
                 </button>
               </div>
+            )}
+            {data.presupuesto.estado === 'PENDIENTE' && isCoolingDown && (
+              <p role="status" aria-live="polite" className="mt-3 text-center text-[12.5px] font-semibold text-warning">
+                Demasiadas solicitudes. Reintentá en {secondsRemaining} s.
+              </p>
             )}
           </div>
         )}

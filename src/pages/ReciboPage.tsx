@@ -49,7 +49,8 @@ export const ReciboPage = () => {
           <div className="flex items-start justify-between border-b border-border pb-5">
             <div>
               <Logo size={34} />
-              {r.tallerTelefono && <div className="mt-2 text-[12.5px] text-text-3">Tel: {r.tallerTelefono}</div>}
+              <div className="mt-2 text-[15px] font-extrabold">{r.tallerNombre}</div>
+              {r.tallerTelefono && <div className="mt-1 text-[12.5px] text-text-3">Tel: {r.tallerTelefono}</div>}
             </div>
             <div className="text-right">
               <div className="text-[12.5px] font-extrabold uppercase tracking-wide text-text-3">Recibo</div>

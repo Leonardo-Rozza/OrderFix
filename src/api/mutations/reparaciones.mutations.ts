@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../axios';
-import type { Page } from '../pagination';
 import type {
   EstadoReparacion,
   IngresoRapidoRequest,
@@ -10,6 +9,11 @@ import type {
   ReparacionUpdate,
 } from '../../types';
 import { getErrorMessage, showError, showSuccess } from '../../utils/toast';
+import {
+  reconcileReparacionChanged,
+  reconcileReparacionDeleted,
+} from '../cacheConsistency';
+import { queryKeys } from '../queryKeys';
 
 // Crear reparación
 const createReparacion = async (reparacion: ReparacionCreate): Promise<Reparacion> => {
@@ -49,8 +53,12 @@ export const useCreateReparacionMutation = () => {
   
   return useMutation({
     mutationFn: createReparacion,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reparaciones'] });
+    onSuccess: async (data) => {
+      await reconcileReparacionChanged(queryClient, {
+        reparacionId: data.id,
+        reparacion: data,
+        consumo: true,
+      });
       showSuccess('Reparación creada');
     },
     onError: (error) => {
@@ -65,14 +73,43 @@ export const useIngresoRapidoMutation = () => {
 
   return useMutation({
     mutationFn: ingresoRapido,
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['reparaciones'] });
-      queryClient.invalidateQueries({ queryKey: ['equipos'] });
-      queryClient.invalidateQueries({ queryKey: ['clientes'] });
-      showSuccess(data.clienteNuevo ? 'Reparación y cliente creados' : 'Reparación creada');
+    onSuccess: async (data) => {
+      await reconcileReparacionChanged(queryClient, {
+        reparacionId: data.reparacion.id,
+        reparacion: data.reparacion,
+        consumo: true,
+      });
+      // El formulario puede necesitar un PUT posterior para completar la orden.
+      // La notificación final la emite recién cuando termina la transacción entera.
     },
     onError: (error) => {
       showError(getErrorMessage(error, 'No se pudo crear la reparación'));
+    },
+  });
+};
+
+/**
+ * Segundo paso del ingreso rápido. No muestra éxito propio porque forma parte de
+ * una única operación visible; sí explica que el POST ya ocurrió y que reintentar
+ * es seguro cuando falla.
+ */
+export const useCompletarIngresoRapidoMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateReparacion,
+    onSuccess: async (data) => {
+      await reconcileReparacionChanged(queryClient, {
+        reparacionId: data.id,
+        reparacion: data,
+        equipoChanged: true,
+      });
+    },
+    onError: (error) => {
+      const detail = getErrorMessage(error, 'No se pudieron guardar todos los detalles.');
+      showError(
+        `La reparación ya fue creada, pero faltó completar sus detalles: ${detail} Volvé a intentar; no se duplicará.`,
+      );
     },
   });
 };
@@ -83,9 +120,12 @@ export const useUpdateReparacionMutation = () => {
   
   return useMutation({
     mutationFn: updateReparacion,
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['reparaciones'] });
-      queryClient.invalidateQueries({ queryKey: ['reparacion', data.id] });
+    onSuccess: async (data) => {
+      await reconcileReparacionChanged(queryClient, {
+        reparacionId: data.id,
+        reparacion: data,
+        equipoChanged: true,
+      });
       showSuccess('Reparación actualizada');
     },
     onError: (error) => {
@@ -94,38 +134,23 @@ export const useUpdateReparacionMutation = () => {
   });
 };
 
-// Hook para cambiar el estado de una reparación (optimista: la tarjeta se mueve al instante)
+// Hook para cambiar el estado de una reparación. La respuesta del servidor es la
+// única que cambia la caché: las páginas filtradas conservan su membresía hasta
+// que el refetch confirmado actualiza origen, destino y totales.
 export const useCambiarEstadoMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: cambiarEstado,
-    onMutate: async ({ id, estado }) => {
-      await queryClient.cancelQueries({ queryKey: ['reparaciones'] });
-      // Snapshot de todas las caches que empiezan con ['reparaciones'] y update
-      // optimista en cada una. OJO: no todas son páginas — la de "reparaciones
-      // por equipo" (['reparaciones','equipo',id]) es un array plano.
-      const prev = queryClient.getQueriesData<Page<Reparacion> | Reparacion[]>({ queryKey: ['reparaciones'] });
-      queryClient.setQueriesData<Page<Reparacion> | Reparacion[]>({ queryKey: ['reparaciones'] }, (old) => {
-        if (!old) return old;
-        const patch = (r: Reparacion) => (r.id === id ? { ...r, estado } : r);
-        if (Array.isArray(old)) return old.map(patch);
-        if (!Array.isArray(old.content)) return old;
-        return { ...old, content: old.content.map(patch) };
-      });
-      queryClient.setQueryData<Reparacion>(['reparacion', id], (old) => (old ? { ...old, estado } : old));
-      return { prev };
-    },
-    onError: (error, _vars, context) => {
-      context?.prev?.forEach(([key, data]) => queryClient.setQueryData(key, data));
+    onError: (error) => {
       showError(getErrorMessage(error, 'No se pudo cambiar el estado'));
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['reparacion', data.id] });
+    onSuccess: async (data) => {
+      await reconcileReparacionChanged(queryClient, {
+        reparacionId: data.id,
+        reparacion: data,
+      });
       showSuccess('Estado actualizado');
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['reparaciones'] });
     },
   });
 };
@@ -136,8 +161,8 @@ export const useDeleteReparacionMutation = () => {
 
   return useMutation({
     mutationFn: deleteReparacion,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reparaciones'] });
+    onSuccess: async (_data, id) => {
+      await reconcileReparacionDeleted(queryClient, id);
       showSuccess('Reparación eliminada');
     },
     onError: (error) => {
@@ -160,8 +185,14 @@ export const useReclamoGarantiaMutation = () => {
 
   return useMutation({
     mutationFn: crearReclamoGarantia,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reparaciones'] });
+    onSuccess: async (data, variables) => {
+      await Promise.all([
+        reconcileReparacionChanged(queryClient, {
+          reparacionId: data.id,
+          reparacion: data,
+        }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.reparaciones.detail(variables.id) }),
+      ]);
       showSuccess('Reclamo en garantía creado');
     },
     onError: (error) => {

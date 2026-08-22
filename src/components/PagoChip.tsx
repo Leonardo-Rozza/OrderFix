@@ -8,7 +8,8 @@ interface PagoChipProps {
 
 /**
  * Chip de la dimensión de pago, independiente del estado de la reparación.
- * Solo tiene sentido con cobros habilitados (PRO): gatearlo en el llamador.
+ * El backend la informa en todos los planes; el entitlement de cobros solo
+ * controla las acciones de registrar/anular movimientos.
  * No muestra nada si todavía no hay precio (saldo 0 sin cobros).
  */
 export const PagoChip = ({ estadoPago, saldo }: PagoChipProps) => {

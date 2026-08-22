@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../axios';
+import { queryKeys } from '../queryKeys';
 import type { Suscripcion } from '../../types';
 
-export const SUSCRIPCION_KEY = ['suscripcion'] as const;
+export const SUSCRIPCION_KEY = queryKeys.suscripcion.all;
 
 // Estado de la suscripción del taller (plan, consumo del mes, límite)
 export const fetchSuscripcion = async (): Promise<Suscripcion> => {
@@ -12,21 +13,28 @@ export const fetchSuscripcion = async (): Promise<Suscripcion> => {
 
 export const useSuscripcionQuery = () => {
   return useQuery({
-    queryKey: SUSCRIPCION_KEY,
+    queryKey: queryKeys.suscripcion.all,
     queryFn: fetchSuscripcion,
   });
 };
 
 /**
- * Flags de funciones del plan. Por defecto "habilitado" (true) salvo que el
- * backend lo marque explícitamente en false → así no parpadea para PRO.
+ * Capacidades efectivas informadas por el backend.
+ *
+ * Fallan cerradas: mientras el contrato está pendiente, falló o llegó sin el
+ * mapa `funciones`, ningún consumidor debe llamar endpoints restringidos.
  */
 export const useFunciones = () => {
-  const { data } = useSuscripcionQuery();
-  const f = data?.funciones;
+  const query = useSuscripcionQuery();
+  const funciones = query.data?.funciones;
+  const contratoValido = query.isSuccess && funciones != null;
+
   return {
-    inventario: f?.inventario !== false,
-    cobros: f?.cobros !== false,
-    empleadosMultiples: f?.empleadosMultiples !== false,
+    inventario: contratoValido && funciones.inventario === true,
+    cobros: contratoValido && funciones.cobros === true,
+    empleadosMultiples: contratoValido && funciones.empleadosMultiples === true,
+    isLoading: query.isPending,
+    isError: query.isError || (query.isSuccess && funciones == null),
+    refetch: query.refetch,
   };
 };

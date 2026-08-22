@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router';
 import { LIMITE_PLAN_EVENT } from '../api/axios';
 
 const beneficios = [
-  'Reparaciones y equipos ilimitados',
-  'Avisos automáticos por WhatsApp',
-  'Reportes de ingresos y rendimiento',
+  'Reparaciones mensuales ilimitadas',
+  'Inventario y control de stock',
+  'Cobros, caja y varios empleados',
 ];
 
 const Check = () => (
@@ -60,7 +60,7 @@ export const LimitePlanModal = () => {
           </div>
           <div className="mt-3.5 text-[21px] font-extrabold">Llegaste al límite de tu plan</div>
           <p className="mt-2 text-[14px] leading-relaxed text-white/85">
-            {mensaje ?? 'Alcanzaste el tope de reparaciones de tu plan este mes.'} Pasá a PRO para cargar reparaciones ilimitadas y desbloquear WhatsApp y reportes.
+            {mensaje ?? 'Alcanzaste el tope de reparaciones de tu plan este mes.'} Pasá a PRO para seguir cargando órdenes y habilitar las funciones avanzadas del taller.
           </p>
         </div>
         <div className="p-6">

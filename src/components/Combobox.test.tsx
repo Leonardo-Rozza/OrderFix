@@ -64,6 +64,29 @@ describe('Combobox', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('mantiene el portal dentro del modal cuando la capa queda suspendida', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <Modal isOpen onClose={vi.fn()} title="Equipo">
+        <Combobox value={undefined} onChange={vi.fn()} options={options} />
+      </Modal>,
+    );
+
+    await user.click(screen.getByRole('button', { name: /seleccioná/i }));
+    const listbox = await screen.findByRole('listbox');
+
+    rerender(
+      <Modal isOpen suspended onClose={vi.fn()} title="Equipo">
+        <Combobox value={undefined} onChange={vi.fn()} options={options} />
+      </Modal>,
+    );
+
+    const suspendedLayer = document.querySelector('[data-modal-suspended="true"]');
+    expect(suspendedLayer).toContainElement(listbox);
+    expect(listbox.closest('[data-modal-panel]')).not.toBeNull();
+    expect(document.body.contains(listbox)).toBe(true);
+  });
+
   it('abre hacia arriba y limita la altura cuando no hay espacio debajo', async () => {
     const user = userEvent.setup();
     render(<Combobox value={undefined} onChange={vi.fn()} options={options} />);

@@ -1,4 +1,12 @@
-import { useEffect, useId, useRef, type HTMLAttributes, type ReactNode } from 'react';
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  type HTMLAttributes,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 
 interface ModalProps {
   isOpen: boolean;
@@ -10,6 +18,15 @@ interface ModalProps {
   footer?: ReactNode;
   /** Impide cerrar por Escape, backdrop o el botón de cierre durante una operación crítica. */
   preventClose?: boolean;
+  /** Mantiene visible un diálogo inferior, pero lo vuelve inerte mientras hay otra capa activa. */
+  suspended?: boolean;
+  /** Capa visual del diálogo. `guard` se reserva para confirmaciones sobre formularios. */
+  layer?: 'base' | 'guard';
+  initialFocusRef?: RefObject<HTMLElement | null>;
+  restoreFocusRef?: RefObject<HTMLElement | null>;
+  restoreFocusOnClose?: boolean;
+  showCloseButton?: boolean;
+  ariaDescribedBy?: string;
   bodyClassName?: string;
 }
 
@@ -29,6 +46,29 @@ const getFocusable = (container: HTMLElement) =>
     return style.display !== 'none' && style.visibility !== 'hidden' && !element.closest('[hidden]');
   });
 
+let bodyScrollLockCount = 0;
+let bodyScrollSnapshot: { overflow: string; overscrollBehavior: string } | null = null;
+
+const lockBodyScroll = () => {
+  if (bodyScrollLockCount === 0) {
+    bodyScrollSnapshot = {
+      overflow: document.body.style.overflow,
+      overscrollBehavior: document.body.style.overscrollBehavior,
+    };
+    document.body.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'none';
+  }
+  bodyScrollLockCount += 1;
+
+  return () => {
+    bodyScrollLockCount = Math.max(0, bodyScrollLockCount - 1);
+    if (bodyScrollLockCount !== 0 || !bodyScrollSnapshot) return;
+    document.body.style.overflow = bodyScrollSnapshot.overflow;
+    document.body.style.overscrollBehavior = bodyScrollSnapshot.overscrollBehavior;
+    bodyScrollSnapshot = null;
+  };
+};
+
 export const FormActions = ({ className = '', children, ...props }: HTMLAttributes<HTMLDivElement>) => (
   <div
     className={`flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end [&>*]:min-h-11 [&>*]:w-full sm:[&>*]:min-h-0 sm:[&>*]:w-auto ${className}`}
@@ -46,15 +86,23 @@ export const Modal = ({
   size = 'md',
   footer,
   preventClose = false,
+  suspended = false,
+  layer = 'base',
+  initialFocusRef,
+  restoreFocusRef,
+  restoreFocusOnClose = true,
+  showCloseButton = true,
+  ariaDescribedBy,
   bodyClassName = '',
 }: ModalProps) => {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const lastFocused = useRef<HTMLElement | null>(null);
+  const hasAutoFocused = useRef(false);
 
   // Cerrar con Escape + atrapar el foco dentro del diálogo (Tab cíclico).
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || suspended) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
       // Un control compuesto (por ejemplo Combobox) puede consumir Escape primero.
@@ -76,7 +124,10 @@ export const Modal = ({
 
       const first = focusables[0];
       const last = focusables[focusables.length - 1];
-      if (event.shiftKey && (document.activeElement === first || document.activeElement === panelRef.current)) {
+      if (!panelRef.current.contains(document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && (document.activeElement === first || document.activeElement === panelRef.current)) {
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
@@ -87,48 +138,60 @@ export const Modal = ({
 
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, onClose, preventClose]);
+  }, [isOpen, onClose, preventClose, suspended]);
 
   // Bloquear el scroll del fondo mientras está abierto.
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    const previousOverscroll = document.body.style.overscrollBehavior;
-    document.body.style.overflow = 'hidden';
-    document.body.style.overscrollBehavior = 'none';
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.body.style.overscrollBehavior = previousOverscroll;
-    };
+    return lockBodyScroll();
   }, [isOpen]);
 
-  // Mover el foco al abrir y restaurarlo al cerrar.
-  useEffect(() => {
+  // Recordar el invocador al abrir y restaurarlo sólo al cerrar la capa.
+  useLayoutEffect(() => {
     if (!isOpen) return;
     lastFocused.current = document.activeElement as HTMLElement | null;
-    const timeout = window.setTimeout(() => {
-      const panel = panelRef.current;
-      if (!panel) return;
-      const body = panel.querySelector<HTMLElement>('[data-modal-body]');
-      const initialFocus = (body ? getFocusable(body)[0] : undefined) ?? getFocusable(panel)[0] ?? panel;
-      initialFocus.focus();
-    }, 0);
+    hasAutoFocused.current = false;
+    const explicitRestoreTarget = restoreFocusRef?.current;
 
     return () => {
-      window.clearTimeout(timeout);
-      lastFocused.current?.focus?.();
+      hasAutoFocused.current = false;
+      if (!restoreFocusOnClose) return;
+      const restoreTarget = explicitRestoreTarget ?? lastFocused.current;
+      if (restoreTarget?.isConnected) restoreTarget.focus();
     };
-  }, [isOpen]);
+  }, [isOpen, restoreFocusOnClose, restoreFocusRef]);
+
+  // Enfocar una sola vez. Suspender/reanudar el modal inferior no roba foco.
+  useLayoutEffect(() => {
+    if (!isOpen || suspended || hasAutoFocused.current) return;
+    hasAutoFocused.current = true;
+    const panel = panelRef.current;
+    if (!panel) return;
+    const body = panel.querySelector<HTMLElement>('[data-modal-body]');
+    const initialFocus = initialFocusRef?.current
+      ?? (body ? getFocusable(body)[0] : undefined)
+      ?? getFocusable(panel)[0]
+      ?? panel;
+    initialFocus.focus();
+  }, [initialFocusRef, isOpen, suspended]);
 
   if (!isOpen) return null;
   const hasFooter = footer !== undefined && footer !== null;
 
   const requestClose = () => {
-    if (!preventClose) onClose();
+    if (!preventClose && !suspended) onClose();
   };
 
+  const layerClass = layer === 'guard' ? 'z-[90]' : 'z-50';
+
   return (
-    <div className="ofx-modal-viewport fixed inset-0 z-50 flex min-h-0 items-end justify-center overflow-hidden sm:items-center sm:p-4">
+    <div
+      className={`ofx-modal-viewport fixed inset-0 flex min-h-0 items-end justify-center overflow-hidden sm:items-center sm:p-4 ${layerClass} ${suspended ? 'pointer-events-none' : ''}`}
+      data-modal-layer={layer}
+      data-modal-suspended={suspended ? 'true' : undefined}
+      aria-hidden={suspended ? 'true' : undefined}
+      inert={suspended || undefined}
+    >
       <div
         className="absolute inset-0 bg-black/55 backdrop-blur-sm"
         onClick={requestClose}
@@ -136,9 +199,11 @@ export const Modal = ({
       />
       <div
         ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
+        data-modal-panel
+        role={suspended ? undefined : 'dialog'}
+        aria-modal={suspended ? undefined : 'true'}
+        aria-labelledby={suspended ? undefined : titleId}
+        aria-describedby={suspended ? undefined : ariaDescribedBy}
         tabIndex={-1}
         className={`ofx-modal-panel relative z-10 flex max-h-full w-full min-w-0 flex-col overflow-visible rounded-t-2xl border border-border bg-surface shadow-lg outline-none sm:max-h-[calc(100dvh-2rem)] ${sizeClasses[size]} sm:rounded-2xl`}
         onClick={(event) => event.stopPropagation()}
@@ -147,17 +212,19 @@ export const Modal = ({
           <h3 id={titleId} className="min-w-0 flex-1 text-[17px] font-extrabold leading-snug tracking-tight">
             {title}
           </h3>
-          <button
-            type="button"
-            onClick={requestClose}
-            disabled={preventClose}
-            aria-label="Cerrar"
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-text-3 transition hover:bg-surface-2 hover:text-text focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-8"
-          >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          {showCloseButton ? (
+            <button
+              type="button"
+              onClick={requestClose}
+              disabled={preventClose || suspended}
+              aria-label="Cerrar"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-text-3 transition hover:bg-surface-2 hover:text-text focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-8"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          ) : null}
         </div>
 
         <div

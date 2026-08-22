@@ -1,3 +1,4 @@
+import { createRef } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -93,5 +94,104 @@ describe('Modal', () => {
     );
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('suspende el diálogo inferior y deja activa sólo la capa superior', () => {
+    const onCloseBase = vi.fn();
+    const onCloseGuard = vi.fn();
+    render(
+      <>
+        <Modal isOpen suspended onClose={onCloseBase} title="Editar orden">
+          <input aria-label="Detalle" />
+        </Modal>
+        <Modal isOpen layer="guard" onClose={onCloseGuard} title="Descartar">
+          <button type="button">Continuar</button>
+        </Modal>
+      </>,
+    );
+
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.getByRole('dialog').closest('[data-modal-layer]')).toHaveAttribute('data-modal-layer', 'guard');
+
+    const suspended = document.querySelector('[data-modal-suspended="true"]');
+    expect(suspended).toHaveAttribute('inert');
+    expect(suspended).toHaveAttribute('aria-hidden', 'true');
+    expect(suspended?.querySelector('[role="dialog"]')).toBeNull();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onCloseGuard).toHaveBeenCalledTimes(1);
+    expect(onCloseBase).not.toHaveBeenCalled();
+
+    const suspendedBackdrop = suspended?.firstElementChild;
+    fireEvent.click(suspendedBackdrop as Element);
+    expect(onCloseBase).not.toHaveBeenCalled();
+  });
+
+  it('respeta el foco inicial explícito', async () => {
+    const safeActionRef = createRef<HTMLButtonElement>();
+    render(
+      <Modal
+        isOpen
+        onClose={vi.fn()}
+        title="Confirmar"
+        initialFocusRef={safeActionRef}
+      >
+        <button type="button">Primera acción</button>
+        <button ref={safeActionRef} type="button">Acción segura</button>
+      </Modal>,
+    );
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Acción segura' })).toHaveFocus());
+  });
+
+  it('recupera el foco si Tab llega desde fuera de la capa activa', () => {
+    render(
+      <>
+        <button type="button">Fuera</button>
+        <Modal isOpen onClose={vi.fn()} title="Confirmar">
+          <button type="button">Primera</button>
+          <button type="button">Última</button>
+        </Modal>
+      </>,
+    );
+
+    screen.getByRole('button', { name: 'Fuera' }).focus();
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(screen.getByRole('button', { name: 'Cerrar' })).toHaveFocus();
+
+    screen.getByRole('button', { name: 'Fuera' }).focus();
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(screen.getByRole('button', { name: 'Última' })).toHaveFocus();
+  });
+
+  it('mantiene el scroll bloqueado hasta cerrar la última capa', () => {
+    document.body.style.overflow = 'auto';
+    document.body.style.overscrollBehavior = 'contain';
+    const { rerender } = render(
+      <>
+        <Modal isOpen onClose={vi.fn()} title="Base"><p>Base</p></Modal>
+        <Modal isOpen layer="guard" onClose={vi.fn()} title="Guard"><p>Guard</p></Modal>
+      </>,
+    );
+
+    expect(document.body.style.overflow).toBe('hidden');
+    expect(document.body.style.overscrollBehavior).toBe('none');
+
+    rerender(
+      <>
+        <Modal isOpen={false} onClose={vi.fn()} title="Base"><p>Base</p></Modal>
+        <Modal isOpen layer="guard" onClose={vi.fn()} title="Guard"><p>Guard</p></Modal>
+      </>,
+    );
+    expect(document.body.style.overflow).toBe('hidden');
+
+    rerender(
+      <>
+        <Modal isOpen={false} onClose={vi.fn()} title="Base"><p>Base</p></Modal>
+        <Modal isOpen={false} layer="guard" onClose={vi.fn()} title="Guard"><p>Guard</p></Modal>
+      </>,
+    );
+    expect(document.body.style.overflow).toBe('auto');
+    expect(document.body.style.overscrollBehavior).toBe('contain');
   });
 });

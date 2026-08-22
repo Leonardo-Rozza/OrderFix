@@ -288,7 +288,7 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(function Co
 
   const moveFocusFromTrigger = (backward: boolean) => {
     const trigger = triggerRef.current;
-    const scope = rootRef.current?.closest<HTMLElement>('[role="dialog"]');
+    const scope = rootRef.current?.closest<HTMLElement>('[data-modal-panel]');
     if (!trigger || !scope) {
       close(true);
       return;
@@ -549,7 +549,7 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(function Co
       </button>
 
       {popover && typeof document !== 'undefined'
-        ? createPortal(popover, triggerRef.current?.closest<HTMLElement>('[role="dialog"]') ?? document.body)
+        ? createPortal(popover, triggerRef.current?.closest<HTMLElement>('[data-modal-panel]') ?? document.body)
         : null}
     </div>
   );

@@ -1,8 +1,47 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '../axios';
-import { unwrapList, toQueryParams, type Page, type ListParams } from '../pagination';
+import {
+  requirePageMeta,
+  unwrapList,
+  toQueryParams,
+  type Page,
+  type ListParams,
+} from '../pagination';
 import { queryKeys } from '../queryKeys';
 import type { Cliente } from '../../types';
+import type { AsyncComboboxSource } from '../../components/AsyncCombobox';
+
+const CLIENTES_OPTIONS_SORT = 'nombre,asc';
+
+/** Fuente remota del selector; cada página se transforma antes de entrar al cache. */
+export const clientesOptionsSource = {
+  queryKey: ({ query, size }) => queryKeys.clientes.optionSearch({
+    q: query.trim(),
+    size,
+    sort: CLIENTES_OPTIONS_SORT,
+  }),
+  loadPage: async ({ query, page, size, signal }) => {
+    const { data } = await apiClient.get<Page<Cliente>>('/clientes', {
+      params: toQueryParams({
+        q: query,
+        page,
+        size,
+        sort: CLIENTES_OPTIONS_SORT,
+      }),
+      signal,
+      errorMode: 'inline',
+    });
+
+    return {
+      options: data.content.map((cliente) => ({
+        value: cliente.id,
+        label: `${cliente.nombre} ${cliente.apellido}`.trim(),
+        sublabel: cliente.telefono || undefined,
+      })),
+      page: requirePageMeta(data),
+    };
+  },
+} satisfies AsyncComboboxSource;
 
 // Listado paginado + búsqueda (server-side)
 const fetchClientes = async (params: ListParams): Promise<Page<Cliente>> => {
@@ -20,7 +59,7 @@ export const useClientesQuery = (params: ListParams) => {
 
 // Opciones para selects (ej: elegir cliente en un equipo) — lista acotada
 const fetchClientesOptions = async (): Promise<Cliente[]> => {
-  const { data } = await apiClient.get<Page<Cliente> | Cliente[]>('/clientes', { params: { size: 200, sort: 'nombre,asc' } });
+  const { data } = await apiClient.get<Page<Cliente> | Cliente[]>('/clientes', { params: { size: 200, sort: CLIENTES_OPTIONS_SORT } });
   return unwrapList(data);
 };
 

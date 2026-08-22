@@ -81,9 +81,19 @@ describe('queryKeys', () => {
     expect(queryKeys.dashboard.all).toEqual(['dashboard']);
     expect(queryKeys.clientes.list(params)).toEqual(['clientes', params]);
     expect(queryKeys.clientes.options).toEqual(['clientes', 'options']);
+    expect(queryKeys.clientes.optionSearch({ q: 'ada', size: 20, sort: 'nombre,asc' })).toEqual([
+      'clientes',
+      'options',
+      { q: 'ada', size: 20, sort: 'nombre,asc' },
+    ]);
     expect(queryKeys.clientes.detail(7)).toEqual(['cliente', 7]);
     expect(queryKeys.equipos.list(params)).toEqual(['equipos', params]);
     expect(queryKeys.equipos.options).toEqual(['equipos', 'options']);
+    expect(queryKeys.equipos.optionSearch({ q: '', size: 20, sort: 'id,desc' })).toEqual([
+      'equipos',
+      'options',
+      { q: '', size: 20, sort: 'id,desc' },
+    ]);
     expect(queryKeys.equipos.byCliente(7)).toEqual(['equipos', 'cliente', 7]);
     expect(queryKeys.equipos.detail(11)).toEqual(['equipo', 11]);
     expect(queryKeys.reparaciones.list({ ...params, estado: 'INGRESADO' })).toEqual([
@@ -91,6 +101,11 @@ describe('queryKeys', () => {
       { ...params, estado: 'INGRESADO' },
     ]);
     expect(queryKeys.reparaciones.options).toEqual(['reparaciones', 'options']);
+    expect(queryKeys.reparaciones.optionSearch({ q: 'iphone', size: 20, sort: 'id,desc' })).toEqual([
+      'reparaciones',
+      'options',
+      { q: 'iphone', size: 20, sort: 'id,desc' },
+    ]);
     expect(queryKeys.reparaciones.byEquipo(11)).toEqual(['reparaciones', 'equipo', 11]);
     expect(queryKeys.reparaciones.detail(13)).toEqual(['reparacion', 13]);
     expect(queryKeys.repuestos.list(params)).toEqual(['repuestos', params]);
@@ -107,6 +122,11 @@ describe('queryKeys', () => {
     expect(queryKeys.seguimiento.byCodigo('ABC')).toEqual(['seguimiento', 'ABC']);
     expect(queryKeys.inventario.list(params)).toEqual(['inventario', params]);
     expect(queryKeys.inventario.options).toEqual(['inventario', 'options']);
+    expect(queryKeys.inventario.optionSearch({ q: 'oled', size: 20 })).toEqual([
+      'inventario',
+      'options',
+      { q: 'oled', size: 20 },
+    ]);
     expect(queryKeys.usuarios.all).toEqual(['usuarios']);
   });
 });
@@ -119,6 +139,7 @@ describe('consistencia de caché', () => {
     const affected = [
       queryKeys.clientes.list(params),
       queryKeys.clientes.options,
+      queryKeys.clientes.optionSearch({ q: 'ada', size: 20, sort: 'nombre,asc' }),
       queryKeys.equipos.list(params),
       queryKeys.equipos.detail(equipo.id),
       queryKeys.reparaciones.list(params),
@@ -146,6 +167,7 @@ describe('consistencia de caché', () => {
     const affected = [
       queryKeys.equipos.list(params),
       queryKeys.equipos.options,
+      queryKeys.equipos.optionSearch({ q: 'iphone', size: 20, sort: 'id,desc' }),
       queryKeys.clientes.list(params),
       queryKeys.clientes.detail(cliente.id),
       queryKeys.reparaciones.list(params),
@@ -180,6 +202,7 @@ describe('consistencia de caché', () => {
     ];
     removed.forEach((key) => seed(client, key));
     seed(client, queryKeys.reparaciones.list(params));
+    seed(client, queryKeys.reparaciones.optionSearch({ q: 'iphone', size: 20, sort: 'id,desc' }));
     seed(client, queryKeys.dashboard.all);
     seed(client, queryKeys.inventario.list(params));
 
@@ -187,6 +210,7 @@ describe('consistencia de caché', () => {
 
     removed.forEach((key) => expect(client.getQueryState(key)).toBeUndefined());
     expect(isInvalidated(client, queryKeys.reparaciones.list(params))).toBe(true);
+    expect(isInvalidated(client, queryKeys.reparaciones.optionSearch({ q: 'iphone', size: 20, sort: 'id,desc' }))).toBe(true);
     expect(isInvalidated(client, queryKeys.dashboard.all)).toBe(true);
     expect(isInvalidated(client, queryKeys.inventario.list(params))).toBe(false);
   });
@@ -231,6 +255,7 @@ describe('consistencia de caché', () => {
     const params = { page: 0, size: 20 };
     seed(client, queryKeys.suscripcion.all, { ...suscripcionFree, plan: 'PRO' });
     seed(client, queryKeys.inventario.list(params));
+    seed(client, queryKeys.inventario.optionSearch({ q: 'oled', size: 20 }));
     seed(client, queryKeys.caja.range({}));
     seed(client, queryKeys.cobros.byReparacion(reparacion.id));
     seed(client, queryKeys.recibos.byReparacion(reparacion.id));
@@ -242,6 +267,7 @@ describe('consistencia de caché', () => {
     expect(client.getQueryData(queryKeys.suscripcion.all)).toEqual(suscripcionFree);
     expect(isInvalidated(client, queryKeys.suscripcion.all)).toBe(false);
     expect(client.getQueryState(queryKeys.inventario.list(params))).toBeUndefined();
+    expect(client.getQueryState(queryKeys.inventario.optionSearch({ q: 'oled', size: 20 }))).toBeUndefined();
     expect(client.getQueryState(queryKeys.caja.range({}))).toBeUndefined();
     expect(client.getQueryState(queryKeys.cobros.byReparacion(reparacion.id))).toBeUndefined();
     expect(client.getQueryState(queryKeys.recibos.byReparacion(reparacion.id))).toBeUndefined();

@@ -5,6 +5,13 @@ export interface ReparacionesQueryParams extends ListParams {
   estado?: EstadoReparacion;
 }
 
+/** Parámetros estables de una búsqueda de opciones; `page` vive en pageParam. */
+export interface OptionSearchParams {
+  q: string;
+  size: number;
+  sort?: string;
+}
+
 export interface CajaQueryRange {
   desde?: string;
   hasta?: string;
@@ -27,6 +34,7 @@ export const queryKeys = {
     all: ['clientes'] as const,
     list: (params: ListParams) => ['clientes', params] as const,
     options: ['clientes', 'options'] as const,
+    optionSearch: (params: OptionSearchParams) => ['clientes', 'options', params] as const,
     details: ['cliente'] as const,
     detail: (id: number | undefined) => ['cliente', id] as const,
   },
@@ -34,6 +42,7 @@ export const queryKeys = {
     all: ['equipos'] as const,
     list: (params: ListParams) => ['equipos', params] as const,
     options: ['equipos', 'options'] as const,
+    optionSearch: (params: OptionSearchParams) => ['equipos', 'options', params] as const,
     byCliente: (clienteId: number | undefined) => ['equipos', 'cliente', clienteId] as const,
     details: ['equipo'] as const,
     detail: (id: number | undefined) => ['equipo', id] as const,
@@ -42,6 +51,7 @@ export const queryKeys = {
     all: ['reparaciones'] as const,
     list: (params: ReparacionesQueryParams) => ['reparaciones', params] as const,
     options: ['reparaciones', 'options'] as const,
+    optionSearch: (params: OptionSearchParams) => ['reparaciones', 'options', params] as const,
     byEquipo: (equipoId: number | undefined) => ['reparaciones', 'equipo', equipoId] as const,
     details: ['reparacion'] as const,
     detail: (id: number | undefined) => ['reparacion', id] as const,
@@ -79,6 +89,7 @@ export const queryKeys = {
     all: ['inventario'] as const,
     list: (params: ListParams) => ['inventario', params] as const,
     options: ['inventario', 'options'] as const,
+    optionSearch: (params: OptionSearchParams) => ['inventario', 'options', params] as const,
   },
   usuarios: {
     all: ['usuarios'] as const,

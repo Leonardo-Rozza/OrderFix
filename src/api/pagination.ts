@@ -5,15 +5,29 @@
  * necesitamos la lista completa.
  */
 
+export interface PageMeta {
+  size: number;
+  number: number;
+  totalElements: number;
+  totalPages: number;
+}
+
 export interface Page<T> {
   content: T[];
-  page?: {
-    size: number;
-    number: number;
-    totalElements: number;
-    totalPages: number;
-  };
+  page?: PageMeta;
 }
+
+/**
+ * Los selectores paginados no pueden inferir si existe otra página a partir de
+ * `content`: algunos dominios filtran opciones después de recibirla. Por eso
+ * requieren la metadata que el contrato de listados declara estable.
+ */
+export const requirePageMeta = <T>(data: Page<T>): PageMeta => {
+  if (!data.page) {
+    throw new Error('La respuesta paginada no incluye metadata de página.');
+  }
+  return data.page;
+};
 
 /** Devuelve el array sin importar si la respuesta es array plano o paginada. */
 export const unwrapList = <T>(data: T[] | Page<T> | null | undefined): T[] => {
@@ -36,10 +50,10 @@ export interface ListParams {
   sort?: string;
 }
 
-/** Arma el objeto de query params (omite q vacío). */
+/** Arma query params sin publicar filtros vacíos ni un sort no contractual. */
 export const toQueryParams = (p: ListParams) => ({
-  q: p.q && p.q.trim() !== '' ? p.q.trim() : undefined,
+  ...(p.q && p.q.trim() !== '' ? { q: p.q.trim() } : {}),
   page: p.page,
   size: p.size,
-  sort: p.sort,
+  ...(p.sort ? { sort: p.sort } : {}),
 });

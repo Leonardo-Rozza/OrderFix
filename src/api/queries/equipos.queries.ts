@@ -1,8 +1,54 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '../axios';
-import { unwrapList, toQueryParams, type Page, type ListParams } from '../pagination';
+import {
+  requirePageMeta,
+  unwrapList,
+  toQueryParams,
+  type Page,
+  type ListParams,
+} from '../pagination';
 import { queryKeys } from '../queryKeys';
 import type { Equipo } from '../../types';
+import type { AsyncComboboxSource } from '../../components/AsyncCombobox';
+
+const EQUIPOS_OPTIONS_SORT = 'id,desc';
+
+const equipoSublabel = (equipo: Equipo): string | undefined => {
+  const cliente = `${equipo.clienteNombre ?? ''} ${equipo.clienteApellido ?? ''}`.trim();
+  return [cliente || undefined, equipo.imei ? `IMEI ${equipo.imei}` : undefined]
+    .filter(Boolean)
+    .join(' · ') || undefined;
+};
+
+/** Fuente remota del selector de equipos existentes. */
+export const equiposOptionsSource = {
+  queryKey: ({ query, size }) => queryKeys.equipos.optionSearch({
+    q: query.trim(),
+    size,
+    sort: EQUIPOS_OPTIONS_SORT,
+  }),
+  loadPage: async ({ query, page, size, signal }) => {
+    const { data } = await apiClient.get<Page<Equipo>>('/equipos', {
+      params: toQueryParams({
+        q: query,
+        page,
+        size,
+        sort: EQUIPOS_OPTIONS_SORT,
+      }),
+      signal,
+      errorMode: 'inline',
+    });
+
+    return {
+      options: data.content.map((equipo) => ({
+        value: equipo.id,
+        label: `${equipo.marca} ${equipo.modelo}`.trim(),
+        sublabel: equipoSublabel(equipo),
+      })),
+      page: requirePageMeta(data),
+    };
+  },
+} satisfies AsyncComboboxSource;
 
 // Listado paginado + búsqueda (server-side)
 const fetchEquipos = async (params: ListParams): Promise<Page<Equipo>> => {

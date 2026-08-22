@@ -1,10 +1,10 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { server, API } from '../test/server';
+import { renderWithProviders } from '../test/renderWithProviders';
 
 vi.mock('../utils/toast', async (orig) => {
   const actual = await orig<typeof import('../utils/toast')>();
@@ -15,12 +15,7 @@ import { ReparacionFormModal } from './ReparacionFormModal';
 import { showError, showSuccess } from '../utils/toast';
 import type { Equipo, Reparacion, ReparacionCredenciales } from '../types';
 
-const renderUI = (ui: ReactElement) => {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-};
+const renderUI = (ui: ReactElement) => renderWithProviders(ui);
 
 beforeEach(() => {
   vi.mocked(showError).mockClear();
@@ -129,6 +124,15 @@ describe('ReparacionFormModal — alta rápida (modo nuevo)', () => {
     expect(screen.getByLabelText(/problema/i)).toHaveValue('Pantalla rota');
     expect(screen.getByRole('button', { name: /elegir equipo existente/i })).toBeDisabled();
 
+    await user.click(screen.getByRole('button', { name: /cerrar y completar después/i }));
+    const discardDialog = await screen.findByRole('dialog', { name: '¿Descartar los cambios?' });
+    expect(discardDialog).toHaveTextContent(/la orden ya existe/i);
+    expect(discardDialog).toHaveTextContent(/no se va a eliminar ni duplicar/i);
+    expect(discardDialog).toHaveTextContent(/detalles locales que todavía no se guardaron/i);
+    expect(discardDialog).not.toHaveTextContent(/pin|patrón|fotos|https?:\/\//i);
+    expect(within(discardDialog).getByRole('button', { name: /cerrar y completar después/i })).toBeVisible();
+    await user.click(within(discardDialog).getByRole('button', { name: /seguir editando/i }));
+
     await user.click(screen.getByRole('button', { name: /reintentar detalles/i }));
 
     await waitFor(() => expect(putCount).toBe(2));
@@ -181,6 +185,26 @@ describe('ReparacionFormModal — alta rápida (modo nuevo)', () => {
 
     expect(await screen.findByText(/nombre requerido/i)).toBeInTheDocument();
     expect(llamado).toBe(false);
+  });
+
+  it('protege un cambio de modo y conserva la selección al seguir editando', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+
+    renderUI(<ReparacionFormModal isOpen onClose={onClose} editing={null} />);
+
+    const modoExistente = screen.getByRole('button', { name: /elegir equipo existente/i });
+    await user.click(modoExistente);
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(await screen.findByRole('dialog', { name: '¿Descartar los cambios?' })).toBeVisible();
+    expect(onClose).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: /seguir editando/i }));
+
+    expect(modoExistente).toHaveAttribute('aria-pressed', 'true');
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await user.click(screen.getByRole('button', { name: /descartar cambios/i }));
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('reabre los detalles y enfoca una garantía inválida antes de enviar', async () => {

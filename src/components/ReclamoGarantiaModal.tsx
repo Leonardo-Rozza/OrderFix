@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { FormActions, Modal } from './Modal';
+import { UnsavedChangesGuard } from './UnsavedChangesGuard';
 import { FormField } from './FormField';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import { useReclamoGarantiaMutation } from '../api/mutations/reparaciones.mutations';
@@ -24,62 +25,81 @@ export const ReclamoGarantiaModal = ({ isOpen, onClose, reparacion }: Props) => 
   const [descripcion, setDescripcion] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  // Limpiar al cerrar deja el modal fresco para la próxima apertura.
-  const handleClose = () => {
+  // El reset sólo ocurre cuando el cierre ya fue aceptado o el alta terminó.
+  const resetAndClose = () => {
     setDescripcion('');
     setError(null);
     onClose();
   };
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent, commitAndClose: () => void) => {
     e.preventDefault();
     const desc = descripcion.trim();
     if (!desc) {
       setError('Contanos qué problema tiene el equipo');
       return;
     }
-    const nueva = await reclamo.mutateAsync({ id: reparacion.id, descripcionProblema: desc });
-    handleClose();
+    let nueva: Reparacion;
+    try {
+      nueva = await reclamo.mutateAsync({ id: reparacion.id, descripcionProblema: desc });
+    } catch {
+      return;
+    }
+    commitAndClose();
     navigate(`/reparaciones/${nueva.id}`);
   };
 
   return (
-    <Modal
+    <UnsavedChangesGuard
       isOpen={isOpen}
-      onClose={handleClose}
-      title={`Reclamo en garantía · ${ordenLabel(reparacion)}`}
-      preventClose={reclamo.isPending}
-      footer={(
-        <FormActions>
-          <button type="button" className={btnGhost} onClick={handleClose} disabled={reclamo.isPending}>
-            Cancelar
-          </button>
-          <button type="submit" form="reclamo-garantia-form" className={btnPrimary} disabled={reclamo.isPending}>
-            {reclamo.isPending ? 'Creando…' : 'Crear reclamo'}
-          </button>
-        </FormActions>
-      )}
+      isDirty={descripcion.trim() !== ''}
+      isBusy={reclamo.isPending}
+      onClose={resetAndClose}
     >
-      <form id="reclamo-garantia-form" onSubmit={onSubmit} className="space-y-4">
-        <FormField label="¿Qué problema tiene ahora?" required error={error ?? undefined} htmlFor="descripcionReclamo">
-          <textarea
-            id="descripcionReclamo"
-            rows={3}
-            maxLength={255}
-            value={descripcion}
-            onChange={(e) => {
-              setDescripcion(e.target.value);
-              if (error) setError(null);
-            }}
-            className={`${inputClass(!!error)} resize-none`}
-            placeholder="Ej: la pantalla volvió a fallar, no responde el táctil…"
-          />
-        </FormField>
-        <p className="text-[12.5px] text-text-3">
-          Se crea una orden nueva vinculada a esta, sin precio y sin consumir el cupo mensual del plan.
-          Se cobra solo si el diagnóstico revela una falla ajena (golpe o mojadura nueva).
-        </p>
-      </form>
-    </Modal>
+      {(guard) => (
+        <Modal
+          isOpen
+          onClose={guard.requestClose}
+          title={`Reclamo en garantía · ${ordenLabel(reparacion)}`}
+          preventClose={reclamo.isPending}
+          suspended={guard.isSuspended}
+          footer={(
+            <FormActions>
+              <button type="button" className={btnGhost} onClick={guard.requestClose} disabled={reclamo.isPending}>
+                Cancelar
+              </button>
+              <button type="submit" form="reclamo-garantia-form" className={btnPrimary} disabled={reclamo.isPending}>
+                {reclamo.isPending ? 'Creando…' : 'Crear reclamo'}
+              </button>
+            </FormActions>
+          )}
+        >
+          <form
+            id="reclamo-garantia-form"
+            onSubmit={(event) => onSubmit(event, guard.commitAndClose)}
+            className="space-y-4"
+          >
+            <FormField label="¿Qué problema tiene ahora?" required error={error ?? undefined} htmlFor="descripcionReclamo">
+              <textarea
+                id="descripcionReclamo"
+                rows={3}
+                maxLength={255}
+                value={descripcion}
+                onChange={(e) => {
+                  setDescripcion(e.target.value);
+                  if (error) setError(null);
+                }}
+                className={`${inputClass(!!error)} resize-none`}
+                placeholder="Ej: la pantalla volvió a fallar, no responde el táctil…"
+              />
+            </FormField>
+            <p className="text-[12.5px] text-text-3">
+              Se crea una orden nueva vinculada a esta, sin precio y sin consumir el cupo mensual del plan.
+              Se cobra solo si el diagnóstico revela una falla ajena (golpe o mojadura nueva).
+            </p>
+          </form>
+        </Modal>
+      )}
+    </UnsavedChangesGuard>
   );
 };

@@ -3,6 +3,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { FormActions, Modal } from './Modal';
+import { UnsavedChangesGuard } from './UnsavedChangesGuard';
 import { FormField } from './FormField';
 import { AsyncCombobox } from './AsyncCombobox';
 import { FotoUploader } from './FotoUploader';
@@ -163,7 +164,7 @@ export const ReparacionFormModal = ({
     watch,
     setValue,
     control,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -338,14 +339,17 @@ export const ReparacionFormModal = ({
     ...ordenTrabajo(data, data.estado === 'ENTREGADO'),
   });
 
-  const finalizarIngresoRapido = (response: IngresoRapidoResponse) => {
+  const finalizarIngresoRapido = (
+    response: IngresoRapidoResponse,
+    commitAndClose: () => void,
+  ) => {
     setIngresoRapidoPendiente(null);
     showSuccess(response.clienteNuevo ? 'Reparación y cliente creados' : 'Reparación creada');
-    onClose();
+    commitAndClose();
     onCreated?.(response.reparacion.id);
   };
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (data: FormData, commitAndClose: () => void) => {
     // El botón externo queda deshabilitado, pero este guard también cubre un
     // submit implícito por Enter mientras el input de archivos sigue trabajando.
     if (uploadingPhotos) return;
@@ -388,7 +392,7 @@ export const ReparacionFormModal = ({
         }
         return;
       }
-      onClose();
+      commitAndClose();
       return;
     }
 
@@ -402,7 +406,7 @@ export const ReparacionFormModal = ({
       } catch {
         return;
       }
-      finalizarIngresoRapido(pendiente);
+      finalizarIngresoRapido(pendiente, commitAndClose);
       return;
     }
 
@@ -433,7 +437,7 @@ export const ReparacionFormModal = ({
           return;
         }
       }
-      finalizarIngresoRapido(res);
+      finalizarIngresoRapido(res, commitAndClose);
       return;
     }
 
@@ -448,8 +452,12 @@ export const ReparacionFormModal = ({
       fechaEstimadaEntrega: str(data.fechaEstimadaEntrega),
       ...ordenTrabajo(data, eliminaCredenciales),
     };
-    await createMutation.mutateAsync(payload);
-    onClose();
+    try {
+      await createMutation.mutateAsync(payload);
+    } catch {
+      return;
+    }
+    commitAndClose();
   };
 
   const onInvalid = (invalid: typeof errors) => {
@@ -462,33 +470,54 @@ export const ReparacionFormModal = ({
     });
   };
 
+  const partialCloseCopy = ingresoRapidoPendiente
+    ? {
+      message: 'La orden ya existe y no se va a eliminar ni duplicar. Sólo se descartarán los detalles locales que todavía no se guardaron.',
+      discardLabel: 'Cerrar y completar después',
+    }
+    : undefined;
+
   return (
-    <Modal
+    <UnsavedChangesGuard
       isOpen={isOpen}
+      isDirty={isDirty || Boolean(ingresoRapidoPendiente)}
+      isBusy={blocking}
       onClose={onClose}
-      title={editing ? 'Editar reparación' : 'Nueva reparación'}
-      size="lg"
-      preventClose={blocking}
-      footer={(
-        <FormActions>
-          <button type="button" className={btnGhost} onClick={onClose} disabled={blocking}>
-            {ingresoRapidoPendiente ? 'Cerrar y completar después' : 'Cancelar'}
-          </button>
-          <button type="submit" form="reparacion-form" className={btnPrimary} disabled={submitBlocked}>
-            {uploadingPhotos
-              ? 'Subiendo fotos…'
-              : saving
-                ? 'Guardando…'
-                : ingresoRapidoPendiente
-                  ? 'Reintentar detalles'
-                  : editing
-                    ? 'Guardar cambios'
-                    : 'Crear reparación'}
-          </button>
-        </FormActions>
-      )}
+      copy={partialCloseCopy}
     >
-      <form id="reparacion-form" onSubmit={handleSubmit(onSubmit, onInvalid)} noValidate className="space-y-4">
+      {(guard) => (
+        <Modal
+          isOpen
+          onClose={guard.requestClose}
+          title={editing ? 'Editar reparación' : 'Nueva reparación'}
+          size="lg"
+          preventClose={blocking}
+          suspended={guard.isSuspended}
+          footer={(
+            <FormActions>
+              <button type="button" className={btnGhost} onClick={guard.requestClose} disabled={blocking}>
+                {ingresoRapidoPendiente ? 'Cerrar y completar después' : 'Cancelar'}
+              </button>
+              <button type="submit" form="reparacion-form" className={btnPrimary} disabled={submitBlocked}>
+                {uploadingPhotos
+                  ? 'Subiendo fotos…'
+                  : saving
+                    ? 'Guardando…'
+                    : ingresoRapidoPendiente
+                      ? 'Reintentar detalles'
+                      : editing
+                        ? 'Guardar cambios'
+                        : 'Crear reparación'}
+              </button>
+            </FormActions>
+          )}
+        >
+          <form
+            id="reparacion-form"
+            onSubmit={handleSubmit((data) => onSubmit(data, guard.commitAndClose), onInvalid)}
+            noValidate
+            className="space-y-4"
+          >
         {/* Selector de modo (solo al crear) */}
         {!editing && (
           <div className="flex rounded-lg bg-surface-3 p-1">
@@ -497,7 +526,7 @@ export const ReparacionFormModal = ({
                 key={m}
                 type="button"
                 disabled={blocking || !!ingresoRapidoPendiente}
-                onClick={() => setValue('modo', m)}
+                onClick={() => setValue('modo', m, { shouldDirty: true })}
                 aria-pressed={modo === m}
                 className={`min-h-11 flex-1 touch-manipulation rounded-md px-3 py-2 text-[13px] font-bold transition focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-0 ${
                   modo === m ? 'bg-surface text-text shadow-sm' : 'text-text-2'
@@ -799,7 +828,9 @@ export const ReparacionFormModal = ({
             </details>
         </div>
 
-      </form>
-    </Modal>
+          </form>
+        </Modal>
+      )}
+    </UnsavedChangesGuard>
   );
 };

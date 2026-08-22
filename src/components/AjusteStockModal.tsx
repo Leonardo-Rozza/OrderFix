@@ -1,5 +1,6 @@
 import { useState, type FormEvent, type KeyboardEvent } from 'react';
 import { FormActions, Modal } from './Modal';
+import { UnsavedChangesGuard } from './UnsavedChangesGuard';
 import { FormField } from './FormField';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import { useAjustarStockMutation } from '../api/mutations/inventario.mutations';
@@ -29,13 +30,18 @@ export const AjusteStockModal = ({ onClose, articulo }: Props) => {
       : dejaStockNegativo
         ? `La salida no puede superar el stock actual (${articulo.stock})`
         : undefined;
+  const isDirty = tipo !== 'entrada' || cantidad !== '' || motivo.trim() !== '';
 
-  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (event: FormEvent<HTMLFormElement>, commitAndClose: () => void) => {
     event.preventDefault();
     setIntentoEnvio(true);
     if (!valido) return;
-    await ajustar.mutateAsync({ id: articulo.id, delta, motivo: motivo.trim() || undefined });
-    onClose();
+    try {
+      await ajustar.mutateAsync({ id: articulo.id, delta, motivo: motivo.trim() || undefined });
+    } catch {
+      return;
+    }
+    commitAndClose();
   };
 
   const onFormKeyDown = (event: KeyboardEvent<HTMLFormElement>) => {
@@ -45,24 +51,38 @@ export const AjusteStockModal = ({ onClose, articulo }: Props) => {
   };
 
   return (
-    <Modal
+    <UnsavedChangesGuard
       isOpen
+      isDirty={isDirty}
+      isBusy={ajustar.isPending}
       onClose={onClose}
-      title={`Ajustar stock · ${articulo.nombre}`}
-      size="sm"
-      preventClose={ajustar.isPending}
-      footer={(
-        <FormActions>
-          <button type="button" className={btnGhost} onClick={onClose} disabled={ajustar.isPending}>
-            Cancelar
-          </button>
-          <button type="submit" form="ajuste-stock-form" className={btnPrimary} disabled={ajustar.isPending}>
-            {ajustar.isPending ? 'Guardando…' : 'Aplicar ajuste'}
-          </button>
-        </FormActions>
-      )}
     >
-      <form id="ajuste-stock-form" onSubmit={onSubmit} onKeyDown={onFormKeyDown} noValidate className="space-y-4">
+      {(guard) => (
+        <Modal
+          isOpen
+          onClose={guard.requestClose}
+          title={`Ajustar stock · ${articulo.nombre}`}
+          size="sm"
+          preventClose={ajustar.isPending}
+          suspended={guard.isSuspended}
+          footer={(
+            <FormActions>
+              <button type="button" className={btnGhost} onClick={guard.requestClose} disabled={ajustar.isPending}>
+                Cancelar
+              </button>
+              <button type="submit" form="ajuste-stock-form" className={btnPrimary} disabled={ajustar.isPending}>
+                {ajustar.isPending ? 'Guardando…' : 'Aplicar ajuste'}
+              </button>
+            </FormActions>
+          )}
+        >
+          <form
+            id="ajuste-stock-form"
+            onSubmit={(event) => onSubmit(event, guard.commitAndClose)}
+            onKeyDown={onFormKeyDown}
+            noValidate
+            className="space-y-4"
+          >
         <div className="text-[13px] text-text-2">
           Stock actual: <span className="font-mono font-bold text-text">{articulo.stock}</span>
         </div>
@@ -119,7 +139,9 @@ export const AjusteStockModal = ({ onClose, articulo }: Props) => {
           </div>
         )}
 
-      </form>
-    </Modal>
+          </form>
+        </Modal>
+      )}
+    </UnsavedChangesGuard>
   );
 };

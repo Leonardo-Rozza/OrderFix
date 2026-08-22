@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../axios';
 import type { Cliente, ClienteCreate, ClienteUpdate } from '../../types';
 import { getErrorMessage, showError, showSuccess } from '../../utils/toast';
+import { reconcileClienteChanged } from '../cacheConsistency';
 
 // Crear cliente
 const createCliente = async (cliente: ClienteCreate): Promise<Cliente> => {
@@ -27,8 +28,8 @@ export const useCreateClienteMutation = () => {
   
   return useMutation({
     mutationFn: createCliente,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clientes'] });
+    onSuccess: async (cliente) => {
+      await reconcileClienteChanged(queryClient, { type: 'created', cliente });
       showSuccess('Cliente creado correctamente');
     },
     onError: (error) => {
@@ -43,9 +44,8 @@ export const useUpdateClienteMutation = () => {
   
   return useMutation({
     mutationFn: updateCliente,
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['clientes'] });
-      queryClient.invalidateQueries({ queryKey: ['cliente', data.id] });
+    onSuccess: async (cliente) => {
+      await reconcileClienteChanged(queryClient, { type: 'updated', cliente });
       showSuccess('Cliente actualizado');
     },
     onError: (error) => {
@@ -60,8 +60,8 @@ export const useDeleteClienteMutation = () => {
   
   return useMutation({
     mutationFn: deleteCliente,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clientes'] });
+    onSuccess: async (_data, clienteId) => {
+      await reconcileClienteChanged(queryClient, { type: 'deleted', clienteId });
       showSuccess('Cliente eliminado');
     },
     onError: (error) => {

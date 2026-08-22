@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../axios';
+import { queryKeys } from '../queryKeys';
 import type { Articulo, ArticuloCreate, ArticuloUpdate, AjusteStock } from '../../types';
 import { getErrorMessage, showError, showSuccess } from '../../utils/toast';
 
@@ -23,8 +24,8 @@ const deleteArticulo = async (id: number): Promise<void> => {
 };
 
 const invalidate = (qc: ReturnType<typeof useQueryClient>) => {
-  qc.invalidateQueries({ queryKey: ['inventario'] });
-  qc.invalidateQueries({ queryKey: ['dashboard'] });
+  qc.invalidateQueries({ queryKey: queryKeys.inventario.all });
+  qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
 };
 
 export const useCreateArticuloMutation = () => {

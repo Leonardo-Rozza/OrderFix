@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../axios';
+import { queryKeys } from '../queryKeys';
 import type { Usuario, UsuarioCreate, UsuarioUpdate } from '../../types';
 import { getErrorMessage, showError, showSuccess } from '../../utils/toast';
 
@@ -20,7 +21,7 @@ export const useCreateUsuarioMutation = () => {
   return useMutation({
     mutationFn: createUsuario,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.usuarios.all });
       showSuccess('Empleado creado');
     },
     onError: (error) => showError(getErrorMessage(error, 'No se pudo crear el empleado')),
@@ -32,7 +33,7 @@ export const useUpdateUsuarioMutation = () => {
   return useMutation({
     mutationFn: updateUsuario,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.usuarios.all });
       showSuccess('Empleado actualizado');
     },
     onError: (error) => showError(getErrorMessage(error, 'No se pudo actualizar el empleado')),

@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../axios';
+import { queryKeys } from '../queryKeys';
 import type { Repuesto, RepuestoCreate, RepuestoUpdate } from '../../types';
 import { getErrorMessage, showError, showSuccess } from '../../utils/toast';
 
@@ -21,6 +22,22 @@ const deleteRepuesto = async (id: number): Promise<void> => {
   await apiClient.delete(`/repuestos/${id}`);
 };
 
+/**
+ * Un repuesto cambia totales, saldo/recibo y, si nació del inventario, stock.
+ * Se invalidan prefijos para cubrir también una reasignación entre reparaciones:
+ * el payload de update no informa necesariamente cuál era la asociación previa.
+ */
+const invalidate = (queryClient: ReturnType<typeof useQueryClient>) => {
+  queryClient.invalidateQueries({ queryKey: queryKeys.repuestos.all });
+  queryClient.invalidateQueries({ queryKey: queryKeys.repuestos.details });
+  queryClient.invalidateQueries({ queryKey: queryKeys.reparaciones.all });
+  queryClient.invalidateQueries({ queryKey: queryKeys.reparaciones.details });
+  queryClient.invalidateQueries({ queryKey: queryKeys.cobros.all });
+  queryClient.invalidateQueries({ queryKey: queryKeys.recibos.all });
+  queryClient.invalidateQueries({ queryKey: queryKeys.inventario.all });
+  queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+};
+
 // Hook para crear repuesto
 export const useCreateRepuestoMutation = () => {
   const queryClient = useQueryClient();
@@ -28,7 +45,7 @@ export const useCreateRepuestoMutation = () => {
   return useMutation({
     mutationFn: createRepuesto,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['repuestos'] });
+      invalidate(queryClient);
       showSuccess('Repuesto creado');
     },
     onError: (error) => {
@@ -43,9 +60,8 @@ export const useUpdateRepuestoMutation = () => {
   
   return useMutation({
     mutationFn: updateRepuesto,
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['repuestos'] });
-      queryClient.invalidateQueries({ queryKey: ['repuesto', data.id] });
+    onSuccess: () => {
+      invalidate(queryClient);
       showSuccess('Repuesto actualizado');
     },
     onError: (error) => {
@@ -61,7 +77,7 @@ export const useDeleteRepuestoMutation = () => {
   return useMutation({
     mutationFn: deleteRepuesto,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['repuestos'] });
+      invalidate(queryClient);
       showSuccess('Repuesto eliminado');
     },
     onError: (error) => {

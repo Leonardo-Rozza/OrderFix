@@ -1,4 +1,4 @@
-import type { TokenClaims } from '../types';
+import type { Rol, TokenClaims } from '../types';
 
 /**
  * Decodifica el payload de un JWT sin validar la firma.
@@ -27,4 +27,11 @@ export const isTokenExpired = (token: string | null | undefined): boolean => {
   const claims = decodeToken(token);
   if (!claims?.exp) return false;
   return claims.exp * 1000 <= Date.now();
+};
+
+/** Normaliza los claims Spring Security sin aceptar coincidencias parciales. */
+export const normalizeRole = (role: string | null | undefined): Rol | null => {
+  if (!role) return null;
+  const normalized = role.trim().toUpperCase().replace(/^ROLE_/, '');
+  return normalized === 'ADMIN' || normalized === 'USER' ? normalized : null;
 };

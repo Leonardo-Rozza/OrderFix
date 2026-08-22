@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { decodeToken, isTokenExpired } from './jwt';
+import { decodeToken, isTokenExpired, normalizeRole } from './jwt';
 
 // Arma un JWT de mentira (header.payload.signature) con el payload dado.
 const b64url = (obj: object) =>
@@ -34,5 +34,17 @@ describe('isTokenExpired', () => {
   it('false si el token no trae exp', () => {
     const token = makeToken({ sub: 'x' });
     expect(isTokenExpired(token)).toBe(false);
+  });
+});
+
+describe('normalizeRole', () => {
+  it('normaliza claims Spring Security y roles planos', () => {
+    expect(normalizeRole('ROLE_ADMIN')).toBe('ADMIN');
+    expect(normalizeRole('user')).toBe('USER');
+  });
+
+  it('rechaza coincidencias parciales y roles desconocidos', () => {
+    expect(normalizeRole('ROLE_NOT_ADMIN')).toBeNull();
+    expect(normalizeRole('SUPERUSER')).toBeNull();
   });
 });

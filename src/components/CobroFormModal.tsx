@@ -99,8 +99,9 @@ export const CobroFormModal = ({ isOpen, onClose, reparacionId, saldo }: Props) 
           <form
             id="cobro-form"
             onSubmit={handleSubmit((data) => onSubmit(data, commitAndClose))}
-            className="space-y-4"
+            aria-busy={crear.isPending}
           >
+            <fieldset disabled={crear.isPending} className="m-0 min-w-0 space-y-4 border-0 p-0">
             {saldo != null && saldo > 0 && (
               <div className="rounded-lg bg-surface-2 px-3 py-2 text-[13px] text-text-2">
                 Saldo pendiente: <span className="font-mono font-bold text-text">{formatMoney(saldo)}</span>
@@ -140,7 +141,7 @@ export const CobroFormModal = ({ isOpen, onClose, reparacionId, saldo }: Props) 
             <FormField label="Observaciones" error={errors.observaciones?.message} htmlFor="observaciones">
               <input id="observaciones" type="text" {...register('observaciones')} className={inputClass()} placeholder="Ej: seña, saldo…" />
             </FormField>
-
+            </fieldset>
           </form>
         </Modal>
       )}

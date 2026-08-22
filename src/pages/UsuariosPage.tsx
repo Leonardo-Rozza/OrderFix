@@ -9,7 +9,6 @@ import { useUsuariosQuery } from '../api/queries/usuarios.queries';
 import { useFunciones } from '../api/queries/suscripcion.queries';
 import { useUpdateUsuarioMutation } from '../api/mutations/usuarios.mutations';
 import { useAuth } from '../store/auth.store';
-import type { Rol } from '../types';
 
 export const UsuariosPage = () => {
   const { isAdmin, email } = useAuth();
@@ -33,7 +32,9 @@ export const UsuariosPage = () => {
     <DashboardLayout title="Empleados">
       <div className="ofx-in mx-auto max-w-[900px] space-y-4">
         <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[13.5px] text-text-2">Gestioná los usuarios de tu taller y sus permisos.</p>
+          <p className="text-[13.5px] text-text-2">
+            Gestioná los empleados de tu taller. El rol administrador corresponde únicamente al titular.
+          </p>
           {empleadosMultiples ? (
             <button type="button" className={btnPrimary} onClick={() => setFormOpen(true)}>
               <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
@@ -88,15 +89,9 @@ export const UsuariosPage = () => {
                   </div>
 
                   <div className="min-w-0 flex-1 sm:w-[150px] sm:flex-none">
-                    <select
-                      value={u.role}
-                      disabled={esYo || updateUsuario.isPending}
-                      onChange={(e) => updateUsuario.mutate({ id: u.id, role: e.target.value as Rol })}
-                      className="min-h-11 w-full rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-base text-text outline-none transition focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)] disabled:opacity-60 sm:min-h-0 sm:text-[13px]"
-                    >
-                      <option value="USER">Empleado</option>
-                      <option value="ADMIN">Admin</option>
-                    </select>
+                    <span className="inline-flex min-h-11 items-center rounded-full bg-surface-2 px-3 text-[12.5px] font-bold text-text-2 sm:min-h-0 sm:py-1">
+                      {u.role === 'ADMIN' ? 'Administrador titular' : 'Empleado'}
+                    </span>
                   </div>
 
                   <div className="flex justify-end sm:w-[110px]">

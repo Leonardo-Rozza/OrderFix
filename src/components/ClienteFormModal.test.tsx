@@ -61,4 +61,35 @@ describe('ClienteFormModal', () => {
     await user.click(await screen.findByRole('button', { name: /descartar cambios/i }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('congela los campos mientras el guardado está pendiente', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    let releaseRequest: (() => void) | undefined;
+    const pendingResponse = new Promise<void>((resolve) => {
+      releaseRequest = resolve;
+    });
+    server.use(
+      http.post(`${API}/clientes`, async ({ request }) => {
+        const body = await request.json() as Record<string, unknown>;
+        await pendingResponse;
+        return HttpResponse.json({ id: 1, ...body }, { status: 201 });
+      }),
+    );
+
+    renderUI(<ClienteFormModal isOpen onClose={onClose} editing={null} />);
+
+    const nombre = screen.getByLabelText(/^nombre/i);
+    await user.type(nombre, 'Pedro');
+    await user.type(screen.getByLabelText(/apellido/i), 'Gómez');
+    await user.type(screen.getByLabelText(/teléfono/i), '1144556677');
+    await user.click(screen.getByRole('button', { name: /crear cliente/i }));
+
+    await waitFor(() => expect(nombre).toBeDisabled());
+    await user.type(nombre, ' tardío');
+    expect(nombre).toHaveValue('Pedro');
+
+    releaseRequest?.();
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+  });
 });

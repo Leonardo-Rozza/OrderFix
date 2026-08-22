@@ -144,8 +144,9 @@ export const EquipoFormModal = ({
           <form
             id="equipo-form"
             onSubmit={handleSubmit((data) => onSubmit(data, commitAndClose))}
-            className="space-y-4"
+            aria-busy={saving}
           >
+        <fieldset disabled={saving} className="m-0 min-w-0 space-y-4 border-0 p-0">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField label="Marca" required error={errors.marca?.message} htmlFor="marca">
             <input id="marca" type="text" maxLength={60} {...register('marca')} className={inputClass(!!errors.marca)} placeholder="Ej: Apple" />
@@ -209,7 +210,7 @@ export const EquipoFormModal = ({
             placeholder="Detalle adicional del equipo…"
           />
         </FormField>
-
+        </fieldset>
           </form>
         </Modal>
       )}

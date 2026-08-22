@@ -207,6 +207,28 @@ describe('ReparacionFormModal — alta rápida (modo nuevo)', () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
+  it('limpia la confirmación de credenciales y vuelve al baseline al quitar la cuenta', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    renderUI(<ReparacionFormModal isOpen onClose={onClose} editing={null} />);
+
+    await user.click(screen.getByText('Detalles de ingreso (opcional)', { exact: true }));
+    const cuenta = screen.getByLabelText('Cuenta vinculada');
+    await user.selectOptions(cuenta, 'ICLOUD');
+    await user.click(screen.getByLabelText(/el cliente conoce las credenciales/i));
+    expect(screen.getByLabelText(/el cliente conoce las credenciales/i)).toBeChecked();
+
+    await user.selectOptions(cuenta, 'NINGUNA');
+    expect(screen.queryByLabelText(/el cliente conoce las credenciales/i)).not.toBeInTheDocument();
+    await user.selectOptions(cuenta, 'ICLOUD');
+    expect(screen.getByLabelText(/el cliente conoce las credenciales/i)).not.toBeChecked();
+    await user.selectOptions(cuenta, 'NINGUNA');
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('dialog', { name: '¿Descartar los cambios?' })).not.toBeInTheDocument();
+  });
+
   it('reabre los detalles y enfoca una garantía inválida antes de enviar', async () => {
     const user = userEvent.setup();
     renderUI(<ReparacionFormModal isOpen onClose={vi.fn()} editing={null} />);
@@ -303,6 +325,40 @@ const credencialesGuardadas: ReparacionCredenciales = {
 };
 
 describe('ReparacionFormModal — edición segura de credenciales', () => {
+  it('normaliza credenciales conocidas a false cuando la cuenta pasa a NINGUNA', async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | undefined;
+    server.use(
+      http.put(`${API}/reparaciones/15`, async ({ request }) => {
+        body = await request.json() as Record<string, unknown>;
+        return HttpResponse.json({ ...reparacionEnEdicion, ...body });
+      }),
+    );
+
+    renderUI(
+      <ReparacionFormModal
+        isOpen
+        onClose={vi.fn()}
+        editing={{
+          ...reparacionEnEdicion,
+          tieneCuentaVinculada: 'ICLOUD',
+          clienteConoceCredenciales: true,
+        }}
+      />,
+    );
+
+    await user.click(screen.getByText('Detalles de ingreso (opcional)', { exact: true }));
+    expect(screen.getByLabelText(/el cliente conoce las credenciales/i)).toBeChecked();
+    await user.selectOptions(screen.getByLabelText('Cuenta vinculada'), 'NINGUNA');
+    await user.click(screen.getByRole('button', { name: /guardar cambios/i }));
+
+    await waitFor(() => expect(body).toBeDefined());
+    expect(body).toMatchObject({
+      tieneCuentaVinculada: 'NINGUNA',
+      clienteConoceCredenciales: false,
+    });
+  });
+
   it('omite PIN/patrón sin cambios para conservarlos en el backend', async () => {
     const user = userEvent.setup();
     let body: Record<string, unknown> | undefined;

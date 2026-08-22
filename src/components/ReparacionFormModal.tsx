@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -90,6 +90,8 @@ type FormData = z.infer<typeof schema>;
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  /** Cleanup al abandonar la ruta; no debe iniciar una segunda navegación. */
+  onNavigationDiscard?: () => void;
   editing: Reparacion | null;
   /** Se llama tras crear por carga rápida, con el id de la reparación nueva. */
   onCreated?: (reparacionId: number) => void;
@@ -127,10 +129,15 @@ const fotosArray = (ingreso: string[], post: string[]): Foto[] | undefined => {
   ];
   return arr.length ? arr : undefined;
 };
+const conoceCredencialesDeCuenta = (
+  cuenta: CuentaVinculada,
+  conoceCredenciales: boolean | null | undefined,
+): boolean => cuenta !== 'NINGUNA' && conoceCredenciales === true;
 
 export const ReparacionFormModal = ({
   isOpen,
   onClose,
+  onNavigationDiscard,
   editing,
   onCreated,
   credenciales,
@@ -178,6 +185,7 @@ export const ReparacionFormModal = ({
       tieneBloqueoPantalla: false,
       tieneCuentaVinculada: 'NINGUNA',
       clienteConoceCredenciales: false,
+      garantiaDias: Number.NaN,
     },
   });
 
@@ -240,8 +248,11 @@ export const ReparacionFormModal = ({
         noTesteableAlIngreso: editing.noTesteableAlIngreso ?? false,
         tieneBloqueoPantalla: editing.tieneBloqueoPantalla ?? false,
         tieneCuentaVinculada: editing.tieneCuentaVinculada ?? 'NINGUNA',
-        clienteConoceCredenciales: editing.clienteConoceCredenciales ?? false,
-        garantiaDias: editing.garantiaDias ?? '',
+        clienteConoceCredenciales: conoceCredencialesDeCuenta(
+          editing.tieneCuentaVinculada ?? 'NINGUNA',
+          editing.clienteConoceCredenciales,
+        ),
+        garantiaDias: editing.garantiaDias ?? Number.NaN,
         garantiaCondiciones: editing.garantiaCondiciones ?? '',
       });
     } else {
@@ -276,7 +287,7 @@ export const ReparacionFormModal = ({
         tieneBloqueoPantalla: false,
         tieneCuentaVinculada: 'NINGUNA',
         clienteConoceCredenciales: false,
-        garantiaDias: '',
+        garantiaDias: Number.NaN,
         garantiaCondiciones: '',
       });
     }
@@ -303,7 +314,10 @@ export const ReparacionFormModal = ({
     noTesteableAlIngreso: data.noTesteableAlIngreso,
     tieneBloqueoPantalla: data.tieneBloqueoPantalla,
     tieneCuentaVinculada: data.tieneCuentaVinculada,
-    clienteConoceCredenciales: data.clienteConoceCredenciales,
+    clienteConoceCredenciales: conoceCredencialesDeCuenta(
+      data.tieneCuentaVinculada,
+      data.clienteConoceCredenciales,
+    ),
     garantiaDias: num(data.garantiaDias),
     garantiaCondiciones: str(data.garantiaCondiciones),
   });
@@ -470,6 +484,14 @@ export const ReparacionFormModal = ({
     });
   };
 
+  const handleCuentaVinculadaChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const cuenta = event.target.value as CuentaVinculada;
+    setValue('tieneCuentaVinculada', cuenta, { shouldDirty: true });
+    if (cuenta === 'NINGUNA') {
+      setValue('clienteConoceCredenciales', false, { shouldDirty: true });
+    }
+  };
+
   const partialCloseCopy = ingresoRapidoPendiente
     ? {
       message: 'La orden ya existe y no se va a eliminar ni duplicar. Sólo se descartarán los detalles locales que todavía no se guardaron.',
@@ -483,6 +505,7 @@ export const ReparacionFormModal = ({
       isDirty={isDirty || Boolean(ingresoRapidoPendiente)}
       isBusy={blocking}
       onClose={onClose}
+      onNavigationDiscard={onNavigationDiscard}
       copy={partialCloseCopy}
     >
       {(guard) => (
@@ -516,8 +539,12 @@ export const ReparacionFormModal = ({
             id="reparacion-form"
             onSubmit={handleSubmit((data) => onSubmit(data, guard.commitAndClose), onInvalid)}
             noValidate
-            className="space-y-4"
           >
+            <fieldset
+              disabled={blocking}
+              aria-busy={blocking}
+              className="m-0 min-w-0 space-y-4 border-0 p-0"
+            >
         {/* Selector de modo (solo al crear) */}
         {!editing && (
           <div className="flex rounded-lg bg-surface-3 p-1">
@@ -735,7 +762,12 @@ export const ReparacionFormModal = ({
                   </div>
                   <div className="grid grid-cols-1 items-end gap-4 sm:grid-cols-2">
                     <FormField label="Cuenta vinculada" htmlFor="tieneCuentaVinculada">
-                      <select id="tieneCuentaVinculada" {...register('tieneCuentaVinculada')} className={inputClass()}>
+                      <select
+                        id="tieneCuentaVinculada"
+                        {...register('tieneCuentaVinculada')}
+                        onChange={handleCuentaVinculadaChange}
+                        className={inputClass()}
+                      >
                         {(Object.keys(CUENTA_LABEL) as CuentaVinculada[]).map((k) => (
                           <option key={k} value={k}>
                             {CUENTA_LABEL[k]}
@@ -828,6 +860,7 @@ export const ReparacionFormModal = ({
             </details>
         </div>
 
+            </fieldset>
           </form>
         </Modal>
       )}

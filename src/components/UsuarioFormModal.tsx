@@ -14,7 +14,6 @@ const schema = z.object({
   username: z.string().trim().min(1, 'El usuario es requerido').max(50, 'Máximo 50'),
   email: z.string().trim().min(1, 'El email es requerido').email('Email inválido'),
   password: z.string().min(6, 'Mínimo 6 caracteres').max(100, 'Máximo 100 caracteres'),
-  role: z.enum(['USER', 'ADMIN']),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -24,6 +23,8 @@ interface Props {
   onClose: () => void;
 }
 
+const defaults: FormData = { username: '', email: '', password: '' };
+
 export const UsuarioFormModal = ({ isOpen, onClose }: Props) => {
   const createMutation = useCreateUsuarioMutation();
 
@@ -32,14 +33,24 @@ export const UsuarioFormModal = ({ isOpen, onClose }: Props) => {
     handleSubmit,
     reset,
     formState: { errors, isDirty },
-  } = useForm<FormData>({ resolver: zodResolver(schema), defaultValues: { role: 'USER' } });
+  } = useForm<FormData>({ resolver: zodResolver(schema), defaultValues: defaults });
 
   useEffect(() => {
-    if (isOpen) reset({ username: '', email: '', password: '', role: 'USER' });
+    if (isOpen) reset(defaults);
   }, [isOpen, reset]);
 
+  const clearAndClose = () => {
+    reset(defaults);
+    onClose();
+  };
+
   const onSubmit = async (data: FormData, commitAndClose: () => void) => {
-    const payload: UsuarioCreate = { ...data, username: data.username.trim(), email: data.email.trim() };
+    const payload: UsuarioCreate = {
+      username: data.username.trim(),
+      email: data.email.trim(),
+      password: data.password,
+      role: 'USER',
+    };
     try {
       await createMutation.mutateAsync(payload);
     } catch {
@@ -54,7 +65,7 @@ export const UsuarioFormModal = ({ isOpen, onClose }: Props) => {
       isOpen={isOpen}
       isDirty={isDirty}
       isBusy={createMutation.isPending}
-      onClose={onClose}
+      onClose={clearAndClose}
     >
       {({ requestClose, commitAndClose, isSuspended }) => (
         <Modal
@@ -78,8 +89,12 @@ export const UsuarioFormModal = ({ isOpen, onClose }: Props) => {
           <form
             id="usuario-form"
             onSubmit={handleSubmit((data) => onSubmit(data, commitAndClose))}
-            className="space-y-4"
           >
+            <fieldset
+              disabled={createMutation.isPending}
+              aria-busy={createMutation.isPending}
+              className="m-0 min-w-0 space-y-4 border-0 p-0"
+            >
             <FormField label="Usuario" required error={errors.username?.message} htmlFor="username">
               <input id="username" type="text" {...register('username')} className={inputClass(!!errors.username)} placeholder="Ej: juan" />
             </FormField>
@@ -89,13 +104,7 @@ export const UsuarioFormModal = ({ isOpen, onClose }: Props) => {
             <FormField label="Contraseña" required error={errors.password?.message} htmlFor="password">
               <PasswordInput id="password" autoComplete="new-password" {...register('password')} className={inputClass(!!errors.password)} placeholder="Mínimo 6 caracteres" />
             </FormField>
-            <FormField label="Rol" error={errors.role?.message} htmlFor="role">
-              <select id="role" {...register('role')} className={inputClass(!!errors.role)}>
-                <option value="USER">Empleado (USER)</option>
-                <option value="ADMIN">Administrador (ADMIN)</option>
-              </select>
-            </FormField>
-
+            </fieldset>
           </form>
         </Modal>
       )}

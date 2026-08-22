@@ -116,8 +116,9 @@ export const ArticuloFormModal = ({ isOpen, onClose, editing }: Props) => {
           <form
             id="articulo-form"
             onSubmit={handleSubmit((data) => onSubmit(data, commitAndClose))}
-            className="space-y-4"
+            aria-busy={saving}
           >
+        <fieldset disabled={saving} className="m-0 min-w-0 space-y-4 border-0 p-0">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1.6fr_1fr]">
           <FormField label="Nombre" required error={errors.nombre?.message} htmlFor="nombre">
             <input id="nombre" type="text" {...register('nombre')} className={inputClass(!!errors.nombre)} placeholder="Ej: Pantalla iPhone 11" />
@@ -190,6 +191,7 @@ export const ArticuloFormModal = ({ isOpen, onClose, editing }: Props) => {
         {editing && (
           <p className="text-[12px] text-text-3">El stock se mueve con ajustes (+/−), no desde acá.</p>
         )}
+        </fieldset>
           </form>
         </Modal>
       )}

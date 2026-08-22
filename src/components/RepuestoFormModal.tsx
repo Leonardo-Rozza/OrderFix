@@ -146,8 +146,9 @@ export const RepuestoFormModal = ({
           <form
             id="repuesto-form"
             onSubmit={handleSubmit((data) => onSubmit(data, commitAndClose))}
-            className="space-y-4"
+            aria-busy={saving}
           >
+        <fieldset disabled={saving} className="m-0 min-w-0 space-y-4 border-0 p-0">
         {/* Tomar del inventario (solo al crear) → descuenta stock */}
         {!editing && inventario ? (
           <FormField label="Artículo del inventario (opcional)" htmlFor="articuloId">
@@ -269,7 +270,7 @@ export const RepuestoFormModal = ({
             )}
           </FormField>
         ) : null}
-
+        </fieldset>
           </form>
         </Modal>
       )}

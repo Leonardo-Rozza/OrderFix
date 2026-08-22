@@ -81,8 +81,9 @@ export const AjusteStockModal = ({ onClose, articulo }: Props) => {
             onSubmit={(event) => onSubmit(event, guard.commitAndClose)}
             onKeyDown={onFormKeyDown}
             noValidate
-            className="space-y-4"
+            aria-busy={ajustar.isPending}
           >
+        <fieldset disabled={ajustar.isPending} className="m-0 min-w-0 space-y-4 border-0 p-0">
         <div className="text-[13px] text-text-2">
           Stock actual: <span className="font-mono font-bold text-text">{articulo.stock}</span>
         </div>
@@ -138,7 +139,7 @@ export const AjusteStockModal = ({ onClose, articulo }: Props) => {
             Nuevo stock: <span className="font-mono font-bold text-text">{articulo.stock + delta}</span>
           </div>
         )}
-
+        </fieldset>
           </form>
         </Modal>
       )}

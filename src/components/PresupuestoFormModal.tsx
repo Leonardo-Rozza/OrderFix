@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, type ChangeEvent } from 'react';
 import { Controller, useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -55,6 +55,7 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
     control,
     handleSubmit,
     reset,
+    setValue,
     watch,
     formState: { errors, isDirty },
   } = useForm<FormData>({ resolver: zodResolver(schema), defaultValues: defaults });
@@ -101,6 +102,11 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
   // Los errores de ítems son fáciles de pasar por alto: avisar también por toast.
   const onInvalid = () => showError('Revisá los campos marcados en rojo.');
 
+  const handleTipoItemChange = (index: number, event: ChangeEvent<HTMLSelectElement>) => {
+    if (event.target.value !== 'MANO_DE_OBRA') return;
+    setValue(`items.${index}.calidad`, '', { shouldDirty: true });
+  };
+
   return (
     <UnsavedChangesGuard
       isOpen={isOpen}
@@ -130,8 +136,12 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
           <form
             id="presupuesto-form"
             onSubmit={handleSubmit((data) => onSubmit(data, commitAndClose), onInvalid)}
-            className="space-y-4"
           >
+            <fieldset
+              disabled={crear.isPending}
+              aria-busy={crear.isPending}
+              className="m-0 min-w-0 space-y-4 border-0 p-0"
+            >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField label="Tipo" error={errors.tipo?.message} htmlFor="tipo">
             <select id="tipo" {...register('tipo')} className={inputClass(!!errors.tipo)}>
@@ -251,7 +261,9 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
                 <div className={`grid grid-cols-1 gap-2 ${esRepuesto ? 'sm:grid-cols-2' : ''}`}>
                   <select
                     aria-label="Tipo de ítem"
-                    {...register(`items.${i}.tipoItem`)}
+                    {...register(`items.${i}.tipoItem`, {
+                      onChange: (event) => handleTipoItemChange(i, event),
+                    })}
                     className={`${inputClass()} text-base sm:!py-1.5 sm:text-[13px]`}
                   >
                     <option value="MANO_DE_OBRA">Mano de obra</option>
@@ -306,6 +318,7 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
         <FormField label="Observaciones" error={errors.observaciones?.message} htmlFor="observaciones">
           <textarea id="observaciones" rows={2} {...register('observaciones')} className={`${inputClass()} resize-none`} placeholder="Ej: demora 48hs, garantía 30 días…" />
         </FormField>
+            </fieldset>
           </form>
         </Modal>
       )}

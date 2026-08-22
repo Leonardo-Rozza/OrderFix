@@ -107,4 +107,33 @@ describe('AjusteStockModal', () => {
     await waitFor(() => expect(body).toEqual({ delta: 3, motivo: 'compra mayorista' }));
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   });
+
+  it('congela el estado manual mientras aplica el ajuste', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    let releaseRequest: (() => void) | undefined;
+    const pendingResponse = new Promise<void>((resolve) => {
+      releaseRequest = resolve;
+    });
+    server.use(
+      http.post(`${API}/inventario/${articulo.id}/ajuste`, async () => {
+        await pendingResponse;
+        return HttpResponse.json({ ...articulo, stock: 7 });
+      }),
+    );
+
+    renderUI(<AjusteStockModal articulo={articulo} onClose={onClose} />);
+
+    const cantidad = screen.getByLabelText(/cantidad/i);
+    const salida = screen.getByRole('button', { name: /salida/i });
+    await user.type(cantidad, '2');
+    await user.click(screen.getByRole('button', { name: /aplicar ajuste/i }));
+
+    await waitFor(() => expect(cantidad).toBeDisabled());
+    expect(salida).toBeDisabled();
+    expect(cantidad).toHaveValue(2);
+
+    releaseRequest?.();
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+  });
 });

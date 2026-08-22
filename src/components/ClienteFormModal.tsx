@@ -108,8 +108,9 @@ export const ClienteFormModal = ({ isOpen, onClose, editing }: Props) => {
           <form
             id="cliente-form"
             onSubmit={handleSubmit((data) => onSubmit(data, commitAndClose))}
-            className="space-y-4"
+            aria-busy={saving}
           >
+            <fieldset disabled={saving} className="m-0 min-w-0 space-y-4 border-0 p-0">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField label="Nombre" required error={errors.nombre?.message} htmlFor="nombre">
                 <input id="nombre" type="text" maxLength={60} {...register('nombre')} className={inputClass(!!errors.nombre)} />
@@ -130,7 +131,7 @@ export const ClienteFormModal = ({ isOpen, onClose, editing }: Props) => {
             <FormField label="Dirección" error={errors.direccion?.message} htmlFor="direccion">
               <input id="direccion" type="text" maxLength={255} {...register('direccion')} className={inputClass(!!errors.direccion)} />
             </FormField>
-
+            </fieldset>
           </form>
         </Modal>
       )}

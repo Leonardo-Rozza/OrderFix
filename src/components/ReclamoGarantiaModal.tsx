@@ -77,8 +77,9 @@ export const ReclamoGarantiaModal = ({ isOpen, onClose, reparacion }: Props) => 
           <form
             id="reclamo-garantia-form"
             onSubmit={(event) => onSubmit(event, guard.commitAndClose)}
-            className="space-y-4"
+            aria-busy={reclamo.isPending}
           >
+            <fieldset disabled={reclamo.isPending} className="m-0 min-w-0 space-y-4 border-0 p-0">
             <FormField label="¿Qué problema tiene ahora?" required error={error ?? undefined} htmlFor="descripcionReclamo">
               <textarea
                 id="descripcionReclamo"
@@ -97,6 +98,7 @@ export const ReclamoGarantiaModal = ({ isOpen, onClose, reparacion }: Props) => 
               Se crea una orden nueva vinculada a esta, sin precio y sin consumir el cupo mensual del plan.
               Se cobra solo si el diagnóstico revela una falla ajena (golpe o mojadura nueva).
             </p>
+            </fieldset>
           </form>
         </Modal>
       )}

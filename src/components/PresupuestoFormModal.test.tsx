@@ -72,6 +72,27 @@ describe('PresupuestoFormModal', () => {
     expect(screen.queryByRole('dialog', { name: '¿Descartar los cambios?' })).not.toBeInTheDocument();
   });
 
+  it('limpia la calidad al volver a mano de obra y recupera el baseline', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    renderWithProviders(<PresupuestoFormModal isOpen onClose={onClose} reparacionId={8} />);
+
+    const tipoItem = screen.getByRole('combobox', { name: 'Tipo de ítem' });
+    await user.selectOptions(tipoItem, 'REPUESTO');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Calidad del repuesto' }), 'ORIGINAL');
+
+    await user.selectOptions(tipoItem, 'MANO_DE_OBRA');
+    expect(screen.queryByRole('combobox', { name: 'Calidad del repuesto' })).not.toBeInTheDocument();
+
+    await user.selectOptions(tipoItem, 'REPUESTO');
+    expect(screen.getByRole('combobox', { name: 'Calidad del repuesto' })).toHaveValue('');
+    await user.selectOptions(tipoItem, 'MANO_DE_OBRA');
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('dialog', { name: '¿Descartar los cambios?' })).not.toBeInTheDocument();
+  });
+
   it('conserva la edición de un ítem al cancelar el descarte', async () => {
     const user = userEvent.setup();
     renderWithProviders(<PresupuestoFormModal isOpen onClose={vi.fn()} reparacionId={8} />);

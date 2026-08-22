@@ -39,17 +39,21 @@ export const CobroFormModal = ({ isOpen, onClose, reparacionId, saldo }: Props) 
     formState: { errors, isDirty },
   } = useForm<FormData>({ resolver: zodResolver(schema), defaultValues: { metodo: 'EFECTIVO' } });
   const wasOpenRef = useRef(false);
+  const activeReparacionIdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (isOpen && !wasOpenRef.current) {
+    const startsSession = isOpen
+      && (!wasOpenRef.current || activeReparacionIdRef.current !== reparacionId);
+    if (startsSession) {
       reset({
         monto: saldo && saldo > 0 ? saldo : ('' as unknown as number),
         metodo: 'EFECTIVO',
         observaciones: '',
       });
     }
+    if (isOpen) activeReparacionIdRef.current = reparacionId;
     wasOpenRef.current = isOpen;
-  }, [isOpen, saldo, reset]);
+  }, [isOpen, reparacionId, saldo, reset]);
 
   const onSubmit = async (data: FormData, commitAndClose: () => void) => {
     const payload: CobroCreate = {

@@ -89,11 +89,16 @@ export const RepuestoFormModal = ({
 
   const onSubmit = async (data: FormData, commitAndClose: () => void) => {
     const artId = editing ? undefined : numOpt(data.articuloId);
+    const reparacionId = editing && lockedReparacionId !== undefined
+      ? (editing.reparacionId ?? lockedReparacionId)
+      : (lockedReparacionId ?? numOpt(data.reparacionId));
     const base: RepuestoCreate = {
       nombre: data.nombre.trim(),
       precio: data.precio,
       descripcion: str(data.descripcion),
-      reparacionId: lockedReparacionId ?? numOpt(data.reparacionId),
+      // Un editor contextual nunca puede reasociar silenciosamente un repuesto
+      // existente si la ruta cambia; fuera del contexto, el selector sí manda.
+      reparacionId,
       articuloId: artId,
       cantidad: artId ? (numOpt(data.cantidad) ?? 1) : undefined,
     };

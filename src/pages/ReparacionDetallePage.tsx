@@ -54,7 +54,15 @@ const SectionLoader = ({ label }: { label: string }) => (
 
 export const ReparacionDetallePage = () => {
   const { id } = useParams();
-  const reparacionId = Number(id);
+  return <ReparacionDetalleContent key={id} reparacionId={Number(id)} />;
+};
+
+/**
+ * React Router reutiliza el elemento cuando sólo cambia `:id`. La clave del
+ * wrapper fuerza una sesión nueva para que ningún modal, selección o lock de
+ * la orden anterior sobreviva sobre el detalle siguiente.
+ */
+const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) => {
   const navigate = useNavigate();
 
   const {

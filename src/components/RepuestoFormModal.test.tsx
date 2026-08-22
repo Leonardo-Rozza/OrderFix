@@ -271,4 +271,37 @@ describe('RepuestoFormModal', () => {
     expect(body).toMatchObject({ reparacionId: 42 });
     expect(detailRequests).toBe(0);
   });
+
+  it('no reasocia un repuesto existente si cambia el contexto bloqueado', async () => {
+    const user = userEvent.setup();
+    const editing: Repuesto = {
+      id: 8,
+      nombre: 'Pantalla',
+      descripcion: null,
+      precio: 9000,
+      reparacionId: 42,
+      reparacionEquipo: 'Samsung A52',
+    };
+    let body: Record<string, unknown> | undefined;
+    server.use(
+      http.put(`${API}/repuestos/8`, async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ id: 8, ...body });
+      }),
+    );
+
+    renderUI(
+      <RepuestoFormModal
+        isOpen
+        onClose={vi.fn()}
+        editing={editing}
+        lockedReparacionId={99}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /guardar cambios/i }));
+
+    await waitFor(() => expect(body).toBeDefined());
+    expect(body).toMatchObject({ reparacionId: 42 });
+  });
 });

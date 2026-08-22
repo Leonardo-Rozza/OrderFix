@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { Link, MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CobrosReparacion, Reparacion } from '../types';
 
@@ -91,7 +91,19 @@ vi.mock('../store/auth.store', () => ({
 }));
 
 vi.mock('../components/ReparacionFormModal', () => ({ ReparacionFormModal: () => null }));
-vi.mock('../components/RepuestoFormModal', () => ({ RepuestoFormModal: () => null }));
+vi.mock('../components/RepuestoFormModal', () => ({
+  RepuestoFormModal: ({
+    isOpen,
+    lockedReparacionId,
+  }: {
+    isOpen: boolean;
+    lockedReparacionId?: number;
+  }) => (isOpen ? (
+    <div role="dialog" aria-label="Editor de repuesto simulado">
+      Orden {lockedReparacionId}
+    </div>
+  ) : null),
+}));
 vi.mock('../components/PresupuestoFormModal', () => ({ PresupuestoFormModal: () => null }));
 vi.mock('../components/CobroFormModal', () => ({ CobroFormModal: () => null }));
 vi.mock('../components/ReclamoGarantiaModal', () => ({ ReclamoGarantiaModal: () => null }));
@@ -238,5 +250,36 @@ describe('ReparacionDetallePage — estados honestos de subconsultas', () => {
 
     expect(screen.getByLabelText('Cambiar estado')).toBeEnabled();
     expect(advance).toBeEnabled();
+  });
+
+  it('descarta el estado de los editores al navegar a otra reparación', async () => {
+    const user = userEvent.setup();
+    mocks.useRepuestosQuery.mockReturnValue(successResult([], mocks.refetchRepuestos));
+    mocks.usePresupuestosQuery.mockReturnValue(successResult([], mocks.refetchPresupuestos));
+    mocks.useCobrosQuery.mockReturnValue(successResult({
+      total: 0,
+      cobrado: 0,
+      saldo: 0,
+      pagado: false,
+      cobros: [],
+    }, mocks.refetchCobros));
+
+    render(
+      <MemoryRouter initialEntries={['/reparaciones/7']}>
+        <Link to="/reparaciones/8">Ir a otra reparación</Link>
+        <Routes>
+          <Route path="/reparaciones/:id" element={<ReparacionDetallePage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Agregar' }));
+    expect(screen.getByRole('dialog', { name: 'Editor de repuesto simulado' }))
+      .toHaveTextContent('Orden 7');
+
+    await user.click(screen.getByRole('link', { name: 'Ir a otra reparación' }));
+
+    expect(screen.queryByRole('dialog', { name: 'Editor de repuesto simulado' }))
+      .not.toBeInTheDocument();
   });
 });

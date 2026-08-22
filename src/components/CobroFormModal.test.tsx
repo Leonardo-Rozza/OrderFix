@@ -75,6 +75,36 @@ describe('CobroFormModal', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it('inicia un baseline nuevo cuando cambia la reparación activa', async () => {
+    const user = userEvent.setup();
+    const Harness = () => {
+      const [context, setContext] = useState({ reparacionId: 9, saldo: 1000 });
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => setContext({ reparacionId: 10, saldo: 2500 })}
+          >
+            Cambiar reparación
+          </button>
+          <CobroFormModal
+            isOpen
+            onClose={vi.fn()}
+            reparacionId={context.reparacionId}
+            saldo={context.saldo}
+          />
+        </>
+      );
+    };
+    renderWithProviders(<Harness />);
+
+    expect(screen.getByLabelText(/^monto/i)).toHaveValue('1.000');
+    await user.click(screen.getByRole('button', { name: 'Cambiar reparación' }));
+
+    await waitFor(() => expect(screen.getByLabelText(/^monto/i)).toHaveValue('2.500'));
+    expect(screen.getByText(/saldo pendiente/i)).toHaveTextContent('$ 2.500');
+  });
+
   it('mantiene protegido un cobro inválido', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();

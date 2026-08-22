@@ -9,36 +9,12 @@ const DownloadIcon = ({ size = 17 }: { size?: number }) => (
 
 /**
  * Botón para exportar los datos del taller a Excel (§4.14). Solo se muestra al
- * ADMIN; en cualquier plan. Dos variantes: compacta (toolbars) y tarjeta (Planes).
+ * ADMIN; en cualquier plan. Su ubicación operativa es el Dashboard.
  */
-export const ExportExcelButton = ({ variant = 'button' }: { variant?: 'button' | 'card' }) => {
+export const ExportExcelButton = () => {
   const { isAdmin } = useAuth();
   const exportar = useExportExcelMutation();
   if (!isAdmin) return null;
-
-  if (variant === 'card') {
-    return (
-      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-5 shadow-sm sm:flex-row sm:items-center">
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-success-soft text-success">
-          <DownloadIcon size={22} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-[15px] font-extrabold">Exportar mis datos</div>
-          <div className="mt-0.5 text-[13px] text-text-2">
-            Descargá un Excel con tus clientes, órdenes, cobros y presupuestos. Son tus datos: te los llevás cuando quieras.
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => exportar.mutate()}
-          disabled={exportar.isPending}
-          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-border-strong bg-surface px-4 py-2.5 text-[14px] font-bold text-text transition hover:border-primary hover:text-primary disabled:opacity-60"
-        >
-          {exportar.isPending ? 'Generando…' : 'Exportar a Excel'}
-        </button>
-      </div>
-    );
-  }
 
   return (
     <button

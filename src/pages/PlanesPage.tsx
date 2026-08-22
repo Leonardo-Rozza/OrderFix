@@ -3,7 +3,6 @@ import { DashboardLayout } from '../layouts/DashboardLayout';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useSuscripcionQuery } from '../api/queries/suscripcion.queries';
 import { useIniciarPagoProMutation, useCancelarSuscripcionMutation } from '../api/mutations/pagos.mutations';
-import { ExportExcelButton } from '../components/ExportExcelButton';
 import { useAuth } from '../store/auth.store';
 import type { Plan } from '../types';
 
@@ -173,11 +172,6 @@ export const PlanesPage = () => {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Exportar datos del taller — solo ADMIN, disponible en todos los planes (§4.14) */}
-      <div className="mt-4">
-        <ExportExcelButton variant="card" />
       </div>
 
       <ConfirmDialog

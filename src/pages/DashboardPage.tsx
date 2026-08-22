@@ -38,21 +38,58 @@ const Kpi = ({ label, value, hint, iconD, iconBg, iconFg }: KpiProps) => (
   </div>
 );
 
+const KpiSkeleton = () => (
+  <div className="rounded-2xl border border-border bg-surface p-[18px] shadow-sm" aria-hidden="true">
+    <div className="flex items-center justify-between">
+      <div className="ofx-skel h-4 w-28 rounded" />
+      <div className="ofx-skel h-[34px] w-[34px] rounded-[10px]" />
+    </div>
+    <div className="ofx-skel mt-2.5 h-9 w-20 rounded" />
+    <div className="ofx-skel mt-1 h-3.5 w-24 rounded" />
+  </div>
+);
+
 export const DashboardPage = () => {
   const navigate = useNavigate();
   const { email } = useAuth();
   const { data: stats, isLoading, isError, refetch } = useDashboardQuery();
-  const { data: clientesPage } = useClientesQuery({ page: 0, size: 1 });
-  const { inventario, cobros: cobrosHabilitado } = useFunciones();
-  const stockBajo = stats?.articulosStockBajo ?? 0;
+  const {
+    data: clientesPage,
+    isLoading: clientesLoading,
+    isError: clientesError,
+    refetch: refetchClientes,
+  } = useClientesQuery({ page: 0, size: 1 });
+  const { inventario } = useFunciones();
+  const clientesTotal = clientesPage?.page?.totalElements;
+  const dashboardReady = !isLoading && !isError && stats !== undefined;
+  const clientesReady = !clientesLoading
+    && !clientesError
+    && clientesTotal !== undefined;
+  const kpisLoading = !isError && !clientesError && (isLoading || clientesLoading);
+  const kpisError = isError || clientesError || (!kpisLoading && (!dashboardReady || !clientesReady));
+  const kpis = dashboardReady && clientesReady && clientesTotal !== undefined
+    ? (() => {
+        const counts = stats.reparacionesPorEstado;
+        const total = stats.totalReparaciones;
+        // Activas = equipos todavía en el taller (excluye entregadas, abandonadas y canceladas).
+        const cerradas = ESTADOS_CERRADOS.reduce((sum, estado) => sum + (counts[estado] ?? 0), 0);
+        return {
+          activas: total - cerradas,
+          equiposListos: stats.equiposListos,
+          reparacionesEsteMes: stats.reparacionesEsteMes,
+          clientesTotal,
+        };
+      })()
+    : null;
+  const stockBajo = dashboardReady ? stats.articulosStockBajo : undefined;
+  const counts = dashboardReady ? stats.reparacionesPorEstado : undefined;
+  const total = dashboardReady ? stats.totalReparaciones : undefined;
+  const recientes = dashboardReady ? (stats.ultimasReparaciones ?? []) : [];
 
-  const counts = stats?.reparacionesPorEstado;
-  const total = stats?.totalReparaciones ?? 0;
-  // Activas = equipos todavía en el taller (excluye entregadas, abandonadas y canceladas).
-  const cerradas = ESTADOS_CERRADOS.reduce((sum, k) => sum + (counts?.[k] ?? 0), 0);
-  const activas = total - cerradas;
-  const recientes = stats?.ultimasReparaciones ?? [];
-  const clientesTotal = clientesPage?.page?.totalElements ?? 0;
+  const retryDashboard = () => void refetch();
+  const retryKpis = () => {
+    void Promise.all([refetch(), refetchClientes()]);
+  };
 
   const nombre = email ? email.split('@')[0] : 'taller';
 
@@ -75,7 +112,7 @@ export const DashboardPage = () => {
           </div>
         </div>
 
-        {inventario && stockBajo > 0 && (
+        {inventario && stockBajo !== undefined && stockBajo > 0 && (
           <button
             type="button"
             onClick={() => navigate('/inventario')}
@@ -91,40 +128,54 @@ export const DashboardPage = () => {
           </button>
         )}
 
-        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
-          <Kpi
-            label="Reparaciones activas"
-            value={String(activas)}
-            hint="En taller ahora"
-            iconBg="var(--st-proceso-bg)"
-            iconFg="var(--st-proceso)"
-            iconD="M14.7 6.3a4 4 0 0 0-5.66 5.66L3 18l3 3 6.04-6.04a4 4 0 0 0 5.66-5.66l-2.83 2.83-2.83-2.83 2.83-2.83z"
-          />
-          <Kpi
-            label="Equipos sin retirar"
-            value={String(stats?.equiposListos ?? 0)}
-            hint="Listos para entregar"
-            iconBg="var(--st-completado-bg)"
-            iconFg="var(--st-completado)"
-            iconD="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8.5 12.2l2.4 2.4 4.6-5"
-          />
-          <Kpi
-            label="Reparaciones del mes"
-            value={String(stats?.reparacionesEsteMes ?? 0)}
-            hint="Ingresadas este mes"
-            iconBg="var(--primary-soft)"
-            iconFg="var(--primary)"
-            iconD="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"
-          />
-          <Kpi
-            label="Clientes"
-            value={String(clientesTotal)}
-            hint="Cartera total"
-            iconBg="var(--st-ingresado-bg)"
-            iconFg="var(--st-ingresado)"
-            iconD="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
-          />
-        </div>
+        <section
+          aria-label="Indicadores del taller"
+          aria-busy={kpisLoading}
+          className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4"
+        >
+          {kpisLoading ? (
+            Array.from({ length: 4 }).map((_, index) => <KpiSkeleton key={index} />)
+          ) : kpisError || !kpis ? (
+            <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm sm:col-span-2 xl:col-span-4">
+              <ErrorState onRetry={retryKpis} message="No pudimos cargar los indicadores del taller." />
+            </div>
+          ) : (
+            <>
+              <Kpi
+                label="Reparaciones activas"
+                value={String(kpis.activas)}
+                hint="En taller ahora"
+                iconBg="var(--st-proceso-bg)"
+                iconFg="var(--st-proceso)"
+                iconD="M14.7 6.3a4 4 0 0 0-5.66 5.66L3 18l3 3 6.04-6.04a4 4 0 0 0 5.66-5.66l-2.83 2.83-2.83-2.83 2.83-2.83z"
+              />
+              <Kpi
+                label="Equipos sin retirar"
+                value={String(kpis.equiposListos)}
+                hint="Listos para entregar"
+                iconBg="var(--st-completado-bg)"
+                iconFg="var(--st-completado)"
+                iconD="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8.5 12.2l2.4 2.4 4.6-5"
+              />
+              <Kpi
+                label="Reparaciones del mes"
+                value={String(kpis.reparacionesEsteMes)}
+                hint="Ingresadas este mes"
+                iconBg="var(--primary-soft)"
+                iconFg="var(--primary)"
+                iconD="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"
+              />
+              <Kpi
+                label="Clientes"
+                value={String(kpis.clientesTotal)}
+                hint="Cartera total"
+                iconBg="var(--st-ingresado-bg)"
+                iconFg="var(--st-ingresado)"
+                iconD="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
+              />
+            </>
+          )}
+        </section>
 
         <div className="grid grid-cols-1 items-start gap-3.5 lg:grid-cols-[1.6fr_1fr]">
           {/* Ingresos recientes */}
@@ -143,7 +194,9 @@ export const DashboardPage = () => {
                 </div>
               ))
             ) : isError ? (
-              <ErrorState onRetry={() => refetch()} message="No pudimos cargar el panel." />
+              <ErrorState onRetry={retryDashboard} message="No pudimos cargar los ingresos recientes." />
+            ) : !dashboardReady ? (
+              <ErrorState onRetry={retryDashboard} message="No pudimos cargar los ingresos recientes." />
             ) : recientes.length === 0 ? (
               <EmptyState title="Todavía no hay reparaciones" hint="Cargá la primera para verla acá." />
             ) : (
@@ -176,39 +229,59 @@ export const DashboardPage = () => {
                   </div>
                   <div className="hidden flex-col items-end gap-1 sm:flex">
                     <EstadoBadge estado={r.estado} />
-                    {cobrosHabilitado && <PagoChip estadoPago={r.estadoPago} saldo={r.saldo} />}
+                    <PagoChip estadoPago={r.estadoPago} saldo={r.saldo} />
                   </div>
-                  <div className="w-[84px] text-right font-mono text-[13.5px] font-bold">{formatMoney(r.precioFinal ?? r.precioEstimado)}</div>
+                  <div className="w-[84px] text-right font-mono text-[13.5px] font-bold">{formatMoney(r.total ?? r.precioFinal ?? r.precioEstimado)}</div>
                 </div>
               ))
             )}
           </div>
 
           {/* Reparaciones por estado */}
-          <div className="rounded-2xl border border-border bg-surface p-[18px] shadow-sm">
+          <div className="rounded-2xl border border-border bg-surface p-[18px] shadow-sm" aria-busy={isLoading}>
             <div className="mb-3.5 text-[15px] font-extrabold">Reparaciones por estado</div>
-            {ESTADOS_LIST.map((meta) => {
-              const count = counts?.[meta.key] ?? 0;
-              const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-              return (
-                <div key={meta.key} className="mb-3.5 last:mb-0">
-                  <div className="mb-1.5 flex items-center justify-between text-[13px]">
-                    <span className="inline-flex items-center gap-2 font-bold">
-                      <span className="h-2.5 w-2.5 rounded" style={{ background: meta.cssVar }} />
-                      {meta.label}
-                    </span>
-                    <span className="font-mono font-extrabold">{count}</span>
+            {isLoading ? (
+              <div aria-label="Cargando reparaciones por estado" className="space-y-3.5">
+                {ESTADOS_LIST.map((meta) => (
+                  <div key={meta.key} aria-hidden="true">
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <div className="ofx-skel h-4 w-32 rounded" />
+                      <div className="ofx-skel h-4 w-6 rounded" />
+                    </div>
+                    <div className="ofx-skel h-2 w-full rounded-full" />
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-surface-3">
-                    <div className="h-full rounded-full" style={{ width: `${pct}%`, background: meta.cssVar }} />
-                  </div>
+                ))}
+              </div>
+            ) : isError || !counts || total === undefined ? (
+              <div className="-mx-[18px] -mb-[18px]">
+                <ErrorState onRetry={retryDashboard} message="No pudimos cargar la distribución por estado." />
+              </div>
+            ) : (
+              <>
+                {ESTADOS_LIST.map((meta) => {
+                  const count = counts[meta.key] ?? 0;
+                  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                  return (
+                    <div key={meta.key} className="mb-3.5 last:mb-0">
+                      <div className="mb-1.5 flex items-center justify-between text-[13px]">
+                        <span className="inline-flex items-center gap-2 font-bold">
+                          <span className="h-2.5 w-2.5 rounded" style={{ background: meta.cssVar }} />
+                          {meta.label}
+                        </span>
+                        <span className="font-mono font-extrabold">{count}</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-surface-3">
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: meta.cssVar }} />
+                      </div>
+                    </div>
+                  );
+                })}
+                <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+                  <div className="text-[12.5px] font-semibold text-text-2">Total reparaciones</div>
+                  <div className="font-mono text-[20px] font-extrabold tracking-tight">{total}</div>
                 </div>
-              );
-            })}
-            <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-              <div className="text-[12.5px] font-semibold text-text-2">Total reparaciones</div>
-              <div className="font-mono text-[20px] font-extrabold tracking-tight">{total}</div>
-            </div>
+              </>
+            )}
           </div>
         </div>
       </div>

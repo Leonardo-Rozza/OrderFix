@@ -1,30 +1,19 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement, ReactNode } from 'react';
 import { http, HttpResponse } from 'msw';
 import { server, API } from '../test/server';
-import type { Reparacion } from '../types';
 
 vi.mock('../layouts/DashboardLayout', () => ({
   DashboardLayout: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
 vi.mock('../components/RepuestoFormModal', () => ({
-  RepuestoFormModal: ({
-    isOpen,
-    reparaciones,
-  }: {
-    isOpen: boolean;
-    reparaciones?: Reparacion[];
-  }) => isOpen ? (
-    <div data-testid="repuesto-form-mock">
-      {reparaciones?.map((reparacion) => (
-        <span key={reparacion.id}>Orden disponible #{reparacion.id}</span>
-      ))}
-    </div>
-  ) : null,
+  RepuestoFormModal: ({ isOpen }: { isOpen: boolean }) => (
+    isOpen ? <div data-testid="repuesto-form-mock" /> : null
+  ),
 }));
 
 import { RepuestosPage } from './RepuestosPage';
@@ -37,7 +26,7 @@ const renderUI = (ui: ReactElement) => {
 };
 
 describe('RepuestosPage — asociación global', () => {
-  it('carga las reparaciones al abrir el formulario y se las entrega al selector', async () => {
+  it('abre el formulario sin precargar el catálogo de reparaciones', async () => {
     const user = userEvent.setup();
     let optionRequests = 0;
 
@@ -54,20 +43,10 @@ describe('RepuestosPage — asociación global', () => {
       })),
       http.get(`${API}/reparaciones`, ({ request }) => {
         optionRequests += 1;
-        expect(new URL(request.url).searchParams.get('size')).toBe('1000');
+        expect(new URL(request.url).searchParams.get('size')).toBe('20');
         return HttpResponse.json({
-          content: [{
-            id: 42,
-            equipoId: 8,
-            descripcionProblema: 'No enciende',
-            estado: 'EN_DIAGNOSTICO',
-            precioEstimado: null,
-            precioFinal: null,
-            fechaIngreso: '2026-08-13',
-            fechaEstimadaEntrega: null,
-            fechaEntrega: null,
-          }],
-          page: { size: 1000, number: 0, totalElements: 1, totalPages: 1 },
+          content: [],
+          page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
         });
       }),
     );
@@ -79,7 +58,7 @@ describe('RepuestosPage — asociación global', () => {
 
     await user.click(screen.getByRole('button', { name: /nuevo repuesto/i }));
 
-    expect(await screen.findByText('Orden disponible #42')).toBeInTheDocument();
-    await waitFor(() => expect(optionRequests).toBe(1));
+    expect(await screen.findByTestId('repuesto-form-mock')).toBeInTheDocument();
+    expect(optionRequests).toBe(0);
   });
 });

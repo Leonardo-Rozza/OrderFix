@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '../axios';
-import { FETCH_ALL_PARAMS, toQueryParams, unwrapList, type Page, type ListParams } from '../pagination';
+import { toQueryParams, type Page, type ListParams } from '../pagination';
 import { queryKeys } from '../queryKeys';
 import type {
   EstadoReparacion,
@@ -28,22 +28,6 @@ export const useReparacionesQuery = (params: ReparacionesParams, enabled = true)
     queryFn: () => fetchReparaciones(params),
     enabled,
     placeholderData: keepPreviousData,
-  });
-};
-
-// Opciones globales para asociar recursos (por ejemplo, un repuesto) a una orden.
-const fetchReparacionesOptions = async (): Promise<Reparacion[]> => {
-  const { data } = await apiClient.get<Page<Reparacion> | Reparacion[]>('/reparaciones', {
-    params: { ...FETCH_ALL_PARAMS, sort: 'id,desc' },
-  });
-  return unwrapList(data);
-};
-
-export const useReparacionesOptions = (enabled = true) => {
-  return useQuery({
-    queryKey: queryKeys.reparaciones.options,
-    queryFn: fetchReparacionesOptions,
-    enabled,
   });
 };
 

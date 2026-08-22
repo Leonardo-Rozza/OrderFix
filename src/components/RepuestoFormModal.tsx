@@ -4,18 +4,20 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { FormActions, Modal } from './Modal';
 import { FormField } from './FormField';
-import { Combobox } from './Combobox';
+import { AsyncCombobox, type AsyncComboboxOption } from './AsyncCombobox';
 import { MoneyInput } from './MoneyInput';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import {
   useCreateRepuestoMutation,
   useUpdateRepuestoMutation,
 } from '../api/mutations/repuestos.mutations';
-import { useArticulosOptions } from '../api/queries/inventario.queries';
+import {
+  inventarioOptionsSource,
+  type ArticuloOptionMeta,
+} from '../api/queries/inventario.queries';
+import { reparacionesOptionsSource } from '../api/queries/reparacion-options.queries';
 import { useFunciones } from '../api/queries/suscripcion.queries';
-import { ESTADOS_CERRADOS } from '../config/estados';
-import { ordenLabel } from '../utils/reparacion';
-import type { Reparacion, Repuesto, RepuestoCreate, RepuestoUpdate } from '../types';
+import type { Repuesto, RepuestoCreate, RepuestoUpdate } from '../types';
 
 const schema = z.object({
   nombre: z.string().trim().min(1, 'El nombre es requerido'),
@@ -32,11 +34,6 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   editing: Repuesto | null;
-  /** Lista de reparaciones para el selector (no hace falta si reparacionId está fijo). */
-  reparaciones?: Reparacion[];
-  reparacionesLoading?: boolean;
-  reparacionesError?: boolean;
-  onRetryReparaciones?: () => void;
   /** Si viene, el repuesto queda asociado a esa reparación y se oculta el selector. */
   lockedReparacionId?: number;
 }
@@ -49,32 +46,20 @@ export const RepuestoFormModal = ({
   isOpen,
   onClose,
   editing,
-  reparaciones = [],
-  reparacionesLoading = false,
-  reparacionesError = false,
-  onRetryReparaciones,
   lockedReparacionId,
 }: Props) => {
   const createMutation = useCreateRepuestoMutation();
   const updateMutation = useUpdateRepuestoMutation();
   // El inventario solo se ofrece al crear y si el plan lo habilita (PRO).
   const { inventario } = useFunciones();
-  const {
-    data: articulos = [],
-    isLoading: articulosLoading,
-    isError: articulosError,
-    refetch: retryArticulos,
-  } = useArticulosOptions(isOpen && !editing && inventario);
   const saving = createMutation.isPending || updateMutation.isPending;
-  const necesitaReparaciones = lockedReparacionId === undefined;
-  const optionsLoading = (!editing && inventario && articulosLoading)
-    || (necesitaReparaciones && reparacionesLoading);
-  const optionsError = (!editing && inventario && articulosError)
-    || (necesitaReparaciones && reparacionesError);
-  const submitBlocked = saving || optionsLoading || optionsError;
-  const reparacionesDisponibles = reparaciones.filter(
-    (reparacion) => !ESTADOS_CERRADOS.includes(reparacion.estado) || reparacion.id === editing?.reparacionId,
-  );
+  const selectedReparacion: AsyncComboboxOption | undefined = editing?.reparacionId
+    ? {
+        value: editing.reparacionId,
+        label: `Orden #${editing.reparacionId}`,
+        sublabel: editing.reparacionEquipo?.trim() || 'Asociación actual',
+      }
+    : undefined;
 
   const {
     register,
@@ -102,7 +87,6 @@ export const RepuestoFormModal = ({
   }, [isOpen, editing, lockedReparacionId, reset]);
 
   const onSubmit = async (data: FormData) => {
-    if (optionsLoading || optionsError) return;
     const artId = editing ? undefined : numOpt(data.articuloId);
     const base: RepuestoCreate = {
       nombre: data.nombre.trim(),
@@ -134,74 +118,52 @@ export const RepuestoFormModal = ({
           <button type="button" className={btnGhost} onClick={onClose} disabled={saving}>
             Cancelar
           </button>
-          <button type="submit" form="repuesto-form" className={btnPrimary} disabled={submitBlocked}>
-            {saving
-              ? 'Guardando…'
-              : optionsLoading
-                ? 'Cargando opciones…'
-                : optionsError
-                  ? 'Reintentá las opciones'
-                  : editing
-                    ? 'Guardar cambios'
-                    : 'Crear repuesto'}
+          <button type="submit" form="repuesto-form" className={btnPrimary} disabled={saving}>
+            {saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear repuesto'}
           </button>
         </FormActions>
       )}
     >
       <form id="repuesto-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {/* Tomar del inventario (solo al crear) → descuenta stock */}
-        {!editing && inventario && articulosLoading ? (
-          <p role="status" className="rounded-lg bg-surface-2 px-3 py-2.5 text-[12.5px] text-text-2">
-            Cargando artículos del inventario…
-          </p>
-        ) : null}
-        {!editing && inventario && articulosError ? (
-          <div role="alert" className="flex flex-col gap-2 rounded-lg bg-danger-soft px-3 py-2.5 text-[12.5px] font-semibold text-danger-fg sm:flex-row sm:items-center sm:justify-between">
-            <span>No pudimos cargar los artículos del inventario.</span>
-            <button type="button" className={btnGhost} onClick={() => void retryArticulos()}>
-              Reintentar inventario
-            </button>
-          </div>
-        ) : null}
-        {!editing && inventario && !articulosLoading && !articulosError && articulos.length === 0 ? (
-          <p className="text-[12.5px] text-text-3">No hay artículos de inventario disponibles; podés cargar el repuesto a mano.</p>
-        ) : null}
-        {!editing && articulos.length > 0 && !articulosLoading && !articulosError && (
+        {!editing && inventario ? (
           <FormField label="Artículo del inventario (opcional)" htmlFor="articuloId">
             {(accessibility) => (
               <Controller
                 control={control}
                 name="articuloId"
                 render={({ field }) => (
-                  <Combobox
+                  <AsyncCombobox<number, ArticuloOptionMeta>
                     ref={field.ref}
+                    source={inventarioOptionsSource}
                     id="articuloId"
                     name={field.name}
+                    enabled={isOpen}
+                    disabled={saving}
                     value={typeof field.value === 'number' && !Number.isNaN(field.value) ? field.value : undefined}
                     emptyLabel="Cargar a mano (sin descontar stock)"
                     placeholder="Cargar a mano (sin descontar stock)"
+                    searchPlaceholder="Buscar por nombre o SKU…"
+                    searchAriaLabel="Buscar artículo del inventario"
+                    entityName="artículo"
+                    entityNamePlural="artículos"
+                    errorMessage="No pudimos cargar el inventario. Podés continuar a mano."
                     aria-describedby={accessibility['aria-describedby']}
                     onBlur={field.onBlur}
-                    onChange={(v) => {
+                    onChange={(v, option) => {
                       field.onChange(v ?? '');
-                      const art = articulos.find((a) => a.id === v);
-                      if (art) {
-                        setValue('nombre', art.nombre);
-                        setValue('precio', art.precio);
-                        setValue('cantidad', 1);
+                      if (option?.meta) {
+                        setValue('nombre', option.meta.nombre, { shouldDirty: true, shouldValidate: true });
+                        setValue('precio', option.meta.precio, { shouldDirty: true, shouldValidate: true });
+                        setValue('cantidad', 1, { shouldDirty: true });
                       }
                     }}
-                    options={articulos.map((a) => ({
-                      value: a.id,
-                      label: a.nombre,
-                      sublabel: `stock ${a.stock}`,
-                    }))}
                   />
                 )}
               />
             )}
           </FormField>
-        )}
+        ) : null}
 
         <FormField label="Nombre" required error={errors.nombre?.message} htmlFor="nombre">
           <input id="nombre" type="text" {...register('nombre')} className={inputClass(!!errors.nombre)} placeholder="Ej: Módulo de pantalla" />
@@ -248,32 +210,42 @@ export const RepuestoFormModal = ({
         </div>
 
         {/* Selector de reparación solo si no viene fijada */}
-        {lockedReparacionId === undefined && (
+        {lockedReparacionId === undefined ? (
           <FormField label="Reparación asociada" error={errors.reparacionId?.message} htmlFor="reparacionId">
-            {reparacionesLoading ? (
-              <div className={`${inputClass()} flex items-center text-text-3`} role="status">
-                Cargando reparaciones…
-              </div>
-            ) : reparacionesError ? (
-              <div role="alert" className="flex flex-col gap-2 rounded-lg bg-danger-soft px-3 py-2.5 text-[12.5px] font-semibold text-danger-fg sm:flex-row sm:items-center sm:justify-between">
-                <span>No pudimos cargar las reparaciones disponibles.</span>
-                <button type="button" className={btnGhost} onClick={onRetryReparaciones}>
-                  Reintentar reparaciones
-                </button>
-              </div>
-            ) : (
-              <select id="reparacionId" {...register('reparacionId', { valueAsNumber: true })} className={inputClass(!!errors.reparacionId)}>
-                <option value="">Sin asociar</option>
-                {reparacionesDisponibles.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {ordenLabel(r)} — {r.descripcionProblema.slice(0, 40)}
-                    {r.descripcionProblema.length > 40 ? '…' : ''}
-                  </option>
-                ))}
-              </select>
+            {(accessibility) => (
+              <Controller
+                control={control}
+                name="reparacionId"
+                render={({ field }) => (
+                  <AsyncCombobox
+                    key={editing?.id ?? 'new'}
+                    ref={field.ref}
+                    source={reparacionesOptionsSource}
+                    id="reparacionId"
+                    name={field.name}
+                    enabled={isOpen}
+                    disabled={saving}
+                    value={typeof field.value === 'number' && !Number.isNaN(field.value) ? field.value : undefined}
+                    selectedOption={selectedReparacion}
+                    emptyLabel="Sin asociar"
+                    placeholder="Sin asociar"
+                    searchPlaceholder="Buscar por orden, equipo o cliente…"
+                    searchAriaLabel="Buscar reparación"
+                    entityName="reparación"
+                    entityNamePlural="reparaciones"
+                    partialEmptyMessage="No hay órdenes abiertas entre las cargadas."
+                    errorMessage="No pudimos cargar las reparaciones. Podés dejar el repuesto sin asociar."
+                    hasError={!!errors.reparacionId}
+                    aria-invalid={accessibility['aria-invalid']}
+                    aria-describedby={accessibility['aria-describedby']}
+                    onBlur={field.onBlur}
+                    onChange={(value) => field.onChange(value ?? '')}
+                  />
+                )}
+              />
             )}
           </FormField>
-        )}
+        ) : null}
 
       </form>
     </Modal>

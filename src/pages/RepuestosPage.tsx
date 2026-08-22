@@ -10,7 +10,6 @@ import { formatMoney } from '../utils/format';
 import { useListParams } from '../hooks/useListParams';
 import { usePageBounds } from '../hooks/usePageBounds';
 import { useRepuestosQuery } from '../api/queries/repuestos.queries';
-import { useReparacionesOptions } from '../api/queries/reparaciones.queries';
 import { useDeleteRepuestoMutation } from '../api/mutations/repuestos.mutations';
 import { useAuth } from '../store/auth.store';
 import type { Repuesto } from '../types';
@@ -24,12 +23,6 @@ export const RepuestosPage = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Repuesto | null>(null);
   const [toDelete, setToDelete] = useState<Repuesto | null>(null);
-  const {
-    data: reparaciones = [],
-    isLoading: reparacionesLoading,
-    isError: reparacionesError,
-    refetch: retryReparaciones,
-  } = useReparacionesOptions(formOpen);
 
   const repuestos = data?.content ?? [];
   const refreshing = isFetching && isPlaceholderData;
@@ -155,10 +148,6 @@ export const RepuestosPage = () => {
         isOpen={formOpen}
         onClose={() => setFormOpen(false)}
         editing={editing}
-        reparaciones={reparaciones}
-        reparacionesLoading={reparacionesLoading}
-        reparacionesError={reparacionesError}
-        onRetryReparaciones={() => void retryReparaciones()}
       />
 
       <ConfirmDialog

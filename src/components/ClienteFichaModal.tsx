@@ -1,4 +1,6 @@
 import { Modal } from './Modal';
+import { Loader } from './Loader';
+import { ErrorState } from './ErrorState';
 import { btnGhost, btnPrimary, btnDanger } from './ui';
 import { iniciales, formatDate, whatsappLink } from '../utils/format';
 import { useEquiposPorClienteQuery } from '../api/queries/equipos.queries';
@@ -30,12 +32,24 @@ const deviceIcon = (
 
 /** Ficha de un cliente: stats + sus equipos + acciones. */
 export const ClienteFichaModal = ({ isOpen, cliente, onClose, onEdit, onDelete, onNuevoEquipo, canDelete = true }: Props) => {
-  const { data: equipos = [] } = useEquiposPorClienteQuery(isOpen ? cliente?.id : undefined);
+  const {
+    data: equiposData,
+    isPending: equiposPending,
+    isError: equiposError,
+    isSuccess: equiposSuccess,
+    refetch: refetchEquipos,
+  } = useEquiposPorClienteQuery(isOpen ? cliente?.id : undefined);
 
   if (!cliente) return null;
 
+  const equipos = equiposData ?? [];
   const nombre = `${cliente.nombre} ${cliente.apellido}`;
   const contacto = [cliente.telefono, cliente.email].filter(Boolean).join(' · ');
+  const equiposCount = cliente.equiposCount != null
+    ? String(cliente.equiposCount)
+    : equiposSuccess
+      ? String(equipos.length)
+      : '—';
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Ficha de cliente" size="md">
@@ -52,23 +66,40 @@ export const ClienteFichaModal = ({ isOpen, cliente, onClose, onEdit, onDelete, 
         </div>
 
         <div className="flex gap-2.5">
-          <Stat value={String(cliente.equiposCount ?? equipos.length)} label="Equipos" />
-          <Stat value={String(cliente.reparacionesCount ?? 0)} label="Reparaciones" />
+          <Stat value={equiposCount} label="Equipos" />
+          <Stat value={cliente.reparacionesCount != null ? String(cliente.reparacionesCount) : '—'} label="Reparaciones" />
           <Stat value={formatDate(cliente.ultimaVisita)} label="Última visita" />
         </div>
 
-        <div>
+        <div aria-busy={equiposPending}>
           <div className="mb-2.5 flex items-center justify-between">
             <span className="text-[11.5px] font-extrabold uppercase tracking-wide text-text-3">Equipos del cliente</span>
-            <button type="button" onClick={onNuevoEquipo} className="text-[12.5px] font-bold text-primary hover:underline">
+            <button
+              type="button"
+              onClick={onNuevoEquipo}
+              disabled={!equiposSuccess}
+              className="text-[12.5px] font-bold text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
+            >
               + Agregar equipo
             </button>
           </div>
-          {equipos.length === 0 ? (
+          {equiposPending ? (
+            <div role="status" aria-live="polite" className="flex min-h-20 items-center justify-center gap-2.5 rounded-xl border border-border text-[12.5px] text-text-3">
+              <Loader size="sm" />
+              <span>Cargando equipos…</span>
+            </div>
+          ) : equiposError ? (
+            <div role="alert" className="rounded-xl border border-border">
+              <ErrorState
+                message="No pudimos cargar los equipos del cliente."
+                onRetry={() => void refetchEquipos()}
+              />
+            </div>
+          ) : equiposSuccess && equipos.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border py-5 text-center text-[12.5px] text-text-3">
               Este cliente todavía no tiene equipos.
             </div>
-          ) : (
+          ) : equiposSuccess ? (
             <div className="space-y-2">
               {equipos.map((e) => (
                 <div key={e.id} className="flex items-center gap-3 rounded-xl border border-border p-2.5">
@@ -82,7 +113,7 @@ export const ClienteFichaModal = ({ isOpen, cliente, onClose, onEdit, onDelete, 
                 </div>
               ))}
             </div>
-          )}
+          ) : null}
         </div>
 
         <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-between">

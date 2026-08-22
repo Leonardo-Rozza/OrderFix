@@ -2,29 +2,24 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, publicClient } from '../axios';
 import type { Presupuesto, PresupuestoCreate } from '../../types';
 import { getErrorMessage, showError, showSuccess } from '../../utils/toast';
+import { reconcilePresupuestoChanged } from '../cacheConsistency';
+import { queryKeys } from '../queryKeys';
 
 // Crear presupuesto (con token, desde el taller)
-const crearPresupuesto = async ({
-  reparacionId,
-  ...body
-}: PresupuestoCreate & { reparacionId: number }): Promise<Presupuesto> => {
+const crearPresupuesto = async (
+  reparacionId: number,
+  body: PresupuestoCreate,
+): Promise<Presupuesto> => {
   const { data } = await apiClient.post<Presupuesto>(`/reparaciones/${reparacionId}/presupuestos`, body);
   return data;
-};
-
-/** Crear/responder/represupuestar pueden mover el estado de la reparación (auto-estado §4.11). */
-const invalidarPresupuestosYReparacion = (qc: ReturnType<typeof useQueryClient>, reparacionId: number) => {
-  qc.invalidateQueries({ queryKey: ['presupuestos', reparacionId] });
-  qc.invalidateQueries({ queryKey: ['reparacion', reparacionId] });
-  qc.invalidateQueries({ queryKey: ['reparaciones'] });
 };
 
 export const useCrearPresupuestoMutation = (reparacionId: number) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: crearPresupuesto,
-    onSuccess: () => {
-      invalidarPresupuestosYReparacion(qc, reparacionId);
+    mutationFn: (body: PresupuestoCreate) => crearPresupuesto(reparacionId, body),
+    onSuccess: async () => {
+      await reconcilePresupuestoChanged(qc, { reparacionId });
       showSuccess('Presupuesto enviado al cliente');
     },
     onError: (e) => showError(getErrorMessage(e, 'No se pudo crear el presupuesto')),
@@ -32,15 +27,15 @@ export const useCrearPresupuestoMutation = (reparacionId: number) => {
 };
 
 // Aprobar / rechazar desde el taller (el cliente respondió por teléfono o en persona)
-const responderPresupuestoTaller = async ({
-  reparacionId,
-  presupuestoId,
-  accion,
-}: {
-  reparacionId: number;
+interface ResponderPresupuestoVariables {
   presupuestoId: number;
   accion: 'aprobar' | 'rechazar';
-}): Promise<Presupuesto> => {
+}
+
+const responderPresupuestoTaller = async (
+  reparacionId: number,
+  { presupuestoId, accion }: ResponderPresupuestoVariables,
+): Promise<Presupuesto> => {
   const { data } = await apiClient.post<Presupuesto>(
     `/reparaciones/${reparacionId}/presupuestos/${presupuestoId}/${accion}`
   );
@@ -50,9 +45,10 @@ const responderPresupuestoTaller = async ({
 export const useResponderPresupuestoTallerMutation = (reparacionId: number) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: responderPresupuestoTaller,
-    onSuccess: (_d, vars) => {
-      invalidarPresupuestosYReparacion(qc, reparacionId);
+    mutationFn: (variables: ResponderPresupuestoVariables) =>
+      responderPresupuestoTaller(reparacionId, variables),
+    onSuccess: async (_d, vars) => {
+      await reconcilePresupuestoChanged(qc, { reparacionId });
       showSuccess(vars.accion === 'aprobar' ? 'Presupuesto aprobado' : 'Presupuesto rechazado');
     },
     onError: (e) => showError(getErrorMessage(e, 'No se pudo registrar la respuesta')),
@@ -60,13 +56,10 @@ export const useResponderPresupuestoTallerMutation = (reparacionId: number) => {
 };
 
 // Re-presupuestar: clona un presupuesto vencido en uno nuevo PENDIENTE con validez fresca
-const represupuestar = async ({
-  reparacionId,
-  presupuestoId,
-}: {
-  reparacionId: number;
-  presupuestoId: number;
-}): Promise<Presupuesto> => {
+const represupuestar = async (
+  reparacionId: number,
+  presupuestoId: number,
+): Promise<Presupuesto> => {
   const { data } = await apiClient.post<Presupuesto>(
     `/reparaciones/${reparacionId}/presupuestos/${presupuestoId}/represupuestar`
   );
@@ -76,9 +69,10 @@ const represupuestar = async ({
 export const useRepresupuestarMutation = (reparacionId: number) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: represupuestar,
-    onSuccess: () => {
-      invalidarPresupuestosYReparacion(qc, reparacionId);
+    mutationFn: ({ presupuestoId }: { presupuestoId: number }) =>
+      represupuestar(reparacionId, presupuestoId),
+    onSuccess: async () => {
+      await reconcilePresupuestoChanged(qc, { reparacionId });
       showSuccess('Presupuesto renovado y enviado al cliente');
     },
     onError: (e) => showError(getErrorMessage(e, 'No se pudo re-presupuestar')),
@@ -86,22 +80,20 @@ export const useRepresupuestarMutation = (reparacionId: number) => {
 };
 
 // Aprobar / rechazar desde el seguimiento público (sin token)
-const responderPresupuesto = async ({
-  codigo,
-  accion,
-}: {
-  codigo: string;
-  accion: 'aprobar' | 'rechazar';
-}): Promise<void> => {
+const responderPresupuesto = async (
+  codigo: string,
+  accion: 'aprobar' | 'rechazar',
+): Promise<void> => {
   await publicClient.post(`/seguimiento/${codigo}/presupuesto/${accion}`);
 };
 
 export const useResponderPresupuestoMutation = (codigo: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: responderPresupuesto,
+    mutationFn: ({ accion }: { accion: 'aprobar' | 'rechazar' }) =>
+      responderPresupuesto(codigo, accion),
     onSuccess: (_d, vars) => {
-      qc.invalidateQueries({ queryKey: ['seguimiento', codigo] });
+      qc.invalidateQueries({ queryKey: queryKeys.seguimiento.byCodigo(codigo) });
       showSuccess(vars.accion === 'aprobar' ? '¡Presupuesto aprobado!' : 'Presupuesto rechazado');
     },
     onError: (e) => showError(getErrorMessage(e, 'No se pudo registrar la respuesta')),

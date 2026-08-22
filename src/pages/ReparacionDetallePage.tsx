@@ -440,7 +440,7 @@ export const ReparacionDetallePage = () => {
                           <button
                             type="button"
                             disabled={responderPresupuesto.isPending}
-                            onClick={() => responderPresupuesto.mutate({ reparacionId: rep.id, presupuestoId: p.id, accion: 'aprobar' })}
+                            onClick={() => responderPresupuesto.mutate({ presupuestoId: p.id, accion: 'aprobar' })}
                             className="inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[12.5px] font-bold text-success transition hover:border-success disabled:opacity-50"
                           >
                             Aprobar
@@ -448,7 +448,7 @@ export const ReparacionDetallePage = () => {
                           <button
                             type="button"
                             disabled={responderPresupuesto.isPending}
-                            onClick={() => responderPresupuesto.mutate({ reparacionId: rep.id, presupuestoId: p.id, accion: 'rechazar' })}
+                            onClick={() => responderPresupuesto.mutate({ presupuestoId: p.id, accion: 'rechazar' })}
                             className="inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[12.5px] font-bold text-text-2 transition hover:border-danger hover:text-danger disabled:opacity-50"
                           >
                             Rechazar
@@ -463,7 +463,7 @@ export const ReparacionDetallePage = () => {
                           <button
                             type="button"
                             disabled={represupuestarPresupuesto.isPending}
-                            onClick={() => represupuestarPresupuesto.mutate({ reparacionId: rep.id, presupuestoId: p.id })}
+                            onClick={() => represupuestarPresupuesto.mutate({ presupuestoId: p.id })}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[12.5px] font-bold text-text-2 transition hover:border-primary hover:text-primary disabled:opacity-50"
                           >
                             <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
@@ -546,7 +546,7 @@ export const ReparacionDetallePage = () => {
                       <button
                         type="button"
                         aria-label="Anular cobro" title="Anular cobro"
-                        onClick={() => anularCobro.mutate({ reparacionId: rep.id, cobroId: c.id })}
+                        onClick={() => anularCobro.mutate({ cobroId: c.id })}
                         className="grid h-7 w-7 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 opacity-0 transition hover:border-danger hover:text-danger group-hover:opacity-100"
                       >
                         <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">

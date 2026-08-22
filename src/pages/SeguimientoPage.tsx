@@ -158,7 +158,7 @@ export const SeguimientoPage = () => {
                   type="button"
                   className={`${btnPrimary} flex-1`}
                   disabled={responder.isPending}
-                  onClick={() => responder.mutate({ codigo: data.codigo, accion: 'aprobar' })}
+                  onClick={() => responder.mutate({ accion: 'aprobar' })}
                 >
                   Aprobar presupuesto
                 </button>
@@ -166,7 +166,7 @@ export const SeguimientoPage = () => {
                   type="button"
                   className={`${btnGhost} flex-1`}
                   disabled={responder.isPending}
-                  onClick={() => responder.mutate({ codigo: data.codigo, accion: 'rechazar' })}
+                  onClick={() => responder.mutate({ accion: 'rechazar' })}
                 >
                   Rechazar
                 </button>

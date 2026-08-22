@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Modal } from './Modal';
+import { FormActions, Modal } from './Modal';
 import { MoneyInput } from './MoneyInput';
 import { FormField } from './FormField';
 import { inputClass, btnGhost, btnPrimary } from './ui';
@@ -54,26 +54,55 @@ export const CobroFormModal = ({ isOpen, onClose, reparacionId, saldo }: Props) 
       metodo: data.metodo,
       observaciones: data.observaciones?.trim() || undefined,
     };
-    await crear.mutateAsync({ reparacionId, ...payload });
+    await crear.mutateAsync(payload);
     onClose();
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Registrar cobro" size="sm">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Registrar cobro"
+      size="sm"
+      preventClose={crear.isPending}
+      footer={(
+        <FormActions>
+          <button type="button" className={btnGhost} onClick={onClose} disabled={crear.isPending}>
+            Cancelar
+          </button>
+          <button type="submit" form="cobro-form" className={btnPrimary} disabled={crear.isPending}>
+            {crear.isPending ? 'Guardando…' : 'Registrar cobro'}
+          </button>
+        </FormActions>
+      )}
+    >
+      <form id="cobro-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {saldo != null && saldo > 0 && (
           <div className="rounded-lg bg-surface-2 px-3 py-2 text-[13px] text-text-2">
             Saldo pendiente: <span className="font-mono font-bold text-text">{formatMoney(saldo)}</span>
           </div>
         )}
         <FormField label="Monto" required error={errors.monto?.message} htmlFor="monto">
-          <Controller
-            control={control}
-            name="monto"
-            render={({ field }) => (
-              <MoneyInput id="monto" value={field.value} onChange={field.onChange} hasError={!!errors.monto} />
-            )}
-          />
+          {(accessibility) => (
+            <Controller
+              control={control}
+              name="monto"
+              render={({ field }) => (
+                <MoneyInput
+                  ref={field.ref}
+                  id="monto"
+                  name={field.name}
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  hasError={!!errors.monto}
+                  aria-invalid={accessibility['aria-invalid']}
+                  aria-describedby={accessibility['aria-describedby']}
+                  aria-required={accessibility['aria-required']}
+                />
+              )}
+            />
+          )}
         </FormField>
         <FormField label="Método" error={errors.metodo?.message} htmlFor="metodo">
           <select id="metodo" {...register('metodo')} className={inputClass(!!errors.metodo)}>
@@ -88,14 +117,6 @@ export const CobroFormModal = ({ isOpen, onClose, reparacionId, saldo }: Props) 
           <input id="observaciones" type="text" {...register('observaciones')} className={inputClass()} placeholder="Ej: seña, saldo…" />
         </FormField>
 
-        <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
-          <button type="button" className={btnGhost} onClick={onClose}>
-            Cancelar
-          </button>
-          <button type="submit" className={btnPrimary} disabled={crear.isPending}>
-            {crear.isPending ? 'Guardando…' : 'Registrar cobro'}
-          </button>
-        </div>
       </form>
     </Modal>
   );

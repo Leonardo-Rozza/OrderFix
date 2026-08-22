@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Controller, useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Modal } from './Modal';
+import { FormActions, Modal } from './Modal';
 import { FormField } from './FormField';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import { MoneyInput } from './MoneyInput';
@@ -14,7 +14,7 @@ const schema = z.object({
   items: z
     .array(
       z.object({
-        descripcion: z.string().min(1, 'Escribí el detalle del ítem'),
+        descripcion: z.string().trim().min(1, 'Escribí el detalle del ítem'),
         cantidad: z.number({ message: 'Cargá la cantidad' }).min(1, 'La cantidad mínima es 1'),
         precioUnitario: z.number({ message: 'Cargá el precio' }).min(0, 'El precio no puede ser negativo'),
         tipoItem: z.enum(['MANO_DE_OBRA', 'REPUESTO']),
@@ -25,7 +25,7 @@ const schema = z.object({
     .min(1, 'Agregá al menos un ítem'),
   observaciones: z.string().optional(),
   tipo: z.enum(['ORIGINAL', 'ADICIONAL']),
-  validezDias: z.number({ message: 'Días' }).min(1, 'Mín. 1').max(365, 'Máx. 365'),
+  validezDias: z.number({ message: 'Días' }).int('Ingresá días enteros').min(1, 'Mín. 1'),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -78,9 +78,8 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
 
   const onSubmit = async (data: FormData) => {
     await crear.mutateAsync({
-      reparacionId,
       items: data.items.map((it) => ({
-        descripcion: it.descripcion,
+        descripcion: it.descripcion.trim(),
         cantidad: it.cantidad,
         precioUnitario: it.precioUnitario,
         tipoItem: it.tipoItem,
@@ -97,8 +96,24 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
   const onInvalid = () => showError('Revisá los campos marcados en rojo.');
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Nuevo presupuesto" size="lg">
-      <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Nuevo presupuesto"
+      size="lg"
+      preventClose={crear.isPending}
+      footer={(
+        <FormActions>
+          <button type="button" className={btnGhost} onClick={onClose} disabled={crear.isPending}>
+            Cancelar
+          </button>
+          <button type="submit" form="presupuesto-form" className={btnPrimary} disabled={crear.isPending}>
+            {crear.isPending ? 'Enviando…' : 'Crear presupuesto'}
+          </button>
+        </FormActions>
+      )}
+    >
+      <form id="presupuesto-form" onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField label="Tipo" error={errors.tipo?.message} htmlFor="tipo">
             <select id="tipo" {...register('tipo')} className={inputClass(!!errors.tipo)}>
@@ -119,68 +134,107 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
         </div>
 
         <div className="space-y-2.5">
-          <div className="flex items-center gap-2 px-1 text-[11.5px] font-extrabold uppercase tracking-wide text-text-3">
+          <div className="hidden items-center gap-2 px-1 text-[11.5px] font-extrabold uppercase tracking-wide text-text-3 sm:flex">
             <div className="min-w-0 flex-1">Detalle</div>
             <div className="w-[64px] shrink-0 text-center">Cant.</div>
             <div className="w-[128px] shrink-0 text-right">Precio unit.</div>
-            <div className="w-7 shrink-0" />
+            <div className="w-11 shrink-0" />
           </div>
 
           {fields.map((field, i) => {
             const esRepuesto = items?.[i]?.tipoItem === 'REPUESTO';
             return (
               <div key={field.id} className="space-y-2 rounded-xl border border-border bg-surface-2 p-2.5">
-                <div className="flex items-start gap-2">
-                  {/* inputClass trae w-full: los anchos fijos van en wrappers para que no se pisen */}
+                <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_64px_128px_44px] sm:items-start">
                   <div className="min-w-0 flex-1">
+                    <label htmlFor={`item-${i}-descripcion`} className="mb-1 block text-[12px] font-bold text-text-2 sm:sr-only">
+                      Detalle
+                    </label>
                     <input
+                      id={`item-${i}-descripcion`}
                       maxLength={255}
                       {...register(`items.${i}.descripcion`)}
                       className={inputClass(!!errors.items?.[i]?.descripcion)}
+                      aria-invalid={!!errors.items?.[i]?.descripcion}
+                      aria-describedby={errors.items?.[i]?.descripcion ? `item-${i}-descripcion-error` : undefined}
+                      aria-required="true"
                       placeholder="Ej: Pin de carga"
                     />
+                    {errors.items?.[i]?.descripcion ? (
+                      <p id={`item-${i}-descripcion-error`} role="alert" className="mt-1 text-[12px] font-semibold text-danger-fg">
+                        {errors.items[i]?.descripcion?.message}
+                      </p>
+                    ) : null}
                   </div>
-                  <div className="w-[64px] shrink-0">
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      aria-label="Cantidad"
-                      {...register(`items.${i}.cantidad`, { valueAsNumber: true })}
-                      className={inputClass(!!errors.items?.[i]?.cantidad)}
-                    />
+                  <div className="grid min-w-0 grid-cols-[minmax(0,0.75fr)_minmax(0,1.35fr)_44px] items-end gap-2 sm:contents">
+                    <div className="min-w-0">
+                      <label htmlFor={`item-${i}-cantidad`} className="mb-1 block text-[12px] font-bold text-text-2 sm:sr-only">
+                        Cantidad
+                      </label>
+                      <input
+                        id={`item-${i}-cantidad`}
+                        type="number"
+                        min="1"
+                        step="1"
+                        {...register(`items.${i}.cantidad`, { valueAsNumber: true })}
+                        className={inputClass(!!errors.items?.[i]?.cantidad)}
+                        aria-invalid={!!errors.items?.[i]?.cantidad}
+                        aria-describedby={errors.items?.[i]?.cantidad ? `item-${i}-cantidad-error` : undefined}
+                        aria-required="true"
+                      />
+                      {errors.items?.[i]?.cantidad ? (
+                        <p id={`item-${i}-cantidad-error`} role="alert" className="mt-1 text-[12px] font-semibold text-danger-fg">
+                          {errors.items[i]?.cantidad?.message}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="min-w-0">
+                      <label htmlFor={`item-${i}-precio`} className="mb-1 block text-[12px] font-bold text-text-2 sm:sr-only">
+                        Precio unitario
+                      </label>
+                      <Controller
+                        control={control}
+                        name={`items.${i}.precioUnitario`}
+                        render={({ field }) => (
+                          <MoneyInput
+                            ref={field.ref}
+                            id={`item-${i}-precio`}
+                            name={field.name}
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            hasError={!!errors.items?.[i]?.precioUnitario}
+                            aria-invalid={!!errors.items?.[i]?.precioUnitario}
+                            aria-describedby={errors.items?.[i]?.precioUnitario ? `item-${i}-precio-error` : undefined}
+                            aria-required
+                          />
+                        )}
+                      />
+                      {errors.items?.[i]?.precioUnitario ? (
+                        <p id={`item-${i}-precio-error`} role="alert" className="mt-1 text-[12px] font-semibold text-danger-fg">
+                          {errors.items[i]?.precioUnitario?.message}
+                        </p>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => fields.length > 1 && remove(i)}
+                      disabled={fields.length === 1}
+                      className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-text-3 transition hover:bg-danger-soft hover:text-danger-fg disabled:opacity-30"
+                      aria-label="Quitar ítem"
+                      title="Quitar ítem"
+                    >
+                      <svg viewBox="0 0 24 24" width={17} height={17} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 6 6 18M6 6l12 12" />
+                      </svg>
+                    </button>
                   </div>
-                  <div className="w-[128px] shrink-0">
-                    <Controller
-                      control={control}
-                      name={`items.${i}.precioUnitario`}
-                      render={({ field }) => (
-                        <MoneyInput
-                          value={field.value}
-                          onChange={field.onChange}
-                          hasError={!!errors.items?.[i]?.precioUnitario}
-                        />
-                      )}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => fields.length > 1 && remove(i)}
-                    disabled={fields.length === 1}
-                    className="mt-1.5 grid h-7 w-7 place-items-center rounded-lg text-text-3 transition hover:text-danger disabled:opacity-30"
-                    aria-label="Quitar ítem"
-                    title="Quitar ítem"
-                  >
-                    <svg viewBox="0 0 24 24" width={15} height={15} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M18 6 6 18M6 6l12 12" />
-                    </svg>
-                  </button>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className={`grid grid-cols-1 gap-2 ${esRepuesto ? 'sm:grid-cols-2' : ''}`}>
                   <select
                     aria-label="Tipo de ítem"
                     {...register(`items.${i}.tipoItem`)}
-                    className={`${inputClass()} !py-1.5 text-[13px]`}
+                    className={`${inputClass()} text-base sm:!py-1.5 sm:text-[13px]`}
                   >
                     <option value="MANO_DE_OBRA">Mano de obra</option>
                     <option value="REPUESTO">Repuesto</option>
@@ -189,7 +243,7 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
                     <select
                       aria-label="Calidad del repuesto"
                       {...register(`items.${i}.calidad`)}
-                      className={`${inputClass()} !py-1.5 text-[13px]`}
+                      className={`${inputClass()} text-base sm:!py-1.5 sm:text-[13px]`}
                     >
                       <option value="">Calidad (opcional)</option>
                       <option value="ORIGINAL">Original</option>
@@ -198,13 +252,6 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
                     </select>
                   )}
                 </div>
-                {(errors.items?.[i]?.descripcion || errors.items?.[i]?.cantidad || errors.items?.[i]?.precioUnitario) && (
-                  <p role="alert" className="text-[12.5px] font-semibold text-danger-fg">
-                    {errors.items?.[i]?.descripcion?.message ??
-                      errors.items?.[i]?.cantidad?.message ??
-                      errors.items?.[i]?.precioUnitario?.message}
-                  </p>
-                )}
               </div>
             );
           })}
@@ -214,7 +261,7 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
           <button
             type="button"
             onClick={() => append(filaVacia)}
-            className="inline-flex items-center gap-1.5 text-[13px] font-bold text-primary hover:underline"
+            className="inline-flex min-h-11 touch-manipulation items-center gap-1.5 rounded-md px-2 text-[13px] font-bold text-primary hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] sm:min-h-0 sm:px-0"
           >
             <svg viewBox="0 0 24 24" width={15} height={15} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 5v14M5 12h14" />
@@ -242,14 +289,6 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
           <textarea id="observaciones" rows={2} {...register('observaciones')} className={`${inputClass()} resize-none`} placeholder="Ej: demora 48hs, garantía 30 días…" />
         </FormField>
 
-        <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
-          <button type="button" className={btnGhost} onClick={onClose}>
-            Cancelar
-          </button>
-          <button type="submit" className={btnPrimary} disabled={crear.isPending}>
-            {crear.isPending ? 'Enviando…' : 'Crear presupuesto'}
-          </button>
-        </div>
       </form>
     </Modal>
   );

@@ -1,0 +1,76 @@
+import { describe, expect, it, vi } from 'vitest';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
+import { http, HttpResponse } from 'msw';
+import { server, API } from '../../test/server';
+
+vi.mock('../../utils/toast', async (orig) => {
+  const actual = await orig<typeof import('../../utils/toast')>();
+  return { ...actual, showError: vi.fn(), showSuccess: vi.fn() };
+});
+
+import { useAnularCobroMutation, useCrearCobroMutation } from './cobros.mutations';
+
+const expectedKeys = [
+  ['cobros', 7],
+  ['caja'],
+  ['recibo', 7],
+  ['reparacion', 7],
+  ['reparaciones'],
+  ['dashboard'],
+];
+
+const setup = <T,>(hook: () => T) => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  const invalidate = vi.spyOn(client, 'invalidateQueries');
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  const invalidatedKeys = () => invalidate.mock.calls.map(
+    ([filters]) => filters?.queryKey,
+  );
+
+  return { ...renderHook(hook, { wrapper }), invalidatedKeys };
+};
+
+describe('mutaciones de cobros — invalidación de datos derivados', () => {
+  it('actualiza caja, recibo y vistas de la reparación al registrar un cobro', async () => {
+    server.use(
+      http.post(`${API}/reparaciones/7/cobros`, () =>
+        HttpResponse.json({
+          id: 3,
+          reparacionId: 7,
+          monto: 12000,
+          metodo: 'EFECTIVO',
+          observaciones: null,
+          fecha: '2026-08-13T12:00:00',
+        }, { status: 201 }),
+      ),
+    );
+    const { result, invalidatedKeys } = setup(() => useCrearCobroMutation(7));
+
+    await act(async () => {
+      await result.current.mutateAsync({ monto: 12000, metodo: 'EFECTIVO' });
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(invalidatedKeys()).toEqual(expect.arrayContaining(expectedKeys));
+  });
+
+  it('actualiza las mismas vistas al anular un cobro', async () => {
+    server.use(
+      http.delete(`${API}/reparaciones/7/cobros/3`, () => new HttpResponse(null, { status: 204 })),
+    );
+    const { result, invalidatedKeys } = setup(() => useAnularCobroMutation(7));
+
+    await act(async () => {
+      await result.current.mutateAsync({ cobroId: 3 });
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(invalidatedKeys()).toEqual(expect.arrayContaining(expectedKeys));
+  });
+});

@@ -4,6 +4,13 @@ import { authStore } from '../store/auth.store';
 import { getErrorMessage, showError } from '../utils/toast';
 import { captureError } from '../lib/sentry';
 
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    /** La superficie que hace el GET muestra su propio error y acción de reintento. */
+    errorMode?: 'inline';
+  }
+}
+
 // La base puede venir con o sin sufijo /api (el contrato sugiere VITE_API_URL=http://localhost:8080).
 // Normalizamos para que las llamadas sin /api funcionen en ambos casos.
 const RAW_BASE =
@@ -97,6 +104,13 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
+    // Una búsqueda reemplazada o una query sin observadores no es un fallo para
+    // el usuario ni para telemetría. React Query igualmente recibe el rechazo y
+    // resuelve el estado de concurrencia de esa request.
+    if (axios.isCancel(error) || error.code === 'ERR_CANCELED') {
+      throw error;
+    }
+
     const status = error.response?.status;
 
     if (status === 401) {
@@ -133,7 +147,7 @@ apiClient.interceptors.response.use(
     } else {
       // Errores de lectura: avisar por toast (las mutaciones manejan su propio onError)
       const method = error.config?.method?.toLowerCase();
-      if (method === 'get') {
+      if (method === 'get' && error.config?.errorMode !== 'inline') {
         showError(getErrorMessage(error, 'No se pudo obtener la información.'));
       }
       // Reportar a Sentry los errores de red/servidor (5xx o sin respuesta).

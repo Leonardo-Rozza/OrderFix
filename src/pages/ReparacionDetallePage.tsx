@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { EstadoBadge } from '../components/EstadoBadge';
@@ -12,7 +12,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { metodoLabel } from '../config/cobros';
 import { Loader } from '../components/Loader';
 import { ErrorState } from '../components/ErrorState';
-import { btnGhost, btnDanger, card } from '../components/ui';
+import { btnGhost, btnDanger, card, inputClass } from '../components/ui';
 import { getEstadoMeta, transicionesDesde } from '../config/estados';
 import { formatMoney, formatDate, iniciales } from '../utils/format';
 import { equipoLabel, clienteLabel, ordenLabel, fotosPorMomento } from '../utils/reparacion';
@@ -38,7 +38,20 @@ import {
 } from '../api/mutations/reparaciones.mutations';
 import { useDeleteRepuestoMutation } from '../api/mutations/repuestos.mutations';
 import { useAuth } from '../store/auth.store';
-import type { EstadoReparacion, Repuesto } from '../types';
+import type { Cobro, EstadoReparacion, Repuesto } from '../types';
+
+const EMPTY_REPUESTOS: Repuesto[] = [];
+
+const SectionLoader = ({ label }: { label: string }) => (
+  <div
+    role="status"
+    aria-live="polite"
+    className="flex min-h-24 items-center justify-center gap-2.5 px-5 py-6 text-[13px] text-text-3"
+  >
+    <Loader size="sm" />
+    <span>Cargando {label}…</span>
+  </div>
+);
 
 export const ReparacionDetallePage = () => {
   const { id } = useParams();
@@ -55,10 +68,28 @@ export const ReparacionDetallePage = () => {
     refetchCredenciales,
   } = useReparacionQuery(reparacionId);
   const { data: equipos = [] } = useEquiposOptions();
-  const { data: repuestos = [] } = useRepuestosPorReparacionQuery(reparacionId);
-  const { data: presupuestos = [] } = usePresupuestosQuery(reparacionId);
+  const {
+    data: repuestosData,
+    isPending: repuestosPending,
+    isError: repuestosError,
+    isSuccess: repuestosSuccess,
+    refetch: refetchRepuestos,
+  } = useRepuestosPorReparacionQuery(reparacionId);
+  const {
+    data: presupuestosData,
+    isPending: presupuestosPending,
+    isError: presupuestosError,
+    isSuccess: presupuestosSuccess,
+    refetch: refetchPresupuestos,
+  } = usePresupuestosQuery(reparacionId);
   const { cobros: cobrosHabilitado } = useFunciones();
-  const { data: cobros } = useCobrosQuery(cobrosHabilitado ? reparacionId : undefined);
+  const {
+    data: cobros,
+    isPending: cobrosPending,
+    isError: cobrosError,
+    isSuccess: cobrosSuccess,
+    refetch: refetchCobros,
+  } = useCobrosQuery(cobrosHabilitado ? reparacionId : undefined);
   const anularCobro = useAnularCobroMutation(reparacionId);
   const responderPresupuesto = useResponderPresupuestoTallerMutation(reparacionId);
   const represupuestarPresupuesto = useRepresupuestarMutation(reparacionId);
@@ -74,7 +105,13 @@ export const ReparacionDetallePage = () => {
   const [repuestoToDelete, setRepuestoToDelete] = useState<Repuesto | null>(null);
   const [presupuestoOpen, setPresupuestoOpen] = useState(false);
   const [cobroOpen, setCobroOpen] = useState(false);
+  const [cobroToCancel, setCobroToCancel] = useState<Cobro | null>(null);
   const [reclamoOpen, setReclamoOpen] = useState(false);
+  const estadoTransitionLock = useRef(false);
+  const [estadoTransitionInFlight, setEstadoTransitionInFlight] = useState(false);
+
+  const repuestos = repuestosData ?? EMPTY_REPUESTOS;
+  const presupuestos = presupuestosData ?? [];
 
   const openNewRepuesto = () => {
     setEditingRepuesto(null);
@@ -141,9 +178,15 @@ export const ReparacionDetallePage = () => {
       `Cuenta ${cuentaLabel(rep.tieneCuentaVinculada)} ${rep.clienteConoceCredenciales ? '(con credenciales)' : '(sin credenciales)'}`,
   ].filter(Boolean) as string[];
 
-  const handleEstadoSelect = (estado: EstadoReparacion) => {
-    if (estado === rep.estado) return;
+  const cambiarEstadoSeguro = (estado: EstadoReparacion) => {
+    if (
+      estado === rep.estado ||
+      cambiarEstado.isPending ||
+      estadoTransitionLock.current
+    ) return;
 
+    estadoTransitionLock.current = true;
+    setEstadoTransitionInFlight(true);
     const entregando = estado === 'ENTREGADO';
     if (entregando) limpiarCredenciales();
     cambiarEstado.mutate(
@@ -151,10 +194,20 @@ export const ReparacionDetallePage = () => {
       {
         onError: () => {
           if (!entregando) return;
+          // El rollback de secretos nunca usa una snapshot en cache: vuelve a
+          // leer el detalle autenticado. El interceptor informa si también falla.
           void refetchCredenciales().catch(() => undefined);
+        },
+        onSettled: () => {
+          estadoTransitionLock.current = false;
+          setEstadoTransitionInFlight(false);
         },
       },
     );
+  };
+
+  const handleEstadoSelect = (estado: EstadoReparacion) => {
+    cambiarEstadoSeguro(estado);
   };
 
   // El backend arma el mensaje + link de seguimiento; abrimos la pestaña en el
@@ -224,7 +277,7 @@ export const ReparacionDetallePage = () => {
                 </div>
                 <div className="flex flex-col items-end gap-1.5">
                   <EstadoBadge estado={rep.estado} size="md" />
-                  {cobrosHabilitado && <PagoChip estadoPago={rep.estadoPago} saldo={rep.saldo} />}
+                  <PagoChip estadoPago={rep.estadoPago} saldo={rep.saldo} />
                 </div>
               </div>
 
@@ -245,16 +298,21 @@ export const ReparacionDetallePage = () => {
             )}
 
             {/* Repuestos */}
-            <div className={`${card} overflow-hidden`}>
+            <section
+              className={`${card} overflow-hidden`}
+              aria-labelledby="repuestos-section-title"
+              aria-busy={repuestosPending}
+            >
               <div className="flex items-center gap-2 border-b border-border px-5 py-4 text-[15px] font-extrabold">
                 <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                   <path d="m7.5 4.27 9 5.15M21 8l-9 5-9-5 9-5 9 5zM3 8v8l9 5 9-5V8M12 13v8" />
                 </svg>
-                Repuestos
+                <h2 id="repuestos-section-title">Repuestos</h2>
                 <button
                   type="button"
                   onClick={openNewRepuesto}
-                  className="ml-auto inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[12.5px] font-bold text-text-2 transition hover:border-primary hover:text-primary"
+                  disabled={!repuestosSuccess}
+                  className="ml-auto inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[12.5px] font-bold text-text-2 transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 5v14M5 12h14" />
@@ -262,47 +320,62 @@ export const ReparacionDetallePage = () => {
                   Agregar
                 </button>
               </div>
-              {repuestos.map((rp) => (
-                <div key={rp.id} className="group flex items-center gap-3 border-b border-border px-5 py-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[14px] font-semibold">{rp.nombre}</div>
-                    {rp.descripcion && <div className="truncate text-[12px] text-text-3">{rp.descripcion}</div>}
-                  </div>
-                  <span className="font-mono text-[13.5px] font-bold">{formatMoney(rp.precio)}</span>
-                  <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
-                    <button
-                      type="button"
-                      aria-label="Editar" title="Editar"
-                      onClick={() => openEditRepuesto(rp)}
-                      className="grid h-7 w-7 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-primary hover:text-primary"
-                    >
-                      <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
-                      </svg>
-                    </button>
-                    {isAdmin && (
-                      <button
-                        type="button"
-                        aria-label="Eliminar" title="Eliminar"
-                        onClick={() => setRepuestoToDelete(rp)}
-                        className="grid h-7 w-7 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-danger hover:text-danger"
-                      >
-                        <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
+              {repuestosPending ? (
+                <SectionLoader label="repuestos" />
+              ) : repuestosError ? (
+                <div role="alert">
+                  <ErrorState
+                    message="No pudimos cargar los repuestos."
+                    onRetry={() => void refetchRepuestos()}
+                  />
                 </div>
-              ))}
-              {repuestos.length === 0 && (
-                <div className="px-5 py-5 text-center text-[13.5px] text-text-3">Sin repuestos cargados.</div>
-              )}
+              ) : repuestosSuccess ? (
+                <>
+                  {repuestos.map((rp) => (
+                    <div key={rp.id} className="group flex flex-wrap items-center gap-3 border-b border-border px-4 py-3 sm:flex-nowrap sm:px-5">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[14px] font-semibold">{rp.nombre}</div>
+                        {rp.descripcion && <div className="truncate text-[12px] text-text-3">{rp.descripcion}</div>}
+                      </div>
+                      <span className="font-mono text-[13.5px] font-bold">{formatMoney(rp.precio)}</span>
+                      <div className="flex w-full justify-end gap-1 opacity-100 transition sm:w-auto sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                        <button
+                          type="button"
+                          aria-label="Editar" title="Editar"
+                          onClick={() => openEditRepuesto(rp)}
+                          className="grid h-11 w-11 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] sm:h-8 sm:w-8"
+                        >
+                          <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+                          </svg>
+                        </button>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            aria-label="Eliminar" title="Eliminar"
+                            onClick={() => setRepuestoToDelete(rp)}
+                            className="grid h-11 w-11 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-danger hover:text-danger focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] sm:h-8 sm:w-8"
+                          >
+                            <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {repuestos.length === 0 && (
+                    <div className="px-5 py-5 text-center text-[13.5px] text-text-3">Sin repuestos cargados.</div>
+                  )}
+                </>
+              ) : null}
               <div className="flex items-center justify-between bg-surface-2 px-5 py-3.5">
                 <span className="text-[14px] font-extrabold">Total repuestos</span>
-                <span className="font-mono text-[15px] font-extrabold text-primary">{formatMoney(rep.totalRepuestos ?? totalRepuestos)}</span>
+                <span className="font-mono text-[15px] font-extrabold text-primary">
+                  {repuestosSuccess ? formatMoney(rep.totalRepuestos ?? totalRepuestos) : '—'}
+                </span>
               </div>
-            </div>
+            </section>
 
             {/* Orden de trabajo */}
             {(credenciales.patronDesbloqueo ||
@@ -388,16 +461,21 @@ export const ReparacionDetallePage = () => {
             )}
 
             {/* Presupuestos */}
-            <div className={`${card} overflow-hidden`}>
+            <section
+              className={`${card} overflow-hidden`}
+              aria-labelledby="presupuestos-section-title"
+              aria-busy={presupuestosPending}
+            >
               <div className="flex items-center gap-2 border-b border-border px-5 py-4 text-[15px] font-extrabold">
                 <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M9 13h6 M9 17h6" />
                 </svg>
-                Presupuestos
+                <h2 id="presupuestos-section-title">Presupuestos</h2>
                 <button
                   type="button"
                   onClick={() => setPresupuestoOpen(true)}
-                  className="ml-auto inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[12.5px] font-bold text-text-2 transition hover:border-primary hover:text-primary"
+                  disabled={!presupuestosSuccess}
+                  className="ml-auto inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[12.5px] font-bold text-text-2 transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 5v14M5 12h14" />
@@ -405,11 +483,20 @@ export const ReparacionDetallePage = () => {
                   Nuevo
                 </button>
               </div>
-              {presupuestos.length === 0 ? (
+              {presupuestosPending ? (
+                <SectionLoader label="presupuestos" />
+              ) : presupuestosError ? (
+                <div role="alert">
+                  <ErrorState
+                    message="No pudimos cargar los presupuestos."
+                    onRetry={() => void refetchPresupuestos()}
+                  />
+                </div>
+              ) : presupuestosSuccess && presupuestos.length === 0 ? (
                 <div className="px-5 py-5 text-center text-[13.5px] text-text-3">
                   Sin presupuestos. Creá uno para que el cliente lo apruebe desde el seguimiento.
                 </div>
-              ) : (
+              ) : presupuestosSuccess ? (
                 presupuestos.map((p) => {
                   const pendiente = p.estado === 'PENDIENTE' && !p.vencido;
                   const vencido = p.estado === 'VENCIDO' || p.vencido;
@@ -496,88 +583,112 @@ export const ReparacionDetallePage = () => {
                     </div>
                   );
                 })
-              )}
-            </div>
+              ) : null}
+            </section>
             {/* Cobros (PRO) */}
             {cobrosHabilitado && (
-            <div className={`${card} overflow-hidden`}>
-              <div className="flex items-center gap-2 border-b border-border px-5 py-4 text-[15px] font-extrabold">
-                <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                </svg>
-                Cobros
-                <a
-                  href={`/reparaciones/${rep.id}/recibo`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="ml-auto inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[12.5px] font-bold text-text-2 transition hover:border-primary hover:text-primary"
-                >
-                  Recibo
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setCobroOpen(true)}
-                  className="inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[12.5px] font-bold text-text-2 transition hover:border-primary hover:text-primary"
-                >
-                  <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 5v14M5 12h14" />
+              <section
+                className={`${card} overflow-hidden`}
+                aria-labelledby="cobros-section-title"
+                aria-busy={cobrosPending}
+              >
+                <div className="flex items-center gap-2 border-b border-border px-5 py-4 text-[15px] font-extrabold">
+                  <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                   </svg>
-                  Cobrar
-                </button>
-              </div>
+                  <h2 id="cobros-section-title">Cobros</h2>
+                  <a
+                    href={`/reparaciones/${rep.id}/recibo`}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-disabled={!cobrosSuccess}
+                    tabIndex={cobrosSuccess ? undefined : -1}
+                    onClick={(event) => {
+                      if (!cobrosSuccess) event.preventDefault();
+                    }}
+                    className={`ml-auto inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[12.5px] font-bold text-text-2 transition ${cobrosSuccess ? 'hover:border-primary hover:text-primary' : 'pointer-events-none opacity-50'}`}
+                  >
+                    Recibo
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setCobroOpen(true)}
+                    disabled={!cobrosSuccess}
+                    className="inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[12.5px] font-bold text-text-2 transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                    Cobrar
+                  </button>
+                </div>
 
-              <div className="grid grid-cols-3 gap-px bg-border">
-                <div className="bg-surface px-5 py-3 text-center">
-                  <div className="text-[11.5px] text-text-3">Total</div>
-                  <div className="font-mono text-[15px] font-extrabold">{formatMoney(cobros?.total)}</div>
-                </div>
-                <div className="bg-surface px-5 py-3 text-center">
-                  <div className="text-[11.5px] text-text-3">Cobrado</div>
-                  <div className="font-mono text-[15px] font-extrabold text-success">{formatMoney(cobros?.cobrado)}</div>
-                </div>
-                <div className="bg-surface px-5 py-3 text-center">
-                  <div className="text-[11.5px] text-text-3">Saldo</div>
-                  <div className={`font-mono text-[15px] font-extrabold ${(cobros?.saldo ?? 0) > 0 ? 'text-warning' : 'text-text-2'}`}>
-                    {formatMoney(cobros?.saldo)}
+                {cobrosPending ? (
+                  <SectionLoader label="cobros" />
+                ) : cobrosError ? (
+                  <div role="alert">
+                    <ErrorState
+                      message="No pudimos cargar los cobros."
+                      onRetry={() => void refetchCobros()}
+                    />
                   </div>
-                </div>
-              </div>
-
-              {cobros?.pagado && (cobros?.total ?? 0) > 0 && (
-                <div className="border-t border-border bg-success-soft px-5 py-2 text-center text-[12.5px] font-bold text-success">
-                  Pagado en su totalidad
-                </div>
-              )}
-
-              {(cobros?.cobros.length ?? 0) === 0 ? (
-                <div className="border-t border-border px-5 py-5 text-center text-[13.5px] text-text-3">Sin cobros registrados.</div>
-              ) : (
-                cobros!.cobros.map((c) => (
-                  <div key={c.id} className="group flex items-center gap-3 border-t border-border px-5 py-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[14px] font-semibold">{metodoLabel(c.metodo)}</div>
-                      <div className="text-[12px] text-text-3">
-                        {formatDate(c.fecha)}
-                        {c.observaciones ? ` · ${c.observaciones}` : ''}
+                ) : cobrosSuccess && cobros ? (
+                  <>
+                    <div className="grid grid-cols-3 gap-px bg-border">
+                      <div className="bg-surface px-5 py-3 text-center">
+                        <div className="text-[11.5px] text-text-3">Total</div>
+                        <div className="font-mono text-[15px] font-extrabold">{formatMoney(cobros.total)}</div>
+                      </div>
+                      <div className="bg-surface px-5 py-3 text-center">
+                        <div className="text-[11.5px] text-text-3">Cobrado</div>
+                        <div className="font-mono text-[15px] font-extrabold text-success">{formatMoney(cobros.cobrado)}</div>
+                      </div>
+                      <div className="bg-surface px-5 py-3 text-center">
+                        <div className="text-[11.5px] text-text-3">Saldo</div>
+                        <div className={`font-mono text-[15px] font-extrabold ${cobros.saldo > 0 ? 'text-warning' : 'text-text-2'}`}>
+                          {formatMoney(cobros.saldo)}
+                        </div>
                       </div>
                     </div>
-                    <span className="font-mono text-[14px] font-bold">{formatMoney(c.monto)}</span>
-                    {isAdmin && (
-                      <button
-                        type="button"
-                        aria-label="Anular cobro" title="Anular cobro"
-                        onClick={() => anularCobro.mutate({ cobroId: c.id })}
-                        className="grid h-7 w-7 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 opacity-0 transition hover:border-danger hover:text-danger group-hover:opacity-100"
-                      >
-                        <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
-                        </svg>
-                      </button>
+
+                    {cobros.pagado && cobros.total > 0 && (
+                      <div className="border-t border-border bg-success-soft px-5 py-2 text-center text-[12.5px] font-bold text-success">
+                        Pagado en su totalidad
+                      </div>
                     )}
-                  </div>
-                ))
-              )}
-            </div>
+
+                    {cobros.cobros.length === 0 ? (
+                      <div className="border-t border-border px-5 py-5 text-center text-[13.5px] text-text-3">Sin cobros registrados.</div>
+                    ) : (
+                      cobros.cobros.map((c) => (
+                        <div key={c.id} className="group flex items-center gap-3 border-t border-border px-5 py-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[14px] font-semibold">{metodoLabel(c.metodo)}</div>
+                            <div className="text-[12px] text-text-3">
+                              {formatDate(c.fecha)}
+                              {c.observaciones ? ` · ${c.observaciones}` : ''}
+                            </div>
+                          </div>
+                          <span className="font-mono text-[14px] font-bold">{formatMoney(c.monto)}</span>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              aria-label="Anular cobro" title="Anular cobro"
+                              disabled={anularCobro.isPending}
+                              onClick={() => setCobroToCancel(c)}
+                              className="grid h-11 w-11 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 opacity-100 transition hover:border-danger hover:text-danger focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-8 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+                            >
+                              <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </>
+                ) : null}
+              </section>
             )}
           </div>
 
@@ -612,11 +723,13 @@ export const ReparacionDetallePage = () => {
             </div>
 
             <div className={`${card} p-5`}>
-              <div className="mb-2 text-[12px] font-extrabold uppercase tracking-wide text-text-3">Cambiar estado</div>
+              <label htmlFor="estado-reparacion" className="mb-2 block text-[12px] font-extrabold uppercase tracking-wide text-text-3">Cambiar estado</label>
               <select
+                id="estado-reparacion"
                 value={rep.estado}
                 onChange={(e) => handleEstadoSelect(e.target.value as EstadoReparacion)}
-                className="mb-2.5 w-full cursor-pointer rounded-lg border border-border-strong bg-surface px-3 py-2.5 text-[14px] text-text outline-none focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)]"
+                disabled={estadoTransitionInFlight || cambiarEstado.isPending}
+                className={`${inputClass()} mb-2.5 cursor-pointer`}
               >
                 {/* Solo el estado actual + las transiciones legales (un salto ilegal daría 409). */}
                 {[rep.estado, ...transicionesDesde(rep.estado)].map((k) => {
@@ -630,9 +743,9 @@ export const ReparacionDetallePage = () => {
               </select>
               {next && (
                 <button
-                  onClick={() => handleEstadoSelect(next)}
-                  disabled={cambiarEstado.isPending}
-                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary py-3 text-[14px] font-bold text-primary-fg shadow-sm transition hover:bg-primary-hover disabled:opacity-60"
+                  onClick={() => cambiarEstadoSeguro(next)}
+                  disabled={estadoTransitionInFlight || cambiarEstado.isPending}
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg bg-primary py-3 text-[14px] font-bold text-primary-fg shadow-sm transition hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:opacity-60 sm:min-h-0"
                 >
                   Marcar como {getEstadoMeta(next).label.toLowerCase()}
                   <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
@@ -643,7 +756,7 @@ export const ReparacionDetallePage = () => {
               <button
                 onClick={avisarWhatsapp}
                 disabled={!clienteTelefono}
-                className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-border-strong bg-surface py-2.5 text-[14px] font-bold text-text transition hover:bg-surface-2 disabled:opacity-50"
+                className={`${btnGhost} mt-2.5 w-full`}
                 title={clienteTelefono ? 'Avisar por WhatsApp' : 'El cliente no tiene teléfono'}
               >
                 <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -682,7 +795,7 @@ export const ReparacionDetallePage = () => {
                   <button
                     type="button"
                     onClick={() => setReclamoOpen(true)}
-                    className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-border-strong bg-surface py-2 text-[13px] font-bold text-text transition hover:border-primary hover:text-primary"
+                    className={`${btnGhost} mt-3 w-full text-[13px]`}
                   >
                     <svg viewBox="0 0 24 24" width={15} height={15} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -760,7 +873,12 @@ export const ReparacionDetallePage = () => {
       />
       <PresupuestoFormModal isOpen={presupuestoOpen} onClose={() => setPresupuestoOpen(false)} reparacionId={rep.id} />
       <ReclamoGarantiaModal isOpen={reclamoOpen} onClose={() => setReclamoOpen(false)} reparacion={rep} />
-      <CobroFormModal isOpen={cobroOpen} onClose={() => setCobroOpen(false)} reparacionId={rep.id} saldo={cobros?.saldo} />
+      <CobroFormModal
+        isOpen={cobroOpen}
+        onClose={() => setCobroOpen(false)}
+        reparacionId={rep.id}
+        saldo={cobrosSuccess ? cobros?.saldo : undefined}
+      />
       <ConfirmDialog
         isOpen={!!repuestoToDelete}
         title="Eliminar repuesto"
@@ -771,6 +889,19 @@ export const ReparacionDetallePage = () => {
           if (!repuestoToDelete) return;
           await deleteRepuesto.mutateAsync(repuestoToDelete.id);
           setRepuestoToDelete(null);
+        }}
+      />
+      <ConfirmDialog
+        isOpen={!!cobroToCancel}
+        title="Anular cobro"
+        message={`¿Seguro que querés anular el cobro de ${formatMoney(cobroToCancel?.monto)}? El saldo de la orden se recalculará.`}
+        confirmLabel="Anular cobro"
+        loading={anularCobro.isPending}
+        onClose={() => setCobroToCancel(null)}
+        onConfirm={async () => {
+          if (!cobroToCancel) return;
+          await anularCobro.mutateAsync({ cobroId: cobroToCancel.id });
+          setCobroToCancel(null);
         }}
       />
     </DashboardLayout>

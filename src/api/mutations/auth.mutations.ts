@@ -1,15 +1,21 @@
 import { useMutation } from '@tanstack/react-query';
 import type { AuthResponse, LoginRequest, RegisterRequest } from '../../types';
 import { getErrorMessage, showError, showSuccess } from '../../utils/toast';
-import { apiClient, publicClient } from '../axios';
+import { getRetryAfterSeconds } from '../../utils/retryAfter';
+import { publicClient } from '../axios';
+
+const authErrorMessage = (error: unknown, fallback: string) =>
+  getRetryAfterSeconds(error) != null
+    ? 'Demasiadas solicitudes. Esperá el tiempo indicado antes de volver a intentar.'
+    : getErrorMessage(error, fallback);
 
 const loginUser = async (credentials: LoginRequest): Promise<AuthResponse> => {
-  const { data } = await apiClient.post<AuthResponse>('/auth/login', credentials);
+  const { data } = await publicClient.post<AuthResponse>('/auth/login', credentials);
   return data;
 };
 
 const registerTaller = async (payload: RegisterRequest): Promise<AuthResponse> => {
-  const { data } = await apiClient.post<AuthResponse>('/auth/register', payload);
+  const { data } = await publicClient.post<AuthResponse>('/auth/register', payload);
   return data;
 };
 
@@ -20,7 +26,7 @@ export const useLoginMutation = () => {
       showSuccess('Sesión iniciada correctamente');
     },
     onError: (error) => {
-      showError(getErrorMessage(error, 'Email o contraseña incorrectos'));
+      showError(authErrorMessage(error, 'Email o contraseña incorrectos'));
     },
   });
 };
@@ -32,7 +38,7 @@ export const useRegisterMutation = () => {
       showSuccess('¡Taller creado! Bienvenido a OrdenFix');
     },
     onError: (error) => {
-      showError(getErrorMessage(error, 'No se pudo crear el taller'));
+      showError(authErrorMessage(error, 'No se pudo crear el taller'));
     },
   });
 };
@@ -46,7 +52,7 @@ export const useOlvidePasswordMutation = () => {
     mutationFn: async (email: string) => {
       await publicClient.post('/auth/password/olvide', { email });
     },
-    onError: (error) => showError(getErrorMessage(error, 'No se pudo enviar el email. Probá de nuevo.')),
+    onError: (error) => showError(authErrorMessage(error, 'No se pudo enviar el email. Probá de nuevo.')),
   });
 };
 
@@ -56,7 +62,7 @@ export const useResetPasswordMutation = () => {
       await publicClient.post('/auth/password/reset', payload);
     },
     onSuccess: () => showSuccess('Contraseña actualizada. Ya podés iniciar sesión.'),
-    onError: (error) => showError(getErrorMessage(error, 'El link no es válido o ya venció.')),
+    onError: (error) => showError(authErrorMessage(error, 'El link no es válido o ya venció.')),
   });
 };
 
@@ -76,6 +82,6 @@ export const useReenviarVerificacionMutation = () => {
       await publicClient.post('/auth/verificar-email/reenviar', { email });
     },
     onSuccess: () => showSuccess('Listo: si tu cuenta lo necesita, te reenviamos el email.'),
-    onError: (error) => showError(getErrorMessage(error, 'No se pudo reenviar. Probá de nuevo.')),
+    onError: (error) => showError(authErrorMessage(error, 'No se pudo reenviar. Probá de nuevo.')),
   });
 };

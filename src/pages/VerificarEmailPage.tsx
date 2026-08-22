@@ -31,8 +31,8 @@ export const VerificarEmailPage = () => {
   const estado = !token ? 'sin-token' : verificar.isSuccess ? 'ok' : verificar.isError ? 'error' : 'confirmar';
 
   return (
-    <div className="grid min-h-screen place-items-center bg-bg px-6 py-10 text-text">
-      <div className="ofx-in w-full max-w-[420px] rounded-2xl border border-border bg-surface p-8 text-center shadow-sm">
+    <div className="grid min-h-dvh place-items-center bg-bg px-4 py-6 text-text sm:px-6 sm:py-10">
+      <div className="ofx-in w-full max-w-[420px] rounded-2xl border border-border bg-surface p-5 text-center shadow-sm sm:p-8">
         <Logo size={36} className="mx-auto mb-5" />
 
         {estado === 'confirmar' && (
@@ -85,7 +85,9 @@ export const VerificarEmailPage = () => {
               }}
               className="mt-5 space-y-3"
             >
+              <label htmlFor="verificacion-email" className="sr-only">Email</label>
               <input
+                id="verificacion-email"
                 type="email"
                 required
                 autoComplete="email"
@@ -93,7 +95,6 @@ export const VerificarEmailPage = () => {
                 value={emailReenvio}
                 onChange={(e) => setEmailReenvio(e.target.value)}
                 className={inputClass()}
-                aria-label="Email"
               />
               <button type="submit" className={`${btnPrimary} w-full py-3`} disabled={reenviar.isPending}>
                 {reenviar.isPending ? 'Enviando…' : 'Reenviar email de verificación'}

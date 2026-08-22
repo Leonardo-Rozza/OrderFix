@@ -3,6 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Logo } from '../components/Logo';
 import { inputClass, btnPrimary } from '../components/ui';
 import { useResetPasswordMutation } from '../api/mutations/auth.mutations';
+import { PasswordInput } from '../components/PasswordInput';
+import { useRetryAfter } from '../hooks/useRetryAfter';
 
 /**
  * Pantalla a la que llega el link del email ({front}/reset-password?token=...).
@@ -13,6 +15,7 @@ export const ResetPasswordPage = () => {
   const navigate = useNavigate();
   const token = searchParams.get('token') ?? '';
   const reset = useResetPasswordMutation();
+  const retryAfter = useRetryAfter();
 
   const [password, setPassword] = useState('');
   const [repetir, setRepetir] = useState('');
@@ -24,17 +27,25 @@ export const ResetPasswordPage = () => {
       setError('La contraseña debe tener al menos 6 caracteres');
       return;
     }
+    if (password.length > 100) {
+      setError('La contraseña puede tener hasta 100 caracteres');
+      return;
+    }
     if (password !== repetir) {
       setError('Las contraseñas no coinciden');
       return;
     }
-    await reset.mutateAsync({ token, nuevaPassword: password });
-    navigate('/login', { replace: true });
+    try {
+      await reset.mutateAsync({ token, nuevaPassword: password });
+      navigate('/login', { replace: true });
+    } catch (mutationError) {
+      retryAfter.startRetryAfter(mutationError);
+    }
   };
 
   return (
-    <div className="grid min-h-screen place-items-center bg-bg px-6 py-10 text-text">
-      <div className="ofx-in w-full max-w-[420px] rounded-2xl border border-border bg-surface p-8 shadow-sm">
+    <div className="grid min-h-dvh place-items-center bg-bg px-4 py-6 text-text sm:px-6 sm:py-10">
+      <div className="ofx-in w-full max-w-[420px] rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-8">
         <Logo size={36} className="mb-5" />
         {!token ? (
           <>
@@ -54,9 +65,8 @@ export const ResetPasswordPage = () => {
                 <label htmlFor="nueva" className="mb-1.5 block text-[13px] font-bold">
                   Nueva contraseña
                 </label>
-                <input
+                <PasswordInput
                   id="nueva"
-                  type="password"
                   autoComplete="new-password"
                   placeholder="Mínimo 6 caracteres"
                   value={password}
@@ -65,15 +75,16 @@ export const ResetPasswordPage = () => {
                     if (error) setError(null);
                   }}
                   className={inputClass(!!error)}
+                  aria-invalid={!!error}
+                  aria-describedby={error ? 'reset-password-error' : undefined}
                 />
               </div>
               <div>
                 <label htmlFor="repetir" className="mb-1.5 block text-[13px] font-bold">
                   Repetila
                 </label>
-                <input
+                <PasswordInput
                   id="repetir"
-                  type="password"
                   autoComplete="new-password"
                   placeholder="La misma de arriba"
                   value={repetir}
@@ -82,16 +93,27 @@ export const ResetPasswordPage = () => {
                     if (error) setError(null);
                   }}
                   className={inputClass(!!error)}
+                  aria-invalid={!!error}
+                  aria-describedby={error ? 'reset-password-error' : undefined}
                 />
               </div>
               {error && (
-                <p role="alert" className="text-[12.5px] font-semibold text-danger-fg">
+                <p id="reset-password-error" role="alert" className="text-[12.5px] font-semibold text-danger-fg">
                   {error}
                 </p>
               )}
-              <button type="submit" className={`${btnPrimary} w-full py-3`} disabled={reset.isPending}>
-                {reset.isPending ? 'Guardando…' : 'Cambiar contraseña'}
+              <button type="submit" className={`${btnPrimary} w-full py-3`} disabled={reset.isPending || retryAfter.isCoolingDown}>
+                {retryAfter.isCoolingDown
+                  ? `Reintentá en ${retryAfter.secondsRemaining} s`
+                  : reset.isPending
+                    ? 'Guardando…'
+                    : 'Cambiar contraseña'}
               </button>
+              {retryAfter.isCoolingDown && (
+                <p role="status" aria-live="polite" className="text-center text-[12.5px] font-semibold text-warning">
+                  Demasiadas solicitudes. Esperá antes de volver a guardar.
+                </p>
+              )}
             </form>
             <p className="mt-4 text-center text-[12px] text-text-3">
               ¿El link venció?{' '}

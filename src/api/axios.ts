@@ -3,6 +3,7 @@ import type { InternalAxiosRequestConfig } from 'axios';
 import { authStore } from '../store/auth.store';
 import { getErrorMessage, showError } from '../utils/toast';
 import { captureError } from '../lib/sentry';
+import { releaseUnsavedChangesGuards } from '../lib/unsavedChangesLifecycle';
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -69,6 +70,14 @@ const redirectToLogin = () => {
   }
 };
 
+const closeInvalidSession = () => {
+  // El release es sincrónico: un formulario sucio no debe interceptar ni mostrar
+  // beforeunload durante el logout que dispara esta misma respuesta.
+  releaseUnsavedChangesGuards();
+  authStore.getState().logout();
+  redirectToLogin();
+};
+
 const validateBaseSession = (token: string | null): Promise<SessionValidationResult> => {
   if (!token) return Promise.resolve('invalida');
   if (pendingSessionValidation?.token === token) return pendingSessionValidation.promise;
@@ -115,8 +124,7 @@ apiClient.interceptors.response.use(
 
     if (status === 401) {
       // Token inválido o vencido → cerrar sesión
-      authStore.getState().logout();
-      redirectToLogin();
+      closeInvalidSession();
     } else if (status === 402) {
       // Límite del plan / suscripción no vigente → modal de upgrade
       const message = getErrorMessage(error, 'Alcanzaste el límite de tu plan.');
@@ -124,8 +132,7 @@ apiClient.interceptors.response.use(
     } else if (status === 403) {
       if (isBaseSessionRequest(error.config?.url)) {
         // /suscripcion es la validación base: su 403 significa sesión revocada.
-        authStore.getState().logout();
-        redirectToLogin();
+        closeInvalidSession();
       } else {
         // En cualquier otro endpoint un 403 puede ser falta de rol o una cuenta
         // desactivada. La consulta base deduplicada permite distinguirlos.
@@ -137,8 +144,7 @@ apiClient.interceptors.response.use(
           if (validation === 'valida') {
             showError(getErrorMessage(error, 'No tenés permisos para esta acción.'));
           } else if (validation === 'invalida') {
-            authStore.getState().logout();
-            redirectToLogin();
+            closeInvalidSession();
           } else {
             showError('No pudimos verificar tu sesión. Revisá tu conexión e intentá de nuevo.');
           }

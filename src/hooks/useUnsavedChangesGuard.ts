@@ -1,5 +1,16 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from 'react';
 import { useBlocker } from 'react-router';
+import {
+  getUnsavedChangesReleaseEpoch,
+  subscribeUnsavedChangesRelease,
+} from '../lib/unsavedChangesLifecycle';
 
 export interface UnsavedChangesCopy {
   title?: string;
@@ -12,6 +23,8 @@ export interface UseUnsavedChangesGuardOptions {
   isDirty: boolean;
   isBusy?: boolean;
   onClose: () => void;
+  /** Cleanup local al abandonar la ruta. No debe iniciar otra navegación. */
+  onNavigationDiscard?: () => void;
   copy?: UnsavedChangesCopy;
 }
 
@@ -30,6 +43,14 @@ export interface UnsavedChangesGuardResult {
   };
 }
 
+type CloseIntent =
+  | { kind: 'local' }
+  | {
+    kind: 'navigation';
+    proceed: (() => void) | null;
+    reset: (() => void) | null;
+  };
+
 /**
  * Coordina el descarte local, las navegaciones del Data Router y beforeunload.
  *
@@ -41,44 +62,78 @@ export const useUnsavedChangesGuard = ({
   isDirty,
   isBusy = false,
   onClose,
+  onNavigationDiscard = onClose,
   copy,
 }: UseUnsavedChangesGuardOptions): UnsavedChangesGuardResult => {
   const [localCloseRequested, setLocalCloseRequested] = useState(false);
   const releasedRef = useRef(false);
+  const releaseEpochRef = useRef(getUnsavedChangesReleaseEpoch());
+  const intentRef = useRef<CloseIntent | null>(null);
   const localCloseInvokerRef = useRef<HTMLElement | null>(null);
   const restoreFocusOnCloseRef = useRef(true);
+
+  const isReleased = useCallback(
+    () => releasedRef.current
+      || releaseEpochRef.current !== getUnsavedChangesReleaseEpoch(),
+    [],
+  );
 
   useEffect(() => {
     if (isOpen) releasedRef.current = false;
   }, [isOpen]);
 
   const shouldBlockNavigation = useCallback(
-    () => isOpen && !releasedRef.current && (isDirty || isBusy),
-    [isBusy, isDirty, isOpen],
+    () => {
+      if (!isOpen || isReleased() || (!isDirty && !isBusy)) return false;
+      // React Router reemplaza `blocker.proceed` ante otro Back/PUSH. La
+      // intención discriminada se fija en el primer intento y no se reemplaza.
+      intentRef.current ??= { kind: 'navigation', proceed: null, reset: null };
+      return true;
+    },
+    [isBusy, isDirty, isOpen, isReleased],
   );
   const blocker = useBlocker(shouldBlockNavigation);
+
+  useLayoutEffect(() => {
+    if (blocker.state !== 'blocked') return;
+    const intent = intentRef.current;
+    if (intent?.kind === 'navigation' && intent.proceed === null) {
+      intent.proceed = blocker.proceed;
+      intent.reset = blocker.reset;
+    }
+  }, [blocker]);
+
+  useEffect(() => subscribeUnsavedChangesRelease(() => {
+    releasedRef.current = true;
+    intentRef.current = null;
+    restoreFocusOnCloseRef.current = false;
+    localCloseInvokerRef.current = null;
+    setLocalCloseRequested(false);
+    if (blocker.state === 'blocked') blocker.reset();
+  }), [blocker]);
 
   useEffect(() => {
     if (!isOpen || (!isDirty && !isBusy)) return;
 
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (releasedRef.current) return;
+      if (isReleased()) return;
       event.preventDefault();
       event.returnValue = '';
     };
     window.addEventListener('beforeunload', handleBeforeUnload, { capture: true });
     return () => window.removeEventListener('beforeunload', handleBeforeUnload, { capture: true });
-  }, [isBusy, isDirty, isOpen]);
+  }, [isBusy, isDirty, isOpen, isReleased]);
 
   const requestClose = useCallback((
     source?: HTMLElement | { currentTarget: EventTarget | null } | null,
   ) => {
-    if (!isOpen || releasedRef.current) return;
+    if (!isOpen || isReleased() || intentRef.current !== null) return;
     if (isBusy) return;
     if (!isDirty) {
       onClose();
       return;
     }
+    intentRef.current = { kind: 'local' };
     const explicitInvoker = source instanceof HTMLElement
       ? source
       : source?.currentTarget instanceof HTMLElement
@@ -88,41 +143,54 @@ export const useUnsavedChangesGuard = ({
       ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     restoreFocusOnCloseRef.current = true;
     setLocalCloseRequested(true);
-  }, [isBusy, isDirty, isOpen, onClose]);
+  }, [isBusy, isDirty, isOpen, isReleased, onClose]);
 
   const onContinueEditing = useCallback(() => {
+    const intent = intentRef.current;
     restoreFocusOnCloseRef.current = true;
     setLocalCloseRequested(false);
-    if (blocker.state === 'blocked') blocker.reset();
+    if (blocker.state === 'blocked') {
+      if (intent?.kind === 'navigation') (intent.reset ?? blocker.reset)();
+      else blocker.reset();
+    }
+    intentRef.current = null;
     localCloseInvokerRef.current = null;
   }, [blocker]);
 
   const onDiscardChanges = useCallback(() => {
-    if (isBusy || releasedRef.current) return;
+    if (isBusy || isReleased()) return;
 
+    const intent = intentRef.current;
     releasedRef.current = true;
     restoreFocusOnCloseRef.current = false;
     setLocalCloseRequested(false);
     localCloseInvokerRef.current = null;
+    intentRef.current = null;
 
-    if (blocker.state === 'blocked') {
-      blocker.proceed();
-      onClose();
+    if (intent?.kind === 'navigation') {
+      const proceed = intent.proceed
+        ?? (blocker.state === 'blocked' ? blocker.proceed : null);
+      proceed?.();
+      onNavigationDiscard();
       return;
     }
 
+    // Si el diálogo nació de un cierre local, cualquier Back/PUSH posterior se
+    // cancela: descartar sólo cierra el formulario que originó la intención.
+    if (blocker.state === 'blocked') blocker.reset();
     onClose();
-  }, [blocker, isBusy, onClose]);
+  }, [blocker, isBusy, isReleased, onClose, onNavigationDiscard]);
 
   const commitAndClose = useCallback(() => {
-    if (releasedRef.current) return;
+    if (isReleased()) return;
     releasedRef.current = true;
     restoreFocusOnCloseRef.current = false;
     setLocalCloseRequested(false);
     localCloseInvokerRef.current = null;
+    intentRef.current = null;
     if (blocker.state === 'blocked') blocker.reset();
     onClose();
-  }, [blocker, onClose]);
+  }, [blocker, isReleased, onClose]);
 
   const navigationBlocked = blocker.state === 'blocked';
   const isSuspended = isOpen && (localCloseRequested || navigationBlocked);
@@ -130,6 +198,7 @@ export const useUnsavedChangesGuard = ({
   useEffect(() => {
     if (isOpen && (isDirty || isBusy)) return;
     if (blocker.state === 'blocked') blocker.reset();
+    intentRef.current = null;
     if (!localCloseRequested) return;
 
     const timeout = window.setTimeout(() => setLocalCloseRequested(false), 0);

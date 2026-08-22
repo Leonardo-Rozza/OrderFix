@@ -14,6 +14,7 @@ import { apiClient, LIMITE_PLAN_EVENT } from './axios';
 import { showError } from '../utils/toast';
 import { captureError } from '../lib/sentry';
 import { authStore } from '../store/auth.store';
+import { subscribeUnsavedChangesRelease } from '../lib/unsavedChangesLifecycle';
 
 // Dejamos el pathname en /login (vía history) para que el 401 no intente navegar.
 beforeEach(() => {
@@ -103,10 +104,16 @@ describe('axios interceptor de errores', () => {
   it('cierra la sesión ante un 401 inline', async () => {
     authStore.getState().login('token-falso', 'a@a.com');
     expect(authStore.getState().isAuthenticated).toBe(true);
+    const sessionStateAtRelease: boolean[] = [];
+    const unsubscribe = subscribeUnsavedChangesRelease(() => {
+      sessionStateAtRelease.push(authStore.getState().isAuthenticated);
+    });
 
     server.use(http.get(`${API}/clientes`, () => new HttpResponse(null, { status: 401 })));
     await expect(apiClient.get('/clientes', { errorMode: 'inline' })).rejects.toBeTruthy();
 
+    unsubscribe();
+    expect(sessionStateAtRelease).toEqual([true]);
     expect(authStore.getState().isAuthenticated).toBe(false);
   });
 
@@ -125,10 +132,14 @@ describe('axios interceptor de errores', () => {
 
   it('trata un 403 directo de /suscripcion como sesión inválida', async () => {
     authStore.getState().login('token-revocado', 'empleado@taller.com');
+    const release = vi.fn();
+    const unsubscribe = subscribeUnsavedChangesRelease(release);
     server.use(http.get(`${API}/suscripcion`, () => new HttpResponse(null, { status: 403 })));
 
     await expect(apiClient.get('/suscripcion')).rejects.toBeTruthy();
 
+    unsubscribe();
+    expect(release).toHaveBeenCalledTimes(1);
     expect(authStore.getState().isAuthenticated).toBe(false);
   });
 

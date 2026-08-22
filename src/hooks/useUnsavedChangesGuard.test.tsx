@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { DiscardChangesDialog } from '../components/DiscardChangesDialog';
+import { releaseUnsavedChangesGuards } from '../lib/unsavedChangesLifecycle';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { useUnsavedChangesGuard } from './useUnsavedChangesGuard';
 
@@ -11,9 +12,15 @@ interface GuardHarnessProps {
   initialDirty?: boolean;
   initialBusy?: boolean;
   onClose: () => void;
+  onNavigationDiscard?: () => void;
 }
 
-const GuardHarness = ({ initialDirty = false, initialBusy = false, onClose }: GuardHarnessProps) => {
+const GuardHarness = ({
+  initialDirty = false,
+  initialBusy = false,
+  onClose,
+  onNavigationDiscard,
+}: GuardHarnessProps) => {
   const [value, setValue] = useState(initialDirty ? 'Cambio local' : '');
   const [isBusy, setIsBusy] = useState(initialBusy);
   const location = useLocation();
@@ -23,6 +30,7 @@ const GuardHarness = ({ initialDirty = false, initialBusy = false, onClose }: Gu
     isDirty: value !== '',
     isBusy,
     onClose,
+    onNavigationDiscard,
   });
 
   return (
@@ -114,6 +122,90 @@ describe('useUnsavedChangesGuard', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('usa un cleanup dedicado al descartar una navegación', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const onNavigationDiscard = vi.fn();
+    const { router } = renderGuard({ initialDirty: true, onClose, onNavigationDiscard });
+
+    await user.click(screen.getByRole('link', { name: 'Ir a destino' }));
+    await user.click(screen.getByRole('button', { name: 'Descartar cambios' }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/destino'));
+    expect(onNavigationDiscard).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('conserva la primera intención local aunque después llegue un Back', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const { router } = renderWithProviders(
+      <GuardHarness initialDirty onClose={onClose} />,
+      {
+        initialEntries: ['/anterior', '/formulario'],
+        initialIndex: 1,
+        additionalRoutes: [
+          { path: '/anterior', element: <p>Página anterior</p> },
+          { path: '/destino', element: <p>Página destino</p> },
+        ],
+      },
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Cerrar formulario' }));
+    await act(async () => { await router.navigate(-1); });
+
+    expect(router.state.location.pathname).toBe('/formulario');
+    await user.click(screen.getByRole('button', { name: 'Descartar cambios' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(router.state.location.pathname).toBe('/formulario');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('conserva el primer PUSH aunque una navegación posterior reemplace el blocker', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const { router } = renderGuard(
+      { initialDirty: true, onClose },
+      {
+        additionalRoutes: [
+          { path: '/destino', element: <p>Primer destino</p> },
+          { path: '/alternativo', element: <p>Destino alternativo</p> },
+        ],
+      },
+    );
+
+    await user.click(screen.getByRole('link', { name: 'Ir a destino' }));
+    await act(async () => { await router.navigate('/alternativo'); });
+    await user.click(screen.getByRole('button', { name: 'Descartar cambios' }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/destino'));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('conserva el primer POP aunque después llegue un PUSH', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const { router } = renderWithProviders(
+      <GuardHarness initialDirty onClose={onClose} />,
+      {
+        initialEntries: ['/anterior', '/formulario'],
+        initialIndex: 1,
+        additionalRoutes: [
+          { path: '/anterior', element: <p>Página anterior</p> },
+          { path: '/destino', element: <p>Página destino</p> },
+        ],
+      },
+    );
+
+    await act(async () => { await router.navigate(-1); });
+    await act(async () => { await router.navigate('/destino'); });
+    await user.click(screen.getByRole('button', { name: 'Descartar cambios' }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/anterior'));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('protege una navegación POP del historial', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
@@ -196,5 +288,29 @@ describe('useUnsavedChangesGuard', () => {
     const unmountedEvent = new Event('beforeunload', { cancelable: true });
     window.dispatchEvent(unmountedEvent);
     expect(unmountedEvent.defaultPrevented).toBe(false);
+  });
+
+  it('un release global libera blocker y beforeunload sin esperar un render de sesión', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const { router } = renderGuard({ initialDirty: true, onClose });
+
+    const dirtyEvent = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(dirtyEvent);
+    expect(dirtyEvent.defaultPrevented).toBe(true);
+
+    await user.click(screen.getByRole('link', { name: 'Ir a destino' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    act(() => releaseUnsavedChangesGuards());
+
+    const releasedEvent = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(releasedEvent);
+    expect(releasedEvent.defaultPrevented).toBe(false);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await act(async () => { await router.navigate('/destino'); });
+    expect(router.state.location.pathname).toBe('/destino');
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

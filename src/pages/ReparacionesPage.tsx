@@ -46,6 +46,11 @@ export const ReparacionesPage = () => {
       setSearchParams(searchParams, { replace: true });
     }
   };
+  const discardNavigatingForm = () => {
+    // La navegación bloqueada ya conoce su destino. Sólo limpiamos estado local
+    // para no competir con `blocker.proceed()` mediante otro replace de la URL.
+    setLocalOpen(false);
+  };
 
   const open = (id: number) => navigate(`/reparaciones/${id}`);
   const requestStateChange = (id: number, estado: EstadoReparacion) => {
@@ -189,6 +194,7 @@ export const ReparacionesPage = () => {
       <ReparacionFormModal
         isOpen={formOpen}
         onClose={closeForm}
+        onNavigationDiscard={discardNavigatingForm}
         editing={null}
         onCreated={(id) => navigate(`/reparaciones/${id}`)}
       />

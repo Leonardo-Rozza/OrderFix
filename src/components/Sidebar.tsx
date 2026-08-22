@@ -1,6 +1,6 @@
 import { Link, NavLink } from 'react-router';
 import { Logo } from './Logo';
-import { navItems } from '../config/nav';
+import { isNavItemVisible, navItems } from '../config/nav';
 import { useAuth } from '../store/auth.store';
 import { useFunciones, useSuscripcionQuery } from '../api/queries/suscripcion.queries';
 
@@ -9,9 +9,7 @@ export const Sidebar = () => {
   const { email, isAdmin } = useAuth();
   const funciones = useFunciones();
   const { data: sus } = useSuscripcionQuery();
-  const items = navItems.filter(
-    (item) => (!item.adminOnly || isAdmin) && (!item.feature || funciones[item.feature])
-  );
+  const items = navItems.filter((item) => isNavItemVisible(item, { isAdmin, funciones }));
 
   // Consumo del plan FREE (nudge a PRO)
   const limite = sus?.plan === 'FREE' ? sus.limiteReparacionesMes : null;

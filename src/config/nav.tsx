@@ -1,10 +1,16 @@
 import type { ReactNode } from 'react';
+import { matchPath } from 'react-router';
 import { SvgIcon as Svg } from '../components/SvgIcon';
+import type { Funciones } from '../types';
 
 export interface NavItem {
   key: string;
   label: string;
+  /** Etiqueta más corta para la barra inferior. */
+  mobileLabel?: string;
   path: string;
+  /** Rutas relacionadas que también mantienen activo el destino. */
+  activePaths?: string[];
   icon: ReactNode;
   /** Sección futura: se muestra deshabilitada */
   soon?: boolean;
@@ -16,10 +22,26 @@ export interface NavItem {
   feature?: 'inventario' | 'cobros';
 }
 
+interface NavAccess {
+  isAdmin: boolean;
+  funciones: Pick<Funciones, 'inventario' | 'cobros'>;
+}
+
+/** Única regla visual de acceso compartida por sidebar y navegación móvil. */
+export const isNavItemVisible = (item: NavItem, { isAdmin, funciones }: NavAccess) =>
+  (!item.adminOnly || isAdmin) && (!item.feature || funciones[item.feature]);
+
+/** Activa un destino tanto en su ruta principal como en pantallas hijas relacionadas. */
+export const isNavItemActive = (item: NavItem, pathname: string) =>
+  (item.activePaths ?? [item.path]).some((path) =>
+    matchPath({ path: `${path}/*`, end: true }, pathname) !== null
+  );
+
 export const navItems: NavItem[] = [
   {
     key: 'dashboard',
     label: 'Dashboard',
+    mobileLabel: 'Inicio',
     path: '/dashboard',
     mobile: true,
     icon: <Svg><path d="M3 13h8V3H3zM13 21h8V3h-8zM3 21h8v-6H3z" /></Svg>,
@@ -55,7 +77,7 @@ export const navItems: NavItem[] = [
     key: 'planes',
     label: 'Plan',
     path: '/planes',
-    mobile: true,
+    activePaths: ['/planes', '/suscripcion/resultado'],
     icon: <Svg><path d="m12 3 2.4 5 5.6.8-4 3.9.9 5.5L12 21l-4.9-2.8.9-5.5-4-3.9 5.6-.8z" /></Svg>,
   },
   {
@@ -72,3 +94,4 @@ export const navItems: NavItem[] = [
 ];
 
 export const mobileNavItems = navItems.filter((n) => n.mobile && !n.soon);
+export const mobileMoreItems = navItems.filter((n) => !n.mobile && !n.soon);

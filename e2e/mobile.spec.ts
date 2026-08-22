@@ -267,11 +267,12 @@ test('smoke móvil: todos los formularios críticos respetan viewport, controles
 
   await test.step('Equipo', async () => {
     await page.goto('/equipos');
-    await openAuditAndClose(
-      page,
-      page.getByRole('button', { name: 'Nuevo equipo', exact: true }),
-      { title: 'Nuevo equipo', cta: 'Crear equipo' },
-    );
+    await page.getByRole('button', { name: 'Nuevo equipo', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Nuevo equipo', exact: true });
+    await dialog.getByLabel(/^cliente/i).click();
+    await dialog.getByRole('option', { name: /ana gómez/i }).click();
+    await expectMobileDialog(page, { title: 'Nuevo equipo', cta: 'Crear equipo' });
+    await closeDialog(dialog);
   });
 
   await test.step('Artículo y ajuste de stock', async () => {
@@ -392,30 +393,86 @@ test('modal de reparación: queda dentro del viewport y mantiene el CTA visible'
   await expect(garantia).toBeFocused();
 });
 
-test('combobox: Escape cierra la lista sin descartar el formulario', async ({ page, context }) => {
+test('combobox remoto: pagina dentro del modal y restaura el foco al cerrar', async ({ page, context }) => {
   await seedAuth(context);
+  const equipos = Array.from({ length: 21 }, (_, index) => ({
+    id: index + 1,
+    // La fuente ordena por id desc: el id 1 queda realmente en la página 2.
+    marca: index === 0 ? 'Motorola' : 'Marca',
+    modelo: index === 0 ? 'Edge 50' : `Modelo ${index + 1}`,
+    imei: null,
+    color: null,
+    descripcion: null,
+    clienteId: 1,
+    clienteNombre: 'Ana',
+    clienteApellido: 'Gómez',
+  }));
   await mockApi(page, {
-    equipos: [
-      {
-        id: 5,
-        marca: 'Samsung',
-        modelo: 'A52',
-        clienteId: 1,
-        clienteNombre: 'Ana',
-        clienteApellido: 'Gómez',
-      },
-    ],
+    equipos,
   });
   await page.goto('/reparaciones?nuevo=1');
 
   const dialog = page.getByRole('dialog');
   await page.getByRole('button', { name: /elegir equipo existente/i }).click();
-  await page.getByLabel(/^equipo/i).click();
-  const search = page.getByPlaceholder('Buscar…');
+  const trigger = page.getByLabel(/^equipo/i);
+  const firstPage = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return url.pathname.endsWith('/api/equipos')
+      && url.searchParams.get('page') === '0'
+      && url.searchParams.get('size') === '20';
+  });
+  await trigger.click();
+  await firstPage;
+
+  const search = page.getByRole('combobox', { name: 'Buscar equipo' });
+  const listbox = page.getByRole('listbox');
+  const loadMore = page.getByRole('button', { name: 'Cargar más', exact: true });
   await expect(search).toBeVisible();
+  await expect(search).toBeFocused();
+  await expect(loadMore).toBeVisible();
+  await expect(loadMore).toBeInViewport();
+
+  const popoverMetrics = await listbox.locator('..').evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return {
+      left: rect.left,
+      right: rect.right,
+      top: rect.top,
+      bottom: rect.bottom,
+      viewportWidth: window.visualViewport?.width ?? innerWidth,
+      viewportHeight: window.visualViewport?.height ?? innerHeight,
+    };
+  });
+  expect(popoverMetrics.left).toBeGreaterThanOrEqual(7);
+  expect(popoverMetrics.right).toBeLessThanOrEqual(popoverMetrics.viewportWidth - 7);
+  expect(popoverMetrics.top).toBeGreaterThanOrEqual(0);
+  expect(popoverMetrics.bottom).toBeLessThanOrEqual(popoverMetrics.viewportHeight + 1);
+
+  const listMetrics = await listbox.evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+  }));
+  expect(listMetrics.scrollHeight).toBeGreaterThan(listMetrics.clientHeight);
+
+  await search.press('Tab');
+  await expect(loadMore).toBeFocused();
+  const secondPage = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return url.pathname.endsWith('/api/equipos') && url.searchParams.get('page') === '1';
+  });
+  await loadMore.press('Enter');
+  await secondPage;
+
+  await page.getByRole('option', { name: /motorola edge 50/i }).click();
+  await expect(trigger).toHaveText(/motorola edge 50/i);
+  await expect(trigger).toBeFocused();
+
+  await trigger.click();
+  await expect(search).toBeFocused();
 
   await search.press('Escape');
   await expect(search).toBeHidden();
+  await expect(trigger).toBeFocused();
   await expect(dialog).toBeVisible();
 
   await page.keyboard.press('Escape');

@@ -18,10 +18,45 @@ export const seedAuth = async (context: BrowserContext, token = futureToken()) =
   }, value);
 };
 
-const pageOf = <T>(items: T[]) => ({
-  content: items,
-  page: { size: 1000, number: 0, totalElements: items.length, totalPages: 1 },
-});
+const normalizeSearch = (value: string) => value
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase();
+
+/** Emula el contrato real de búsqueda/paginación para que E2E no oculte truncamientos. */
+const pageOf = <T>(items: T[], url?: URL) => {
+  const q = normalizeSearch(url?.searchParams.get('q')?.trim() ?? '');
+  const filtered = q
+    ? items.filter((item) => normalizeSearch(JSON.stringify(item)).includes(q))
+    : items;
+  const [sortField, sortDirection] = (url?.searchParams.get('sort') ?? '').split(',');
+  const ordered = sortField
+    ? [...filtered].sort((left, right) => {
+        const leftValue = typeof left === 'object' && left !== null
+          ? (left as Record<string, unknown>)[sortField]
+          : left;
+        const rightValue = typeof right === 'object' && right !== null
+          ? (right as Record<string, unknown>)[sortField]
+          : right;
+        const comparison = typeof leftValue === 'number' && typeof rightValue === 'number'
+          ? leftValue - rightValue
+          : String(leftValue ?? '').localeCompare(String(rightValue ?? ''), 'es', {
+              numeric: true,
+              sensitivity: 'base',
+            });
+        return sortDirection?.toLowerCase() === 'desc' ? -comparison : comparison;
+      })
+    : filtered;
+  const requestedPage = Math.max(0, Number(url?.searchParams.get('page') ?? 0) || 0);
+  const size = Math.max(1, Number(url?.searchParams.get('size') ?? 20) || 20);
+  const totalPages = ordered.length === 0 ? 0 : Math.ceil(ordered.length / size);
+  const start = requestedPage * size;
+
+  return {
+    content: ordered.slice(start, start + size),
+    page: { size, number: requestedPage, totalElements: ordered.length, totalPages },
+  };
+};
 
 const defaultSuscripcion = {
   plan: 'FREE',
@@ -233,21 +268,21 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
       const items = estado
         ? (reparaciones as { estado?: string }[]).filter((r) => r.estado === estado)
         : reparaciones;
-      return route.fulfill({ json: pageOf(items) });
+      return route.fulfill({ json: pageOf(items, url) });
     }
-    if (pathname.endsWith('/api/equipos') && method === 'GET') return route.fulfill({ json: pageOf(equipos) });
+    if (pathname.endsWith('/api/equipos') && method === 'GET') return route.fulfill({ json: pageOf(equipos, url) });
     const equiposClienteMatch = pathname.match(/\/api\/equipos\/cliente\/(\d+)$/);
     if (equiposClienteMatch && method === 'GET') {
       const clienteId = Number(equiposClienteMatch[1]);
       const items = (equipos as { clienteId?: number }[]).filter((equipo) => equipo.clienteId === clienteId);
       return route.fulfill({ json: items });
     }
-    if (pathname.endsWith('/api/clientes') && method === 'GET') return route.fulfill({ json: pageOf(clientes) });
-    if (pathname.endsWith('/api/repuestos') && method === 'GET') return route.fulfill({ json: pageOf(repuestos) });
+    if (pathname.endsWith('/api/clientes') && method === 'GET') return route.fulfill({ json: pageOf(clientes, url) });
+    if (pathname.endsWith('/api/repuestos') && method === 'GET') return route.fulfill({ json: pageOf(repuestos, url) });
     if (pathname.endsWith('/api/usuarios') && method === 'GET') return route.fulfill({ json: usuarios });
 
     // Inventario
-    if (pathname.endsWith('/api/inventario') && method === 'GET') return route.fulfill({ json: pageOf(articulos) });
+    if (pathname.endsWith('/api/inventario') && method === 'GET') return route.fulfill({ json: pageOf(articulos, url) });
     if (pathname.endsWith('/api/inventario') && method === 'POST') {
       return route.fulfill({ status: 201, json: { id: 1, stock: 0, ...(req.postDataJSON() as object) } });
     }

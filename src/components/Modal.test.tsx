@@ -141,6 +141,82 @@ describe('Modal', () => {
     expect(onCloseBase).not.toHaveBeenCalled();
   });
 
+  it('hace que la capa global sea la única accesible y reactiva la guardia al cerrar', async () => {
+    document.body.style.overflow = 'auto';
+    document.body.style.overscrollBehavior = 'contain';
+    const guardActionRef = createRef<HTMLButtonElement>();
+    const safeGlobalActionRef = createRef<HTMLButtonElement>();
+    const onCloseBase = vi.fn();
+    const onCloseGuard = vi.fn();
+    const onCloseGlobal = vi.fn();
+    const stack = (globalOpen: boolean, lowerLayersOpen = true) => (
+      <>
+        <Modal isOpen={lowerLayersOpen} onClose={onCloseBase} title="Editar orden">
+          <button type="button">Guardar orden</button>
+        </Modal>
+        <Modal isOpen={lowerLayersOpen} layer="guard" onClose={onCloseGuard} title="Descartar cambios">
+          <button ref={guardActionRef} type="button">Seguir editando</button>
+          <button type="button">Descartar</button>
+        </Modal>
+        <Modal
+          isOpen={globalOpen}
+          layer="global"
+          onClose={onCloseGlobal}
+          title="Límite del plan"
+          initialFocusRef={safeGlobalActionRef}
+        >
+          <button ref={safeGlobalActionRef} type="button">Ahora no</button>
+          <button type="button">Acción final</button>
+        </Modal>
+      </>
+    );
+    const { container, rerender } = render(stack(false));
+
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Descartar cambios' })).toBeVisible());
+    guardActionRef.current?.focus();
+    rerender(stack(true));
+
+    const globalDialog = await screen.findByRole('dialog', { name: 'Límite del plan' });
+    await waitFor(() => expect(safeGlobalActionRef.current).toHaveFocus());
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(container).toHaveAttribute('aria-hidden', 'true');
+    expect(container).toHaveAttribute('inert');
+    expect(document.querySelector('[data-modal-layer="base"]')).toHaveAttribute('inert');
+    expect(document.querySelector('[data-modal-layer="guard"]')).toHaveAttribute('inert');
+    expect(globalDialog.closest('[data-modal-layer]')).not.toHaveAttribute('inert');
+    expect(document.body.style.overflow).toBe('hidden');
+
+    const finalAction = screen.getByRole('button', { name: 'Acción final' });
+    finalAction.focus();
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(globalDialog.querySelector<HTMLButtonElement>('button[aria-label="Cerrar"]')).toHaveFocus();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onCloseGlobal).toHaveBeenCalledTimes(1);
+    expect(onCloseGuard).not.toHaveBeenCalled();
+    expect(onCloseBase).not.toHaveBeenCalled();
+    rerender(stack(false));
+
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Descartar cambios' })).toBeVisible());
+    await waitFor(() => expect(guardActionRef.current).toHaveFocus());
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(container).not.toHaveAttribute('aria-hidden');
+    expect(container).not.toHaveAttribute('inert');
+    expect(document.body.style.overflow).toBe('hidden');
+
+    rerender(stack(true));
+    const reopenedGlobal = await screen.findByRole('dialog', { name: 'Límite del plan' });
+    await waitFor(() => expect(safeGlobalActionRef.current).toHaveFocus());
+    const globalBackdrop = reopenedGlobal.parentElement?.firstElementChild;
+    fireEvent.click(globalBackdrop as Element);
+    expect(onCloseGlobal).toHaveBeenCalledTimes(2);
+    expect(onCloseGuard).not.toHaveBeenCalled();
+
+    rerender(stack(false, false));
+    await waitFor(() => expect(document.body.style.overflow).toBe('auto'));
+    expect(document.body.style.overscrollBehavior).toBe('contain');
+  });
+
   it('restaura el foco al invocador capturado aunque el diálogo inferior pierda el foco al suspenderse', async () => {
     const invokerRef = createRef<HTMLButtonElement>();
     const { rerender } = render(

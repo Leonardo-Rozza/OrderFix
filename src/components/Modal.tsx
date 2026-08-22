@@ -3,10 +3,14 @@ import {
   useId,
   useLayoutEffect,
   useRef,
+  useSyncExternalStore,
   type HTMLAttributes,
   type ReactNode,
   type RefObject,
 } from 'react';
+import { createPortal } from 'react-dom';
+
+type ModalLayer = 'base' | 'guard' | 'global';
 
 interface ModalProps {
   isOpen: boolean;
@@ -20,8 +24,8 @@ interface ModalProps {
   preventClose?: boolean;
   /** Mantiene visible un diálogo inferior, pero lo vuelve inerte mientras hay otra capa activa. */
   suspended?: boolean;
-  /** Capa visual del diálogo. `guard` se reserva para confirmaciones sobre formularios. */
-  layer?: 'base' | 'guard';
+  /** Capa visual y accesible: formulario, confirmación o aviso global. */
+  layer?: ModalLayer;
   initialFocusRef?: RefObject<HTMLElement | null>;
   restoreFocusRef?: RefObject<HTMLElement | null>;
   restoreFocusOnClose?: boolean;
@@ -46,6 +50,82 @@ const getFocusable = (container: HTMLElement) =>
     const style = window.getComputedStyle(element);
     return style.display !== 'none' && style.visibility !== 'hidden' && !element.closest('[hidden]');
   });
+
+const layerPriority: Record<ModalLayer, number> = {
+  base: 0,
+  guard: 1,
+  global: 2,
+};
+
+const openModalLayers = new Map<symbol, { layer: ModalLayer; order: number }>();
+const modalStackListeners = new Set<() => void>();
+let modalStackOrder = 0;
+
+const notifyModalStack = () => {
+  modalStackListeners.forEach((listener) => listener());
+};
+
+const subscribeModalStack = (listener: () => void) => {
+  modalStackListeners.add(listener);
+  return () => {
+    modalStackListeners.delete(listener);
+  };
+};
+
+const topmostModalId = () => {
+  let topmostId: symbol | null = null;
+  let topmostPriority = Number.NEGATIVE_INFINITY;
+  let topmostOrder = Number.NEGATIVE_INFINITY;
+
+  openModalLayers.forEach((entry, id) => {
+    const priority = layerPriority[entry.layer];
+    if (
+      priority > topmostPriority
+      || (priority === topmostPriority && entry.order > topmostOrder)
+    ) {
+      topmostId = id;
+      topmostPriority = priority;
+      topmostOrder = entry.order;
+    }
+  });
+
+  return topmostId;
+};
+
+const registerModalLayer = (id: symbol, layer: ModalLayer) => {
+  modalStackOrder += 1;
+  openModalLayers.set(id, { layer, order: modalStackOrder });
+  notifyModalStack();
+
+  return () => {
+    openModalLayers.delete(id);
+    notifyModalStack();
+  };
+};
+
+const setGlobalBackgroundInert = (activeLayer: HTMLElement) => {
+  const snapshots = Array.from(document.body.children)
+    .filter((element): element is HTMLElement => element instanceof HTMLElement && element !== activeLayer)
+    .map((element) => ({
+      element,
+      ariaHidden: element.getAttribute('aria-hidden'),
+      hadInert: element.hasAttribute('inert'),
+    }));
+
+  snapshots.forEach(({ element }) => {
+    element.setAttribute('aria-hidden', 'true');
+    element.setAttribute('inert', '');
+  });
+
+  return () => {
+    snapshots.forEach(({ element, ariaHidden, hadInert }) => {
+      if (!element.isConnected) return;
+      if (ariaHidden === null) element.removeAttribute('aria-hidden');
+      else element.setAttribute('aria-hidden', ariaHidden);
+      if (!hadInert) element.removeAttribute('inert');
+    });
+  };
+};
 
 let bodyScrollLockCount = 0;
 let bodyScrollSnapshot: { overflow: string; overscrollBehavior: string } | null = null;
@@ -98,13 +178,30 @@ export const Modal = ({
   bodyClassName = '',
 }: ModalProps) => {
   const titleId = useId();
+  const modalId = useRef(Symbol('modal'));
+  const viewportRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const lastFocused = useRef<HTMLElement | null>(null);
   const hasAutoFocused = useRef(false);
+  const isTopmost = useSyncExternalStore(
+    subscribeModalStack,
+    () => {
+      const topmostId = topmostModalId();
+      return topmostId === null || topmostId === modalId.current;
+    },
+    () => true,
+  );
+  const stackSuspended = isOpen && !isTopmost;
+  const effectiveSuspended = suspended || stackSuspended;
+
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    return registerModalLayer(modalId.current, layer);
+  }, [isOpen, layer]);
 
   // Cerrar con Escape + atrapar el foco dentro del diálogo (Tab cíclico).
   useEffect(() => {
-    if (!isOpen || suspended) return;
+    if (!isOpen || effectiveSuspended) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
       // Un control compuesto (por ejemplo Combobox) puede consumir Escape primero.
@@ -140,13 +237,19 @@ export const Modal = ({
 
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, onClose, preventClose, suspended]);
+  }, [effectiveSuspended, isOpen, onClose, preventClose]);
 
   // Bloquear el scroll del fondo mientras está abierto.
   useLayoutEffect(() => {
     if (!isOpen) return;
     return lockBodyScroll();
   }, [isOpen]);
+
+  // La capa global vive fuera de #root y vuelve inerte todo el fondo real.
+  useLayoutEffect(() => {
+    if (!isOpen || layer !== 'global' || effectiveSuspended || !viewportRef.current) return;
+    return setGlobalBackgroundInert(viewportRef.current);
+  }, [effectiveSuspended, isOpen, layer]);
 
   // Recordar el invocador al abrir y restaurarlo sólo al cerrar la capa.
   useLayoutEffect(() => {
@@ -182,7 +285,7 @@ export const Modal = ({
 
   // Enfocar una sola vez. Suspender/reanudar el modal inferior no roba foco.
   useLayoutEffect(() => {
-    if (!isOpen || suspended || hasAutoFocused.current) return;
+    if (!isOpen || effectiveSuspended || hasAutoFocused.current) return;
     hasAutoFocused.current = true;
     const panel = panelRef.current;
     if (!panel) return;
@@ -192,26 +295,27 @@ export const Modal = ({
       ?? getFocusable(panel)[0]
       ?? panel;
     initialFocus.focus();
-  }, [initialFocusRef, isOpen, suspended]);
+  }, [effectiveSuspended, initialFocusRef, isOpen]);
 
   if (!isOpen) return null;
   const hasFooter = footer !== undefined && footer !== null;
 
   const requestClose = (invoker?: HTMLElement | null) => {
-    if (!preventClose && !suspended) {
+    if (!preventClose && !effectiveSuspended) {
       onClose(invoker ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null));
     }
   };
 
-  const layerClass = layer === 'guard' ? 'z-[90]' : 'z-50';
+  const layerClass = layer === 'global' ? 'z-[110]' : layer === 'guard' ? 'z-[90]' : 'z-50';
 
-  return (
+  const modal = (
     <div
-      className={`ofx-modal-viewport fixed inset-0 flex min-h-0 items-end justify-center overflow-hidden sm:items-center sm:p-4 ${layerClass} ${suspended ? 'pointer-events-none' : ''}`}
+      ref={viewportRef}
+      className={`ofx-modal-viewport fixed inset-0 flex min-h-0 items-end justify-center overflow-hidden sm:items-center sm:p-4 ${layerClass} ${effectiveSuspended ? 'pointer-events-none' : ''}`}
       data-modal-layer={layer}
-      data-modal-suspended={suspended ? 'true' : undefined}
-      aria-hidden={suspended ? 'true' : undefined}
-      inert={suspended || undefined}
+      data-modal-suspended={effectiveSuspended ? 'true' : undefined}
+      aria-hidden={effectiveSuspended ? 'true' : undefined}
+      inert={effectiveSuspended || undefined}
     >
       <div
         className="absolute inset-0 bg-black/55 backdrop-blur-sm"
@@ -221,10 +325,10 @@ export const Modal = ({
       <div
         ref={panelRef}
         data-modal-panel
-        role={suspended ? undefined : 'dialog'}
-        aria-modal={suspended ? undefined : 'true'}
-        aria-labelledby={suspended ? undefined : titleId}
-        aria-describedby={suspended ? undefined : ariaDescribedBy}
+        role={effectiveSuspended ? undefined : 'dialog'}
+        aria-modal={effectiveSuspended ? undefined : 'true'}
+        aria-labelledby={effectiveSuspended ? undefined : titleId}
+        aria-describedby={effectiveSuspended ? undefined : ariaDescribedBy}
         tabIndex={-1}
         className={`ofx-modal-panel relative z-10 flex max-h-full w-full min-w-0 flex-col overflow-visible rounded-t-2xl border border-border bg-surface shadow-lg outline-none sm:max-h-[calc(100dvh-2rem)] ${sizeClasses[size]} sm:rounded-2xl`}
         onClick={(event) => event.stopPropagation()}
@@ -237,7 +341,7 @@ export const Modal = ({
             <button
               type="button"
               onClick={(event) => requestClose(event.currentTarget)}
-              disabled={preventClose || suspended}
+              disabled={preventClose || effectiveSuspended}
               aria-label="Cerrar"
               className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-text-3 transition hover:bg-surface-2 hover:text-text focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-8"
             >
@@ -263,4 +367,8 @@ export const Modal = ({
       </div>
     </div>
   );
+
+  return layer === 'global' && typeof document !== 'undefined'
+    ? createPortal(modal, document.body)
+    : modal;
 };

@@ -79,7 +79,7 @@ test('una búsqueda lenta anterior no reemplaza la búsqueda más nueva', async 
   await page.getByRole('button', { name: 'Nuevo repuesto', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Nuevo repuesto' })).toBeVisible();
 
-  await page.getByRole('combobox', { name: 'Reparación asociada' }).click();
+  await page.getByRole('button', { name: 'Reparación asociada' }).click();
   const search = page.getByRole('combobox', { name: 'Buscar reparación' });
   await search.fill('anterior');
   await slowStarted;
@@ -124,7 +124,7 @@ test('editar y usar la reparación de un repuesto nunca consulta su detalle', as
   await page.getByRole('button', { name: 'Editar', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Editar repuesto' })).toBeVisible();
 
-  const selected = page.getByRole('combobox', { name: 'Reparación asociada' });
+  const selected = page.getByRole('button', { name: 'Reparación asociada' });
   await expect(selected).toContainText('Orden #42');
   await expect(selected).toContainText('Samsung A52');
   await selected.click();
@@ -139,7 +139,7 @@ test('editar y usar la reparación de un repuesto nunca consulta su detalle', as
   await listRequest;
   await page.getByRole('option', { name: /ORD-0043.*Motorola Edge 50/i }).click();
 
-  await expect(page.getByRole('combobox', { name: 'Reparación asociada' })).toContainText('ORD-0043');
+  await expect(page.getByRole('button', { name: 'Reparación asociada' })).toContainText('ORD-0043');
   await page.waitForTimeout(100);
   expect(detailRequests).toEqual([]);
 });

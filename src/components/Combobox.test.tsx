@@ -25,12 +25,16 @@ describe('Combobox', () => {
       />,
     );
 
-    const trigger = screen.getByRole('combobox');
+    const trigger = screen.getByRole('button', { name: /seleccioná/i });
     expect(trigger).toHaveAttribute('aria-describedby', 'cliente-error');
     expect(trigger).toHaveAttribute('aria-invalid', 'true');
     expect(trigger).toHaveAttribute('aria-required', 'true');
+    expect(trigger).toHaveAttribute('aria-haspopup', 'listbox');
+    expect(trigger).not.toHaveAttribute('role');
 
     await user.click(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(trigger).not.toHaveAttribute('role');
     const search = await screen.findByRole('combobox', { name: 'Buscar opciones' });
     expect(search).toHaveFocus();
     await user.type(search, 'bruno');
@@ -48,7 +52,7 @@ describe('Combobox', () => {
       </Modal>,
     );
 
-    const trigger = screen.getByRole('combobox');
+    const trigger = screen.getByRole('button', { name: /seleccioná/i });
     await user.click(trigger);
     const search = await screen.findByRole('combobox', { name: 'Buscar opciones' });
     expect(search.closest('[role="dialog"]')).not.toBeNull();
@@ -64,7 +68,7 @@ describe('Combobox', () => {
     const user = userEvent.setup();
     render(<Combobox value={undefined} onChange={vi.fn()} options={options} />);
 
-    const trigger = screen.getByRole('combobox');
+    const trigger = screen.getByRole('button', { name: /seleccioná/i });
     vi.spyOn(trigger.parentElement as HTMLElement, 'getBoundingClientRect').mockReturnValue({
       bottom: 780,
       height: 44,
@@ -85,6 +89,12 @@ describe('Combobox', () => {
     expect(popover?.style.transform).toBe('translateY(-100%)');
   });
 
+  it('comunica una selección existente sin inventar una etiqueta', () => {
+    render(<Combobox aria-label="Cliente" value={99} onChange={vi.fn()} options={[]} />);
+
+    expect(screen.getByRole('button', { name: 'Cliente' })).toHaveTextContent('Selección actual sin datos');
+  });
+
   it('mantiene Tab y Shift+Tab dentro del diálogo aunque la lista esté en un portal', async () => {
     const user = userEvent.setup();
     render(
@@ -95,7 +105,7 @@ describe('Combobox', () => {
       </Modal>,
     );
 
-    const trigger = screen.getByRole('combobox', { name: 'Cliente' });
+    const trigger = screen.getByRole('button', { name: 'Cliente' });
     await user.click(trigger);
     await screen.findByRole('combobox', { name: 'Buscar opciones' });
     await user.tab();
@@ -105,6 +115,36 @@ describe('Combobox', () => {
     await screen.findByRole('combobox', { name: 'Buscar opciones' });
     await user.tab({ shift: true });
     expect(screen.getByLabelText('Campo anterior')).toHaveFocus();
+  });
+
+  it('permite salir con Tab mientras la página siguiente todavía está cargando', async () => {
+    const user = userEvent.setup();
+    render(
+      <Modal isOpen onClose={vi.fn()} title="Equipo">
+        <Combobox
+          aria-label="Cliente"
+          value={undefined}
+          onChange={vi.fn()}
+          options={options.slice(0, 1)}
+          filterMode="remote"
+          searchValue=""
+          onSearchChange={vi.fn()}
+          hasNextPage
+          isFetchingNextPage
+          onLoadMore={vi.fn()}
+        />
+        <input aria-label="Campo siguiente" />
+      </Modal>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Cliente' }));
+    const search = await screen.findByRole('combobox', { name: 'Buscar opciones' });
+    expect(screen.getByRole('button', { name: 'Cargando más…' })).toBeDisabled();
+
+    await user.tab();
+
+    expect(screen.getByLabelText('Campo siguiente')).toHaveFocus();
+    expect(search).not.toBeInTheDocument();
   });
 
   it('permite alcanzar Cargar más por teclado y también pedirlo con Flecha abajo', async () => {
@@ -127,7 +167,7 @@ describe('Combobox', () => {
       </Modal>,
     );
 
-    await user.click(screen.getByRole('combobox', { name: 'Cliente' }));
+    await user.click(screen.getByRole('button', { name: 'Cliente' }));
     const search = await screen.findByRole('combobox', { name: 'Buscar opciones' });
     await user.tab();
     const loadMore = screen.getByRole('button', { name: 'Cargar más' });

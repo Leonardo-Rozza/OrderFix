@@ -205,9 +205,9 @@ const AsyncComboboxInner = <
     source.maxAutomaticPages,
   ]);
 
-  const resolvedSelected = loadedOptions.find((option) => option.value === value)
-    ?? (sessionSelected?.value === value ? sessionSelected : undefined)
-    ?? (selectedOption?.value === value ? selectedOption : undefined);
+  const resolvedSelected = (sessionSelected?.value === value ? sessionSelected : undefined)
+    ?? (selectedOption?.value === value ? selectedOption : undefined)
+    ?? loadedOptions.find((option) => option.value === value);
 
   const handleChange = useCallback((
     nextValue: number | undefined,

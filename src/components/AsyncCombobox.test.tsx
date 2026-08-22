@@ -56,7 +56,7 @@ describe('AsyncCombobox', () => {
     renderWithClient(<Controlled source={source} />);
     expect(loadPage).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole('combobox', { name: 'Cliente' }));
+    await user.click(screen.getByRole('button', { name: 'Cliente' }));
     expect(await screen.findByRole('option', { name: 'Ana' })).toBeVisible();
     expect(loadPage).toHaveBeenLastCalledWith(expect.objectContaining({
       query: '',
@@ -85,19 +85,19 @@ describe('AsyncCombobox', () => {
     };
 
     renderWithClient(<Controlled source={source} />);
-    await user.click(screen.getByRole('combobox', { name: 'Cliente' }));
+    await user.click(screen.getByRole('button', { name: 'Cliente' }));
     await user.click(await screen.findByRole('button', { name: 'Cargar más' }));
     expect(await screen.findByRole('option', { name: 'Bruno' })).toBeVisible();
     expect(screen.getAllByRole('option', { name: /Ana/ })).toHaveLength(1);
 
     await user.click(screen.getByRole('option', { name: 'Bruno' }));
-    expect(screen.getByRole('combobox', { name: 'Cliente' })).toHaveTextContent('Bruno');
+    expect(screen.getByRole('button', { name: 'Cliente' })).toHaveTextContent('Bruno');
 
-    await user.click(screen.getByRole('combobox', { name: 'Cliente' }));
+    await user.click(screen.getByRole('button', { name: 'Cliente' }));
     await user.type(screen.getByRole('combobox', { name: 'Buscar cliente' }), 'nadie');
     expect(await screen.findByText(/no encontramos clientes/i)).toBeVisible();
     await user.keyboard('{Escape}');
-    expect(screen.getByRole('combobox', { name: 'Cliente' })).toHaveTextContent('Bruno');
+    expect(screen.getByRole('button', { name: 'Cliente' })).toHaveTextContent('Bruno');
   });
 
   it('muestra el error inline y permite reintentar', async () => {
@@ -113,11 +113,65 @@ describe('AsyncCombobox', () => {
     };
 
     renderWithClient(<Controlled source={source} />);
-    await user.click(screen.getByRole('combobox', { name: 'Cliente' }));
+    await user.click(screen.getByRole('button', { name: 'Cliente' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/no pudimos cargar clientes/i);
     await user.click(screen.getByRole('button', { name: 'Reintentar' }));
     expect(await screen.findByRole('option', { name: 'Ana' })).toBeVisible();
     expect(attempts).toBe(2);
+  });
+
+  it('conserva resultados y explica un error de página siguiente antes de reintentar', async () => {
+    const user = userEvent.setup();
+    let secondPageAttempts = 0;
+    const source: AsyncComboboxSource = {
+      queryKey: ({ query, size }) => ['clientes', 'options', { query, size }],
+      loadPage: vi.fn(async ({ page: number }) => {
+        if (number === 0) return page([{ value: 1, label: 'Ana' }], 0, 2, 2);
+        secondPageAttempts += 1;
+        if (secondPageAttempts === 1) throw new Error('falló página 2');
+        return page([{ value: 2, label: 'Bruno' }], 1, 2, 2);
+      }),
+    };
+
+    renderWithClient(<Controlled source={source} />);
+    await user.click(screen.getByRole('button', { name: 'Cliente' }));
+    expect(await screen.findByRole('option', { name: 'Ana' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Cargar más' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/no pudimos cargar clientes/i);
+    expect(screen.getByRole('option', { name: 'Ana' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Reintentar' }));
+
+    expect(await screen.findByRole('option', { name: 'Bruno' })).toBeVisible();
+    expect(secondPageAttempts).toBe(2);
+  });
+
+  it('prioriza la selección segura del formulario sobre una etiqueta cacheada', async () => {
+    const user = userEvent.setup();
+    const source: AsyncComboboxSource = {
+      queryKey: ({ query, size }) => ['clientes', 'options', { query, size }],
+      loadPage: vi.fn(async () => page([{ value: 1, label: 'Nombre cacheado' }], 0, 1)),
+    };
+
+    renderWithClient(
+      <AsyncCombobox
+        source={source}
+        value={1}
+        onChange={vi.fn()}
+        selectedOption={{ value: 1, label: 'Nombre de la ficha' }}
+        aria-label="Cliente"
+        searchAriaLabel="Buscar cliente"
+        entityName="cliente"
+        entityNamePlural="clientes"
+        debounceMs={0}
+      />,
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Cliente' });
+    expect(trigger).toHaveTextContent('Nombre de la ficha');
+    await user.click(trigger);
+    expect(await screen.findByRole('option', { name: 'Nombre cacheado' })).toBeVisible();
+    expect(trigger).toHaveTextContent('Nombre de la ficha');
   });
 
   it('salta como máximo una página filtrada y deja la siguiente carga en manos del usuario', async () => {
@@ -141,7 +195,7 @@ describe('AsyncCombobox', () => {
       />,
     );
 
-    await userEvent.click(screen.getByRole('combobox', { name: 'Reparación' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Reparación' }));
     await waitFor(() => expect(source.loadPage).toHaveBeenCalledTimes(2));
     await new Promise((resolve) => window.setTimeout(resolve, 20));
     expect(source.loadPage).toHaveBeenCalledTimes(2);

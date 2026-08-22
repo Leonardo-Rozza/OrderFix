@@ -158,8 +158,9 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(function Co
   }, [onOpenChange]);
 
   const query = filterMode === 'remote' ? (searchValue ?? '') : localQuery;
-  const selected = options.find((option) => option.value === value)
-    ?? (selectedOption?.value === value ? selectedOption : undefined);
+  const selected = (selectedOption?.value === value ? selectedOption : undefined)
+    ?? options.find((option) => option.value === value);
+  const hasUnresolvedSelection = value !== undefined && !selected;
 
   const displayedOptions = useMemo(() => {
     if (filterMode === 'remote') return options;
@@ -183,6 +184,7 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(function Co
     (isError && onRetry)
     || (hasNextPage && onLoadMore)
   );
+  const hasFocusableFooterAction = !isFetchingNextPage && hasFooterAction;
 
   const updatePosition = useCallback(() => {
     const root = rootRef.current;
@@ -348,7 +350,7 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(function Co
     } else if (event.key === 'Tab') {
       event.preventDefault();
       event.stopPropagation();
-      if (!event.shiftKey && hasFooterAction && footerActionRef.current) {
+      if (!event.shiftKey && hasFocusableFooterAction && footerActionRef.current) {
         footerActionRef.current.focus();
         return;
       }
@@ -460,7 +462,12 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(function Co
       </ul>
       {footer ?? (hasFooterAction || isFetchingNextPage ? (
         <div className="shrink-0 border-t border-border bg-surface px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-          {isError && onRetry ? (
+          {isError && !isFetchingNextPage && displayedOptions.length > 0 ? (
+            <p role="alert" className="px-2 pb-2 text-[12.5px] font-semibold text-danger-fg">
+              {errorMessage}
+            </p>
+          ) : null}
+          {isError && onRetry && !isFetchingNextPage ? (
             <button
               ref={footerActionRef}
               type="button"
@@ -511,7 +518,6 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(function Co
         type="button"
         id={fieldId}
         name={name}
-        role={open ? undefined : 'combobox'}
         aria-expanded={open}
         aria-controls={listId}
         aria-haspopup="listbox"
@@ -527,7 +533,7 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(function Co
         className={`${inputClass(hasError)} flex touch-manipulation items-center justify-between gap-2 text-left disabled:cursor-not-allowed disabled:opacity-60`}
       >
         <span className={`min-w-0 flex-1 truncate ${selected ? 'text-text' : 'text-text-3'}`}>
-          {selected ? selected.label : placeholder}
+          {selected ? selected.label : hasUnresolvedSelection ? 'Selección actual sin datos' : placeholder}
           {selected?.sublabel ? <span className="text-text-3"> — {selected.sublabel}</span> : null}
         </span>
         <svg

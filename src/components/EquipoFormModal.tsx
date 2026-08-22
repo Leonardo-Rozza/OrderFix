@@ -67,12 +67,13 @@ export const EquipoFormModal = ({
   }, [isOpen, editing, defaultClienteId, reset]);
 
   const selectedClienteId = watch('clienteId');
-  const selectedClienteOption: AsyncComboboxOption | undefined = editing
+  const editingClienteNombre = editing
+    ? `${editing.clienteNombre ?? ''} ${editing.clienteApellido ?? ''}`.trim()
+    : '';
+  const selectedClienteOption: AsyncComboboxOption | undefined = editing && editingClienteNombre
     ? {
         value: editing.clienteId,
-        label: editing.clienteNombre
-          ? `${editing.clienteNombre} ${editing.clienteApellido ?? ''}`.trim()
-          : `Cliente #${editing.clienteId}`,
+        label: editingClienteNombre,
       }
     : defaultCliente
       ? {

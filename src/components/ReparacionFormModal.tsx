@@ -19,7 +19,7 @@ import { useUsuariosQuery } from '../api/queries/usuarios.queries';
 import { equiposOptionsSource } from '../api/queries/equipos.queries';
 import { useAuth } from '../store/auth.store';
 import { CUENTA_LABEL, RIESGO_CUENTA_MSG } from '../config/ingreso';
-import { clienteLabel, equipoLabel, fotosPorMomento } from '../utils/reparacion';
+import { clienteLabel, fotosPorMomento } from '../utils/reparacion';
 import { toLocalDateInputValue } from '../utils/date';
 import { showSuccess } from '../utils/toast';
 import type {
@@ -183,10 +183,13 @@ export const ReparacionFormModal = ({
   const modo = watch('modo');
   const esRapido = !editing && modo === 'nuevo';
   const submitBlocked = blocking;
-  const editingEquipoOption = editing
+  const editingEquipoNombre = editing
+    ? `${editing.equipoMarca ?? ''} ${editing.equipoModelo ?? ''}`.trim()
+    : '';
+  const editingEquipoOption = editing && editingEquipoNombre
     ? {
       value: editing.equipoId,
-      label: equipoLabel(editing),
+      label: editingEquipoNombre,
       sublabel: editing.clienteNombre ? clienteLabel(editing) : undefined,
     }
     : undefined;

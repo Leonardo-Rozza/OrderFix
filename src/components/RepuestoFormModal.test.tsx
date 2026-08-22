@@ -107,7 +107,7 @@ describe('RepuestoFormModal', () => {
 
     renderUI(<RepuestoFormModal isOpen onClose={vi.fn()} editing={null} lockedReparacionId={7} />);
 
-    const selector = await screen.findByRole('combobox', { name: /artículo del inventario/i });
+    const selector = await screen.findByRole('button', { name: /artículo del inventario/i });
     await user.click(selector);
     await user.click(await screen.findByRole('option', { name: /módulo oled/i }));
 
@@ -140,11 +140,11 @@ describe('RepuestoFormModal', () => {
 
     renderUI(<RepuestoFormModal isOpen onClose={vi.fn()} editing={null} />);
 
-    await user.click(await screen.findByRole('combobox', { name: /artículo del inventario/i }));
+    await user.click(await screen.findByRole('button', { name: /artículo del inventario/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/continuar a mano/i);
     await user.keyboard('{Escape}');
 
-    await user.click(screen.getByRole('combobox', { name: /reparación asociada/i }));
+    await user.click(screen.getByRole('button', { name: /reparación asociada/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/dejar el repuesto sin asociar/i);
     await user.keyboard('{Escape}');
 
@@ -199,7 +199,7 @@ describe('RepuestoFormModal', () => {
 
     renderUI(<RepuestoFormModal isOpen onClose={vi.fn()} editing={null} />);
 
-    await user.click(screen.getByRole('combobox', { name: /reparación asociada/i }));
+    await user.click(screen.getByRole('button', { name: /reparación asociada/i }));
     const abierta = await screen.findByRole('option', { name: /ORD-0052/i });
     expect(screen.queryByRole('option', { name: /ORD-0051/i })).not.toBeInTheDocument();
     await user.click(abierta);
@@ -258,7 +258,7 @@ describe('RepuestoFormModal', () => {
 
     renderUI(<RepuestoFormModal isOpen onClose={vi.fn()} editing={editing} />);
 
-    const selector = screen.getByRole('combobox', { name: /reparación asociada/i });
+    const selector = screen.getByRole('button', { name: /reparación asociada/i });
     expect(selector).toHaveTextContent('Orden #42');
     expect(selector).toHaveTextContent('Samsung A52');
     expect(listRequests).toBe(0);

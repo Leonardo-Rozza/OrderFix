@@ -11,7 +11,8 @@ const createEquipo = async (equipo: EquipoCreate): Promise<Equipo> => {
 
 // Actualizar equipo
 const updateEquipo = async (equipo: EquipoUpdate): Promise<Equipo> => {
-  const { data } = await apiClient.put<Equipo>(`/equipos/${equipo.id}`, equipo);
+  const { id, ...body } = equipo;
+  const { data } = await apiClient.put<Equipo>(`/equipos/${id}`, body);
   return data;
 };
 

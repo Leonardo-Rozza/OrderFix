@@ -11,7 +11,8 @@ const createCliente = async (cliente: ClienteCreate): Promise<Cliente> => {
 
 // Actualizar cliente
 const updateCliente = async (cliente: ClienteUpdate): Promise<Cliente> => {
-  const { data } = await apiClient.put<Cliente>(`/clientes/${cliente.id}`, cliente);
+  const { id, ...body } = cliente;
+  const { data } = await apiClient.put<Cliente>(`/clientes/${id}`, body);
   return data;
 };
 

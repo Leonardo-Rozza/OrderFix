@@ -11,7 +11,8 @@ const createRepuesto = async (repuesto: RepuestoCreate): Promise<Repuesto> => {
 
 // Actualizar repuesto
 const updateRepuesto = async (repuesto: RepuestoUpdate): Promise<Repuesto> => {
-  const { data } = await apiClient.put<Repuesto>(`/repuestos/${repuesto.id}`, repuesto);
+  const { id, ...body } = repuesto;
+  const { data } = await apiClient.put<Repuesto>(`/repuestos/${id}`, body);
   return data;
 };
 

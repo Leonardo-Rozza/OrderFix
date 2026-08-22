@@ -80,7 +80,7 @@ export interface Suscripcion {
   proximoCobro: string | null;
   reparacionesEsteMes: number;
   limiteReparacionesMes: number | null; // null = ilimitado (PRO)
-  funciones?: Funciones;
+  funciones: Funciones;
 }
 
 // Respuesta del checkout de MercadoPago (POST /api/pagos/suscripcion)
@@ -124,7 +124,7 @@ export interface ClienteCreate {
   direccion?: string;
 }
 
-export interface ClienteUpdate extends Partial<ClienteCreate> {
+export interface ClienteUpdate extends ClienteCreate {
   id: number;
 }
 
@@ -153,7 +153,7 @@ export interface EquipoCreate {
   clienteId: number;
 }
 
-export interface EquipoUpdate extends Partial<EquipoCreate> {
+export interface EquipoUpdate extends EquipoCreate {
   id: number;
 }
 
@@ -348,7 +348,7 @@ export interface ReparacionCreate {
   garantiaCondiciones?: string;
 }
 
-export interface ReparacionUpdate extends Partial<ReparacionCreate> {
+export interface ReparacionUpdate extends ReparacionCreate {
   id: number;
 }
 
@@ -394,7 +394,7 @@ export interface RepuestoCreate {
   cantidad?: number;
 }
 
-export interface RepuestoUpdate extends Partial<RepuestoCreate> {
+export interface RepuestoUpdate extends RepuestoCreate {
   id: number;
 }
 
@@ -486,8 +486,14 @@ export interface ArticuloCreate {
   stockMinimo?: number;
 }
 
-export interface ArticuloUpdate extends Partial<ArticuloCreate> {
+export interface ArticuloUpdate {
   id: number;
+  nombre: string;
+  descripcion?: string;
+  sku?: string;
+  precio: number;
+  costo?: number;
+  stockMinimo?: number;
 }
 
 export interface AjusteStock {

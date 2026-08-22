@@ -343,3 +343,54 @@ git status --short
 ## Criterio de cierre
 
 La etapa queda completa cuando los cuatro selectores consultan y paginan el backend bajo demanda, preservan selección y accesibilidad, no duplican errores, no cachean secretos y toda la suite queda verde en Chromium y WebKit móvil.
+
+## Registro de implementación — 2026-08-22
+
+**Estado:** completado y validado localmente. No se hizo push.
+
+### Resultado entregado
+
+- Cliente de un equipo, equipo de una reparación, reparación de un repuesto y artículo de inventario consultan bajo demanda con `q`, `page` y `size=20`.
+- Las fuentes respetan el `sort` garantizado por contrato, pasan `AbortSignal` y presentan sus errores dentro del selector sin duplicar toasts.
+- Los formularios dejaron de precargar catálogos de 200/1000 elementos.
+- La carga rápida y la edición de reparaciones no consultan el catálogo de equipos.
+- Inventario y reparación son opcionales en el alta de repuestos; un fallo permite continuar manualmente.
+- Las asociaciones históricas cerradas se conservan sin usar `GET /reparaciones/{id}` ni introducir credenciales en la caché de opciones.
+- El selector mantiene resultados al fallar una página adicional, explica el error, permite reintentar y no atrapa Tab mientras la red continúa.
+- El disparador conserva semántica estable de botón; el buscador abierto es el único nodo con rol `combobox`.
+
+### Decisiones finales y desvíos controlados
+
+- La presentación y navegación compartidas quedaron dentro de `Combobox.tsx` en vez de extraerse a un archivo `ComboboxBase.tsx`. `Combobox` sigue siendo compatible con los consumidores locales y `AsyncCombobox` compone esa misma base pública. Se evitó una extracción mecánica adicional después de comprobar la regresión del componente estable.
+- Las opciones, IDs de DOM y `aria-activedescendant` se identifican por `value`; el cursor interno continúa representado por el índice de las páginas ya agregadas, cuyo orden es append-only. Si una fuente futura reordena páginas cargadas en el lugar, conviene migrar también ese cursor interno a `value`.
+- Cuando un DTO histórico no trae nombre denormalizado, el control muestra “Selección actual sin datos” en lugar de inventar `Cliente #id` o `Equipo #id`.
+- Sigue documentada como mejora de backend aceptar un filtro de reparaciones activas o múltiples estados para evitar recorrer páginas compuestas por órdenes cerradas. El frontend limita el salto automático a una página.
+
+### Commits atómicos
+
+```text
+b59b4e6 docs(selectors): diseña búsqueda paginada en formularios
+e927475 docs(selectors): planifica implementación paginada
+20305cc ci(e2e): instala WebKit para la matriz móvil
+8ab54fb fix(api): evita errores duplicados en consultas inline
+ac50880 feat(combobox): agrega búsqueda remota paginada
+80f9274 feat(api): pagina opciones remotas de formularios
+7905ed1 refactor(equipos): busca clientes bajo demanda
+d14a1d4 refactor(reparaciones): busca equipos bajo demanda
+6ee0f92 refactor(repuestos): pagina reparaciones e inventario
+d167dd1 test(e2e): cubre selectores paginados en móvil
+7593860 fix(combobox): corrige foco y estados incrementales
+```
+
+### Verificación final
+
+```text
+npm test          58 archivos / 244 pruebas aprobadas
+npm run typecheck aprobado
+npm run lint      aprobado
+npm run build     aprobado
+npm run test:e2e  57 pruebas aprobadas
+git diff --check  aprobado
+```
+
+La matriz E2E aprobó Chromium de escritorio y los perfiles `mobile-320`, `mobile-390`, `mobile-landscape` y `mobile-webkit`, incluida selección real desde página 2, carrera entre búsquedas, foco, Escape, scroll y ausencia de requests al detalle sensible.

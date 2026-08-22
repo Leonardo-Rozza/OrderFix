@@ -106,4 +106,36 @@ describe('Combobox', () => {
     await user.tab({ shift: true });
     expect(screen.getByLabelText('Campo anterior')).toHaveFocus();
   });
+
+  it('permite alcanzar Cargar más por teclado y también pedirlo con Flecha abajo', async () => {
+    const user = userEvent.setup();
+    const onLoadMore = vi.fn();
+    render(
+      <Modal isOpen onClose={vi.fn()} title="Equipo">
+        <Combobox
+          aria-label="Cliente"
+          value={undefined}
+          onChange={vi.fn()}
+          options={options.slice(0, 1)}
+          filterMode="remote"
+          searchValue=""
+          onSearchChange={vi.fn()}
+          hasNextPage
+          onLoadMore={onLoadMore}
+        />
+        <input aria-label="Campo siguiente" />
+      </Modal>,
+    );
+
+    await user.click(screen.getByRole('combobox', { name: 'Cliente' }));
+    const search = await screen.findByRole('combobox', { name: 'Buscar opciones' });
+    await user.tab();
+    const loadMore = screen.getByRole('button', { name: 'Cargar más' });
+    expect(loadMore).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(search).toHaveFocus();
+
+    await user.keyboard('{ArrowDown}');
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+  });
 });

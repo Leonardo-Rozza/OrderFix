@@ -11,15 +11,18 @@ import {
   type CSSProperties,
   type FocusEventHandler,
   type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { inputClass } from './ui';
 
-export interface ComboboxOption {
+export interface ComboboxOption<Meta = unknown> {
   value: number;
   label: string;
   /** Texto secundario (cliente, stock…) mostrado en gris a la derecha/abajo. */
   sublabel?: string;
+  /** Contexto mínimo que un formulario necesita al seleccionar la opción. */
+  meta?: Meta;
 }
 
 type ComboboxAriaProps = Pick<
@@ -27,7 +30,7 @@ type ComboboxAriaProps = Pick<
   'aria-describedby' | 'aria-invalid' | 'aria-label' | 'aria-required'
 >;
 
-interface Props extends ComboboxAriaProps {
+export interface ComboboxProps extends ComboboxAriaProps {
   value: number | undefined;
   onChange: (value: number | undefined, option?: ComboboxOption) => void;
   options: ComboboxOption[];
@@ -39,6 +42,26 @@ interface Props extends ComboboxAriaProps {
   disabled?: boolean;
   name?: string;
   onBlur?: FocusEventHandler<HTMLButtonElement>;
+  /** Mantiene visible una selección que no forma parte de las opciones cargadas. */
+  selectedOption?: ComboboxOption;
+  /** En remoto la fuente ya filtró las opciones; el componente no vuelve a filtrarlas. */
+  filterMode?: 'local' | 'remote';
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
+  searchPlaceholder?: string;
+  searchAriaLabel?: string;
+  isLoading?: boolean;
+  isFetchingNextPage?: boolean;
+  isError?: boolean;
+  errorMessage?: string;
+  emptyMessage?: string;
+  statusMessage?: string;
+  totalOptions?: number;
+  hasNextPage?: boolean;
+  onLoadMore?: () => void;
+  onRetry?: () => void;
+  onOpenChange?: (open: boolean) => void;
+  footer?: ReactNode;
 }
 
 interface PopoverPosition {
@@ -61,7 +84,7 @@ const norm = (value: string) =>
   value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 /** Select con búsqueda: input filtrable + navegación por teclado. */
-export const Combobox = forwardRef<HTMLButtonElement, Props>(function Combobox({
+export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(function Combobox({
   value,
   onChange,
   options,
@@ -72,6 +95,24 @@ export const Combobox = forwardRef<HTMLButtonElement, Props>(function Combobox({
   disabled = false,
   name,
   onBlur,
+  selectedOption,
+  filterMode = 'local',
+  searchValue,
+  onSearchChange,
+  searchPlaceholder = 'Buscar…',
+  searchAriaLabel = 'Buscar opciones',
+  isLoading = false,
+  isFetchingNextPage = false,
+  isError = false,
+  errorMessage = 'No pudimos cargar las opciones.',
+  emptyMessage = 'Sin resultados',
+  statusMessage,
+  totalOptions,
+  hasNextPage = false,
+  onLoadMore,
+  onRetry,
+  onOpenChange,
+  footer,
   'aria-describedby': ariaDescribedBy,
   'aria-invalid': ariaInvalid,
   'aria-label': ariaLabel,
@@ -83,7 +124,7 @@ export const Combobox = forwardRef<HTMLButtonElement, Props>(function Combobox({
   const emptyOptionId = `${listId}-empty`;
 
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
+  const [localQuery, setLocalQuery] = useState('');
   const [active, setActive] = useState(0);
   const [position, setPosition] = useState<PopoverPosition>({
     direction: 'down',
@@ -98,15 +139,30 @@ export const Combobox = forwardRef<HTMLButtonElement, Props>(function Combobox({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const footerActionRef = useRef<HTMLButtonElement>(null);
+  const pendingNextActiveRef = useRef<number | null>(null);
   const setTriggerRef = useCallback((node: HTMLButtonElement | null) => {
     triggerRef.current = node;
     if (typeof forwardedRef === 'function') forwardedRef(node);
     else if (forwardedRef) forwardedRef.current = node;
   }, [forwardedRef]);
 
-  const selected = options.find((option) => option.value === value);
+  const setSearch = useCallback((next: string) => {
+    if (filterMode === 'remote') onSearchChange?.(next);
+    else setLocalQuery(next);
+  }, [filterMode, onSearchChange]);
 
-  const filtered = useMemo(() => {
+  const setOpenState = useCallback((next: boolean) => {
+    setOpen(next);
+    onOpenChange?.(next);
+  }, [onOpenChange]);
+
+  const query = filterMode === 'remote' ? (searchValue ?? '') : localQuery;
+  const selected = options.find((option) => option.value === value)
+    ?? (selectedOption?.value === value ? selectedOption : undefined);
+
+  const displayedOptions = useMemo(() => {
+    if (filterMode === 'remote') return options;
     const normalizedQuery = norm(query.trim());
     if (!normalizedQuery) return options;
     return options.filter(
@@ -114,14 +170,19 @@ export const Combobox = forwardRef<HTMLButtonElement, Props>(function Combobox({
         norm(option.label).includes(normalizedQuery) ||
         (option.sublabel ? norm(option.sublabel).includes(normalizedQuery) : false),
     );
-  }, [options, query]);
+  }, [filterMode, options, query]);
 
   const activeDescendant =
     open && active === -1 && emptyLabel
       ? emptyOptionId
-      : open && active >= 0 && filtered[active]
-        ? `${listId}-option-${active}`
+      : open && active >= 0 && displayedOptions[active]
+        ? `${listId}-option-${displayedOptions[active].value}`
         : undefined;
+
+  const hasFooterAction = !!(
+    (isError && onRetry)
+    || (hasNextPage && onLoadMore)
+  );
 
   const updatePosition = useCallback(() => {
     const root = rootRef.current;
@@ -184,16 +245,16 @@ export const Combobox = forwardRef<HTMLButtonElement, Props>(function Combobox({
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
-      if (!rootRef.current?.contains(target) && !popoverRef.current?.contains(target)) setOpen(false);
+      if (!rootRef.current?.contains(target) && !popoverRef.current?.contains(target)) setOpenState(false);
     };
     document.addEventListener('pointerdown', onPointerDown);
     return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [open]);
+  }, [open, setOpenState]);
 
   // Al abrir: enfocar el buscador y posicionar el activo en el seleccionado.
   useEffect(() => {
     if (!open) return;
-    setQuery('');
+    setSearch('');
     const selectedIndex = selected ? options.findIndex((option) => option.value === selected.value) : -1;
     setActive(selectedIndex >= 0 ? selectedIndex : value === undefined && emptyLabel ? -1 : 0);
     const timeout = window.setTimeout(() => inputRef.current?.focus(), 0);
@@ -207,11 +268,19 @@ export const Combobox = forwardRef<HTMLButtonElement, Props>(function Combobox({
     if (!open || !listRef.current) return;
     const option = listRef.current.querySelector<HTMLElement>(`[data-option-index="${active}"]`);
     option?.scrollIntoView?.({ block: 'nearest' });
-  }, [active, filtered.length, open]);
+  }, [active, displayedOptions.length, open]);
+
+  // Si Flecha abajo pidió otra página, activar la primera opción nueva al llegar.
+  useEffect(() => {
+    const pendingIndex = pendingNextActiveRef.current;
+    if (pendingIndex === null || displayedOptions.length <= pendingIndex) return;
+    pendingNextActiveRef.current = null;
+    setActive(pendingIndex);
+  }, [displayedOptions.length]);
 
   const close = (restoreFocus = false) => {
-    setOpen(false);
-    setQuery('');
+    setOpenState(false);
+    setSearch('');
     if (restoreFocus) triggerRef.current?.focus();
   };
 
@@ -244,25 +313,34 @@ export const Combobox = forwardRef<HTMLButtonElement, Props>(function Combobox({
   const onKeyDown = (event: ReactKeyboardEvent) => {
     if (!open && (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ')) {
       event.preventDefault();
-      setOpen(true);
+      setOpenState(true);
       return;
     }
     if (!open) return;
 
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      if (filtered.length === 0) {
+      if (displayedOptions.length === 0) {
         if (emptyLabel) setActive(-1);
+        if (hasNextPage && onLoadMore && !isFetchingNextPage) {
+          pendingNextActiveRef.current = 0;
+          onLoadMore();
+        }
         return;
       }
-      setActive((current) => (current < 0 ? 0 : Math.min(current + 1, filtered.length - 1)));
+      if (active >= displayedOptions.length - 1 && hasNextPage && onLoadMore && !isFetchingNextPage) {
+        pendingNextActiveRef.current = displayedOptions.length;
+        onLoadMore();
+        return;
+      }
+      setActive((current) => (current < 0 ? 0 : Math.min(current + 1, displayedOptions.length - 1)));
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       setActive((current) => (current <= 0 && emptyLabel ? -1 : Math.max(current - 1, 0)));
     } else if (event.key === 'Enter') {
       event.preventDefault();
       if (active === -1 && emptyLabel) pick(null);
-      else if (filtered[active]) pick(filtered[active]);
+      else if (displayedOptions[active]) pick(displayedOptions[active]);
     } else if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
@@ -270,6 +348,10 @@ export const Combobox = forwardRef<HTMLButtonElement, Props>(function Combobox({
     } else if (event.key === 'Tab') {
       event.preventDefault();
       event.stopPropagation();
+      if (!event.shiftKey && hasFooterAction && footerActionRef.current) {
+        footerActionRef.current.focus();
+        return;
+      }
       moveFocusFromTrigger(event.shiftKey);
     }
   };
@@ -295,12 +377,12 @@ export const Combobox = forwardRef<HTMLButtonElement, Props>(function Combobox({
           type="text"
           value={query}
           onChange={(event) => {
-            setQuery(event.target.value);
+            setSearch(event.target.value);
             setActive(0);
           }}
           onKeyDown={onKeyDown}
-          placeholder="Buscar…"
-          aria-label="Buscar opciones"
+          placeholder={searchPlaceholder}
+          aria-label={searchAriaLabel}
           role="combobox"
           aria-autocomplete="list"
           aria-expanded="true"
@@ -315,6 +397,7 @@ export const Combobox = forwardRef<HTMLButtonElement, Props>(function Combobox({
         id={listId}
         role="listbox"
         aria-labelledby={fieldId}
+        aria-busy={isLoading || isFetchingNextPage}
         className="ofx-scroll min-h-0 flex-1 overscroll-contain overflow-y-auto py-1"
       >
         {emptyLabel ? (
@@ -334,18 +417,28 @@ export const Combobox = forwardRef<HTMLButtonElement, Props>(function Combobox({
           </li>
         ) : null}
 
-        {filtered.length === 0 ? (
-          <li className="px-3 py-3 text-center text-[13px] text-text-3">Sin resultados</li>
+        {isLoading && displayedOptions.length === 0 ? (
+          <li role="status" className="px-3 py-3 text-center text-[13px] text-text-3">
+            {statusMessage ?? 'Cargando opciones…'}
+          </li>
+        ) : isError && displayedOptions.length === 0 ? (
+          <li role="alert" className="px-3 py-3 text-center text-[13px] font-semibold text-danger-fg">
+            {errorMessage}
+          </li>
+        ) : displayedOptions.length === 0 ? (
+          <li className="px-3 py-3 text-center text-[13px] text-text-3">{emptyMessage}</li>
         ) : (
-          filtered.map((option, index) => {
+          displayedOptions.map((option, index) => {
             const isSelected = option.value === value;
             const isActive = index === active;
             return (
               <li
                 key={option.value}
-                id={`${listId}-option-${index}`}
+                id={`${listId}-option-${option.value}`}
                 role="option"
                 aria-selected={isSelected}
+                aria-posinset={index + 1}
+                aria-setsize={totalOptions}
                 data-option-index={index}
                 onMouseEnter={() => setActive(index)}
                 onMouseDown={(event) => event.preventDefault()}
@@ -365,6 +458,49 @@ export const Combobox = forwardRef<HTMLButtonElement, Props>(function Combobox({
           })
         )}
       </ul>
+      {footer ?? (hasFooterAction || isFetchingNextPage ? (
+        <div className="shrink-0 border-t border-border bg-surface px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+          {isError && onRetry ? (
+            <button
+              ref={footerActionRef}
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={onRetry}
+              onKeyDown={(event) => {
+                if (event.key !== 'Tab') return;
+                event.preventDefault();
+                event.stopPropagation();
+                if (event.shiftKey) inputRef.current?.focus();
+                else moveFocusFromTrigger(false);
+              }}
+              className="min-h-11 w-full rounded-md px-3 py-2 text-[13px] font-bold text-danger-fg transition hover:bg-danger-soft focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] sm:min-h-0"
+            >
+              Reintentar
+            </button>
+          ) : hasNextPage && onLoadMore ? (
+            <button
+              ref={footerActionRef}
+              type="button"
+              disabled={isFetchingNextPage}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={onLoadMore}
+              onKeyDown={(event) => {
+                if (event.key !== 'Tab') return;
+                event.preventDefault();
+                event.stopPropagation();
+                if (event.shiftKey) inputRef.current?.focus();
+                else moveFocusFromTrigger(false);
+              }}
+              className="min-h-11 w-full rounded-md px-3 py-2 text-[13px] font-bold text-primary transition hover:bg-primary-soft focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:cursor-wait disabled:opacity-60 sm:min-h-0"
+            >
+              {isFetchingNextPage ? 'Cargando más…' : 'Cargar más'}
+            </button>
+          ) : null}
+        </div>
+      ) : null)}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {statusMessage}
+      </div>
     </div>
   ) : null;
 
@@ -386,7 +522,7 @@ export const Combobox = forwardRef<HTMLButtonElement, Props>(function Combobox({
         aria-required={ariaRequired}
         disabled={disabled}
         onBlur={onBlur}
-        onClick={() => !disabled && setOpen((current) => !current)}
+        onClick={() => !disabled && setOpenState(!open)}
         onKeyDown={onKeyDown}
         className={`${inputClass(hasError)} flex touch-manipulation items-center justify-between gap-2 text-left disabled:cursor-not-allowed disabled:opacity-60`}
       >

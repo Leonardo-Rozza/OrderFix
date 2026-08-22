@@ -8,10 +8,11 @@ interface PageMeta {
 interface Props {
   meta: PageMeta | undefined;
   onChange: (page: number) => void;
+  disabled?: boolean;
 }
 
 /** Barra de paginación server-side: cuenta de resultados + anterior/siguiente. */
-export const Pagination = ({ meta, onChange }: Props) => {
+export const Pagination = ({ meta, onChange, disabled = false }: Props) => {
   if (!meta || meta.totalElements === 0) return null;
 
   const { number: page, totalPages, totalElements } = meta;
@@ -28,8 +29,8 @@ export const Pagination = ({ meta, onChange }: Props) => {
           <button
             type="button"
             onClick={() => onChange(page - 1)}
-            disabled={primera}
-            className="grid h-8 w-8 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-primary hover:text-primary disabled:opacity-40 disabled:hover:border-border-strong disabled:hover:text-text-2"
+            disabled={disabled || primera}
+            className="grid h-11 w-11 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:opacity-40 disabled:hover:border-border-strong disabled:hover:text-text-2 sm:h-8 sm:w-8"
             aria-label="Anterior"
           >
             <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
@@ -42,8 +43,8 @@ export const Pagination = ({ meta, onChange }: Props) => {
           <button
             type="button"
             onClick={() => onChange(page + 1)}
-            disabled={ultima}
-            className="grid h-8 w-8 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-primary hover:text-primary disabled:opacity-40 disabled:hover:border-border-strong disabled:hover:text-text-2"
+            disabled={disabled || ultima}
+            className="grid h-11 w-11 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:opacity-40 disabled:hover:border-border-strong disabled:hover:text-text-2 sm:h-8 sm:w-8"
             aria-label="Siguiente"
           >
             <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">

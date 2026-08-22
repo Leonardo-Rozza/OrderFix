@@ -10,6 +10,7 @@ import { ErrorState } from '../components/ErrorState';
 import { btnPrimary } from '../components/ui';
 import { formatMoney } from '../utils/format';
 import { useListParams } from '../hooks/useListParams';
+import { usePageBounds } from '../hooks/usePageBounds';
 import { useInventarioQuery } from '../api/queries/inventario.queries';
 import { useFunciones } from '../api/queries/suscripcion.queries';
 import { useDeleteArticuloMutation } from '../api/mutations/inventario.mutations';
@@ -19,7 +20,7 @@ import type { Articulo } from '../types';
 export const InventarioPage = () => {
   const { inventario } = useFunciones();
   const { q, onSearch, page, setPage, debouncedQ, size } = useListParams();
-  const { data, isLoading, isError, refetch } = useInventarioQuery({ q: debouncedQ, page, size }, inventario);
+  const { data, isLoading, isError, isFetching, isPlaceholderData, refetch } = useInventarioQuery({ q: debouncedQ, page, size }, inventario);
   const { isAdmin } = useAuth();
   const deleteMutation = useDeleteArticuloMutation();
 
@@ -29,6 +30,8 @@ export const InventarioPage = () => {
   const [toDelete, setToDelete] = useState<Articulo | null>(null);
 
   const articulos = data?.content ?? [];
+  const refreshing = isFetching && isPlaceholderData;
+  usePageBounds(page, setPage, data?.page, !isPlaceholderData);
 
   const openNew = () => {
     setEditing(null);
@@ -56,14 +59,16 @@ export const InventarioPage = () => {
       <div className="ofx-in mx-auto max-w-[1000px] space-y-4">
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative min-w-[180px] max-w-[360px] flex-1">
-            <svg viewBox="0 0 24 24" width={17} height={17} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-2.5">
+            <svg viewBox="0 0 24 24" width={17} height={17} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
               <path d="m21 21-4.3-4.3M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z" />
             </svg>
             <input
+              type="search"
+              aria-label="Buscar inventario"
               value={q}
               onChange={(e) => onSearch(e.target.value)}
               placeholder="Buscar por nombre o SKU…"
-              className="w-full rounded-lg border border-border-strong bg-surface py-2 pl-9 pr-3 text-[13.5px] text-text outline-none transition placeholder:text-text-3 focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)]"
+              className="min-h-11 w-full rounded-lg border border-border-strong bg-surface py-2 pl-9 pr-3 text-base text-text outline-none transition placeholder:text-text-3 focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)] sm:min-h-0 sm:text-[13.5px]"
             />
           </div>
           <button type="button" className={`${btnPrimary} ml-auto`} onClick={openNew}>
@@ -74,12 +79,18 @@ export const InventarioPage = () => {
           </button>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+        {refreshing && (
+          <div role="status" className="px-1 text-[12.5px] font-semibold text-text-3">
+            Actualizando resultados…
+          </div>
+        )}
+
+        <div aria-busy={refreshing} className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
           <div className="flex items-center gap-3 border-b border-border px-4 py-3 text-[11.5px] font-extrabold uppercase tracking-wide text-text-3">
             <div className="min-w-0 flex-[1.6]">Artículo</div>
             <div className="hidden w-[110px] text-right sm:block">Precio</div>
-            <div className="w-[90px] text-center">Stock</div>
-            <div className="w-[96px]" />
+            <div className="w-[70px] text-center sm:w-[90px]">Stock</div>
+            <div className="hidden w-[96px] sm:block" />
           </div>
 
           {isLoading ? (
@@ -97,13 +108,13 @@ export const InventarioPage = () => {
             />
           ) : (
             articulos.map((a) => (
-              <div key={a.id} className="flex items-center gap-3 border-b border-border px-4 py-3 transition last:border-0 hover:bg-surface-2">
+              <div key={a.id} className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3 transition last:border-0 hover:bg-surface-2 sm:flex-nowrap">
                 <div className="min-w-0 flex-[1.6]">
                   <div className="truncate text-[14px] font-bold">{a.nombre}</div>
                   {a.sku && <div className="truncate font-mono text-[12px] text-text-3">{a.sku}</div>}
                 </div>
                 <div className="hidden w-[110px] text-right font-mono text-[13.5px] font-bold sm:block">{formatMoney(a.precio)}</div>
-                <div className="w-[90px] text-center">
+                <div className="w-[70px] text-center sm:w-[90px]">
                   <span
                     className={`inline-block rounded-full px-2.5 py-1 font-mono text-[12.5px] font-extrabold ${
                       a.stockBajo ? 'bg-warning-soft text-warning' : 'bg-surface-3 text-text-2'
@@ -113,12 +124,13 @@ export const InventarioPage = () => {
                     {a.stock}
                   </span>
                 </div>
-                <div className="flex w-[96px] justify-end gap-1">
+                <div className="flex w-full justify-end gap-2 sm:w-[96px] sm:gap-1">
                   <button
                     type="button"
                     aria-label="Ajustar stock" title="Ajustar stock"
                     onClick={() => setAjuste(a)}
-                    className="grid h-8 w-8 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-primary hover:text-primary"
+                    disabled={refreshing}
+                    className="grid h-11 w-11 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:cursor-wait disabled:opacity-60 sm:h-8 sm:w-8"
                   >
                     <svg viewBox="0 0 24 24" width={15} height={15} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 5v14M5 12h14" />
@@ -131,7 +143,8 @@ export const InventarioPage = () => {
                       setEditing(a);
                       setFormOpen(true);
                     }}
-                    className="grid h-8 w-8 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-primary hover:text-primary"
+                    disabled={refreshing}
+                    className="grid h-11 w-11 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:cursor-wait disabled:opacity-60 sm:h-8 sm:w-8"
                   >
                     <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
@@ -142,7 +155,8 @@ export const InventarioPage = () => {
                       type="button"
                       aria-label="Eliminar" title="Eliminar"
                       onClick={() => setToDelete(a)}
-                      className="grid h-8 w-8 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-danger hover:text-danger"
+                      disabled={refreshing}
+                      className="grid h-11 w-11 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 transition hover:border-danger hover:text-danger focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:cursor-wait disabled:opacity-60 sm:h-8 sm:w-8"
                     >
                       <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
                         <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
@@ -155,7 +169,7 @@ export const InventarioPage = () => {
           )}
         </div>
 
-        <Pagination meta={data?.page} onChange={setPage} />
+        <Pagination meta={data?.page} onChange={setPage} disabled={refreshing} />
       </div>
 
       <ArticuloFormModal isOpen={formOpen} onClose={() => setFormOpen(false)} editing={editing} />

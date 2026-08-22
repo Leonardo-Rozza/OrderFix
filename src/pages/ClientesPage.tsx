@@ -11,6 +11,7 @@ import { ErrorState } from '../components/ErrorState';
 import { btnPrimary } from '../components/ui';
 import { iniciales, formatDate } from '../utils/format';
 import { useListParams } from '../hooks/useListParams';
+import { usePageBounds } from '../hooks/usePageBounds';
 import { useClientesQuery, useClientesOptions } from '../api/queries/clientes.queries';
 import { useDeleteClienteMutation } from '../api/mutations/clientes.mutations';
 import { useAuth } from '../store/auth.store';
@@ -18,8 +19,13 @@ import type { Cliente } from '../types';
 
 export const ClientesPage = () => {
   const { q, onSearch, page, setPage, debouncedQ, size, sort, setSort } = useListParams(20, 'nombre,asc');
-  const { data, isLoading, isError, refetch } = useClientesQuery({ q: debouncedQ, page, size, sort });
-  const { data: clientesOptions = [] } = useClientesOptions();
+  const { data, isLoading, isError, isFetching, isPlaceholderData, refetch } = useClientesQuery({ q: debouncedQ, page, size, sort });
+  const {
+    data: clientesOptions = [],
+    isLoading: clientesOptionsLoading,
+    isError: clientesOptionsError,
+    refetch: refetchClientesOptions,
+  } = useClientesOptions();
   const { isAdmin } = useAuth();
   const deleteMutation = useDeleteClienteMutation();
 
@@ -30,6 +36,8 @@ export const ClientesPage = () => {
   const [toDelete, setToDelete] = useState<Cliente | null>(null);
 
   const clientes = data?.content ?? [];
+  const refreshing = isFetching && isPlaceholderData;
+  usePageBounds(page, setPage, data?.page, !isPlaceholderData);
 
   const openNew = () => {
     setEditing(null);
@@ -39,6 +47,17 @@ export const ClientesPage = () => {
     setFicha(null);
     setEditing(c);
     setFormOpen(true);
+  };
+  const requestDeleteFromFicha = () => {
+    if (!ficha) return;
+    // La confirmación reemplaza a la ficha: dos aria-modal apilados compiten
+    // por Escape, el foco y el bloqueo de scroll.
+    setToDelete(ficha);
+    setFicha(null);
+  };
+  const cancelDelete = () => {
+    setFicha(toDelete);
+    setToDelete(null);
   };
   const confirmDelete = async () => {
     if (!toDelete) return;
@@ -52,14 +71,16 @@ export const ClientesPage = () => {
       <div className="ofx-in mx-auto max-w-[1100px] space-y-4">
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative min-w-[180px] max-w-[360px] flex-1">
-            <svg viewBox="0 0 24 24" width={17} height={17} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-2.5">
+            <svg viewBox="0 0 24 24" width={17} height={17} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
               <path d="m21 21-4.3-4.3M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z" />
             </svg>
             <input
+              type="search"
+              aria-label="Buscar clientes"
               value={q}
               onChange={(e) => onSearch(e.target.value)}
-              placeholder="Buscar cliente por nombre, tel o email…"
-              className="w-full rounded-lg border border-border-strong bg-surface py-2 pl-9 pr-3 text-[13.5px] text-text outline-none transition placeholder:text-text-3 focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)]"
+              placeholder="Buscar cliente por nombre, apellido o teléfono…"
+              className="min-h-11 w-full rounded-lg border border-border-strong bg-surface py-2 pl-9 pr-3 text-base text-text outline-none transition placeholder:text-text-3 focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)] sm:min-h-0 sm:text-[13.5px]"
             />
           </div>
           <SortSelect
@@ -80,7 +101,13 @@ export const ClientesPage = () => {
           </button>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+        {refreshing && (
+          <div role="status" className="px-1 text-[12.5px] font-semibold text-text-3">
+            Actualizando resultados…
+          </div>
+        )}
+
+        <div aria-busy={refreshing} className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
           <div className="flex items-center gap-3 border-b border-border px-4 py-3 text-[11.5px] font-extrabold uppercase tracking-wide text-text-3">
             <div className="min-w-0 flex-[1.6]">Cliente</div>
             <div className="hidden min-w-0 flex-[1.4] sm:block">Contacto</div>
@@ -108,16 +135,22 @@ export const ClientesPage = () => {
               <div
                 key={c.id}
                 role="button"
-                tabIndex={0}
+                tabIndex={refreshing ? -1 : 0}
+                aria-disabled={refreshing || undefined}
                 aria-label={`Ver ficha de ${c.nombre} ${c.apellido ?? ''}`.trim()}
-                onClick={() => setFicha(c)}
+                onClick={() => {
+                  if (!refreshing) setFicha(c);
+                }}
                 onKeyDown={(ev) => {
+                  if (refreshing) return;
                   if (ev.key === 'Enter' || ev.key === ' ') {
                     ev.preventDefault();
                     setFicha(c);
                   }
                 }}
-                className="flex cursor-pointer items-center gap-3 border-b border-border px-4 py-3 transition last:border-0 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)]"
+                className={`flex items-center gap-3 border-b border-border px-4 py-3 transition last:border-0 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] ${
+                  refreshing ? 'cursor-wait opacity-60' : 'cursor-pointer hover:bg-surface-2'
+                }`}
               >
                 <div className="flex min-w-0 flex-[1.6] items-center gap-3">
                   <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary-soft text-[13px] font-extrabold text-primary-soft-fg">
@@ -139,7 +172,7 @@ export const ClientesPage = () => {
           )}
         </div>
 
-        <Pagination meta={data?.page} onChange={setPage} />
+        <Pagination meta={data?.page} onChange={setPage} disabled={refreshing} />
       </div>
 
       <ClienteFichaModal
@@ -147,7 +180,7 @@ export const ClientesPage = () => {
         cliente={ficha}
         onClose={() => setFicha(null)}
         onEdit={() => ficha && openEdit(ficha)}
-        onDelete={() => ficha && setToDelete(ficha)}
+        onDelete={requestDeleteFromFicha}
         canDelete={isAdmin}
         onNuevoEquipo={() => {
           if (ficha) {
@@ -163,7 +196,14 @@ export const ClientesPage = () => {
         isOpen={!!equipoFor}
         onClose={() => setEquipoFor(null)}
         editing={null}
-        clientes={clientesOptions}
+        clientes={
+          equipoFor && !clientesOptions.some((cliente) => cliente.id === equipoFor.id)
+            ? [equipoFor, ...clientesOptions]
+            : clientesOptions
+        }
+        clientesLoading={clientesOptionsLoading}
+        clientesError={clientesOptionsError}
+        onRetryClientes={() => void refetchClientesOptions()}
         defaultClienteId={equipoFor?.id}
       />
 
@@ -173,7 +213,7 @@ export const ClientesPage = () => {
         message={`¿Seguro que querés eliminar a ${toDelete?.nombre} ${toDelete?.apellido}? Esta acción no se puede deshacer.`}
         loading={deleteMutation.isPending}
         onConfirm={confirmDelete}
-        onClose={() => setToDelete(null)}
+        onClose={cancelDelete}
       />
     </DashboardLayout>
   );

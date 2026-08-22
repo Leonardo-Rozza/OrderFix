@@ -30,7 +30,8 @@ const defaultSuscripcion = {
   fechaFinTrial: null,
   proximoCobro: null,
   reparacionesEsteMes: 0,
-  limiteReparacionesMes: 50,
+  limiteReparacionesMes: null,
+  funciones: { inventario: true, cobros: true, empleadosMultiples: true },
 };
 
 const defaultSeguimiento = {
@@ -53,12 +54,69 @@ const defaultSeguimiento = {
   },
 };
 
+const defaultReparacionDetalle = {
+  id: 1,
+  equipoId: 1,
+  descripcionProblema: 'Pantalla rota',
+  estado: 'ENTREGADO',
+  precioEstimado: 50_000,
+  precioFinal: 50_000,
+  fechaIngreso: '2026-08-01',
+  fechaEstimadaEntrega: '2026-08-05',
+  fechaEntrega: '2026-08-05',
+  codigoSeguimiento: 'ABC123',
+  numeroOrden: 'ORD-2026-0001',
+  total: 50_000,
+  totalRepuestos: 0,
+  cobrado: 10_000,
+  saldo: 40_000,
+  estadoPago: 'PARCIAL',
+  patronDesbloqueo: null,
+  pinDesbloqueo: null,
+  accesorios: null,
+  condicionesIngreso: null,
+  observaciones: null,
+  tecnicoId: null,
+  tecnicoNombre: null,
+  fotos: [],
+  mojado: false,
+  trabajoEnPlaca: false,
+  noTesteableAlIngreso: false,
+  tieneBloqueoPantalla: false,
+  tieneCuentaVinculada: 'NINGUNA',
+  clienteConoceCredenciales: false,
+  riesgoCuentaSinCredenciales: false,
+  fechaConformidadEntrega: '2026-08-05',
+  garantiaDias: 90,
+  garantiaInicio: '2026-08-05',
+  garantiaFin: '2042-12-31',
+  garantiaCondiciones: 'Cubre el trabajo realizado',
+  garantiaVigente: true,
+  esGarantia: false,
+  reparacionOrigenId: null,
+  equipoMarca: 'Apple',
+  equipoModelo: 'iPhone 13',
+  clienteId: 1,
+  clienteNombre: 'Ana',
+  clienteApellido: 'Gómez',
+  clienteTelefono: '1155550000',
+};
+
 export interface MockData {
   reparaciones?: unknown[];
+  /** Reparación denormalizada de GET /reparaciones/:id. */
+  reparacionDetalle?: Record<string, unknown>;
+  /** Sub-listado simple de GET /reparaciones/equipo/:id. */
+  reparacionesEquipo?: unknown[];
   equipos?: unknown[];
   clientes?: unknown[];
   repuestos?: unknown[];
+  /** Sub-listado de repuestos asociados a una reparación. */
+  repuestosReparacion?: unknown[];
+  /** Sub-listado simple de presupuestos de una reparación. */
+  presupuestos?: unknown[];
   articulos?: unknown[];
+  usuarios?: unknown[];
   /** Sobrescribe la respuesta de /suscripcion (p. ej. para gating PRO). */
   suscripcion?: Record<string, unknown>;
   /** Estado inicial del seguimiento público; el approve/reject lo muta. */
@@ -67,11 +125,18 @@ export interface MockData {
   cobros?: Record<string, unknown>;
   /** Respuesta de /reparaciones/:id/recibo. */
   recibo?: Record<string, unknown>;
+  /** Respuesta de /caja para pruebas de filtros y responsive. */
+  caja?: Record<string, unknown>;
 }
 
 /** Mockea toda la API (/api/**) a nivel de red, así los E2E no dependen del backend. */
 export const mockApi = async (page: Page, data: MockData = {}) => {
   const { reparaciones = [], equipos = [], clientes = [], repuestos = [], articulos = [] } = data;
+  const reparacionDetalle = { ...defaultReparacionDetalle, ...(data.reparacionDetalle ?? {}) };
+  const reparacionesEquipo = data.reparacionesEquipo ?? [];
+  const repuestosReparacion = data.repuestosReparacion ?? [];
+  const presupuestos = data.presupuestos ?? [];
+  const usuarios = data.usuarios ?? [];
   const suscripcion = data.suscripcion ?? defaultSuscripcion;
   const cobros = data.cobros ?? { total: 0, cobrado: 0, saldo: 0, pagado: false, cobros: [] };
   // Estado mutable del seguimiento (para que aprobar/rechazar cambie el badge al refetch).
@@ -130,6 +195,38 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
       return route.fulfill({ status: 201, json: { id: 1, fecha: '2026-06-22T10:00:00', ...body } });
     }
 
+    // Subrecursos de una reparación: el backend responde arrays simples.
+    if (/\/api\/reparaciones\/\d+\/presupuestos$/.test(pathname) && method === 'GET') {
+      return route.fulfill({ json: presupuestos });
+    }
+    if (/\/api\/repuestos\/reparacion\/\d+$/.test(pathname) && method === 'GET') {
+      return route.fulfill({ json: repuestosReparacion });
+    }
+    if (/\/api\/reparaciones\/equipo\/\d+$/.test(pathname) && method === 'GET') {
+      return route.fulfill({ json: reparacionesEquipo });
+    }
+
+    // Detalle denormalizado (equipo + cliente), después de sus subrecursos.
+    if (/\/api\/reparaciones\/\d+$/.test(pathname) && method === 'GET') {
+      return route.fulfill({ json: reparacionDetalle });
+    }
+
+    // Caja por período
+    if (pathname.endsWith('/api/caja') && method === 'GET') {
+      return route.fulfill({
+        json:
+          data.caja ??
+          {
+            desde: '2026-08-13',
+            hasta: '2026-08-13',
+            totalCobrado: 0,
+            cantidad: 0,
+            porMetodo: {},
+            cobros: [],
+          },
+      });
+    }
+
     // Listados (GET)
     if (pathname.endsWith('/api/reparaciones') && method === 'GET') {
       const estado = url.searchParams.get('estado');
@@ -139,9 +236,15 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
       return route.fulfill({ json: pageOf(items) });
     }
     if (pathname.endsWith('/api/equipos') && method === 'GET') return route.fulfill({ json: pageOf(equipos) });
+    const equiposClienteMatch = pathname.match(/\/api\/equipos\/cliente\/(\d+)$/);
+    if (equiposClienteMatch && method === 'GET') {
+      const clienteId = Number(equiposClienteMatch[1]);
+      const items = (equipos as { clienteId?: number }[]).filter((equipo) => equipo.clienteId === clienteId);
+      return route.fulfill({ json: items });
+    }
     if (pathname.endsWith('/api/clientes') && method === 'GET') return route.fulfill({ json: pageOf(clientes) });
     if (pathname.endsWith('/api/repuestos') && method === 'GET') return route.fulfill({ json: pageOf(repuestos) });
-    if (pathname.includes('/api/repuestos/reparacion/')) return route.fulfill({ json: pageOf([]) });
+    if (pathname.endsWith('/api/usuarios') && method === 'GET') return route.fulfill({ json: usuarios });
 
     // Inventario
     if (pathname.endsWith('/api/inventario') && method === 'GET') return route.fulfill({ json: pageOf(articulos) });
@@ -173,7 +276,7 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
           equiposListos: 0,
           plan: 'FREE',
           estadoSuscripcion: 'TRIAL',
-          limiteReparacionesMes: 50,
+          limiteReparacionesMes: null,
         },
       });
     }

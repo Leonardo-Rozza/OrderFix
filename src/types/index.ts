@@ -207,8 +207,6 @@ export interface Reparacion {
   /** max(0, total - cobrado). */
   saldo?: number | null;
   estadoPago?: EstadoPago;
-  patronDesbloqueo?: string | null;
-  pinDesbloqueo?: string | null;
   accesorios?: string | null;
   condicionesIngreso?: string | null;
   observaciones?: string | null;
@@ -245,6 +243,18 @@ export interface Reparacion {
   clienteApellido?: string;
   clienteTelefono?: string;
 }
+
+/**
+ * Secretos del equipo. Viven únicamente en memoria local de la ficha autenticada
+ * y nunca deben formar parte de listados, caches globales, logs o analytics.
+ */
+export interface ReparacionCredenciales {
+  patronDesbloqueo: string | null;
+  pinDesbloqueo: string | null;
+}
+
+/** Respuesta exclusiva de GET /reparaciones/{id}. */
+export interface ReparacionDetalle extends Reparacion, ReparacionCredenciales {}
 
 // ========== PRESUPUESTOS ==========
 export type PresupuestoEstado = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'VENCIDO';

@@ -45,7 +45,15 @@ export const ReparacionDetallePage = () => {
   const reparacionId = Number(id);
   const navigate = useNavigate();
 
-  const { data: rep, isLoading, isError, refetch } = useReparacionQuery(reparacionId);
+  const {
+    data: rep,
+    isLoading,
+    isError,
+    refetch,
+    credenciales,
+    limpiarCredenciales,
+    refetchCredenciales,
+  } = useReparacionQuery(reparacionId);
   const { data: equipos = [] } = useEquiposOptions();
   const { data: repuestos = [] } = useRepuestosPorReparacionQuery(reparacionId);
   const { data: presupuestos = [] } = usePresupuestosQuery(reparacionId);
@@ -134,7 +142,19 @@ export const ReparacionDetallePage = () => {
   ].filter(Boolean) as string[];
 
   const handleEstadoSelect = (estado: EstadoReparacion) => {
-    if (estado !== rep.estado) cambiarEstado.mutate({ id: rep.id, estado });
+    if (estado === rep.estado) return;
+
+    const entregando = estado === 'ENTREGADO';
+    if (entregando) limpiarCredenciales();
+    cambiarEstado.mutate(
+      { id: rep.id, estado },
+      {
+        onError: () => {
+          if (!entregando) return;
+          void refetchCredenciales().catch(() => undefined);
+        },
+      },
+    );
   };
 
   // El backend arma el mensaje + link de seguimiento; abrimos la pestaña en el
@@ -285,8 +305,8 @@ export const ReparacionDetallePage = () => {
             </div>
 
             {/* Orden de trabajo */}
-            {(rep.patronDesbloqueo ||
-              rep.pinDesbloqueo ||
+            {(credenciales.patronDesbloqueo ||
+              credenciales.pinDesbloqueo ||
               rep.accesorios ||
               rep.condicionesIngreso ||
               rep.observaciones ||
@@ -311,16 +331,16 @@ export const ReparacionDetallePage = () => {
                       <span className="font-semibold">{rep.tecnicoNombre}</span>
                     </div>
                   )}
-                  {rep.patronDesbloqueo && (
+                  {credenciales.patronDesbloqueo && (
                     <div>
                       <span className="text-text-3">Patrón: </span>
-                      <span className="font-mono font-semibold">{rep.patronDesbloqueo}</span>
+                      <span className="font-mono font-semibold">{credenciales.patronDesbloqueo}</span>
                     </div>
                   )}
-                  {rep.pinDesbloqueo && (
+                  {credenciales.pinDesbloqueo && (
                     <div>
                       <span className="text-text-3">PIN: </span>
-                      <span className="font-mono font-semibold">{rep.pinDesbloqueo}</span>
+                      <span className="font-mono font-semibold">{credenciales.pinDesbloqueo}</span>
                     </div>
                   )}
                   {rep.accesorios && (
@@ -610,7 +630,7 @@ export const ReparacionDetallePage = () => {
               </select>
               {next && (
                 <button
-                  onClick={() => cambiarEstado.mutate({ id: rep.id, estado: next })}
+                  onClick={() => handleEstadoSelect(next)}
                   disabled={cambiarEstado.isPending}
                   className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary py-3 text-[14px] font-bold text-primary-fg shadow-sm transition hover:bg-primary-hover disabled:opacity-60"
                 >
@@ -710,7 +730,15 @@ export const ReparacionDetallePage = () => {
         </div>
       </div>
 
-      <ReparacionFormModal isOpen={editOpen} onClose={() => setEditOpen(false)} editing={rep} equipos={equipos} />
+      <ReparacionFormModal
+        isOpen={editOpen}
+        onClose={() => setEditOpen(false)}
+        editing={rep}
+        equipos={equipos}
+        credenciales={credenciales}
+        onLimpiarCredenciales={limpiarCredenciales}
+        onRefetchCredenciales={refetchCredenciales}
+      />
       <ConfirmDialog
         isOpen={confirmOpen}
         title="Eliminar reparación"

@@ -120,6 +120,8 @@ describe('queryKeys', () => {
       null,
     ]);
     expect(queryKeys.recibos.byReparacion(13)).toEqual(['recibo', 13]);
+    expect(queryKeys.resumenes).toBe(queryKeys.recibos);
+    expect(queryKeys.resumenes.byReparacion(13)).toEqual(queryKeys.recibos.byReparacion(13));
     expect(queryKeys.seguimiento.byCodigo('ABC')).toEqual(['seguimiento', 'ABC']);
     expect(queryKeys.inventario.list(params)).toEqual(['inventario', params]);
     expect(queryKeys.inventario.options).toEqual(['inventario', 'options']);

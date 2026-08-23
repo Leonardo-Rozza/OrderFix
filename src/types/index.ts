@@ -496,17 +496,68 @@ export interface CajaResumen {
   cobros: Cobro[];
 }
 
-export interface ReciboItem {
+export interface ResumenDigitalItem {
   nombre: string;
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
 }
 
-export interface Recibo {
-  reparacionId: number;
+export interface ResumenDigitalPago {
+  fecha: string;
+  monto: number;
+  metodo: MetodoPago;
+  referencia: string | null;
+}
+
+export interface ResumenDigitalDatosCobro {
+  alias: string | null;
+  titular: string | null;
+  entidad: string | null;
+  qrDisponible: boolean;
+  qrVersion: string | null;
+}
+
+/** Resumen operativo autenticado; no constituye un documento fiscal. */
+export interface ResumenDigital {
+  numeroOrden: string | null;
   codigoSeguimiento: string | null;
+  fecha: string;
   estado: EstadoReparacion;
+  taller: {
+    nombre: string;
+    telefono: string | null;
+  };
+  cliente: {
+    nombre: string;
+    apellido: string;
+    telefono: string | null;
+  };
+  equipo: {
+    marca: string;
+    modelo: string;
+    descripcionProblema: string;
+  };
+  detalle: {
+    repuestos: ResumenDigitalItem[];
+    manoDeObra: number;
+    totalRepuestos: number;
+  };
+  importes: {
+    total: number;
+    cobrado: number;
+    saldo: number;
+    excedente: number;
+    requiereRevision: boolean;
+    pagado: boolean;
+  };
+  pagos: ResumenDigitalPago[];
+  datosCobro: ResumenDigitalDatosCobro | null;
+  documentoFiscal: boolean;
+  leyenda: string;
+
+  // Compatibilidad temporal con el contrato plano de ReciboDTO.
+  reparacionId: number;
   tallerNombre: string;
   tallerTelefono: string | null;
   clienteNombre: string;
@@ -515,15 +566,21 @@ export interface Recibo {
   equipoMarca: string;
   equipoModelo: string;
   descripcionProblema: string;
-  repuestos: ReciboItem[];
+  repuestos: ResumenDigitalItem[];
   manoDeObra: number;
   totalRepuestos: number;
   total: number;
   cobrado: number;
   saldo: number;
+  excedente: number;
+  requiereRevision: boolean;
   pagado: boolean;
-  fecha: string;
 }
+
+/** @deprecated Usar ResumenDigital. Conserva compatibilidad de imports. */
+export type Recibo = ResumenDigital;
+/** @deprecated Usar ResumenDigitalItem. */
+export type ReciboItem = ResumenDigitalItem;
 
 // ========== INVENTARIO ==========
 export interface Articulo {

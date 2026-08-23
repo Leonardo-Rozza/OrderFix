@@ -157,6 +157,63 @@ const defaultReparacionDetalle = {
   clienteTelefono: '1155550000',
 };
 
+const defaultResumenDigital = {
+  reparacionId: 1,
+  numeroOrden: 'ORD-2026-0001',
+  codigoSeguimiento: 'ABC123',
+  fecha: '2026-08-05T12:00:00',
+  estado: 'ENTREGADO',
+  taller: {
+    nombre: 'MVGR Reparaciones',
+    telefono: '1155550000',
+  },
+  cliente: {
+    nombre: 'Ana',
+    apellido: 'Gómez',
+    telefono: '1155550000',
+  },
+  equipo: {
+    marca: 'Apple',
+    modelo: 'iPhone 13',
+    descripcionProblema: 'Pantalla rota',
+  },
+  detalle: {
+    repuestos: [],
+    manoDeObra: 50_000,
+    totalRepuestos: 0,
+  },
+  importes: {
+    total: 50_000,
+    cobrado: 10_000,
+    saldo: 40_000,
+    excedente: 0,
+    requiereRevision: false,
+    pagado: false,
+  },
+  pagos: [],
+  datosCobro: null,
+  documentoFiscal: false,
+  leyenda: 'Documento informativo. No es factura ni comprobante fiscal y no reemplaza los emitidos por ARCA.',
+  // Compatibilidad del backend: los campos planos siguen presentes durante la transición.
+  tallerNombre: 'MVGR Reparaciones',
+  tallerTelefono: '1155550000',
+  clienteNombre: 'Ana',
+  clienteApellido: 'Gómez',
+  clienteTelefono: '1155550000',
+  equipoMarca: 'Apple',
+  equipoModelo: 'iPhone 13',
+  descripcionProblema: 'Pantalla rota',
+  repuestos: [],
+  manoDeObra: 50_000,
+  totalRepuestos: 0,
+  total: 50_000,
+  cobrado: 10_000,
+  saldo: 40_000,
+  excedente: 0,
+  requiereRevision: false,
+  pagado: false,
+};
+
 export interface MockData {
   /** Identidad visible del usuario y taller autenticados. */
   perfil?: Record<string, unknown>;
@@ -180,7 +237,9 @@ export interface MockData {
   seguimiento?: Record<string, unknown>;
   /** Respuesta de /reparaciones/:id/cobros. */
   cobros?: Record<string, unknown>;
-  /** Respuesta de /reparaciones/:id/recibo. */
+  /** Respuesta canónica de /reparaciones/:id/resumen-digital. */
+  resumenDigital?: Record<string, unknown>;
+  /** @deprecated Compatibilidad de fixtures de /reparaciones/:id/recibo. */
   recibo?: Record<string, unknown>;
   /** Respuesta de /caja para pruebas de filtros y responsive. */
   caja?: Record<string, unknown>;
@@ -294,9 +353,11 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
       return route.fulfill({ status: 201, json: { id: 1000, ...(req.postDataJSON() as object) } });
     }
 
-    // Recibo de una reparación
-    if (/\/api\/reparaciones\/\d+\/recibo$/.test(pathname) && method === 'GET') {
-      return route.fulfill({ json: data.recibo ?? {} });
+    // Resumen digital canónico y alias backend de transición.
+    if (/\/api\/reparaciones\/\d+\/(resumen-digital|recibo)$/.test(pathname) && method === 'GET') {
+      return route.fulfill({
+        json: data.resumenDigital ?? data.recibo ?? defaultResumenDigital,
+      });
     }
 
     // Cobros de una reparación

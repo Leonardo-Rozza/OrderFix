@@ -174,6 +174,8 @@ describe('ReparacionDetallePage — estados honestos de subconsultas', () => {
     expect(within(repuestos).getByRole('button', { name: 'Agregar' })).toBeDisabled();
     expect(within(presupuestos).getByRole('button', { name: 'Nuevo' })).toBeDisabled();
     expect(within(cobros).getByRole('button', { name: 'Cobrar' })).toBeDisabled();
+    expect(within(cobros).getByRole('link', { name: 'Resumen digital' }))
+      .toHaveAttribute('aria-disabled', 'true');
     expect(within(cobros).queryByText('$0')).not.toBeInTheDocument();
   });
 
@@ -231,6 +233,8 @@ describe('ReparacionDetallePage — estados honestos de subconsultas', () => {
       'title',
       'La orden no tiene pendiente de cobro',
     );
+    expect(screen.getByRole('link', { name: 'Resumen digital' }))
+      .toHaveAttribute('href', '/reparaciones/7/resumen');
   });
 
   it('muestra activos y anulados como historia auditable, con acción sólo sobre el activo', async () => {

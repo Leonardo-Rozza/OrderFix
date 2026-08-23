@@ -24,6 +24,11 @@ export interface CajaQueryRange {
   hasta?: string;
 }
 
+const resumenQueryKeys = {
+  all: ['recibo'] as const,
+  byReparacion: (reparacionId: number | undefined) => ['recibo', reparacionId] as const,
+};
+
 /**
  * Fuente única de query keys.
  *
@@ -97,10 +102,10 @@ export const queryKeys = {
     range: (rango: CajaQueryRange) =>
       ['caja', rango.desde ?? null, rango.hasta ?? null] as const,
   },
-  recibos: {
-    all: ['recibo'] as const,
-    byReparacion: (reparacionId: number | undefined) => ['recibo', reparacionId] as const,
-  },
+  // `recibo` conserva la tupla histórica; ambos nombres apuntan al mismo objeto
+  // para que la migración semántica no cree una segunda caché.
+  recibos: resumenQueryKeys,
+  resumenes: resumenQueryKeys,
   seguimiento: {
     all: ['seguimiento'] as const,
     byCodigo: (codigo: string | undefined) => ['seguimiento', codigo] as const,

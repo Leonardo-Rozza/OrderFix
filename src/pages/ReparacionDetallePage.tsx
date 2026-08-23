@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { EstadoBadge } from '../components/EstadoBadge';
 import { ReparacionFormModal } from '../components/ReparacionFormModal';
@@ -610,10 +610,8 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
                     <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                   </svg>
                   <h2 id="cobros-section-title" className="mr-auto">Cobros</h2>
-                  <a
-                    href={`/reparaciones/${rep.id}/recibo`}
-                    target="_blank"
-                    rel="noreferrer"
+                  <Link
+                    to={`/reparaciones/${rep.id}/resumen`}
                     aria-disabled={!cobrosSuccess}
                     tabIndex={cobrosSuccess ? undefined : -1}
                     onClick={(event) => {
@@ -621,8 +619,8 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
                     }}
                     className={`inline-flex min-h-11 items-center gap-1 rounded-lg border border-border-strong bg-surface px-3 py-2 text-[12.5px] font-bold text-text-2 transition sm:min-h-0 sm:px-2.5 sm:py-1 ${cobrosSuccess ? 'hover:border-primary hover:text-primary' : 'pointer-events-none opacity-50'}`}
                   >
-                    Recibo
-                  </a>
+                    Resumen digital
+                  </Link>
                   <button
                     type="button"
                     onClick={() => setCobroOpen(true)}

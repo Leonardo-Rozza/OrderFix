@@ -31,7 +31,7 @@ export const CajaPage = () => {
       <DashboardLayout title="Cobros">
         <FeatureLocked
           titulo="Cobros es una función PRO"
-          detalle="El registro manual de cobros por período y los datos para cobrar están disponibles en el plan PRO."
+          detalle="El registro manual de cobros por período, los datos para cobrar y el resumen digital de cada orden están disponibles en el plan PRO."
         />
       </DashboardLayout>
     );

@@ -52,7 +52,7 @@ export const reconcileClienteChanged = async (
       queryKeys.reparaciones.all,
       queryKeys.reparaciones.details,
       queryKeys.dashboard.all,
-      queryKeys.recibos.all,
+      queryKeys.resumenes.all,
       queryKeys.seguimiento.all,
     );
   }
@@ -84,7 +84,7 @@ export const reconcileEquipoChanged = async (
       queryKeys.reparaciones.details,
       queryKeys.repuestos.all,
       queryKeys.repuestos.details,
-      queryKeys.recibos.all,
+      queryKeys.resumenes.all,
       queryKeys.seguimiento.all,
     );
   }
@@ -105,7 +105,7 @@ export const reconcileReparacionChanged = async (
     queryKeys.equipos.all,
     queryKeys.equipos.details,
     queryKeys.cobros.byReparacion(event.reparacionId),
-    queryKeys.recibos.byReparacion(event.reparacionId),
+    queryKeys.resumenes.byReparacion(event.reparacionId),
     queryKeys.seguimiento.all,
   ];
 
@@ -139,7 +139,7 @@ export const reconcileReparacionDeleted = async (
     queryKeys.repuestos.byReparacion(reparacionId),
     queryKeys.presupuestos.byReparacion(reparacionId),
     queryKeys.cobros.byReparacion(reparacionId),
-    queryKeys.recibos.byReparacion(reparacionId),
+    queryKeys.resumenes.byReparacion(reparacionId),
   ]);
 
   await invalidateKeys(queryClient, [
@@ -164,7 +164,7 @@ export const reconcilePresupuestoChanged = async (
     queryKeys.reparaciones.detail(event.reparacionId),
     queryKeys.reparaciones.all,
     queryKeys.dashboard.all,
-    queryKeys.recibos.byReparacion(event.reparacionId),
+    queryKeys.resumenes.byReparacion(event.reparacionId),
     event.codigoSeguimiento
       ? queryKeys.seguimiento.byCodigo(event.codigoSeguimiento)
       : queryKeys.seguimiento.all,
@@ -178,7 +178,7 @@ export const reconcileCobroChanged = async (
   await invalidateKeys(queryClient, [
     queryKeys.cobros.byReparacion(reparacionId),
     queryKeys.caja.all,
-    queryKeys.recibos.byReparacion(reparacionId),
+    queryKeys.resumenes.byReparacion(reparacionId),
     queryKeys.reparaciones.detail(reparacionId),
     queryKeys.reparaciones.all,
     queryKeys.dashboard.all,
@@ -197,7 +197,7 @@ export const reconcileDatosCobroChanged = async (
   await queryClient.cancelQueries({ queryKey: queryKeys.datosCobro.qrAll });
   queryClient.removeQueries({ queryKey: queryKeys.datosCobro.qrAll });
   queryClient.setQueryData(queryKeys.datosCobro.detail, datosCobro);
-  await invalidateKeys(queryClient, [queryKeys.recibos.all]);
+  await invalidateKeys(queryClient, [queryKeys.resumenes.all]);
 };
 
 /** Conserva la respuesta FREE y elimina datos que ya no deben reaparecer fresh. */
@@ -210,7 +210,7 @@ export const reconcileSuscripcionDegraded = async (
     queryKeys.caja.all,
     queryKeys.cobros.all,
     queryKeys.datosCobro.all,
-    queryKeys.recibos.all,
+    queryKeys.resumenes.all,
   ] as const;
 
   await Promise.all([

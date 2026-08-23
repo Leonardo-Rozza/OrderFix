@@ -71,6 +71,7 @@ describe('CajaPage — rango de fechas', () => {
     expect(screen.getByRole('heading', { name: 'Cobros es una función PRO' })).toBeVisible();
     expect(screen.getByText(/registro manual de cobros por período/i)).toBeVisible();
     expect(screen.getByText(/datos para cobrar/i)).toBeVisible();
+    expect(screen.getByText(/resumen digital de cada orden/i)).toBeVisible();
     expect(screen.queryByText(/caja por período|recibo imprimible/i)).not.toBeInTheDocument();
   });
 

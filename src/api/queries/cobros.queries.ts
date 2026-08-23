@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../axios';
 import { queryKeys } from '../queryKeys';
-import type { CajaResumen, CobrosReparacion, Recibo } from '../../types';
+import type { CajaResumen, CobrosReparacion, ResumenDigital } from '../../types';
 
 // Cobros + resumen de una reparación
 const fetchCobros = async (reparacionId: number): Promise<CobrosReparacion> => {
@@ -17,19 +17,28 @@ export const useCobrosQuery = (reparacionId: number | undefined) => {
   });
 };
 
-// Recibo imprimible
-const fetchRecibo = async (reparacionId: number): Promise<Recibo> => {
-  const { data } = await apiClient.get<Recibo>(`/reparaciones/${reparacionId}/recibo`);
+// Resumen operativo autenticado. La key histórica evita duplicar la caché.
+export const fetchResumenDigital = async (
+  reparacionId: number,
+  signal?: AbortSignal,
+): Promise<ResumenDigital> => {
+  const { data } = await apiClient.get<ResumenDigital>(
+    `/reparaciones/${reparacionId}/resumen-digital`,
+    { signal, errorMode: 'inline' },
+  );
   return data;
 };
 
-export const useReciboQuery = (reparacionId: number | undefined) => {
+export const useResumenDigitalQuery = (reparacionId: number | undefined) => {
   return useQuery({
-    queryKey: queryKeys.recibos.byReparacion(reparacionId),
-    queryFn: () => fetchRecibo(reparacionId as number),
+    queryKey: queryKeys.resumenes.byReparacion(reparacionId),
+    queryFn: ({ signal }) => fetchResumenDigital(reparacionId as number, signal),
     enabled: !!reparacionId,
   });
 };
+
+/** @deprecated El alias comparte hook, endpoint canónico y caché. */
+export const useReciboQuery = useResumenDigitalQuery;
 
 // Caja por período (sin params = hoy)
 const fetchCaja = async (rango: { desde?: string; hasta?: string }): Promise<CajaResumen> => {

@@ -15,10 +15,11 @@ import { SeguimientoPage } from '../pages/SeguimientoPage';
 import { UsuariosPage } from '../pages/UsuariosPage';
 import { InventarioPage } from '../pages/InventarioPage';
 import { CajaPage } from '../pages/CajaPage';
-import { ReciboPage } from '../pages/ReciboPage';
+import { ResumenDigitalPage } from '../pages/ResumenDigitalPage';
 import { OlvidePasswordPage } from '../pages/OlvidePasswordPage';
 import { ResetPasswordPage } from '../pages/ResetPasswordPage';
 import { VerificarEmailPage } from '../pages/VerificarEmailPage';
+import { ReciboCompatRedirect } from './ReciboCompatRedirect';
 
 // Configuración de rutas
 const appRoutes = [
@@ -97,10 +98,18 @@ const appRoutes = [
     ),
   },
   {
+    path: '/reparaciones/:id/resumen',
+    element: (
+      <ProtectedRoute>
+        <ResumenDigitalPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: '/reparaciones/:id/recibo',
     element: (
       <ProtectedRoute>
-        <ReciboPage />
+        <ReciboCompatRedirect />
       </ProtectedRoute>
     ),
   },
@@ -175,4 +184,3 @@ export const router = createBrowserRouter([
     children: appRoutes,
   },
 ]);
-

@@ -49,7 +49,7 @@ const buildFeatures = (suscripcion: Suscripcion): Feature[] => {
       pro: proActual ? !suspendida && funciones.inventario : true,
     },
     {
-      label: 'Cobros manuales y datos para cobrar',
+      label: 'Cobros manuales, datos para cobrar y resumen digital',
       free: freeActual ? !suspendida && funciones.cobros : false,
       pro: proActual ? !suspendida && funciones.cobros : true,
     },

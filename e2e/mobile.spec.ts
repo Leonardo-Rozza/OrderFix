@@ -487,7 +487,7 @@ test('detalle con excedente: prioriza la revisión sin overflow y bloquea Cobrar
   if (viewportWidth < 640) {
     const headerTargets = await editableMetrics(
       seccion,
-      'a[href*="/recibo"], button[title*="excedente"]',
+      'a[href*="/resumen"], button[title*="excedente"]',
     );
     expect(headerTargets).toHaveLength(2);
     headerTargets.forEach(expectTouchSized);
@@ -641,6 +641,127 @@ test('datos para cobrar: configura referencias y QR autenticado sin overflow', a
   await expect(dialog).toHaveCount(0);
   await expect(card.getByText(aliasNuevo)).toBeVisible();
   await expectNoHorizontalOverflow(page);
+});
+
+test('resumen digital: adapta columnas, textos largos, montos y QR sin overflow', async ({ page, context }) => {
+  await seedAuth(context);
+  const tallerLargo = `Servicio-Técnico-${'SucursalCentral'.repeat(8)}`;
+  const clienteLargo = `Ana-${'NombreCompuesto'.repeat(6)}`;
+  const modeloLargo = `Modelo-${'EdiciónInternacional'.repeat(6)}`;
+  const repuestoLargo = `Módulo-${'PantallaOriginal'.repeat(7)}`;
+  const referenciaLarga = `OP-${'9'.repeat(117)}`;
+  const aliasLargo = `ordenfix.${'alias'.repeat(20)}`;
+  const leyenda = 'Documento informativo. No es factura ni comprobante fiscal y no reemplaza los emitidos por ARCA.';
+
+  await mockApi(page, {
+    resumenDigital: {
+      reparacionId: 1,
+      numeroOrden: 'ORD-2026-0001',
+      codigoSeguimiento: 'ABC123',
+      fecha: '2026-08-23T10:15:00',
+      estado: 'COMPLETADO',
+      taller: { nombre: tallerLargo, telefono: '+54 11 5555-1234' },
+      cliente: { nombre: clienteLargo, apellido: 'Gómez', telefono: '1155550000' },
+      equipo: {
+        marca: 'FabricanteInternacional',
+        modelo: modeloLargo,
+        descripcionProblema: `No-enciende-${'diagnóstico'.repeat(12)}`,
+      },
+      detalle: {
+        repuestos: [{
+          nombre: repuestoLargo,
+          cantidad: 99,
+          precioUnitario: 9_876_543_210.98,
+          subtotal: 977_777_777_887.02,
+        }],
+        manoDeObra: 12_345_678_901.23,
+        totalRepuestos: 977_777_777_887.02,
+      },
+      importes: {
+        total: 990_123_456_788.25,
+        cobrado: 900_000_000_000,
+        saldo: 90_123_456_788.25,
+        excedente: 0,
+        requiereRevision: false,
+        pagado: false,
+      },
+      pagos: [{
+        fecha: '2026-08-22T12:30:00',
+        monto: 900_000_000_000,
+        metodo: 'TRANSFERENCIA',
+        referencia: referenciaLarga,
+      }],
+      datosCobro: {
+        alias: aliasLargo,
+        titular: tallerLargo,
+        entidad: `Billetera-${'digital'.repeat(15)}`,
+        qrDisponible: true,
+        qrVersion: 'sha-resumen-mobile',
+      },
+      documentoFiscal: false,
+      leyenda,
+      tallerNombre: tallerLargo,
+      tallerTelefono: '+54 11 5555-1234',
+      clienteNombre: clienteLargo,
+      clienteApellido: 'Gómez',
+      clienteTelefono: '1155550000',
+      equipoMarca: 'FabricanteInternacional',
+      equipoModelo: modeloLargo,
+      descripcionProblema: `No-enciende-${'diagnóstico'.repeat(12)}`,
+      repuestos: [{
+        nombre: repuestoLargo,
+        cantidad: 99,
+        precioUnitario: 9_876_543_210.98,
+        subtotal: 977_777_777_887.02,
+      }],
+      manoDeObra: 12_345_678_901.23,
+      totalRepuestos: 977_777_777_887.02,
+      total: 990_123_456_788.25,
+      cobrado: 900_000_000_000,
+      saldo: 90_123_456_788.25,
+      excedente: 0,
+      requiereRevision: false,
+      pagado: false,
+    },
+    datosCobro: {
+      alias: aliasLargo,
+      titular: tallerLargo,
+      entidad: `Billetera-${'digital'.repeat(15)}`,
+      mostrarEnResumen: true,
+      qrDisponible: true,
+      qrVersion: 'sha-resumen-mobile',
+    },
+  });
+
+  await page.goto('/reparaciones/1/resumen');
+
+  await expect(page.getByRole('heading', { name: 'Resumen digital de la orden' })).toBeVisible();
+  await expect(page.getByText(tallerLargo).first()).toBeVisible();
+  await expect(page.getByText(`Referencia: ${referenciaLarga}`)).toBeVisible();
+  await expect(page.getByText(aliasLargo)).toBeVisible();
+  await expect(page.getByAltText('QR para pagar la orden ORD-2026-0001')).toHaveAttribute('src', /^blob:/);
+  await expect(page.getByRole('note', { name: 'Documento informativo' })).toContainText('ARCA');
+  await expect(page.getByRole('button', { name: /imprimir/i })).toHaveCount(0);
+  await expectNoHorizontalOverflow(page);
+
+  const personCards = page
+    .getByRole('region', { name: 'Cliente y equipo' })
+    .locator(':scope > div > div');
+  await expect(personCards).toHaveCount(2);
+  const boxes = await personCards.evaluateAll((elements) => elements.map((element) => {
+    const rect = element.getBoundingClientRect();
+    return { left: rect.left, top: rect.top, width: rect.width };
+  }));
+  const viewportWidth = page.viewportSize()?.width ?? 0;
+  if (viewportWidth < 640) {
+    expect(Math.abs(boxes[0].left - boxes[1].left)).toBeLessThanOrEqual(1);
+    expect(boxes[1].top).toBeGreaterThan(boxes[0].top);
+    const [back] = await editableMetrics(page, 'a[href="/reparaciones/1"]');
+    expectTouchSized(back);
+  } else {
+    expect(Math.abs(boxes[0].top - boxes[1].top)).toBeLessThanOrEqual(1);
+    expect(boxes[1].left).toBeGreaterThan(boxes[0].left + boxes[0].width - 1);
+  }
 });
 
 test('registro: controles táctiles sin zoom ni overflow horizontal', async ({ page }) => {

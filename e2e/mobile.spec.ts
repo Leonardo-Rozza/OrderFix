@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
-import { mockApi, seedAuth } from './helpers';
+import { futureToken, mockApi, seedAuth } from './helpers';
 
 const PRO_SUSCRIPCION = {
   plan: 'PRO',
@@ -264,6 +264,82 @@ const openAuditAndClose = async (page: Page, trigger: Locator, audit: DialogAudi
   const dialog = await expectMobileDialog(page, audit);
   await closeDialog(dialog);
 };
+
+test('identidad móvil: conserva el taller accesible, no desborda y usa objetivos táctiles', async ({ page, context }) => {
+  const tallerLargo = 'Servicio Técnico Integral del Centro, Zona Norte, Zona Sur, Parque Industrial y todas sus Sucursales Asociadas de la Región Metropolitana';
+  await seedAuth(context);
+  await mockApi(page, {
+    perfil: {
+      usuario: {
+        id: 9,
+        username: 'Juan Pérez',
+        email: 'cuenta.distinta@ordenfix.com',
+        role: 'USER',
+      },
+      taller: {
+        id: 4,
+        nombre: tallerLargo,
+        telefono: '1155550011',
+      },
+    },
+  });
+
+  await page.goto('/dashboard');
+
+  await expect(page.getByRole('heading', { name: 'Hola, Juan Pérez 👋' })).toBeVisible();
+  const tallerNavbar = page.locator('header').getByTitle(tallerLargo);
+  await expect(tallerNavbar).toBeVisible();
+  await expect(tallerNavbar).toHaveAttribute('aria-label', `Taller: ${tallerLargo}`);
+  await expect(page.locator('header').getByRole('link', {
+    name: `OrdenFix — Taller ${tallerLargo} — Ir al inicio`,
+  })).toBeVisible();
+
+  const truncation = await tallerNavbar.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+  expect(truncation.scrollWidth).toBeGreaterThan(truncation.clientWidth);
+  await expectNoHorizontalOverflow(page);
+
+  for (const buttonName of ['Activar modo oscuro', 'Cerrar sesión']) {
+    const box = await page.getByRole('button', { name: buttonName }).boundingBox();
+    expect(box, `${buttonName} debe tener una caja visible`).not.toBeNull();
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+  }
+});
+
+test('identidad móvil: un perfil fallido degrada a un email largo sin provocar overflow', async ({ page, context }) => {
+  const emailPrefix = 'administracioncentralreparacionesordenfixsucursaleszonanorte2026';
+  const fallbackEmail = `${emailPrefix}@ordenfix.com`;
+  let perfilRequests = 0;
+
+  await seedAuth(context, futureToken('ROLE_USER'), fallbackEmail);
+  await mockApi(page);
+  await page.route('http://localhost:8080/api/perfil', async (route) => {
+    perfilRequests += 1;
+    await route.fulfill({ status: 500, json: { message: 'Perfil temporalmente no disponible' } });
+  });
+
+  await page.goto('/dashboard');
+
+  const heading = page.getByRole('heading', { name: `Hola, ${emailPrefix} 👋` });
+  await expect(heading).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText('Esto es lo que pasa hoy en Mi taller.')).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+
+  const headingMetrics = await heading.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+  expect(headingMetrics.scrollWidth).toBeLessThanOrEqual(headingMetrics.clientWidth);
+
+  const retry = page.getByRole('button', { name: 'Reintentar perfil' });
+  await expect(retry).toBeVisible();
+  const requestsBeforeRetry = perfilRequests;
+  await retry.click();
+  await expect.poll(() => perfilRequests).toBeGreaterThan(requestsBeforeRetry);
+});
 
 test('smoke móvil: todos los formularios críticos respetan viewport, controles y CTA', async ({ page, context }) => {
   test.slow();

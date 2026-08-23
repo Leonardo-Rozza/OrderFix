@@ -12,7 +12,7 @@ import { ExportExcelButton } from '../components/ExportExcelButton';
 import { useDashboardQuery } from '../api/queries/dashboard.queries';
 import { useClientesQuery } from '../api/queries/clientes.queries';
 import { useFunciones } from '../api/queries/suscripcion.queries';
-import { useAuth } from '../store/auth.store';
+import { useSessionIdentity } from '../hooks/useSessionIdentity';
 
 interface KpiProps {
   label: string;
@@ -51,7 +51,7 @@ const KpiSkeleton = () => (
 
 export const DashboardPage = () => {
   const navigate = useNavigate();
-  const { email } = useAuth();
+  const identity = useSessionIdentity();
   const { data: stats, isLoading, isError, refetch } = useDashboardQuery();
   const {
     data: clientesPage,
@@ -91,16 +91,30 @@ export const DashboardPage = () => {
     void Promise.all([refetch(), refetchClientes()]);
   };
 
-  const nombre = email ? email.split('@')[0] : 'taller';
-
   return (
     <DashboardLayout title="Inicio">
       <div className="ofx-in mx-auto max-w-[1180px] space-y-4">
         <div className="flex flex-wrap items-center gap-3">
-          <div>
-            <h1 className="text-[22px] font-extrabold tracking-tight">Hola, {nombre} 👋</h1>
-            <p className="mt-0.5 text-[14px] text-text-2">Esto es lo que pasa hoy en el taller.</p>
-          </div>
+          {identity.isLoading ? (
+            <div role="status" aria-label="Cargando identidad del taller" className="min-w-0 space-y-2">
+              <div className="ofx-skel h-6 w-48 max-w-full rounded" />
+              <div className="ofx-skel h-4 w-64 max-w-full rounded" />
+            </div>
+          ) : (
+            <div className="min-w-0 max-w-full">
+              <h1 className="max-w-full text-[22px] font-extrabold tracking-tight">
+                Hola,{' '}
+                <span className="[overflow-wrap:anywhere]" title={identity.nombreSaludo}>
+                  {identity.nombreSaludo}
+                </span>{' '}
+                👋
+              </h1>
+              <p className="mt-0.5 max-w-full text-[14px] text-text-2">
+                Esto es lo que pasa hoy en{' '}
+                <span className="[overflow-wrap:anywhere]" title={identity.taller}>{identity.taller}</span>.
+              </p>
+            </div>
+          )}
           <div className="ml-auto flex flex-wrap items-center gap-2.5">
             <ExportExcelButton />
             <button type="button" className={btnPrimary} onClick={() => navigate('/reparaciones?nuevo=1')}>

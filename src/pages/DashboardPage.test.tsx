@@ -16,6 +16,11 @@ const mocks = vi.hoisted(() => ({
     isError: false,
     refetch: vi.fn(),
   },
+  identity: {
+    nombreSaludo: 'Juan Pérez',
+    taller: 'CelExpress',
+    isLoading: false,
+  },
 }));
 
 const dashboardData = {
@@ -61,8 +66,8 @@ vi.mock('../api/queries/clientes.queries', () => ({
 vi.mock('../api/queries/suscripcion.queries', () => ({
   useFunciones: () => ({ inventario: false, cobros: false, empleadosMultiples: false }),
 }));
-vi.mock('../store/auth.store', () => ({
-  useAuth: () => ({ email: 'admin@taller.com' }),
+vi.mock('../hooks/useSessionIdentity', () => ({
+  useSessionIdentity: () => mocks.identity,
 }));
 
 const renderPage = () => render(
@@ -81,6 +86,29 @@ describe('DashboardPage — consistencia de indicadores', () => {
     mocks.clientes.isLoading = false;
     mocks.clientes.isError = false;
     mocks.clientes.refetch.mockReset();
+    mocks.identity.nombreSaludo = 'Juan Pérez';
+    mocks.identity.taller = 'CelExpress';
+    mocks.identity.isLoading = false;
+  });
+
+  it('saluda con el username remoto y ubica la actividad en el taller', () => {
+    renderPage();
+
+    expect(screen.getByRole('heading', { name: 'Hola, Juan Pérez 👋' })).toBeVisible();
+    expect(screen.getByText(/Esto es lo que pasa hoy en/)).toHaveTextContent(
+      'Esto es lo que pasa hoy en CelExpress.',
+    );
+    expect(screen.queryByText(/Hola, admin/)).not.toBeInTheDocument();
+  });
+
+  it('el skeleton de identidad no bloquea los indicadores ya disponibles', () => {
+    mocks.identity.isLoading = true;
+
+    renderPage();
+
+    expect(screen.getByRole('status', { name: 'Cargando identidad del taller' })).toBeVisible();
+    expect(screen.getByText('Reparaciones activas')).toBeVisible();
+    expect(screen.getByText('Total reparaciones')).toBeVisible();
   });
 
   it('muestra total y saldo derivados aunque cobros no esté habilitado', () => {

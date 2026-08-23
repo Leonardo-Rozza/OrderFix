@@ -3,10 +3,12 @@ import { Logo } from './Logo';
 import { isNavItemVisible, navItems } from '../config/nav';
 import { useAuth } from '../store/auth.store';
 import { useFunciones, useSuscripcionQuery } from '../api/queries/suscripcion.queries';
+import { useSessionIdentity } from '../hooks/useSessionIdentity';
 
 /** Sidebar de escritorio (oculto en mobile; en mobile se usa BottomNav). */
 export const Sidebar = () => {
-  const { email, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
+  const identity = useSessionIdentity();
   const funciones = useFunciones();
   const { data: sus } = useSuscripcionQuery();
   const items = navItems.filter((item) => isNavItemVisible(item, { isAdmin, funciones }));
@@ -19,8 +21,32 @@ export const Sidebar = () => {
   return (
     <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-border bg-surface lg:flex">
       <div className="flex h-16 items-center border-b border-border px-5">
-        <Link to="/dashboard" className="rounded-lg transition hover:opacity-80" aria-label="Ir al inicio">
-          <Logo size={34} />
+        <Link
+          to="/dashboard"
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-lg transition hover:opacity-80 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)]"
+          aria-label={identity.isLoading
+            ? 'OrdenFix — Cargando taller — Ir al inicio'
+            : `OrdenFix — Taller ${identity.taller} — Ir al inicio`}
+        >
+          <Logo size={34} withText={false} className="shrink-0" />
+          <span className="min-w-0 leading-tight">
+            <span className="block text-[16px] font-extrabold tracking-tight">OrdenFix</span>
+            {identity.isLoading ? (
+              <span
+                role="status"
+                aria-label="Cargando taller"
+                className="ofx-skel mt-1 block h-3 w-28 max-w-full rounded"
+              />
+            ) : (
+              <span
+                className="block truncate text-[12px] font-semibold text-text-3"
+                title={identity.taller}
+                aria-label={`Taller: ${identity.taller}`}
+              >
+                {identity.taller}
+              </span>
+            )}
+          </span>
         </Link>
       </div>
 
@@ -70,17 +96,48 @@ export const Sidebar = () => {
             <div className="mt-1.5 text-[11.5px] font-bold text-primary">Pasar a PRO →</div>
           </Link>
         )}
-        <div className="flex items-center gap-3 rounded-lg px-2 py-2">
-          <div className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full bg-primary-soft text-sm font-bold text-primary-soft-fg">
-            {email?.charAt(0).toUpperCase() || 'U'}
-          </div>
-          <div className="min-w-0 leading-tight">
-            <div className="truncate text-[13.5px] font-bold">OrdenFix</div>
-            <div className="truncate text-[12px] text-text-3" title={email ?? undefined}>
-              {email ?? 'Mi taller'}
+        {identity.isLoading ? (
+          <div
+            role="status"
+            aria-label="Cargando identidad de usuario"
+            className="flex items-center gap-3 rounded-lg px-2 py-2"
+          >
+            <div className="ofx-skel h-9 w-9 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="ofx-skel h-3.5 w-28 max-w-full rounded" />
+              <div className="ofx-skel h-3 w-36 max-w-full rounded" />
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center gap-3 rounded-lg px-2 py-2">
+            <div
+              className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full bg-primary-soft text-sm font-bold text-primary-soft-fg"
+              aria-hidden="true"
+            >
+              {identity.iniciales}
+            </div>
+            <div className="min-w-0 leading-tight">
+              <div className="truncate text-[13.5px] font-bold" title={identity.nombre}>
+                {identity.nombre}
+              </div>
+              <div className="truncate text-[12px] font-semibold text-text-2">{identity.rolVisible}</div>
+              {identity.email && identity.email !== identity.nombre ? (
+                <div className="truncate text-[11.5px] text-text-3" title={identity.email}>
+                  {identity.email}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        )}
+        {identity.isError ? (
+          <button
+            type="button"
+            onClick={() => void identity.refetch()}
+            className="mt-1 flex min-h-11 w-full items-center justify-center rounded-lg px-3 text-[12.5px] font-bold text-primary transition-colors hover:bg-primary-soft focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)]"
+          >
+            Reintentar perfil
+          </button>
+        ) : null}
       </div>
     </aside>
   );

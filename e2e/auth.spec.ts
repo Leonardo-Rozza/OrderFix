@@ -10,7 +10,11 @@ test('login: ingresa y llega al dashboard', async ({ page }) => {
   await page.getByRole('button', { name: /ingresar/i }).click();
 
   await expect(page).toHaveURL(/\/dashboard/);
-  await expect(page.getByText(/hola, admin/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Hola, Administrador OrdenFix 👋' })).toBeVisible();
+  await expect(page.getByText('Esto es lo que pasa hoy en MVGR Reparaciones.')).toBeVisible();
+  await expect(page.getByRole('link', {
+    name: 'OrdenFix — Taller MVGR Reparaciones — Ir al inicio',
+  })).toBeVisible();
 });
 
 test('login inválido: muestra error y no navega', async ({ page }) => {

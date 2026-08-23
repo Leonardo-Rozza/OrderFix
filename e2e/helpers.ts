@@ -8,9 +8,13 @@ export const futureToken = (role = 'ROLE_ADMIN') =>
   `${b64url({ alg: 'HS256' })}.${b64url({ sub: 'admin@mvgr.com', role, exp: Math.floor(Date.now() / 1000) + 3600 })}.firma`;
 
 /** Inyecta sesión en localStorage (formato de zustand persist) antes de cargar la app. */
-export const seedAuth = async (context: BrowserContext, token = futureToken()) => {
+export const seedAuth = async (
+  context: BrowserContext,
+  token = futureToken(),
+  email = 'admin@mvgr.com',
+) => {
   const value = JSON.stringify({
-    state: { token, email: 'admin@mvgr.com', isAuthenticated: true },
+    state: { token, email, isAuthenticated: true },
     version: 0,
   });
   await context.addInitScript((v) => {

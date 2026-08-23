@@ -3,7 +3,7 @@
 **Fecha:** 2026-08-22  
 **Diseño aprobado:** `docs/plans/2026-08-22-unsaved-form-protection-design.md`  
 **Rama:** `codex/frontend-refactor-checkpoint`  
-**Estado:** Listo para implementar
+**Estado:** Implementado y validado
 
 ## Objetivo
 
@@ -354,3 +354,43 @@ Si sólo se actualizan resultados/documentación después de la regresión, usar
 - Tests unitarios/integración, TypeScript, lint, build y Playwright quedan verdes.
 - Sólo se versionan archivos del alcance; `.agents/` y `public/OrdenFix project naming/` permanecen fuera.
 - No se hace push.
+
+## Cierre de implementación — 2026-08-22
+
+La protección quedó aplicada a los diez formularios operativos: cliente, equipo, repuesto, artículo, empleado, presupuesto, cobro, reparación, ajuste de stock y reclamo de garantía.
+
+### Decisiones y correcciones finales
+
+- `Modal` administra una pila única de capas `base`, `guard` y `global`; sólo la superior conserva rol de diálogo, foco, Escape e interacción. Las inferiores quedan `inert` y el bloqueo de scroll se libera por conteo.
+- El diálogo de descarte conserva el primer intento. Un Back, PUSH o cierre local posterior no puede reemplazar el destino ni ejecutar una segunda navegación.
+- Un logout por 401 o sesión inválida libera los guards antes de limpiar la sesión y redirigir, evitando un `beforeunload` obsoleto.
+- Los formularios congelan campos y acciones durante mutaciones o subidas críticas. El error conserva borrador y protección; el éxito libera el guard sin confirmación espuria.
+- La reparación parcial conserva la orden ya creada, reintenta sólo sus detalles y usa copy específico que no expone credenciales.
+- El detalle de reparación aísla los editores por id de ruta para que estado, baselines o secretos no sobrevivan al cambiar de orden.
+- Los campos condicionales vuelven a un valor coherente al ocultarse: calidad de presupuesto, confirmación de credenciales y valores numéricos vacíos.
+- El alta de reparación normaliza `tecnicoId` y `garantiaDias` vacíos a `NaN`, que es el valor real producido por `valueAsNumber`; así un ADMIN puede cerrar un formulario nuevo sin un falso dirty.
+- La administración de empleados crea exclusivamente rol `USER`; el único `ADMIN` es el titular y los roles existentes se muestran como datos de solo lectura.
+- Los E2E validan cierre por Cancelar, X, Escape y backdrop; navegación por historial; error, éxito y request demorada; reparación parcial; foco, `inert`, viewport y targets táctiles en 320 px, 390 px, landscape y WebKit.
+
+### Commits de implementación
+
+- `699d6a4` — `feat(forms): agrega guardia y diálogo de descarte`
+- `a705f98` — `feat(forms): protege formularios operativos estándar`
+- `b3e36c1` — `fix(forms): protege reparación parcial y formularios manuales`
+- `22a46f6` — `fix(forms): aisla editores entre reparaciones`
+- `4510842` — `fix(modal): restaura foco tras confirmar descarte`
+- `ab89db5` — `fix(modal): hace accesible el límite de plan`
+- `0f2f027` — `fix(forms): endurece estado y permisos de edición`
+- `8fcd811` — `fix(forms): preserva destino y libera sesión inválida`
+- `41e8864` — `fix(forms): normaliza técnico vacío del alta`
+- `e9d9474` — `test(e2e): cubre descarte y navegación protegida`
+
+### Regresión final
+
+- `npm test`: 63 archivos y 307 tests aprobados.
+- `npm run typecheck`: aprobado.
+- `npm run lint`: aprobado.
+- `npm run build`: aprobado; 680 módulos transformados.
+- `npx playwright test`: 68 escenarios aprobados en Chromium y la matriz móvil.
+- `git diff --check`: aprobado.
+- No se hizo push y los archivos ajenos al alcance permanecieron sin versionar.

@@ -167,6 +167,7 @@ La firma será la **Ficha de compromiso OrdenFix**: un resumen con filas clave-v
 | `/cerrar-cuenta` | Consecuencias, recuperación, eliminación y retenciones. |
 | `/aviso-clientes-taller` | Modelo editable que el taller puede adaptar para sus clientes. |
 | `/arrepentimiento` | Inicio público de una gestión, cuando resulte aplicable. |
+| `/legal/documentos/:versionId` | Versión histórica exacta, recargable y compartible. |
 
 Las rutas deben estar disponibles desde registro, login, seguimiento público y el pie de toda superficie pública. No deben requerir una cuenta para leer su contenido.
 
@@ -202,6 +203,8 @@ El contenido legal completo se renderiza como HTML accesible. Un PDF puede ofrec
 ### Fuente de verdad
 
 Una versión publicada es inmutable. El backend será la fuente contractual para versión, contenido, digest y vigencia. El frontend puede conservar borradores editables para revisión y documentación, pero no debe inventar una versión local aceptable ni sustituir silenciosamente un documento que no pudo descargar.
+
+La publicación inicial y cada actualización usan un artefacto revisado con tipo, locale, contextos, versión, `vigenteDesde`, contenido y digest. Un comando backend autenticado para operación/CI realiza dry-run, publica la versión inmutable y promueve su vigencia; no hace falta construir una UI administrativa. Retirar o reemplazar crea una transición auditada, nunca modifica el contenido ya aceptado.
 
 Cada versión publicada contiene como mínimo:
 
@@ -315,6 +318,8 @@ Al iniciar sesión por primera vez, o cuando exista una actualización material,
 
 El empleado puede aceptar o cerrar sesión. No puede operar hasta completar el requisito. Una corrección editorial que no marque `requiereNuevaAceptacion` no vuelve a bloquearlo.
 
+Cada empleado puede solicitar la baja de su propio acceso o encontrar un canal claro para pedirla al administrador/privacidad. Esa acción desactiva únicamente su usuario y sesiones; nunca cierra ni elimina el taller completo.
+
 Bajo `428 ACEPTACION_LEGAL_REQUERIDA`, la sesión sigue permitiendo exclusivamente documentos públicos, requisitos actuales, registro de aceptación, verificación de email y logout. El gate no puede bloquear los endpoints necesarios para resolver su propio estado.
 
 ## Fotos, PIN y patrón
@@ -350,7 +355,7 @@ Una carga a un proveedor externo y una transacción de base de datos no pueden s
 
 La garantía es que ninguna foto queda **asociada ni visible** en una reparación sin atestación vigente. Un fallo intermedio puede dejar temporalmente un asset privado en cuarentena, nunca una URL pública utilizable.
 
-El preset público unsigned actual no es apto para este protocolo ni para garantizar borrado remoto. PIN y patrón se envían únicamente en el write protegido de la reparación; nunca aparecen en auditoría, telemetría o payloads de error y deben eliminarse cuando el equipo se entrega según la política aprobada.
+El preset público unsigned actual no es apto para este protocolo ni para garantizar borrado remoto. PIN y patrón se envían únicamente en el write protegido de la reparación; nunca aparecen en auditoría, telemetría o payloads de error y deben eliminarse cuando el equipo se entrega según la política aprobada. Las fotos tienen una política de retención independiente: pueden conservarse como evidencia operativa durante el plazo informado, admiten borrado remoto explícito y se incluyen en el proceso de cierre de cuenta.
 
 ## PRO: oferta, contratación y cancelación
 
@@ -427,7 +432,7 @@ Flujo:
 5. Enviar la solicitud.
 6. Mostrar y enviar una constancia con número de gestión.
 
-Una solicitud se registra aunque requiera evaluación posterior. La UI no promete automáticamente que el reembolso será aprobado. La versión pública aplica rate limit, inicia siempre en `PENDIENTE_VERIFICACION`, envía un token de un solo uso por email y responde con un mensaje genérico que no revela si una cuenta existe. La referencia completa se muestra después de consumir correctamente ese token.
+Una solicitud se registra aunque requiera evaluación posterior. La UI no promete automáticamente que el reembolso será aprobado. La versión pública aplica rate limit, inicia siempre en `PENDIENTE_VERIFICACION`, envía un token de un solo uso por email y responde con un mensaje genérico que no revela si una cuenta existe. La referencia completa se muestra después de consumir correctamente ese token. La verificación puede emitir una credencial de consulta separada, de sólo lectura y vencimiento limitado, para recuperar el estado sin reutilizar el token consumido.
 
 Estados comunes:
 
@@ -463,11 +468,11 @@ PENDIENTE → GENERANDO
                  └─ FALLIDA → REINTENTO o nueva exportación
 ```
 
-El archivo se guarda cifrado, aislado por tenant y sin URL pública permanente. Tanto la generación como cada descarga vuelven a comprobar autorización y reautenticación; la respuesta usa `Cache-Control: private, no-store`, la URL firmada tiene vencimiento corto y puede revocarse. La descarga se audita. Un error de exportación no inicia automáticamente el cierre. El endpoint Excel existente puede mantenerse temporalmente, pero no representa por sí solo una exportación integral de privacidad.
+El archivo se guarda cifrado, aislado por tenant y sin URL pública permanente. Tanto la generación como cada descarga vuelven a comprobar autorización y reautenticación; la respuesta usa `Cache-Control: private, no-store`, la URL firmada tiene vencimiento corto y puede revocarse. La descarga se audita. Un error de exportación no inicia automáticamente el cierre. El endpoint Excel existente puede mantenerse temporalmente como exportación operativa, pero no puede quedar como descarga directa que evada reautenticación; debe integrarse al flujo seguro o retirarse.
 
 ### Solicitud de cierre
 
-La sección “Cerrar cuenta OrdenFix” está separada visualmente y sólo disponible para `ADMIN`. Exportación y cierre usan páginas completas; no se fuerzan dentro de modales largos en 320 px.
+La sección se denomina **“Cerrar el taller y eliminar su cuenta OrdenFix”**, está separada visualmente y sólo disponible para `ADMIN`. La primera pantalla aclara que alcanza a todos los empleados y datos del tenant. Exportación y cierre usan páginas completas; no se fuerzan dentro de modales largos en 320 px.
 
 Flujo:
 
@@ -512,7 +517,7 @@ Restaurar la cuenta recupera acceso y datos durante la gracia, pero no reactiva 
 
 ### Sesión restringida y reautenticación
 
-El estado de cuenta se resuelve antes de la suscripción mediante `AccountLifecycleGate`. Login o el recurso de sesión exponen `estadoCuenta: ACTIVA | REQUIERE_ACEPTACION | CIERRE_PROGRAMADO | ELIMINACION_EN_PROCESO` y las acciones permitidas.
+El estado de cuenta se resuelve antes de cualquier perfil, suscripción o dato tenant-scoped mediante `AccountLifecycleGate`. Login o el recurso de sesión exponen `estadoCuenta: ACTIVA | REQUIERE_ACEPTACION | CIERRE_PROGRAMADO | ELIMINACION_EN_PROCESO` y las acciones permitidas.
 
 Bajo `423 CUENTA_EN_CIERRE` permanecen accesibles únicamente:
 
@@ -522,6 +527,8 @@ Bajo `423 CUENTA_EN_CIERRE` permanecen accesibles únicamente:
 - revocación durante la gracia;
 - documentos legales y soporte;
 - logout.
+
+La allowlist incluye de forma explícita `POST /api/cuenta/reauthenticaciones` para los propósitos `RESTAURAR` y `DESCARGAR_EXPORTACION`; el propio estado restringido no puede impedir resolver la recuperación.
 
 `POST /api/cuenta/reauthenticaciones` devuelve una credencial opaca ligada a usuario, sesión, taller y propósito (`EXPORTAR`, `DESCARGAR_EXPORTACION`, `CERRAR` o `RESTAURAR`). Tiene TTL corto, un solo uso y se consume en el endpoint sensible; un booleano local nunca autoriza la operación.
 
@@ -643,6 +650,7 @@ URLs, firmas y campos del proveedor son opacos y efímeros; no se persisten en c
 ```http
 GET  /api/suscripcion/ofertas/pro
 POST /api/suscripcion/checkouts
+GET  /api/suscripcion/checkouts/{checkoutId}
 GET  /api/suscripcion
 POST /api/suscripcion/cancelaciones
 GET  /api/suscripcion/cancelaciones/{id}
@@ -651,6 +659,8 @@ GET  /api/suscripcion/pagos
 ```
 
 El endpoint vigente `POST /api/pagos/suscripcion` se mantiene temporalmente como alias deprecado durante la migración. El cliente nuevo usa `/api/suscripcion/checkouts`; telemetría confirma que no quedan clientes antiguos antes de retirar el alias. `Idempotency-Key` identifica el request HTTP del navegador. La clave privada que el backend use frente a Mercado Pago se genera y protege del lado servidor y nunca se expone al frontend.
+
+Crear un checkout devuelve `checkoutId` opaco, `initPoint` y `expiresAt`. El retorno sólo transporta ese `checkoutId`; `GET /api/suscripcion/checkouts/{checkoutId}` valida tenant y devuelve `CREADO`, `PENDIENTE`, `APROBADO`, `RECHAZADO`, `CANCELADO`, `EXPIRADO` o `FALLIDO`. Los parámetros de estado enviados por el navegador o Mercado Pago nunca son autoridad.
 
 El endpoint legado `POST /api/pagos/suscripcion/cancelar` también se depreca. Durante la transición debe crear la misma cancelación coordinada y devolver una representación compatible con `cancelacionActual`; nunca puede conservar la baja inmediata a FREE. Se retira después de migrar el frontend y verificar telemetría.
 
@@ -723,10 +733,13 @@ Registro, aceptaciones, atestaciones/intenciones sensibles, checkout, cancelacio
 - misma clave y mismo payload: devuelve la respuesta original;
 - misma clave y payload distinto: `409 IDEMPOTENCY_KEY_REUTILIZADA`;
 - repetir una creación `202` devuelve el mismo recurso y encabezado `Location`; el estado actual se consulta mediante `GET`;
+- para invitaciones, verificaciones y reautenticación, backend resuelve primero un replay por misma clave/fingerprint y recién después valida si el token de un solo uso fue consumido; una clave distinta con token ya usado falla;
 - el fingerprint incluye método, ruta normalizada, actor/tenant y payload canónico;
 - registro y endpoints públicos usan email o challenge verificado como scope sin permitir enumeración;
 - el backend conserva sólo el hash de la clave durante un plazo documentado que cubre toda la ventana de reintento;
 - además de la clave técnica existe unicidad de negocio: un cierre activo por taller, una cancelación activa por suscripción y una gestión activa equivalente por pago/motivo.
+
+Una intención de foto todavía utilizable conserva su clave durante reintentos. Si quedó `EXPIRADA` o `FALLIDA`, el usuario inicia una intención lógica nueva con una clave nueva; reutilizar la anterior sólo reproduce el recurso terminal original.
 
 Permisos:
 
@@ -797,6 +810,8 @@ Nunca se registran:
 - contenido de fotos.
 
 Los datos técnicos como IP y User-Agent, si se conservan como evidencia, deben minimizarse, protegerse y tener una política de retención documentada.
+
+Las versiones legales inmutables pueden usar caché pública por contenido/digest. El manifiesto de versión vigente se revalida con ETag. Requisitos autenticados, aceptaciones, gestiones, cuenta y exportaciones usan caché privada o `no-store` según sensibilidad; un archivo de exportación siempre usa `private, no-store`.
 
 ## Estados de error y recuperación
 

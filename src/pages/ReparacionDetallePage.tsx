@@ -283,7 +283,12 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
                 </div>
                 <div className="flex flex-col items-end gap-1.5">
                   <EstadoBadge estado={rep.estado} size="md" />
-                  <PagoChip estadoPago={rep.estadoPago} saldo={rep.saldo} />
+                  <PagoChip
+                    estadoPago={rep.estadoPago}
+                    saldo={rep.saldo}
+                    excedente={rep.excedente}
+                    requiereRevision={rep.requiereRevision}
+                  />
                 </div>
               </div>
 
@@ -598,11 +603,11 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
                 aria-labelledby="cobros-section-title"
                 aria-busy={cobrosPending}
               >
-                <div className="flex items-center gap-2 border-b border-border px-5 py-4 text-[15px] font-extrabold">
+                <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3 text-[15px] font-extrabold sm:px-5 sm:py-4">
                   <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                   </svg>
-                  <h2 id="cobros-section-title">Cobros</h2>
+                  <h2 id="cobros-section-title" className="mr-auto">Cobros</h2>
                   <a
                     href={`/reparaciones/${rep.id}/recibo`}
                     target="_blank"
@@ -612,15 +617,27 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
                     onClick={(event) => {
                       if (!cobrosSuccess) event.preventDefault();
                     }}
-                    className={`ml-auto inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[12.5px] font-bold text-text-2 transition ${cobrosSuccess ? 'hover:border-primary hover:text-primary' : 'pointer-events-none opacity-50'}`}
+                    className={`inline-flex min-h-11 items-center gap-1 rounded-lg border border-border-strong bg-surface px-3 py-2 text-[12.5px] font-bold text-text-2 transition sm:min-h-0 sm:px-2.5 sm:py-1 ${cobrosSuccess ? 'hover:border-primary hover:text-primary' : 'pointer-events-none opacity-50'}`}
                   >
                     Recibo
                   </a>
                   <button
                     type="button"
                     onClick={() => setCobroOpen(true)}
-                    disabled={!cobrosSuccess}
-                    className="inline-flex items-center gap-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[12.5px] font-bold text-text-2 transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={
+                      !cobrosSuccess
+                      || !cobros
+                      || cobros.saldo <= 0
+                      || cobros.requiereRevision
+                    }
+                    title={
+                      cobros?.requiereRevision
+                        ? 'Revisá el excedente antes de registrar otro cobro'
+                        : cobrosSuccess && cobros && cobros.saldo <= 0
+                          ? 'La orden no tiene pendiente de cobro'
+                          : undefined
+                    }
+                    className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-border-strong bg-surface px-3 py-2 text-[12.5px] font-bold text-text-2 transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0 sm:px-2.5 sm:py-1"
                   >
                     <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 5v14M5 12h14" />
@@ -640,28 +657,40 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
                   </div>
                 ) : cobrosSuccess && cobros ? (
                   <>
-                    <div className="grid grid-cols-3 gap-px bg-border">
-                      <div className="bg-surface px-5 py-3 text-center">
+                    <div className={`grid gap-px bg-border ${cobros.requiereRevision ? 'grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-4' : 'grid-cols-1 min-[360px]:grid-cols-3'}`}>
+                      <div className="min-w-0 bg-surface px-3 py-3 text-center sm:px-5">
                         <div className="text-[11.5px] text-text-3">Total</div>
-                        <div className="font-mono text-[15px] font-extrabold">{formatMoney(cobros.total)}</div>
+                        <div className="font-mono text-[15px] font-extrabold [overflow-wrap:anywhere]">{formatMoney(cobros.total)}</div>
                       </div>
-                      <div className="bg-surface px-5 py-3 text-center">
+                      <div className="min-w-0 bg-surface px-3 py-3 text-center sm:px-5">
                         <div className="text-[11.5px] text-text-3">Cobrado</div>
-                        <div className="font-mono text-[15px] font-extrabold text-success">{formatMoney(cobros.cobrado)}</div>
+                        <div className="font-mono text-[15px] font-extrabold text-success [overflow-wrap:anywhere]">{formatMoney(cobros.cobrado)}</div>
                       </div>
-                      <div className="bg-surface px-5 py-3 text-center">
-                        <div className="text-[11.5px] text-text-3">Saldo</div>
-                        <div className={`font-mono text-[15px] font-extrabold ${cobros.saldo > 0 ? 'text-warning' : 'text-text-2'}`}>
+                      <div className="min-w-0 bg-surface px-3 py-3 text-center sm:px-5">
+                        <div className="text-[11.5px] text-text-3">Pendiente de cobro</div>
+                        <div className={`font-mono text-[15px] font-extrabold [overflow-wrap:anywhere] ${cobros.saldo > 0 ? 'text-warning' : 'text-text-2'}`}>
                           {formatMoney(cobros.saldo)}
                         </div>
                       </div>
+                      {cobros.requiereRevision && (
+                        <div className="min-w-0 bg-danger-soft px-3 py-3 text-center sm:px-5">
+                          <div className="text-[11.5px] font-semibold text-danger-fg">Excedente a revisar</div>
+                          <div className="font-mono text-[15px] font-extrabold text-danger-fg [overflow-wrap:anywhere]">
+                            {formatMoney(cobros.excedente)}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    {cobros.pagado && cobros.total > 0 && (
+                    {cobros.requiereRevision ? (
+                      <div role="alert" className="border-t border-danger bg-danger-soft px-5 py-2 text-center text-[12.5px] font-bold text-danger-fg">
+                        Hay un excedente histórico. Revisá los cobros antes de registrar otro movimiento.
+                      </div>
+                    ) : cobros.pagado && cobros.total > 0 ? (
                       <div className="border-t border-border bg-success-soft px-5 py-2 text-center text-[12.5px] font-bold text-success">
                         Pagado en su totalidad
                       </div>
-                    )}
+                    ) : null}
 
                     {cobros.cobros.length === 0 ? (
                       <div className="border-t border-border px-5 py-5 text-center text-[13.5px] text-text-3">Sin cobros registrados.</div>
@@ -672,8 +701,15 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
                             <div className="text-[14px] font-semibold">{metodoLabel(c.metodo)}</div>
                             <div className="text-[12px] text-text-3">
                               {formatDate(c.fecha)}
-                              {c.observaciones ? ` · ${c.observaciones}` : ''}
                             </div>
+                            {c.referencia && (
+                              <div className="mt-1 break-all text-[12px] font-semibold text-text-2">
+                                Referencia: <span className="font-mono">{c.referencia}</span>
+                              </div>
+                            )}
+                            {c.observaciones && (
+                              <div className="mt-1 text-[12px] text-text-3">Observación: {c.observaciones}</div>
+                            )}
                           </div>
                           <span className="font-mono text-[14px] font-bold">{formatMoney(c.monto)}</span>
                           {isAdmin && (
@@ -883,6 +919,8 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
         onClose={() => setCobroOpen(false)}
         reparacionId={rep.id}
         saldo={cobrosSuccess ? cobros?.saldo : undefined}
+        excedente={cobrosSuccess ? cobros?.excedente : undefined}
+        requiereRevision={cobrosSuccess ? cobros?.requiereRevision : undefined}
       />
       <ConfirmDialog
         isOpen={!!repuestoToDelete}
@@ -899,7 +937,7 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
       <ConfirmDialog
         isOpen={!!cobroToCancel}
         title="Anular cobro"
-        message={`¿Seguro que querés anular el cobro de ${formatMoney(cobroToCancel?.monto)}? El saldo de la orden se recalculará.`}
+        message={`¿Seguro que querés anular el cobro de ${formatMoney(cobroToCancel?.monto)}? El pendiente de cobro de la orden se recalculará.`}
         confirmLabel="Anular cobro"
         loading={anularCobro.isPending}
         onClose={() => setCobroToCancel(null)}

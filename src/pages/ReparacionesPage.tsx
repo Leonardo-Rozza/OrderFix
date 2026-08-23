@@ -526,7 +526,12 @@ const EstadoZona = ({
                 <span className="font-mono text-[13.5px] font-extrabold" style={{ color: meta.cssVar }}>
                   {formatMoney(r.total ?? r.precioFinal ?? r.precioEstimado)}
                 </span>
-                <PagoChip estadoPago={r.estadoPago} saldo={r.saldo} />
+                <PagoChip
+                  estadoPago={r.estadoPago}
+                  saldo={r.saldo}
+                  excedente={r.excedente}
+                  requiereRevision={r.requiereRevision}
+                />
               </span>
             </div>
             {meta.next && (
@@ -692,14 +697,24 @@ const Lista = ({
                 {/* En mobile el estado va acá (la columna dedicada se oculta). */}
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5 sm:hidden">
                   <EstadoBadge estado={r.estado} />
-                  <PagoChip estadoPago={r.estadoPago} saldo={r.saldo} />
+                  <PagoChip
+                    estadoPago={r.estadoPago}
+                    saldo={r.saldo}
+                    excedente={r.excedente}
+                    requiereRevision={r.requiereRevision}
+                  />
                 </div>
               </div>
               <div className="pointer-events-none relative z-10 hidden min-w-0 flex-[1.6] truncate text-[13px] text-text-3 sm:block">{r.descripcionProblema}</div>
               <div className="pointer-events-none relative z-10 hidden w-[150px] sm:block">
                 <EstadoBadge estado={r.estado} />
                 <div className="mt-1">
-                  <PagoChip estadoPago={r.estadoPago} saldo={r.saldo} />
+                  <PagoChip
+                    estadoPago={r.estadoPago}
+                    saldo={r.saldo}
+                    excedente={r.excedente}
+                    requiereRevision={r.requiereRevision}
+                  />
                 </div>
               </div>
               <div className="pointer-events-none relative z-10 w-[80px] text-right font-mono text-[13.5px] font-bold sm:w-[96px]">{formatMoney(r.total ?? r.precioFinal ?? r.precioEstimado)}</div>

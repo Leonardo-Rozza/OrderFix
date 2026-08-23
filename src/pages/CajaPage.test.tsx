@@ -204,4 +204,31 @@ describe('CajaPage — rango de fechas', () => {
     expect((await within(resumen).findAllByText(/2\.500/)).length).toBeGreaterThan(0);
     expect(requests).toBe(2);
   });
+
+  it('muestra la referencia separada de la observación del cobro', async () => {
+    server.use(
+      http.get(`${API}/caja`, () => HttpResponse.json({
+        desde: '2026-08-20',
+        hasta: '2026-08-20',
+        totalCobrado: 2500,
+        cantidad: 1,
+        porMetodo: { TRANSFERENCIA: 2500 },
+        cobros: [{
+          id: 1,
+          reparacionId: 7,
+          monto: 2500,
+          metodo: 'TRANSFERENCIA',
+          referencia: 'OP-123',
+          observaciones: 'Seña inicial',
+          fecha: '2026-08-20T10:00:00',
+        }],
+      })),
+    );
+
+    renderUI();
+
+    expect(await screen.findByText(/Referencia:/)).toHaveTextContent('Referencia: OP-123');
+    expect(screen.getByText('Observación: Seña inicial')).toBeVisible();
+    expect(screen.queryByText(/OP-123.*Seña inicial/)).not.toBeInTheDocument();
+  });
 });

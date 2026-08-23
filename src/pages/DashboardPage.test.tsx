@@ -43,6 +43,8 @@ const dashboardData = {
       precioFinal: 2000,
       total: 34567,
       saldo: 12345,
+      excedente: 0,
+      requiereRevision: false,
       estadoPago: 'PARCIAL',
       fechaIngreso: '2026-08-20',
       fechaEstimadaEntrega: null,
@@ -89,6 +91,10 @@ describe('DashboardPage — consistencia de indicadores', () => {
     mocks.identity.nombreSaludo = 'Juan Pérez';
     mocks.identity.taller = 'CelExpress';
     mocks.identity.isLoading = false;
+    dashboardData.ultimasReparaciones[0].saldo = 12345;
+    dashboardData.ultimasReparaciones[0].excedente = 0;
+    dashboardData.ultimasReparaciones[0].requiereRevision = false;
+    dashboardData.ultimasReparaciones[0].estadoPago = 'PARCIAL';
   });
 
   it('saluda con el username remoto y ubica la actividad en el taller', () => {
@@ -111,12 +117,24 @@ describe('DashboardPage — consistencia de indicadores', () => {
     expect(screen.getByText('Total reparaciones')).toBeVisible();
   });
 
-  it('muestra total y saldo derivados aunque cobros no esté habilitado', () => {
+  it('muestra total y pendiente derivados aunque cobros no esté habilitado', () => {
     renderPage();
 
     expect(screen.getByText(/34\.567/)).toBeInTheDocument();
-    expect(screen.getByText(/Falta.*12\.345/)).toBeInTheDocument();
+    expect(screen.getByText(/Pendiente de cobro.*12\.345/)).toBeInTheDocument();
     expect(screen.queryByText(/2\.000/)).not.toBeInTheDocument();
+  });
+
+  it('prioriza el excedente de una reparación reciente sobre Pagado', () => {
+    dashboardData.ultimasReparaciones[0].saldo = 0;
+    dashboardData.ultimasReparaciones[0].excedente = 88323;
+    dashboardData.ultimasReparaciones[0].requiereRevision = true;
+    dashboardData.ultimasReparaciones[0].estadoPago = 'PAGADO';
+
+    renderPage();
+
+    expect(screen.getByText(/Excedente a revisar.*88\.323/)).toBeVisible();
+    expect(screen.queryByText('Pagado')).not.toBeInTheDocument();
   });
 
   it('mantiene todo el bloque de KPI como desconocido mientras carga', () => {

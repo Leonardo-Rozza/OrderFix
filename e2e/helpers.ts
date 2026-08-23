@@ -123,6 +123,8 @@ const defaultReparacionDetalle = {
   totalRepuestos: 0,
   cobrado: 10_000,
   saldo: 40_000,
+  excedente: 0,
+  requiereRevision: false,
   estadoPago: 'PARCIAL',
   patronDesbloqueo: null,
   pinDesbloqueo: null,
@@ -194,7 +196,15 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
   const usuarios = data.usuarios ?? [];
   const suscripcion = data.suscripcion ?? defaultSuscripcion;
   const perfil = data.perfil ?? defaultPerfil;
-  const cobros = data.cobros ?? { total: 0, cobrado: 0, saldo: 0, pagado: false, cobros: [] };
+  const cobros = data.cobros ?? {
+    total: 0,
+    cobrado: 0,
+    saldo: 0,
+    excedente: 0,
+    requiereRevision: false,
+    pagado: false,
+    cobros: [],
+  };
   // Estado mutable del seguimiento (para que aprobar/rechazar cambie el badge al refetch).
   const seguimiento = JSON.parse(JSON.stringify(data.seguimiento ?? defaultSeguimiento));
 

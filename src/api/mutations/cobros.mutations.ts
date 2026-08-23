@@ -3,6 +3,7 @@ import { apiClient } from '../axios';
 import type { Cobro, CobroCreate } from '../../types';
 import { getErrorMessage, showError, showSuccess } from '../../utils/toast';
 import { reconcileCobroChanged } from '../cacheConsistency';
+import { hasApiErrorCode } from '../errors';
 
 const crearCobro = async (
   reparacionId: number,
@@ -24,7 +25,17 @@ export const useCrearCobroMutation = (reparacionId: number) => {
       await reconcileCobroChanged(qc, reparacionId);
       showSuccess('Cobro registrado');
     },
-    onError: (e) => showError(getErrorMessage(e, 'No se pudo registrar el cobro')),
+    onError: async (e) => {
+      // El modal muestra este conflicto junto al monto y conserva el formulario.
+      // Un toast adicional repetiría el mismo error fuera de contexto.
+      if (hasApiErrorCode(e, 'COBRO_SUPERA_SALDO')) {
+        // Otra pestaña pudo registrar el cobro primero. Refrescamos todos los
+        // derivados sin resetear los campos dirty que conserva el modal.
+        await reconcileCobroChanged(qc, reparacionId);
+        return;
+      }
+      showError(getErrorMessage(e, 'No se pudo registrar el cobro'));
+    },
   });
 };
 

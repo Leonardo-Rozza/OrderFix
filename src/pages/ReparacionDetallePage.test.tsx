@@ -207,6 +207,8 @@ describe('ReparacionDetallePage — estados honestos de subconsultas', () => {
       total: 0,
       cobrado: 0,
       saldo: 0,
+      excedente: 0,
+      requiereRevision: false,
       pagado: false,
       cobros: [],
     };
@@ -221,7 +223,64 @@ describe('ReparacionDetallePage — estados honestos de subconsultas', () => {
     expect(screen.getByText('Sin cobros registrados.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Agregar' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Nuevo' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Cobrar' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Cobrar' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Cobrar' })).toHaveAttribute(
+      'title',
+      'La orden no tiene pendiente de cobro',
+    );
+  });
+
+  it('muestra pendiente y referencia separada, y habilita cobrar sólo con importe disponible', () => {
+    mocks.useRepuestosQuery.mockReturnValue(successResult([], mocks.refetchRepuestos));
+    mocks.usePresupuestosQuery.mockReturnValue(successResult([], mocks.refetchPresupuestos));
+    mocks.useCobrosQuery.mockReturnValue(successResult<CobrosReparacion>({
+      total: 50000,
+      cobrado: 10000,
+      saldo: 40000,
+      excedente: 0,
+      requiereRevision: false,
+      pagado: false,
+      cobros: [{
+        id: 2,
+        reparacionId: 7,
+        monto: 10000,
+        metodo: 'TRANSFERENCIA',
+        referencia: 'OP-123',
+        observaciones: 'Seña inicial',
+        fecha: '2026-08-20T10:00:00',
+      }],
+    }, mocks.refetchCobros));
+
+    renderPage();
+
+    const cobros = screen.getByRole('region', { name: 'Cobros' });
+    expect(within(cobros).getByText('Pendiente de cobro')).toBeVisible();
+    expect(within(cobros).getByText(/40\.000/)).toBeVisible();
+    expect(within(cobros).getByText(/Referencia:/)).toHaveTextContent('Referencia: OP-123');
+    expect(within(cobros).getByText('Observación: Seña inicial')).toBeVisible();
+    expect(within(cobros).getByRole('button', { name: 'Cobrar' })).toBeEnabled();
+  });
+
+  it('prioriza el excedente, oculta Pagado y bloquea otro cobro', () => {
+    mocks.useRepuestosQuery.mockReturnValue(successResult([], mocks.refetchRepuestos));
+    mocks.usePresupuestosQuery.mockReturnValue(successResult([], mocks.refetchPresupuestos));
+    mocks.useCobrosQuery.mockReturnValue(successResult<CobrosReparacion>({
+      total: 50000,
+      cobrado: 60000,
+      saldo: 0,
+      excedente: 10000,
+      requiereRevision: true,
+      pagado: true,
+      cobros: [],
+    }, mocks.refetchCobros));
+
+    renderPage();
+
+    const cobros = screen.getByRole('region', { name: 'Cobros' });
+    expect(within(cobros).getByText('Excedente a revisar')).toBeVisible();
+    expect(within(cobros).getByRole('alert')).toHaveTextContent(/excedente histórico/i);
+    expect(within(cobros).queryByText('Pagado en su totalidad')).not.toBeInTheDocument();
+    expect(within(cobros).getByRole('button', { name: 'Cobrar' })).toBeDisabled();
   });
 
   it('serializa los cambios de estado y bloquea todos los controles hasta finalizar', () => {
@@ -231,6 +290,8 @@ describe('ReparacionDetallePage — estados honestos de subconsultas', () => {
       total: 0,
       cobrado: 0,
       saldo: 0,
+      excedente: 0,
+      requiereRevision: false,
       pagado: false,
       cobros: [],
     }, mocks.refetchCobros));
@@ -260,6 +321,8 @@ describe('ReparacionDetallePage — estados honestos de subconsultas', () => {
       total: 0,
       cobrado: 0,
       saldo: 0,
+      excedente: 0,
+      requiereRevision: false,
       pagado: false,
       cobros: [],
     }, mocks.refetchCobros));

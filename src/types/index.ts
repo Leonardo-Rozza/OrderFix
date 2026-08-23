@@ -74,6 +74,10 @@ export interface ApiErrorBody {
   error?: string;
   message?: string;
   path?: string;
+  /** Código estable para errores de dominio que la UI puede resolver inline. */
+  code?: string;
+  /** Contexto estructurado del conflicto; nunca debe usarse como mensaje visible crudo. */
+  details?: Record<string, unknown>;
 }
 
 // ========== SUSCRIPCIÓN / PLAN ==========
@@ -221,6 +225,9 @@ export interface Reparacion {
   cobrado?: number | null;
   /** max(0, total - cobrado). */
   saldo?: number | null;
+  /** max(0, cobrado - total): inconsistencia histórica que requiere revisión. */
+  excedente?: number | null;
+  requiereRevision?: boolean;
   estadoPago?: EstadoPago;
   accesorios?: string | null;
   condicionesIngreso?: string | null;
@@ -431,6 +438,8 @@ export interface Cobro {
   reparacionId: number;
   monto: number;
   metodo: MetodoPago;
+  /** Número de operación o identificación manual visible por separado. */
+  referencia: string | null;
   observaciones: string | null;
   fecha: string;
 }
@@ -438,6 +447,7 @@ export interface Cobro {
 export interface CobroCreate {
   monto: number;
   metodo: MetodoPago;
+  referencia?: string;
   observaciones?: string;
 }
 
@@ -445,6 +455,8 @@ export interface CobrosReparacion {
   total: number;
   cobrado: number;
   saldo: number;
+  excedente: number;
+  requiereRevision: boolean;
   pagado: boolean;
   cobros: Cobro[];
 }

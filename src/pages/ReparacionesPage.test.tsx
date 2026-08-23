@@ -71,6 +71,8 @@ const reparacion: Reparacion = {
   total: 50000,
   cobrado: 0,
   saldo: 50000,
+  excedente: 0,
+  requiereRevision: false,
   estadoPago: 'SIN_COBRAR',
 };
 
@@ -261,6 +263,10 @@ describe('ReparacionesPage — semántica de tarjetas y filas', () => {
     mocks.forceRender = null;
     mocks.fetchNextPage.mockReset();
     mocks.refetch.mockReset();
+    reparacion.saldo = 50000;
+    reparacion.excedente = 0;
+    reparacion.requiereRevision = false;
+    reparacion.estadoPago = 'SIN_COBRAR';
   });
 
   it('separa abrir/avanzar en kanban y conserva drag-and-drop y teclado', async () => {
@@ -325,9 +331,25 @@ describe('ReparacionesPage — semántica de tarjetas y filas', () => {
     expect(screen.getByText('Detalle de reparación')).toBeInTheDocument();
   });
 
-  it('muestra el saldo derivado aunque registrar cobros no esté habilitado', () => {
+  it('muestra el pendiente derivado aunque registrar cobros no esté habilitado', () => {
     renderPage();
-    expect(screen.getAllByText(/Falta/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Pendiente de cobro/).length).toBeGreaterThan(0);
+  });
+
+  it('propaga y prioriza un excedente legacy en kanban y lista', async () => {
+    const user = userEvent.setup();
+    reparacion.saldo = 0;
+    reparacion.excedente = 88323;
+    reparacion.requiereRevision = true;
+    reparacion.estadoPago = 'PAGADO';
+
+    renderPage();
+    expect(screen.getAllByText(/Excedente a revisar.*88\.323/).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Pagado')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Lista' }));
+    expect(screen.getAllByText(/Excedente a revisar.*88\.323/).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Pagado')).not.toBeInTheDocument();
   });
 
   it('no anuncia cero ni vacío mientras una etapa sigue cargando', () => {

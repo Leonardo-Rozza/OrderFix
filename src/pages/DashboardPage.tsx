@@ -243,7 +243,12 @@ export const DashboardPage = () => {
                   </div>
                   <div className="hidden flex-col items-end gap-1 sm:flex">
                     <EstadoBadge estado={r.estado} />
-                    <PagoChip estadoPago={r.estadoPago} saldo={r.saldo} />
+                    <PagoChip
+                      estadoPago={r.estadoPago}
+                      saldo={r.saldo}
+                      excedente={r.excedente}
+                      requiereRevision={r.requiereRevision}
+                    />
                   </div>
                   <div className="w-[84px] text-right font-mono text-[13.5px] font-bold">{formatMoney(r.total ?? r.precioFinal ?? r.precioEstimado)}</div>
                 </div>

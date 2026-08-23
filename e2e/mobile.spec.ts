@@ -68,6 +68,12 @@ const REPARACION_ACTIVA = {
   clienteNombre: 'Ana',
   clienteApellido: 'Gómez',
   clienteTelefono: '1155550000',
+  total: 50_000,
+  cobrado: 10_000,
+  saldo: 40_000,
+  excedente: 0,
+  requiereRevision: false,
+  estadoPago: 'PARCIAL',
 };
 
 const SMOKE_DATA = {
@@ -81,7 +87,15 @@ const SMOKE_DATA = {
   usuarios: [
     { id: 1, username: 'Admin', email: 'admin@mvgr.com', role: 'ADMIN', active: true },
   ],
-  cobros: { total: 50_000, cobrado: 10_000, saldo: 40_000, pagado: false, cobros: [] },
+  cobros: {
+    total: 50_000,
+    cobrado: 10_000,
+    saldo: 40_000,
+    excedente: 0,
+    requiereRevision: false,
+    pagado: false,
+    cobros: [],
+  },
 };
 
 const expectNoHorizontalOverflow = async (page: Page) => {
@@ -422,6 +436,58 @@ test('smoke móvil: todos los formularios críticos respetan viewport, controles
       { title: /^Reclamo en garantía · /, cta: 'Crear reclamo' },
     );
   });
+});
+
+test('detalle con excedente: prioriza la revisión sin overflow y bloquea Cobrar', async ({ page, context }) => {
+  await seedAuth(context);
+  const referenciaLarga = `OP-${'9'.repeat(117)}`;
+  await mockApi(page, {
+    ...SMOKE_DATA,
+    reparacionDetalle: {
+      ...REPARACION_ACTIVA,
+      cobrado: 60_000,
+      saldo: 0,
+      excedente: 10_000,
+      requiereRevision: true,
+      estadoPago: 'PAGADO',
+    },
+    cobros: {
+      total: 50_000,
+      cobrado: 60_000,
+      saldo: 0,
+      excedente: 10_000,
+      requiereRevision: true,
+      pagado: true,
+      cobros: [{
+        id: 1,
+        reparacionId: 1,
+        monto: 60_000,
+        metodo: 'TRANSFERENCIA',
+        referencia: referenciaLarga,
+        observaciones: 'Carga histórica',
+        fecha: '2026-08-01T12:00:00',
+      }],
+    },
+  });
+
+  await page.goto('/reparaciones/1');
+
+  const seccion = page.getByRole('region', { name: 'Cobros' });
+  await expect(seccion.getByText('Excedente a revisar', { exact: true })).toBeVisible();
+  await expect(seccion.getByRole('alert')).toContainText('excedente histórico');
+  await expect(seccion.getByRole('button', { name: 'Cobrar', exact: true })).toBeDisabled();
+  await expect(seccion.getByText(/Referencia:/)).toContainText(referenciaLarga);
+  await expectNoHorizontalOverflow(page);
+
+  const viewportWidth = page.viewportSize()?.width ?? 0;
+  if (viewportWidth < 640) {
+    const headerTargets = await editableMetrics(
+      seccion,
+      'a[href*="/recibo"], button[title*="excedente"]',
+    );
+    expect(headerTargets).toHaveLength(2);
+    headerTargets.forEach(expectTouchSized);
+  }
 });
 
 test('registro: controles táctiles sin zoom ni overflow horizontal', async ({ page }) => {

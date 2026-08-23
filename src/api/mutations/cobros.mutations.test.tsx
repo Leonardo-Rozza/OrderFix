@@ -11,6 +11,7 @@ vi.mock('../../utils/toast', async (orig) => {
 });
 
 import { useAnularCobroMutation, useCrearCobroMutation } from './cobros.mutations';
+import { showError } from '../../utils/toast';
 
 const expectedKeys = [
   ['cobros', 7],
@@ -45,6 +46,7 @@ describe('mutaciones de cobros — invalidación de datos derivados', () => {
           reparacionId: 7,
           monto: 12000,
           metodo: 'EFECTIVO',
+          referencia: null,
           observaciones: null,
           fecha: '2026-08-13T12:00:00',
         }, { status: 201 }),
@@ -57,6 +59,28 @@ describe('mutaciones de cobros — invalidación de datos derivados', () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(invalidatedKeys()).toEqual(expect.arrayContaining(expectedKeys));
+  });
+
+  it('deja COBRO_SUPERA_SALDO para el error inline sin duplicarlo en un toast', async () => {
+    vi.mocked(showError).mockClear();
+    server.use(
+      http.post(`${API}/reparaciones/7/cobros`, () => HttpResponse.json({
+        status: 409,
+        code: 'COBRO_SUPERA_SALDO',
+        message: 'El monto supera el pendiente de cobro.',
+        details: { pendiente: 3000 },
+      }, { status: 409 })),
+    );
+    const { result, invalidatedKeys } = setup(() => useCrearCobroMutation(7));
+
+    await act(async () => {
+      await expect(result.current.mutateAsync({ monto: 4000, metodo: 'EFECTIVO' }))
+        .rejects.toBeTruthy();
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(showError).not.toHaveBeenCalled();
     expect(invalidatedKeys()).toEqual(expect.arrayContaining(expectedKeys));
   });
 

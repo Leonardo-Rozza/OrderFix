@@ -111,13 +111,13 @@ export const ReciboPage = () => {
               <span className="font-mono text-success">{formatMoney(r.cobrado)}</span>
             </div>
             <div className="flex justify-between font-bold">
-              <span>Saldo</span>
+              <span>Pendiente de cobro</span>
               <span className="font-mono">{formatMoney(r.saldo)}</span>
             </div>
           </div>
 
           <div className="mt-5 text-center text-[13px] font-bold">
-            {r.pagado ? '✓ Pagado' : 'Pendiente de pago'}
+            {r.pagado ? '✓ Pagado' : 'Pendiente de cobro'}
           </div>
         </div>
       </div>

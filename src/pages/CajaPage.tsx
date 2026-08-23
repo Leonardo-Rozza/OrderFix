@@ -184,8 +184,17 @@ export const CajaPage = () => {
                       <div className="min-w-0 break-words text-[12px] text-text-3">
                         {formatDate(cobro.fecha)}
                         <span className="sm:hidden"> · {metodoLabel(cobro.metodo)}</span>
-                        {cobro.observaciones ? ` · ${cobro.observaciones}` : ''}
                       </div>
+                      {cobro.referencia && (
+                        <div className="mt-1 min-w-0 break-all text-[12px] font-semibold text-text-2">
+                          Referencia: <span className="font-mono">{cobro.referencia}</span>
+                        </div>
+                      )}
+                      {cobro.observaciones && (
+                        <div className="mt-1 min-w-0 break-words text-[12px] text-text-3">
+                          Observación: {cobro.observaciones}
+                        </div>
+                      )}
                     </div>
                     <div className="hidden w-[120px] text-[13px] text-text-2 sm:block">{metodoLabel(cobro.metodo)}</div>
                     <div className="w-[110px] text-right font-mono text-[13.5px] font-bold">{formatMoney(cobro.monto)}</div>

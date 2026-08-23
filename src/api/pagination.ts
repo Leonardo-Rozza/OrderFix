@@ -1,8 +1,8 @@
 /**
  * El backend paginó los listados (Spring): ahora devuelven
  * `{ content: [...], page: { size, number, totalElements, totalPages } }`.
- * El front arma joins/kanban/dashboard client-side, así que por ahora
- * necesitamos la lista completa.
+ * Algunos sublistados heredados todavía arman joins client-side; los listados,
+ * selectores y el Kanban consumen la metadata para paginar bajo demanda.
  */
 
 export interface PageMeta {

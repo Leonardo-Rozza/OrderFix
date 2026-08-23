@@ -5,6 +5,13 @@ export interface ReparacionesQueryParams extends ListParams {
   estado?: EstadoReparacion;
 }
 
+/** Valores estables que identifican una sesión paginada del Kanban. */
+export interface ReparacionesBoardQueryParams {
+  q: string;
+  size: number;
+  sort: string;
+}
+
 /** Parámetros estables de una búsqueda de opciones; `page` vive en pageParam. */
 export interface OptionSearchParams {
   q: string;
@@ -50,6 +57,10 @@ export const queryKeys = {
   reparaciones: {
     all: ['reparaciones'] as const,
     list: (params: ReparacionesQueryParams) => ['reparaciones', params] as const,
+    boards: ['reparaciones', 'board'] as const,
+    boardState: (estado: EstadoReparacion) => ['reparaciones', 'board', estado] as const,
+    board: (estado: EstadoReparacion, params: ReparacionesBoardQueryParams) =>
+      ['reparaciones', 'board', estado, params] as const,
     options: ['reparaciones', 'options'] as const,
     optionSearch: (params: OptionSearchParams) => ['reparaciones', 'options', params] as const,
     byEquipo: (equipoId: number | undefined) => ['reparaciones', 'equipo', equipoId] as const,

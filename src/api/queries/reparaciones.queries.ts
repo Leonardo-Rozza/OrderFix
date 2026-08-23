@@ -1,7 +1,13 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '../axios';
-import { toQueryParams, type Page, type ListParams } from '../pagination';
+import {
+  requirePageMeta,
+  toQueryParams,
+  type Page,
+  type PageMeta,
+  type ListParams,
+} from '../pagination';
 import { queryKeys } from '../queryKeys';
 import type {
   EstadoReparacion,
@@ -13,6 +19,18 @@ import type {
 export interface ReparacionesParams extends ListParams {
   estado?: EstadoReparacion;
 }
+
+export interface ReparacionesBoardParams {
+  estado: EstadoReparacion;
+  q: string;
+  size?: number;
+  sort?: string;
+}
+
+export type ReparacionesBoardPage = Page<Reparacion> & { page: PageMeta };
+
+const REPARACIONES_BOARD_PAGE_SIZE = 20;
+const REPARACIONES_BOARD_SORT = 'id,desc';
 
 // Listado paginado + búsqueda + filtro por estado (server-side)
 const fetchReparaciones = async (params: ReparacionesParams): Promise<Page<Reparacion>> => {
@@ -28,6 +46,68 @@ export const useReparacionesQuery = (params: ReparacionesParams, enabled = true)
     queryFn: () => fetchReparaciones(params),
     enabled,
     placeholderData: keepPreviousData,
+  });
+};
+
+const fetchReparacionesBoardPage = async ({
+  estado,
+  q,
+  page,
+  size,
+  sort,
+  signal,
+}: {
+  estado: EstadoReparacion;
+  q: string;
+  page: number;
+  size: number;
+  sort: string;
+  signal: AbortSignal;
+}): Promise<ReparacionesBoardPage> => {
+  const { data } = await apiClient.get<Page<Reparacion>>('/reparaciones', {
+    params: {
+      ...toQueryParams({ q, page, size, sort }),
+      estado,
+    },
+    signal,
+    errorMode: 'inline',
+  });
+
+  return {
+    ...data,
+    page: requirePageMeta(data),
+  };
+};
+
+/** Consulta incremental aislada de los listados tradicionales de reparaciones. */
+export const useReparacionesBoardInfiniteQuery = ({
+  estado,
+  q,
+  size = REPARACIONES_BOARD_PAGE_SIZE,
+  sort = REPARACIONES_BOARD_SORT,
+}: ReparacionesBoardParams) => {
+  const normalizedQ = q.trim();
+
+  return useInfiniteQuery({
+    queryKey: queryKeys.reparaciones.board(estado, {
+      q: normalizedQ,
+      size,
+      sort,
+    }),
+    queryFn: ({ pageParam, signal }) => fetchReparacionesBoardPage({
+      estado,
+      q: normalizedQ,
+      page: pageParam,
+      size,
+      sort,
+      signal,
+    }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => (
+      lastPage.page.number + 1 < lastPage.page.totalPages
+        ? lastPage.page.number + 1
+        : undefined
+    ),
   });
 };
 

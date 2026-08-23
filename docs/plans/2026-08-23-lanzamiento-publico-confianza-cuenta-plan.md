@@ -32,7 +32,10 @@ El backend Java vive en:
 /Volumes/DiscoExtern/Desktop/mvrg-backend
 ```
 
-No se modificará el backend desde este chat. Las tareas marcadas `BACKEND-HANDOFF` se documentan para entregarlas a su conversación responsable.
+Alcance actualizado el 2026-08-23: el usuario autorizó modificar también el backend cuando sea un
+prerrequisito del lanzamiento. Cada cambio Java se realiza en su propio repositorio, rama, documento
+de fase y commit atómico. Los `BACKEND-HANDOFF` se conservan como fronteras contractuales, pero ahora
+pueden resolverse desde este trabajo antes de conectar el frontend.
 
 No se hará push. Cada unidad se guardará en un commit atómico. No se tocarán los directorios del usuario `.agents/` ni `public/OrdenFix project naming/`.
 
@@ -266,12 +269,41 @@ hardening. No autoriza publicación ni reemplaza los smokes remotos de las fases
   explícitos de lanzamiento; la fixture pública completa del validador sí pasa de punta a punta.
 
 - Alcance: sólo `/Volumes/DiscoExtern/Desktop/mvgr-reparaciones-frontend`.
-- Backend Java: no fue modificado desde este trabajo; los cambios contractuales siguen como
-  `BACKEND-HANDOFF` para su conversación responsable.
+- Backend Java: no fue modificado durante esta primera fase; los cambios contractuales continuaban
+  pendientes como `BACKEND-HANDOFF` al momento de cerrar estas validaciones.
 - Git remoto: no se hizo push. Los commits atómicos de la fase se crean después del cierre de
   validaciones y permanecen sólo en esta rama local.
 
-## Tarea 3 — Modelar documentos y requisitos legales remotos
+## Fase 2.0 — Cerrar el invariante del titular en backend
+
+### Estado
+
+Completada el 2026-08-23 antes de iniciar la integración legal, porque el backend permitía crear o
+promover un segundo `ADMIN` aunque el diseño aprobado define un titular único y empleados `USER`.
+
+- Repositorio: `/Volumes/DiscoExtern/Desktop/mvrg-backend`.
+- Rama local: `codex/lanzamiento-publico-backend`.
+- Commit local: `c94d334 fix(usuarios): garantiza un titular admin por taller`.
+- Documento propietario:
+  `docs/plans/2026-08-23-admin-titular-unico-design.md` dentro del backend.
+- Migración: `V26__admin_titular_unico.sql`, fail-closed ante usuarios sin tenant, roles desconocidos
+  o múltiples administradores históricos; no decide automáticamente quién representa al taller.
+- Compatibilidad: el wire conserva `ADMIN`/`USER`; `role: USER` todavía se acepta en el alta mientras
+  el frontend deja de enviarlo, pero cualquier promoción/degradación se rechaza.
+
+### Verificación
+
+- `RolTests`: 7/7.
+- Compilación de aplicación y tests con Java 21: aprobada.
+- La suite rápida ejecutó 185 pruebas: 184 pasaron y una prueba preexistente produjo un falso positivo
+  al encontrar el PIN de fixture `7391` dentro de los microsegundos de un timestamp. No se mezcló esa
+  corrección con esta fase.
+- `PostgresMigrationIT` quedó ampliado para probar esquema final y upgrades V25 → V26 incompatibles;
+  no pudo ejecutarse localmente porque Docker/Testcontainers no estaba disponible. Debe correr en CI
+  o con Docker antes de desplegar V26.
+- No se hizo push.
+
+## Tarea 3 / Fase 2.1 — Modelar documentos y requisitos legales remotos
 
 ### Dependencia
 

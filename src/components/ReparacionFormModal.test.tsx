@@ -12,6 +12,7 @@ vi.mock('../utils/toast', async (orig) => {
 });
 
 import { ReparacionFormModal } from './ReparacionFormModal';
+import { authStore } from '../store/auth.store';
 import { showError, showSuccess } from '../utils/toast';
 import type { Equipo, Reparacion, ReparacionCredenciales } from '../types';
 
@@ -21,6 +22,11 @@ beforeEach(() => {
   vi.mocked(showError).mockClear();
   vi.mocked(showSuccess).mockClear();
 });
+
+const adminToken = `header.${btoa(JSON.stringify({
+  role: 'ROLE_ADMIN',
+  exp: Math.floor(Date.now() / 1000) + 3600,
+}))}.firma`;
 
 const completarMinimos = async (
   user: ReturnType<typeof userEvent.setup>,
@@ -34,6 +40,24 @@ const completarMinimos = async (
 };
 
 describe('ReparacionFormModal — alta rápida (modo nuevo)', () => {
+  it('permanece limpio para un ADMIN cuando el técnico y la garantía están vacíos', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    server.use(
+      http.get(`${API}/usuarios`, () => HttpResponse.json([])),
+    );
+    authStore.getState().login(adminToken, 'admin@ordenfix.test');
+
+    const { unmount } = renderUI(<ReparacionFormModal isOpen onClose={onClose} editing={null} />);
+    await screen.findByLabelText('Técnico asignado');
+    await user.keyboard('{Escape}');
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('dialog', { name: '¿Descartar los cambios?' })).not.toBeInTheDocument();
+    unmount();
+    authStore.getState().logout();
+  });
+
   it('crea cliente+equipo+reparación con el endpoint de ingreso rápido', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();

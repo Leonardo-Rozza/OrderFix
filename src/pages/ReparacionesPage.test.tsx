@@ -1,7 +1,8 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { ReactNode } from 'react';
+import { useEffect, useReducer, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { PageMeta } from '../api/pagination';
 import { renderWithProviders } from '../test/renderWithProviders';
 import type { EstadoReparacion, Reparacion } from '../types';
 
@@ -13,14 +14,42 @@ interface MockQueryParams {
   sort?: string;
 }
 
+interface MockBoardQueryParams {
+  q: string;
+  estado: EstadoReparacion;
+  size?: number;
+  sort?: string;
+}
+
+interface MockBoardPage {
+  content: Reparacion[];
+  page: PageMeta;
+}
+
+type MockBoardAttempt =
+  | { kind: 'success'; page: MockBoardPage }
+  | { kind: 'error' };
+
+interface MockBoardState {
+  pages: MockBoardPage[];
+  nextAttempts: MockBoardAttempt[];
+  isLoading?: boolean;
+  isInitialError?: boolean;
+  isFetchingNextPage?: boolean;
+  isFetchNextPageError?: boolean;
+  isRefetchError?: boolean;
+}
+
 const mocks = vi.hoisted(() => ({
   mutate: vi.fn(),
   isPending: false,
-  loadingEstado: null as EstadoReparacion | null,
-  errorEstado: null as EstadoReparacion | null,
-  ingresadoTotal: 1,
   listTotalPages: 5,
   queryParams: [] as MockQueryParams[],
+  boardQueryParams: [] as MockBoardQueryParams[],
+  boardStates: new Map<EstadoReparacion, MockBoardState>(),
+  boardFetchingCount: 0,
+  forceRender: null as (() => void) | null,
+  fetchNextPage: vi.fn(),
   refetch: vi.fn(),
 }));
 
@@ -45,6 +74,48 @@ const reparacion: Reparacion = {
   estadoPago: 'SIN_COBRAR',
 };
 
+const makeReparacion = (id: number, overrides: Partial<Reparacion> = {}): Reparacion => ({
+  ...reparacion,
+  id,
+  equipoId: id,
+  equipoModelo: `Equipo ${id}`,
+  numeroOrden: `ORD-2026-${String(id).padStart(4, '0')}`,
+  ...overrides,
+});
+
+const boardPage = (
+  number: number,
+  content: Reparacion[],
+  totalElements: number,
+  totalPages: number,
+): MockBoardPage => ({
+  content,
+  page: { number, size: 20, totalElements, totalPages },
+});
+
+const defaultBoardState = (estado: EstadoReparacion): MockBoardState => ({
+  pages: [boardPage(
+    0,
+    estado === 'INGRESADO' ? [reparacion] : [],
+    estado === 'INGRESADO' ? 1 : 0,
+    estado === 'INGRESADO' ? 1 : 0,
+  )],
+  nextAttempts: [],
+});
+
+const getBoardState = (estado: EstadoReparacion): MockBoardState => {
+  const existing = mocks.boardStates.get(estado);
+  if (existing) return existing;
+  const state = defaultBoardState(estado);
+  mocks.boardStates.set(estado, state);
+  return state;
+};
+
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
+  useIsFetching: () => mocks.boardFetchingCount,
+}));
+
 vi.mock('../layouts/DashboardLayout', () => ({
   DashboardLayout: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
@@ -52,50 +123,63 @@ vi.mock('../layouts/DashboardLayout', () => ({
 vi.mock('../api/queries/reparaciones.queries', () => ({
   useReparacionesQuery: (params: MockQueryParams) => {
     mocks.queryParams.push({ ...params });
-    const { estado, page, size } = params;
-    const boardQuery = size === 100;
-
-    if (boardQuery && estado === mocks.loadingEstado) {
-      return {
-        data: undefined,
-        isLoading: true,
-        isError: false,
-        isFetching: false,
-        isPlaceholderData: false,
-        refetch: mocks.refetch,
-      };
-    }
-    if (boardQuery && estado === mocks.errorEstado) {
-      return {
-        data: undefined,
-        isLoading: false,
-        isError: true,
-        isFetching: false,
-        isPlaceholderData: false,
-        refetch: mocks.refetch,
-      };
-    }
-    const content = boardQuery
-      ? (estado === 'INGRESADO' ? [reparacion] : [])
-      : [reparacion];
+    const { page, size } = params;
+    const content = [reparacion];
     return {
       data: {
         content,
         page: {
           number: page,
           size,
-          totalElements: boardQuery && estado === 'INGRESADO'
-            ? mocks.ingresadoTotal
-            : content.length,
-          totalPages: boardQuery
-            ? (estado === 'INGRESADO' ? Math.ceil(mocks.ingresadoTotal / 100) : 1)
-            : mocks.listTotalPages,
+          totalElements: content.length,
+          totalPages: mocks.listTotalPages,
         },
       },
       isLoading: false,
       isError: false,
       isFetching: false,
       isPlaceholderData: false,
+      refetch: mocks.refetch,
+    };
+  },
+  useReparacionesBoardInfiniteQuery: (params: MockBoardQueryParams) => {
+    mocks.boardQueryParams.push({ ...params });
+    const state = getBoardState(params.estado);
+    const lastPage = state.pages.at(-1);
+    const hasNextPage = lastPage
+      ? lastPage.page.number + 1 < lastPage.page.totalPages
+      : false;
+
+    return {
+      data: state.isLoading || state.isInitialError
+        ? undefined
+        : {
+            pages: state.pages,
+            pageParams: state.pages.map(({ page }) => page.number),
+          },
+      isLoading: !!state.isLoading,
+      isPending: !!state.isLoading,
+      isError: !!state.isInitialError || !!state.isFetchNextPageError || !!state.isRefetchError,
+      isFetching: !!state.isLoading || !!state.isFetchingNextPage,
+      isFetchingNextPage: !!state.isFetchingNextPage,
+      isFetchNextPageError: !!state.isFetchNextPageError,
+      isRefetchError: !!state.isRefetchError,
+      hasNextPage,
+      fetchNextPage: (options?: { cancelRefetch?: boolean }) => {
+        mocks.fetchNextPage({ estado: params.estado, options });
+        const attempt = state.nextAttempts.shift();
+        if (attempt?.kind === 'error') {
+          state.isFetchNextPageError = true;
+        } else if (attempt?.kind === 'success') {
+          state.pages = [...state.pages, attempt.page];
+          state.isFetchNextPageError = false;
+        }
+        mocks.forceRender?.();
+        return Promise.resolve({
+          data: { pages: state.pages, pageParams: state.pages.map(({ page }) => page.number) },
+          error: attempt?.kind === 'error' ? new Error('Falla incremental') : null,
+        });
+      },
       refetch: mocks.refetch,
     };
   },
@@ -135,10 +219,21 @@ vi.mock('../components/ReparacionFormModal', () => ({
 
 import { ReparacionesPage } from './ReparacionesPage';
 
+const PageHarness = () => {
+  const [, forceRender] = useReducer((value: number) => value + 1, 0);
+  useEffect(() => {
+    mocks.forceRender = forceRender;
+    return () => {
+      if (mocks.forceRender === forceRender) mocks.forceRender = null;
+    };
+  }, [forceRender]);
+  return <ReparacionesPage />;
+};
+
 const renderPage = (
   initialEntries = ['/reparaciones'],
   initialIndex?: number,
-) => renderWithProviders(<ReparacionesPage />, {
+) => renderWithProviders(<PageHarness />, {
   initialEntries,
   initialIndex,
   routePath: '/reparaciones',
@@ -158,11 +253,13 @@ describe('ReparacionesPage — semántica de tarjetas y filas', () => {
       (_variables: unknown, options?: { onSettled?: () => void }) => options?.onSettled?.(),
     );
     mocks.isPending = false;
-    mocks.loadingEstado = null;
-    mocks.errorEstado = null;
-    mocks.ingresadoTotal = 1;
     mocks.listTotalPages = 5;
     mocks.queryParams.length = 0;
+    mocks.boardQueryParams.length = 0;
+    mocks.boardStates.clear();
+    mocks.boardFetchingCount = 0;
+    mocks.forceRender = null;
+    mocks.fetchNextPage.mockReset();
     mocks.refetch.mockReset();
   });
 
@@ -234,7 +331,11 @@ describe('ReparacionesPage — semántica de tarjetas y filas', () => {
   });
 
   it('no anuncia cero ni vacío mientras una etapa sigue cargando', () => {
-    mocks.loadingEstado = 'INGRESADO';
+    mocks.boardStates.set('INGRESADO', {
+      pages: [],
+      nextAttempts: [],
+      isLoading: true,
+    });
 
     renderPage();
 
@@ -247,7 +348,11 @@ describe('ReparacionesPage — semántica de tarjetas y filas', () => {
 
   it('muestra error y reintento sólo en la etapa que falló', async () => {
     const user = userEvent.setup();
-    mocks.errorEstado = 'INGRESADO';
+    mocks.boardStates.set('INGRESADO', {
+      pages: [],
+      nextAttempts: [],
+      isInitialError: true,
+    });
 
     renderPage();
 
@@ -260,14 +365,139 @@ describe('ReparacionesPage — semántica de tarjetas y filas', () => {
     expect(mocks.refetch).toHaveBeenCalledOnce();
   });
 
-  it('avisa cuando el total de una etapa supera lo cargado', () => {
-    mocks.ingresadoTotal = 142;
+  it('muestra progreso y permite pedir el siguiente lote de un solo estado', async () => {
+    const user = userEvent.setup();
+    const firstTwenty = Array.from({ length: 20 }, (_, index) => makeReparacion(42 - index));
+    mocks.boardStates.set('INGRESADO', {
+      pages: [boardPage(0, firstTwenty, 42, 3)],
+      nextAttempts: [],
+    });
 
     renderPage();
 
     const zona = screen.getByTestId('col-INGRESADO');
-    expect(within(zona).getByRole('status')).toHaveTextContent('Mostrando 1 de 142');
-    expect(within(zona).getByText(/carga hasta 100 por estado/i)).toBeInTheDocument();
+    expect(within(zona).getByRole('status')).toHaveTextContent('20 de 42 visibles');
+    const loadMore = within(zona).getByRole('button', {
+      name: 'Cargar 20 reparaciones más en Ingresado',
+    });
+    expect(loadMore).toHaveTextContent('Cargar 20 más');
+
+    await user.click(loadMore);
+    expect(mocks.fetchNextPage).toHaveBeenCalledWith({
+      estado: 'INGRESADO',
+      options: { cancelRefetch: false },
+    });
+    expect(mocks.boardQueryParams).toContainEqual({
+      estado: 'INGRESADO',
+      q: '',
+      size: 20,
+    });
+  });
+
+  it('acumula, deduplica y enfoca la primera reparación nueva', async () => {
+    const user = userEvent.setup();
+    const firstTwenty = Array.from({ length: 20 }, (_, index) => makeReparacion(42 - index));
+    const secondPage = [
+      makeReparacion(23, { equipoModelo: 'Equipo 23 actualizado' }),
+      ...Array.from({ length: 19 }, (_, index) => makeReparacion(22 - index)),
+    ];
+    mocks.boardStates.set('INGRESADO', {
+      pages: [boardPage(0, firstTwenty, 42, 3)],
+      nextAttempts: [{ kind: 'success', page: boardPage(1, secondPage, 42, 3) }],
+    });
+
+    renderPage();
+    const zona = screen.getByTestId('col-INGRESADO');
+    await user.click(within(zona).getByRole('button', {
+      name: 'Cargar 20 reparaciones más en Ingresado',
+    }));
+
+    await waitFor(() => expect(within(zona).getByRole('status')).toHaveTextContent('39 de 42 visibles'));
+    expect(within(zona).getAllByTestId('card-23')).toHaveLength(1);
+    expect(within(zona).getByText(/Equipo 23 actualizado/)).toBeInTheDocument();
+    expect(within(zona).getByRole('button', {
+      name: /Abrir reparación ORD-2026-0022/i,
+    })).toHaveFocus();
+    expect(within(zona).getByRole('button', {
+      name: 'Cargar 3 reparaciones más en Ingresado',
+    })).toHaveTextContent('Cargar 3 más');
+  });
+
+  it('conserva las tarjetas y reintenta una página adicional fallida', async () => {
+    const user = userEvent.setup();
+    const firstTwenty = Array.from({ length: 20 }, (_, index) => makeReparacion(42 - index));
+    const secondTwenty = Array.from({ length: 20 }, (_, index) => makeReparacion(22 - index));
+    mocks.boardStates.set('INGRESADO', {
+      pages: [boardPage(0, firstTwenty, 42, 3)],
+      nextAttempts: [
+        { kind: 'error' },
+        { kind: 'success', page: boardPage(1, secondTwenty, 42, 3) },
+      ],
+    });
+
+    renderPage();
+    const zona = screen.getByTestId('col-INGRESADO');
+    await user.click(within(zona).getByRole('button', {
+      name: 'Cargar 20 reparaciones más en Ingresado',
+    }));
+
+    expect(within(zona).getByRole('alert')).toHaveTextContent('No pudimos cargar más');
+    expect(within(zona).getAllByTestId(/^card-/)).toHaveLength(20);
+
+    await user.click(within(zona).getByRole('button', {
+      name: 'Reintentar carga en Ingresado',
+    }));
+    await waitFor(() => expect(within(zona).getByRole('status')).toHaveTextContent('40 de 42 visibles'));
+    expect(within(zona).getAllByTestId(/^card-/)).toHaveLength(40);
+    expect(mocks.fetchNextPage).toHaveBeenCalledTimes(2);
+  });
+
+  it('conserva datos pero pausa transiciones si falla una reconciliación', async () => {
+    const user = userEvent.setup();
+    mocks.boardStates.set('INGRESADO', {
+      pages: [boardPage(0, [reparacion], 1, 1)],
+      nextAttempts: [],
+      isRefetchError: true,
+    });
+
+    renderPage();
+
+    const zona = screen.getByTestId('col-INGRESADO');
+    expect(within(zona).getByRole('alert')).toHaveTextContent('No pudimos actualizar esta etapa');
+    expect(within(zona).getByTestId('card-7')).toHaveAttribute('draggable', 'false');
+    expect(within(zona).getByRole('button', { name: 'Avanzar' })).toBeDisabled();
+    expect(within(zona).getByRole('button', {
+      name: /Abrir reparación ORD-2026-0007/i,
+    })).toBeEnabled();
+
+    await user.click(within(zona).getByRole('button', { name: 'Actualizar Ingresado' }));
+    expect(mocks.refetch).toHaveBeenCalledOnce();
+  });
+
+  it('bloquea transiciones durante una carga del board pero permite abrir', async () => {
+    const user = userEvent.setup();
+    mocks.boardFetchingCount = 1;
+    mocks.boardStates.set('INGRESADO', {
+      pages: [boardPage(0, [reparacion], 21, 2)],
+      nextAttempts: [],
+      isFetchingNextPage: true,
+    });
+
+    renderPage();
+
+    const zona = screen.getByTestId('col-INGRESADO');
+    expect(screen.getByTestId('card-7')).toHaveAttribute('draggable', 'false');
+    expect(within(zona).getByRole('button', { name: 'Avanzar' })).toBeDisabled();
+    expect(within(zona).getByRole('button', {
+      name: 'Cargar 20 reparaciones más en Ingresado',
+    })).toBeDisabled();
+
+    const openButton = within(zona).getByRole('button', {
+      name: /Abrir reparación ORD-2026-0007/i,
+    });
+    expect(openButton).toBeEnabled();
+    await user.click(openButton);
+    expect(screen.getByText('Detalle de reparación')).toBeInTheDocument();
   });
 
   it('bloquea todos los accesos de transición mientras hay otra en curso', async () => {

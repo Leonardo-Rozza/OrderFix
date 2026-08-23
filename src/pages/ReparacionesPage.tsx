@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useIsFetching } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { EstadoBadge } from '../components/EstadoBadge';
@@ -16,7 +17,11 @@ import { equipoLabel, clienteLabel, ordenLabel } from '../utils/reparacion';
 import { PagoChip } from '../components/PagoChip';
 import { useListParams, type UseListParamsOptions } from '../hooks/useListParams';
 import { usePageBounds } from '../hooks/usePageBounds';
-import { useReparacionesQuery } from '../api/queries/reparaciones.queries';
+import {
+  useReparacionesBoardInfiniteQuery,
+  useReparacionesQuery,
+} from '../api/queries/reparaciones.queries';
+import { queryKeys } from '../api/queryKeys';
 import { useDashboardQuery } from '../api/queries/dashboard.queries';
 import { useCambiarEstadoMutation } from '../api/mutations/reparaciones.mutations';
 import {
@@ -26,9 +31,12 @@ import {
   setCanonicalSearchParam,
 } from '../lib/urlSearchParams';
 import type { EstadoReparacion, Reparacion } from '../types';
+import { projectReparacionesBoardPages } from '../lib/reparacionesBoard';
 
 type Vista = 'board' | 'list';
 type Filtro = EstadoReparacion | 'TODOS';
+
+const BOARD_PAGE_SIZE = 20;
 
 const REPARACION_SORT_OPTIONS = [
   { value: 'id,desc', label: 'Más recientes' },
@@ -272,15 +280,22 @@ const Board = ({
 }) => {
   const [drag, setDrag] = useState<{ id: number; estado: EstadoReparacion } | null>(null);
   const [overZona, setOverZona] = useState<EstadoReparacion | null>(null);
+  const boardFetching = useIsFetching({ queryKey: queryKeys.reparaciones.boards });
+  const boardTransitionsDisabled = transitionsDisabled || boardFetching > 0;
 
   return (
-    <div className="ofx-scroll flex items-start gap-3.5 overflow-x-auto pb-2">
+    <div
+      role="region"
+      aria-label="Tablero de reparaciones"
+      className="ofx-scroll flex items-start gap-3.5 overflow-x-auto pb-2"
+    >
       {FASES.map((fase) => (
         <FaseColumn
           key={fase.key}
           fase={fase}
           q={q}
-          transitionsDisabled={transitionsDisabled}
+          transitionsDisabled={boardTransitionsDisabled}
+          openDisabled={transitionsDisabled}
           drag={drag}
           overZona={overZona}
           onOpen={onOpen}
@@ -304,6 +319,7 @@ const Board = ({
 
 interface ZonaDnD {
   transitionsDisabled: boolean;
+  openDisabled: boolean;
   drag: { id: number; estado: EstadoReparacion } | null;
   overZona: EstadoReparacion | null;
   onOpen: (id: number) => void;
@@ -315,22 +331,26 @@ interface ZonaDnD {
 }
 
 const FaseColumn = ({ fase, q, ...dnd }: { fase: FaseMeta; q: string } & ZonaDnD) => (
-  <div className="flex w-[296px] flex-shrink-0 flex-col rounded-2xl border border-border bg-surface-2">
-    <div className="border-b border-border px-3.5 py-3 text-[12px] font-extrabold uppercase tracking-wide text-text-2">
+  <section
+    aria-labelledby={`fase-${fase.key}`}
+    className="flex w-[296px] max-w-[calc(100vw-2rem)] flex-shrink-0 flex-col rounded-2xl border border-border bg-surface-2"
+  >
+    <h2 id={`fase-${fase.key}`} className="border-b border-border px-3.5 py-3 text-[12px] font-extrabold uppercase tracking-wide text-text-2">
       {fase.label}
-    </div>
+    </h2>
     <div className="flex flex-col gap-3 p-3">
       {fase.estados.map((estado) => (
         <EstadoZona key={estado} meta={getEstadoMeta(estado)} q={q} {...dnd} />
       ))}
     </div>
-  </div>
+  </section>
 );
 
 const EstadoZona = ({
   meta,
   q,
   transitionsDisabled,
+  openDisabled,
   drag,
   overZona,
   onOpen,
@@ -345,22 +365,56 @@ const EstadoZona = ({
     isLoading,
     isError,
     isFetching,
-    isPlaceholderData,
+    isFetchingNextPage,
+    isFetchNextPageError,
+    isRefetchError,
+    hasNextPage,
+    fetchNextPage,
     refetch,
-  } = useReparacionesQuery({ q, estado: meta.key, page: 0, size: 100 });
-  const queryReady = !isLoading && !isError && data !== undefined;
-  const items = queryReady ? data.content : [];
-  const total = queryReady ? (data.page?.totalElements ?? items.length) : undefined;
-  const refreshing = isFetching && isPlaceholderData;
-  const interactionsDisabled = transitionsDisabled || refreshing;
+  } = useReparacionesBoardInfiniteQuery({
+    q,
+    estado: meta.key,
+    size: BOARD_PAGE_SIZE,
+  });
+  const projection = useMemo(
+    () => projectReparacionesBoardPages(data?.pages, BOARD_PAGE_SIZE),
+    [data?.pages],
+  );
+  const { items, total, visible, nextBatchSize } = projection;
+  const hasData = data !== undefined;
+  const initialError = !hasData && (isError || !isLoading);
+  const refetchError = hasData && isRefetchError && !isFetchNextPageError;
+  const refreshing = hasData && isFetching && !isFetchingNextPage;
+  const interactionsDisabled = transitionsDisabled || refetchError;
   const isOver = !interactionsDisabled && overZona === meta.key && drag !== null && drag.estado !== meta.key;
   const draggingId = drag?.id ?? null;
-  const resultIsPartial = total !== undefined && total > items.length;
+  const openButtonsRef = useRef(new Map<number, HTMLButtonElement>());
+  const pendingFocusIdsRef = useRef<Set<number> | null>(null);
+
+  const loadNextPage = useCallback(() => {
+    if (!hasNextPage || isFetching || interactionsDisabled) return;
+    pendingFocusIdsRef.current = new Set(items.map(({ id }) => id));
+    void fetchNextPage({ cancelRefetch: false });
+  }, [fetchNextPage, hasNextPage, interactionsDisabled, isFetching, items]);
+
+  useEffect(() => {
+    const previousIds = pendingFocusIdsRef.current;
+    if (!previousIds || isFetchingNextPage) return;
+    if (isFetchNextPageError) {
+      pendingFocusIdsRef.current = null;
+      return;
+    }
+
+    const firstNew = items.find(({ id }) => !previousIds.has(id));
+    if (firstNew) openButtonsRef.current.get(firstNew.id)?.focus();
+    pendingFocusIdsRef.current = null;
+  }, [isFetchNextPageError, isFetchingNextPage, items]);
 
   return (
-    <div
+    <section
       data-testid={`col-${meta.key}`}
-      aria-busy={isLoading || refreshing}
+      aria-labelledby={`estado-${meta.key}`}
+      aria-busy={isLoading || isFetching}
       onDragOver={(e) => {
         if (interactionsDisabled) return;
         e.preventDefault();
@@ -381,15 +435,15 @@ const EstadoZona = ({
             <path d={meta.iconD} />
           </svg>
         </span>
-        <span className="text-[13px] font-extrabold">{meta.label}</span>
+        <h3 id={`estado-${meta.key}`} className="text-[13px] font-extrabold">{meta.label}</h3>
         {isLoading ? (
           <span className="ofx-skel ml-auto h-5 w-8 rounded-full" aria-label={`Cargando ${meta.label}`} />
         ) : (
           <span
             className="ml-auto rounded-full bg-surface-3 px-2 py-0.5 text-[11.5px] font-bold text-text-3"
-            aria-label={total === undefined ? `Cantidad de ${meta.label} no disponible` : undefined}
+            aria-label={!hasData ? `Cantidad de ${meta.label} no disponible` : undefined}
           >
-            {total ?? '—'}
+            {hasData ? total : '—'}
           </span>
         )}
       </div>
@@ -399,11 +453,25 @@ const EstadoZona = ({
             Actualizando resultados…
           </div>
         )}
+        {refetchError && (
+          <div role="alert" className="rounded-lg border border-warning bg-warning-soft px-3 py-2 text-[12px] font-semibold text-warning">
+            <p>No pudimos actualizar esta etapa. Las transiciones quedan pausadas hasta reconciliarla.</p>
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              disabled={isFetching}
+              aria-label={`Actualizar ${meta.label}`}
+              className="mt-2 inline-flex min-h-11 w-full touch-manipulation items-center justify-center rounded-lg border border-warning px-3 py-2 font-bold transition hover:bg-surface focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-0"
+            >
+              Actualizar
+            </button>
+          </div>
+        )}
         {isLoading ? (
           Array.from({ length: 2 }).map((_, index) => (
             <div key={`sk-${index}`} className="ofx-skel h-[92px] rounded-xl" aria-hidden="true" />
           ))
-        ) : isError || !data ? (
+        ) : initialError ? (
           <div className="overflow-hidden rounded-lg border border-border bg-surface">
             <ErrorState
               onRetry={() => void refetch()}
@@ -437,10 +505,14 @@ const EstadoZona = ({
             style={{ borderLeft: `3px solid ${meta.cssVar}` }}
           >
             <button
+              ref={(node) => {
+                if (node) openButtonsRef.current.set(r.id, node);
+                else openButtonsRef.current.delete(r.id);
+              }}
               type="button"
               aria-label={`Abrir reparación ${ordenLabel(r)} — ${equipoLabel(r)}`}
               onClick={() => onOpen(r.id)}
-              disabled={interactionsDisabled}
+              disabled={openDisabled}
               className="absolute inset-0 z-0 cursor-pointer rounded-xl focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:cursor-wait"
             />
             <div className="pointer-events-none relative z-10 flex items-center gap-2">
@@ -478,15 +550,48 @@ const EstadoZona = ({
                 {isOver ? 'Soltá acá' : 'Sin reparaciones'}
               </div>
             )}
-            {resultIsPartial && (
-              <div role="status" className="rounded-lg border border-warning bg-warning-soft px-3 py-2 text-[12px] font-semibold text-warning">
-                Mostrando {items.length} de {total}. El tablero carga hasta 100 por estado.
+            {isFetchNextPageError ? (
+              <div role="alert" className="rounded-lg border border-danger bg-danger-soft px-3 py-2 text-[12px] font-semibold text-danger-fg">
+                <p>No pudimos cargar más reparaciones. Lo que ya estaba visible se conserva.</p>
+                <button
+                  type="button"
+                  onClick={loadNextPage}
+                  disabled={interactionsDisabled || isFetching}
+                  aria-label={`Reintentar carga en ${meta.label}`}
+                  className="mt-2 inline-flex min-h-11 w-full touch-manipulation items-center justify-center rounded-lg border border-danger px-3 py-2 font-bold transition hover:bg-surface focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-0"
+                >
+                  Reintentar
+                </button>
               </div>
-            )}
+            ) : hasNextPage ? (
+              <div className="rounded-lg border border-border bg-surface px-2.5 py-2.5">
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="pb-2 text-center text-[11.5px] font-semibold text-text-2"
+                >
+                  {visible} de {total} visibles
+                </div>
+                <button
+                  type="button"
+                  onClick={loadNextPage}
+                  disabled={interactionsDisabled || isFetching}
+                  aria-busy={isFetchingNextPage}
+                  aria-label={`Cargar ${nextBatchSize} reparaciones más en ${meta.label}`}
+                  className="inline-flex min-h-11 w-full touch-manipulation items-center justify-center rounded-lg border border-primary bg-primary-soft px-3 py-2 text-[12px] font-extrabold text-primary-soft-fg transition hover:bg-primary hover:text-primary-fg focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-0"
+                >
+                  {isFetchingNextPage ? 'Cargando más…' : `Cargar ${nextBatchSize} más`}
+                </button>
+              </div>
+            ) : (data?.pages.length ?? 0) > 1 ? (
+              <div role="status" aria-live="polite" className="sr-only">
+                {visible} de {total} visibles
+              </div>
+            ) : null}
           </>
         )}
       </div>
-    </div>
+    </section>
   );
 };
 

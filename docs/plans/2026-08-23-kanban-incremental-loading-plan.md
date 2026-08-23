@@ -6,7 +6,7 @@
 
 **Rama:** `codex/frontend-refactor-checkpoint`
 
-**Estado:** pendiente de implementación
+**Estado:** completado y validado
 
 ## Objetivo
 
@@ -325,3 +325,45 @@ docs(kanban): registra carga incremental validada
 ## Criterio de cierre
 
 La etapa queda completa cuando ningún estado se trunca, la primera carga baja a 20 elementos, cada continuación acumula y deduplica, los errores incrementales son recuperables, las mutaciones permanecen consistentes, la matriz móvil y WebKit pasan, toda la regresión queda verde y el historial contiene únicamente commits atómicos locales sin push.
+
+## Resultado ejecutado
+
+### Contrato entregado
+
+- Cada uno de los doce estados usa una consulta infinita independiente bajo `['reparaciones', 'board', estado, params]`.
+- La carga inicial y cada página adicional solicitan 20 reparaciones con `sort=id,desc`.
+- El número de página vive en `pageParam`; la respuesta requiere metadata contractual y propaga `AbortSignal`.
+- Las páginas se proyectan en orden, deduplicadas por ID y con actualización last-write-wins.
+- El pie informa `N de total visibles` y calcula el remanente real para `Cargar N más`.
+- Una carga adicional conserva las tarjetas previas, bloquea transiciones y mantiene habilitada la apertura de fichas.
+- Un error incremental muestra recuperación inline; un error de refetch pausa la zona hasta reconciliarla.
+- El foco se mueve a la primera reparación realmente nueva y el progreso se anuncia mediante live region.
+- La fase cabe completa en 320 px, mantiene scroll horizontal interno y no genera overflow del documento.
+
+### Commits reales
+
+| Hash | Entrega |
+|---|---|
+| `cb8b5f2` | diseño aprobado |
+| `d9e7cc7` | plan técnico |
+| `07adf4c` | key y consulta infinita del backend |
+| `cb5b18c` | proyección, interacción, errores, responsive y pruebas unitarias |
+| `c7994c4` | E2E desktop y matriz móvil |
+
+El cierre documental se versiona en un commit separado. No se hizo push.
+
+### Validación final
+
+- `npm test`: **67 archivos / 393 pruebas**, todas verdes.
+- `npm run typecheck`: verde.
+- `npm run lint`: verde.
+- `npm run build`: verde; Vite transformó 683 módulos.
+- `npm run test:e2e`: **84 escenarios**, todos verdes.
+- Cobertura focal nueva: **7 escenarios Playwright** con append, foco, apertura, error/reintento, 320 px, 390 px, landscape y WebKit.
+- Revisión visual a 320 px: fase, pie de progreso, botón táctil y navegación inferior sin recortes.
+- `git diff --check`: verde.
+- `.agents/` y `public/OrdenFix project naming/` permanecen fuera de los commits.
+
+### Cierre
+
+El Kanban dejó de truncar estados en 100 reparaciones y ahora escala sólo desde el frontend. La carga inicial es cinco veces menor por estado, las páginas adicionales no reemplazan ni duplican tarjetas, los fallos son recuperables y la interacción conserva consistencia, foco y ergonomía móvil. Con este bloque queda cerrado el último punto funcional identificado en el refactor general.

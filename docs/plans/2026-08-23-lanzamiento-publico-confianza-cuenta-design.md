@@ -4,6 +4,8 @@ Fecha: 2026-08-23
 
 Estado: decisiones de producto aprobadas; contrato técnico propuesto para handoff y validación con backend
 
+Refinamiento de Fase 1: la revisión de normativa oficial vigente separó los accesos públicos de arrepentimiento, baja y revisión de cobro. Cuando el régimen de consumo resulte aplicable, los dos primeros deben conservar las denominaciones y el plazo de constancia exigidos; la verificación de identidad no reinicia el reloj de la solicitud.
+
 Repositorio implementador de interfaz: `/Volumes/DiscoExtern/Desktop/mvgr-reparaciones-frontend`
 
 El backend Java se mantiene fuera de este trabajo. Este documento define el contrato que deberá entregarse a su chat responsable, pero no autoriza cambios en `/Volumes/DiscoExtern/Desktop/mvrg-backend`.
@@ -167,6 +169,8 @@ La firma será la **Ficha de compromiso OrdenFix**: un resumen con filas clave-v
 | `/cerrar-cuenta` | Consecuencias, recuperación, eliminación y retenciones. |
 | `/aviso-clientes-taller` | Modelo editable que el taller puede adaptar para sus clientes. |
 | `/arrepentimiento` | Inicio público de una gestión, cuando resulte aplicable. |
+| `/baja-servicio` | Inicio público diferenciado de baja, cuando resulte aplicable. |
+| `/revision-cobro` | Inicio público de revisión administrativa de un cobro. |
 | `/legal/documentos/:versionId` | Versión histórica exacta, recargable y compartible. |
 
 Las rutas deben estar disponibles desde registro, login, seguimiento público y el pie de toda superficie pública. No deben requerir una cuenta para leer su contenido.
@@ -415,13 +419,16 @@ El comportamiento backend actual que baja inmediatamente a FREE no es compatible
 
 Cancelar la renovación no genera devolución proporcional automática. El taller conserva PRO hasta finalizar el período pagado. Sólo se abre una revisión separada ante un cobro erróneo, un arrepentimiento aplicable o una obligación legal.
 
-## Arrepentimiento y revisión de cobro
+## Arrepentimiento, baja pública y revisión de cobro
 
 Cancelar una renovación evita cobros futuros. No equivale a pedir devolución de un pago ya realizado.
 
-La acción pública y autenticada será:
+Las acciones se mantienen diferenciadas:
 
-**Solicitar arrepentimiento o revisión de un cobro**
+- **BOTÓN DE ARREPENTIMIENTO**, público y con esa denominación cuando resulte legalmente aplicable;
+- **BOTÓN DE BAJA DE SERVICIO**, público y separado cuando resulte legalmente aplicable;
+- **Solicitar revisión de un cobro**, público o autenticado según el caso;
+- **Cancelar renovación**, autenticado y reservado al ADMIN, sin confundirlo con las tres anteriores.
 
 Flujo:
 
@@ -429,10 +436,13 @@ Flujo:
 2. Elegir un pago interno cuando exista sesión, nunca exponer IDs de Mercado Pago.
 3. Elegir motivo: arrepentimiento, duplicado, no reconocido, problema con el servicio u otro.
 4. Confirmar un email de contacto.
-5. Enviar la solicitud.
-6. Mostrar y enviar una constancia con número de gestión.
+5. Enviar la solicitud y registrar inmediatamente `PENDIENTE_VERIFICACION` con fecha del servidor.
+6. Mostrar una referencia opaca que no revele si la cuenta existe.
+7. Verificar el email para consultar el detalle y continuar la gestión, sin crear otra solicitud ni reiniciar plazos.
 
-Una solicitud se registra aunque requiera evaluación posterior. La UI no promete automáticamente que el reembolso será aprobado. La versión pública aplica rate limit, inicia siempre en `PENDIENTE_VERIFICACION`, envía un token de un solo uso por email y responde con un mensaje genérico que no revela si una cuenta existe. La referencia completa se muestra después de consumir correctamente ese token. La verificación puede emitir una credencial de consulta separada, de sólo lectura y vencimiento limitado, para recuperar el estado sin reutilizar el token consumido.
+Una solicitud se registra aunque requiera evaluación posterior. La UI no promete automáticamente que el reembolso será aprobado. La versión pública aplica rate limit, inicia siempre en `PENDIENTE_VERIFICACION`, asigna una referencia opaca y envía un token de un solo uso por email cuando puede vincular el caso. La respuesta no revela si la cuenta existe. La verificación habilita el detalle y puede emitir una credencial de consulta separada, de sólo lectura y vencimiento limitado, para recuperar el estado sin reutilizar el token consumido.
+
+Si resulta aplicable la Disposición 954/2025, el código de identificación se informa por el mismo medio dentro de las 24 horas desde el primer envío. La verificación razonable permitida por la Disposición 3/2026 protege la identidad, pero no desplaza el inicio de ese plazo.
 
 Estados comunes:
 
@@ -685,6 +695,10 @@ El endpoint legado `POST /api/pagos/suscripcion/cancelar` también se depreca. D
 ```http
 POST /api/public/arrepentimientos
 POST /api/public/arrepentimientos/verificaciones
+POST /api/public/bajas-servicio
+POST /api/public/bajas-servicio/verificaciones
+POST /api/public/revisiones-cobro
+POST /api/public/revisiones-cobro/verificaciones
 POST /api/cuenta/arrepentimientos
 GET  /api/cuenta/arrepentimientos/{id}
 POST /api/cuenta/reembolsos
@@ -712,7 +726,7 @@ Una creación asíncrona responde `202 Accepted`, encabezado `Location` y:
 }
 ```
 
-`POST /api/public/arrepentimientos` responde siempre `202` con un mensaje genérico. Si los datos permiten continuar, envía por email un token aleatorio, de un solo uso y vencimiento corto. `POST /api/public/arrepentimientos/verificaciones` consume `{ "token": "opaque-token" }`; al validarlo devuelve la referencia y el estado `RECIBIDA`. Token inválido o vencido usa una respuesta genérica que no confirma la existencia de la cuenta y ofrece reiniciar el flujo.
+Los inicios públicos responden siempre `202` con mensaje genérico, `numeroGestion` opaco, estado `PENDIENTE_VERIFICACION` y fecha del servidor, sin confirmar que exista una cuenta. Si los datos permiten continuar, envían por email un token aleatorio, de un solo uso y vencimiento corto. La verificación consume `{ "token": "opaque-token" }`; al validarlo habilita el detalle de la misma referencia y el estado `RECIBIDA`. Un token inválido o vencido usa una respuesta genérica y ofrece reiniciar sin reutilizar el caso anterior. La fecha de verificación no reemplaza la fecha del primer envío para ningún plazo aplicable.
 
 `POST /api/cuenta/reauthenticaciones` es autenticado y queda fuera del wildcard público `/api/auth/**`. Recibe contraseña y propósito y devuelve:
 

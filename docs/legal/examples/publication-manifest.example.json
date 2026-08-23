@@ -1,0 +1,120 @@
+{
+  "$schema": "../publication-manifest.schema.json",
+  "schemaVersion": 1,
+  "publicationId": "example-non-publicable",
+  "locale": "es-AR",
+  "publisherSnapshot": {
+    "legalName": "[RAZÓN SOCIAL]",
+    "taxId": "[CUIT]",
+    "legalAddress": "[DOMICILIO]",
+    "jurisdiction": "[JURISDICCIÓN]",
+    "businessHours": "[HORARIO DE ATENCIÓN]",
+    "contacts": {
+      "legalEmail": "[EMAIL LEGAL]",
+      "privacyEmail": "[EMAIL PRIVACIDAD]",
+      "supportEmail": "[EMAIL LEGAL]"
+    }
+  },
+  "review": {
+    "legal": {
+      "status": "PENDING"
+    },
+    "accounting": {
+      "status": "PENDING"
+    }
+  },
+  "documents": [
+    {
+      "key": "terminos-es-ar",
+      "type": "TERMINOS_SERVICIO",
+      "version": "example.1",
+      "locale": "es-AR",
+      "source": "documents/terminos.md",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "effectiveAt": "2099-01-01T00:00:00Z",
+      "contexts": [
+        "REGISTRO",
+        "USO_CONTINUADO"
+      ],
+      "requiresReacceptance": true
+    },
+    {
+      "key": "privacidad-es-ar",
+      "type": "POLITICA_PRIVACIDAD",
+      "version": "example.1",
+      "locale": "es-AR",
+      "source": "documents/privacidad.md",
+      "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "effectiveAt": "2099-01-01T00:00:00Z",
+      "contexts": [
+        "REGISTRO",
+        "USO_CONTINUADO"
+      ],
+      "requiresReacceptance": true
+    },
+    {
+      "key": "tratamiento-datos-es-ar",
+      "type": "ACUERDO_TRATAMIENTO_DATOS",
+      "version": "example.1",
+      "locale": "es-AR",
+      "source": "documents/tratamiento-datos.md",
+      "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "effectiveAt": "2099-01-01T00:00:00Z",
+      "contexts": [
+        "REGISTRO",
+        "USO_CONTINUADO"
+      ],
+      "requiresReacceptance": true
+    }
+  ],
+  "requirements": [
+    {
+      "key": "registro-admin-terminos",
+      "version": "example.1",
+      "context": "REGISTRO",
+      "roles": [
+        "ADMIN_TITULAR"
+      ],
+      "actType": "ACEPTACION",
+      "statement": "Acepto los Términos y Condiciones de OrdenFix.",
+      "statementSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "documents": [
+        "terminos-es-ar"
+      ],
+      "required": true,
+      "requiresReacceptance": true
+    },
+    {
+      "key": "registro-admin-privacidad",
+      "version": "example.1",
+      "context": "REGISTRO",
+      "roles": [
+        "ADMIN_TITULAR"
+      ],
+      "actType": "LECTURA",
+      "statement": "Confirmo que leí la Política de Privacidad de OrdenFix.",
+      "statementSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "documents": [
+        "privacidad-es-ar"
+      ],
+      "required": true,
+      "requiresReacceptance": true
+    },
+    {
+      "key": "registro-admin-tratamiento",
+      "version": "example.1",
+      "context": "REGISTRO",
+      "roles": [
+        "ADMIN_TITULAR"
+      ],
+      "actType": "DECLARACION",
+      "statement": "Declaro que puedo representar al taller y acepto el Acuerdo de Tratamiento de Datos.",
+      "statementSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "documents": [
+        "tratamiento-datos-es-ar"
+      ],
+      "required": true,
+      "requiresReacceptance": true
+    }
+  ]
+}

@@ -131,7 +131,8 @@ No se crea commit para esta tarea.
 - Crear `docs/legal/drafts/cancelaciones-reembolsos.md`.
 - Crear `docs/legal/drafts/cierre-cuenta.md`.
 - Crear `docs/legal/drafts/aviso-clientes-taller.md`.
-- Crear `docs/legal/publication-manifest.example.json`.
+- Crear `docs/legal/publication-manifest.schema.json`.
+- Crear `docs/legal/examples/publication-manifest.example.json`.
 - Crear `src/config/legalContact.ts`.
 - Actualizar `.env.example` o crearla si el repositorio no la posee.
 
@@ -151,7 +152,9 @@ No se crea commit para esta tarea.
 5. Incluir la política aprobada: cancelar renovación conserva PRO hasta fin de período y no genera prorrateo automático, salvo error, arrepentimiento aplicable o exigencia legal.
 6. En el aviso del taller, explicar que el cliente se relaciona con el taller y OrdenFix es la plataforma técnica.
 7. Definir un manifiesto de publicación con tipo, locale, contextos, versión, `vigenteDesde`, archivo fuente y digest. El manifiesto real sólo se completa después de la revisión profesional.
-8. Documentar el procedimiento: revisión → digest → dry-run backend → publicación inmutable en staging → readiness → promoción de vigencia. No se necesita una UI administrativa.
+8. Validar el manifiesto real contra `publication-manifest.schema.json`, además de los invariantes que JSON Schema no puede resolver: unicidad, referencias, confinamiento de rutas, texto canónico, SHA-256 exacto y correspondencia entre contexto, rol y documentos.
+9. Exigir cobertura explícita para registro del `ADMIN_TITULAR`, primer ingreso de `USER`, contratación PRO, atestaciones de fotos/credenciales para ambos roles y cierre por `ADMIN_TITULAR`.
+10. Documentar el procedimiento: revisión → digest → dry-run backend → publicación inmutable en staging → readiness → promoción de vigencia. Una corrección crea otro `publicationId`; no se sobrescribe una publicación importada. No se necesita una UI administrativa.
 
 ### Pruebas
 
@@ -176,7 +179,9 @@ docs(legal): agrega borradores editables de lanzamiento
 ### Archivos frontend
 
 - Crear `scripts/check-public-release.mjs`.
+- Crear `scripts/lib/public-release-validation.mjs`.
 - Crear `scripts/check-public-release.test.mjs` y cablearlo con `node --test`, o mover la lógica pura a `src/config/publicRelease.test.ts`; los tests bajo `scripts/` no entran en el include actual de Vitest.
+- Crear `src/config/apiBaseUrl.ts` y su prueba unitaria.
 - Modificar `package.json`.
 - Modificar `.github/workflows/ci.yml`.
 - Modificar `vercel.json` para que el build productivo use la ruta protegida.
@@ -188,7 +193,7 @@ docs(legal): agrega borradores editables de lanzamiento
 1. Agregar:
    - `check:public-release`;
    - `build:public`;
-   - check condicional ejecutado también por el `npm run build` real cuando `VERCEL_ENV=production`.
+   - check condicional ejecutado también por el `npm run build` real, con niveles distintos para desarrollo, CI/preview y producción.
 2. El check estático valida:
    - ausencia de placeholders en los archivos incluidos;
    - `VITE_API_BASE_URL` o `VITE_API_URL` HTTPS explícita;
@@ -197,15 +202,21 @@ docs(legal): agrega borradores editables de lanzamiento
    - ausencia del precio PRO hardcodeado;
    - ausencia de preset unsigned de Cloudinary al cerrar la migración.
 3. En desarrollo se permite el fallback localhost actual.
-4. En producción, `axios.ts` no construye clientes si falta una base explícita válida.
-5. Los errores del script nombran exactamente la variable o archivo pendiente y nunca imprimen secretos.
-6. `vercel.json`/CI no pueden saltear el guard: la misma ruta de build usada por producción lo ejecuta antes de Vite.
+4. En CI y preview se ejecuta el nivel `runtime`: exige una base de API HTTPS pública y explícita, sin obligar todavía a contar con el manifiesto legal aprobado.
+5. En producción o con `ORDENFIX_PUBLIC_RELEASE=true` se ejecuta el nivel `public`: valida runtime, contactos, manifiesto legal, digests/cobertura y bloqueos estáticos.
+6. Fuera de desarrollo, `axios.ts` no construye clientes si falta una base explícita válida.
+7. Los errores del script nombran exactamente la variable o archivo pendiente y nunca imprimen secretos ni targets controlados sin sanitizar.
+8. `vercel.json`/CI no pueden saltear el nivel que les corresponde: la misma ruta de build ejecuta el guard antes de TypeScript/Vite.
+9. Un build público que supera el precheck vuelve a escanear el `dist/` generado para cubrir
+   archivos copiados desde `public/`, módulos transformados y otras entradas que no estén bajo
+   `src/`.
 
 ### Pruebas
 
 - Desarrollo permite localhost.
 - Producción sin URL falla.
 - Producción con HTTP falla.
+- CI/preview sin URL falla en el nivel runtime y con una API HTTPS pública puede continuar sin acreditar readiness público.
 - Placeholder conocido falla.
 - Configuración completa pasa.
 - `VERCEL_ENV=production npm run build` ejecuta el guard real y falla con placeholders.
@@ -214,6 +225,8 @@ docs(legal): agrega borradores editables de lanzamiento
 ### Verificación
 
 ```bash
+npm run build
+CI=true VITE_API_BASE_URL=https://ci-api.ordenfix.com npm run build
 npm run check:public-release
 ORDENFIX_PUBLIC_RELEASE=true npm run check:public-release
 VERCEL_ENV=production npm run build
@@ -221,13 +234,42 @@ npm run typecheck
 npm run lint
 ```
 
-La segunda y tercera ejecución seguirán fallando de forma intencional hasta completar la identidad legal. Ese fallo se documenta como gate, no como regresión del build local.
+Los tres comandos que fuerzan el nivel público seguirán fallando de forma intencional hasta
+completar la identidad legal y retirar los demás bloqueos de lanzamiento. Ese fallo se documenta
+como gate, no como regresión del build local ni del nivel runtime de CI/preview.
+
+El build local saltea el guard de publicación. El build de CI/preview sólo prueba runtime. Los
+comandos públicos deben permanecer bloqueados mientras existan placeholders/contactos pendientes,
+precio PRO fijo o carga Cloudinary unsigned/directa.
 
 ### Commit frontend
 
 ```text
 build(release): bloquea configuraciones públicas incompletas
 ```
+
+## Registro de ejecución — Fase 1
+
+Este registro separa los resultados comprobados al iniciar de los que deben anotarse al cerrar el
+hardening. No autoriza publicación ni reemplaza los smokes remotos de las fases posteriores.
+
+| Corte | Tests | Typecheck / lint / build | E2E | Bundle principal |
+|---|---|---|---|---|
+| Baseline previo | 80 archivos / 469 tests | verdes | 110/110 | 516,85 kB |
+| Post Fase 1 | 82 archivos / 498 Vitest + 28 guard | verdes; local y CI/runtime | 110/110 | 519,43 kB |
+
+- Auditoría de dependencias al cierre: se retiraron todas las alertas altas mediante seis
+  actualizaciones compatibles. Queda una alerta baja de `esbuild`, limitada al servidor de
+  desarrollo en Windows; resolverla exige evaluar Vite 8 por separado y no afecta el bundle
+  publicado ni el despliegue Linux actual.
+- El guard y el build forzado de producción fallan como se espera mientras continúan los bloqueos
+  explícitos de lanzamiento; la fixture pública completa del validador sí pasa de punta a punta.
+
+- Alcance: sólo `/Volumes/DiscoExtern/Desktop/mvgr-reparaciones-frontend`.
+- Backend Java: no fue modificado desde este trabajo; los cambios contractuales siguen como
+  `BACKEND-HANDOFF` para su conversación responsable.
+- Git remoto: no se hizo push. Los commits atómicos de la fase se crean después del cierre de
+  validaciones y permanecen sólo en esta rama local.
 
 ## Tarea 3 — Modelar documentos y requisitos legales remotos
 
@@ -774,7 +816,7 @@ feat(pagos): confirma condiciones antes del checkout
 feat(suscripcion): programa cancelacion al fin del periodo
 ```
 
-## Tarea 13 — Crear flujos de arrepentimiento y revisión de cobro
+## Tarea 13 — Crear flujos diferenciados de arrepentimiento, baja y revisión de cobro
 
 ### Dependencia
 
@@ -787,6 +829,7 @@ feat(suscripcion): programa cancelacion al fin del periodo
 - Crear `src/api/queries/cases.queries.ts`.
 - Crear `src/pages/ArrepentimientoPage.tsx`.
 - Crear `src/pages/VerificarArrepentimientoPage.tsx`.
+- Crear las superficies públicas equivalentes para baja del servicio y revisión de cobro.
 - Crear `src/pages/BillingCasesPage.tsx` o integrar en Cuenta.
 - Crear `src/components/CaseReferenceCard.tsx`.
 - Modificar router y enlaces públicos.
@@ -795,20 +838,24 @@ feat(suscripcion): programa cancelacion al fin del periodo
 ### Implementación
 
 1. El formulario público pide sólo los datos mínimos.
-2. Responde siempre con mensaje genérico y estado pendiente de verificación.
-3. El link de email consume token opaco de un solo uso.
-4. Backend resuelve replay idempotente antes de rechazar un token consumido.
-5. Sólo después de verificar muestra `numeroGestion` y puede emitir un `consultaToken` separado, de sólo lectura y vencimiento limitado.
-6. Guardar `consultaToken` sólo en `sessionStorage`, namespaced por gestión; nunca en URL, localStorage, telemetría o caché compartida. Si vence, el email permite reiniciar/verificar el acceso.
-7. La versión autenticada lista pagos con IDs internos opacos.
-8. Motivos: arrepentimiento, duplicado, no reconocido, problema con servicio y otro.
-9. La UI no decide elegibilidad ni promete aprobación.
-10. Mostrar estados y última actualización.
-11. Rate limit usa `Retry-After` y no permite enumeración.
+2. Mantener separados, cuando resulten aplicables, `BOTÓN DE ARREPENTIMIENTO`, `BOTÓN DE BAJA DE SERVICIO`, revisión de cobro y la cancelación autenticada de renovación.
+3. El primer envío registra la gestión, fecha del servidor, estado pendiente de verificación y referencia opaca sin confirmar la existencia de una cuenta.
+4. La verificación no crea otra gestión ni reinicia el reloj; cuando corresponda, el código debe informarse por el mismo medio dentro de las 24 horas desde el primer envío.
+5. El link de email consume token opaco de un solo uso.
+6. Backend resuelve replay idempotente antes de rechazar un token consumido.
+7. Después de verificar muestra el detalle de la misma `numeroGestion` y puede emitir un `consultaToken` separado, de sólo lectura y vencimiento limitado.
+8. Guardar `consultaToken` sólo en `sessionStorage`, namespaced por gestión; nunca en URL, localStorage, telemetría o caché compartida. Si vence, el email permite reiniciar/verificar el acceso.
+9. La versión autenticada lista pagos con IDs internos opacos.
+10. Motivos: arrepentimiento, duplicado, no reconocido, problema con servicio y otro.
+11. La UI no decide elegibilidad ni promete aprobación.
+12. Mostrar estados y última actualización.
+13. Rate limit usa `Retry-After` y no permite enumeración.
 
 ### Pruebas
 
 - Respuesta pública igual para cuenta existente/inexistente.
+- Primer envío asigna referencia y fecha aun antes de verificar, sin enumeración.
+- La verificación conserva referencia/fecha y no reinicia el plazo.
 - Token válido, vencido y utilizado.
 - Respuesta perdida + misma clave reproduce la verificación; otra clave no reutiliza el token.
 - Email no verificado bloquea versión autenticada sensible.
@@ -1174,9 +1221,10 @@ El chat Java debe implementar y probar:
 
 ## BACKEND-HANDOFF 7 — Arrepentimiento y reembolsos
 
-- inicio público anti-enumeración;
+- recursos públicos separados para arrepentimiento, baja del servicio y revisión de cobro;
+- inicio anti-enumeración con referencia opaca y timestamp desde el primer envío;
 - token de verificación por email;
-- referencia después de verificar;
+- verificación sobre la misma referencia, sin reiniciar ningún plazo aplicable;
 - replay idempotente antes de validar consumo y `consultaToken` separado, read-only y vencible;
 - IDs internos de pago;
 - máquinas de estado correctas;

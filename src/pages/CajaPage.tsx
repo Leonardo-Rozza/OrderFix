@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { FeatureLocked } from '../components/FeatureLocked';
 import { EmptyState } from '../components/EmptyState';
@@ -7,11 +6,19 @@ import { formatMoney, formatDate } from '../utils/format';
 import { METODOS, metodoLabel } from '../config/cobros';
 import { useCajaQuery } from '../api/queries/cobros.queries';
 import { useFunciones } from '../api/queries/suscripcion.queries';
+import { useUrlSearchParams } from '../hooks/useUrlSearchParams';
+import { composeSearchParamsNormalizers, normalizeIsoDateParam } from '../lib/urlSearchParams';
+
+const normalizeCajaSearchParams = composeSearchParamsNormalizers(
+  (params) => { normalizeIsoDateParam(params, 'desde'); },
+  (params) => { normalizeIsoDateParam(params, 'hasta'); },
+);
 
 export const CajaPage = () => {
   const { cobros: cobrosHabilitado } = useFunciones();
-  const [desde, setDesde] = useState('');
-  const [hasta, setHasta] = useState('');
+  const { searchParams, updateSearchParams } = useUrlSearchParams(normalizeCajaSearchParams);
+  const desde = searchParams.get('desde') ?? '';
+  const hasta = searchParams.get('hasta') ?? '';
   const rangoInvalido = Boolean(desde && hasta && desde > hasta);
   const { data, isLoading, isError, refetch } = useCajaQuery(
     { desde: desde || undefined, hasta: hasta || undefined },
@@ -43,7 +50,13 @@ export const CajaPage = () => {
               max={hasta || undefined}
               aria-invalid={rangoInvalido || undefined}
               aria-describedby={rangoInvalido ? 'rango-caja-error' : undefined}
-              onChange={(e) => setDesde(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                updateSearchParams((next) => {
+                  if (value) next.set('desde', value);
+                  else next.delete('desde');
+                });
+              }}
               className="min-h-11 w-full min-w-0 rounded-lg border border-border-strong bg-surface px-3 py-2 text-base text-text outline-none focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] sm:min-h-0 sm:w-auto sm:text-[13.5px]"
             />
           </div>
@@ -56,7 +69,13 @@ export const CajaPage = () => {
               min={desde || undefined}
               aria-invalid={rangoInvalido || undefined}
               aria-describedby={rangoInvalido ? 'rango-caja-error' : undefined}
-              onChange={(e) => setHasta(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                updateSearchParams((next) => {
+                  if (value) next.set('hasta', value);
+                  else next.delete('hasta');
+                });
+              }}
               className="min-h-11 w-full min-w-0 rounded-lg border border-border-strong bg-surface px-3 py-2 text-base text-text outline-none focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] sm:min-h-0 sm:w-auto sm:text-[13.5px]"
             />
           </div>
@@ -64,8 +83,10 @@ export const CajaPage = () => {
             <button
               type="button"
               onClick={() => {
-                setDesde('');
-                setHasta('');
+                updateSearchParams((next) => {
+                  next.delete('desde');
+                  next.delete('hasta');
+                });
               }}
               className="min-h-11 w-full touch-manipulation rounded-lg border border-border-strong bg-surface px-4 py-2 text-[13px] font-bold text-text-2 transition hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] sm:ml-auto sm:min-h-0 sm:w-auto sm:border-0 sm:bg-transparent sm:px-0 sm:text-text-3 sm:hover:bg-transparent sm:hover:text-text"
             >

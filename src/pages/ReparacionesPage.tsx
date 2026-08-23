@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useCallback, useRef, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { EstadoBadge } from '../components/EstadoBadge';
 import { ReparacionFormModal } from '../components/ReparacionFormModal';
@@ -19,6 +19,12 @@ import { usePageBounds } from '../hooks/usePageBounds';
 import { useReparacionesQuery } from '../api/queries/reparaciones.queries';
 import { useDashboardQuery } from '../api/queries/dashboard.queries';
 import { useCambiarEstadoMutation } from '../api/mutations/reparaciones.mutations';
+import {
+  composeSearchParamsNormalizers,
+  normalizeEnumParam,
+  normalizeFlagParam,
+  setCanonicalSearchParam,
+} from '../lib/urlSearchParams';
 import type { EstadoReparacion, Reparacion } from '../types';
 
 type Vista = 'board' | 'list';
@@ -31,32 +37,68 @@ const REPARACION_SORT_OPTIONS = [
   { value: 'estado,asc', label: 'Estado' },
 ];
 
+const REPARACION_VISTAS: readonly Vista[] = ['board', 'list'];
+const REPARACION_FILTROS: readonly Filtro[] = [
+  'TODOS',
+  ...ESTADOS_LIST.map(({ key }) => key),
+];
+
+const normalizeReparacionParams = composeSearchParamsNormalizers(
+  (params) => { normalizeEnumParam(params, 'vista', REPARACION_VISTAS, 'board'); },
+  (params) => { normalizeEnumParam(params, 'estado', REPARACION_FILTROS, 'TODOS'); },
+  (params) => { normalizeFlagParam(params, 'nuevo'); },
+);
+
 const REPARACION_LIST_PARAMS = {
   size: 20,
   defaultSort: 'id,desc',
   allowedSorts: REPARACION_SORT_OPTIONS.map(({ value }) => value),
+  normalizeParams: normalizeReparacionParams,
 } satisfies UseListParamsOptions;
 
 export const ReparacionesPage = () => {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const cambiarEstado = useCambiarEstadoMutation();
   const { data: stats } = useDashboardQuery();
-  const { q, onSearch, page, setPage, debouncedQ, size, sort, setSort } = useListParams(REPARACION_LIST_PARAMS);
-  const [vista, setVista] = useState<Vista>('board');
-  const [filtro, setFiltro] = useState<Filtro>('TODOS');
+  const {
+    q,
+    onSearch,
+    page,
+    setPage,
+    replacePage,
+    debouncedQ,
+    size,
+    sort,
+    setSort,
+    searchParams,
+    updateSearchParams,
+  } = useListParams(REPARACION_LIST_PARAMS);
   const [localOpen, setLocalOpen] = useState(false);
   const transitionLock = useRef(false);
   const [transitionInFlight, setTransitionInFlight] = useState(false);
   const transitionPending = cambiarEstado.isPending || transitionInFlight;
 
-  const nuevoParam = searchParams.get('nuevo') !== null;
+  const vista = (searchParams.get('vista') ?? 'board') as Vista;
+  const filtro = (searchParams.get('estado') ?? 'TODOS') as Filtro;
+  const nuevoParam = searchParams.get('nuevo') === '1';
   const formOpen = localOpen || nuevoParam;
+  const setVista = useCallback((nextVista: Vista) => {
+    updateSearchParams((next) => {
+      setCanonicalSearchParam(next, 'vista', nextVista, 'board');
+    });
+  }, [updateSearchParams]);
+  const setFiltro = useCallback((nextFiltro: Filtro) => {
+    updateSearchParams((next) => {
+      setCanonicalSearchParam(next, 'estado', nextFiltro, 'TODOS');
+      next.delete('page');
+    });
+  }, [updateSearchParams]);
   const closeForm = () => {
     setLocalOpen(false);
     if (nuevoParam) {
-      searchParams.delete('nuevo');
-      setSearchParams(searchParams, { replace: true });
+      updateSearchParams((next) => {
+        next.delete('nuevo');
+      }, { replace: true });
     }
   };
   const discardNavigatingForm = () => {
@@ -66,6 +108,9 @@ export const ReparacionesPage = () => {
   };
 
   const open = (id: number) => navigate(`/reparaciones/${id}`);
+  const handleCreated = (id: number) => {
+    navigate(`/reparaciones/${id}`, { replace: nuevoParam });
+  };
   const requestStateChange = (id: number, estado: EstadoReparacion) => {
     if (transitionLock.current || cambiarEstado.isPending) return;
     transitionLock.current = true;
@@ -108,7 +153,7 @@ export const ReparacionesPage = () => {
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex rounded-lg bg-surface-3 p-1">
-            {(['board', 'list'] as Vista[]).map((v) => (
+            {REPARACION_VISTAS.map((v) => (
               <button
                 key={v}
                 type="button"
@@ -160,10 +205,7 @@ export const ReparacionesPage = () => {
                 <button
                   key={c.key}
                   type="button"
-                  onClick={() => {
-                    setFiltro(c.key);
-                    setPage(0);
-                  }}
+                  onClick={() => setFiltro(c.key)}
                   className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-[12.5px] font-bold transition ${
                     active ? 'border-primary bg-primary text-primary-fg' : 'border-border-strong bg-surface text-text-2 hover:bg-surface-2'
                   }`}
@@ -193,6 +235,7 @@ export const ReparacionesPage = () => {
             size={size}
             sort={sort}
             onPage={setPage}
+            onReplacePage={replacePage}
             onOpen={open}
             onAdvance={advance}
           />
@@ -204,7 +247,7 @@ export const ReparacionesPage = () => {
         onClose={closeForm}
         onNavigationDiscard={discardNavigatingForm}
         editing={null}
-        onCreated={(id) => navigate(`/reparaciones/${id}`)}
+        onCreated={handleCreated}
       />
     </DashboardLayout>
   );
@@ -456,6 +499,7 @@ const Lista = ({
   size,
   sort,
   onPage,
+  onReplacePage,
   onOpen,
   onAdvance,
 }: {
@@ -466,6 +510,7 @@ const Lista = ({
   size: number;
   sort?: string;
   onPage: (p: number) => void;
+  onReplacePage: (p: number) => void;
   onOpen: (id: number) => void;
   onAdvance: (r: Reparacion) => void;
 }) => {
@@ -479,7 +524,7 @@ const Lista = ({
   } = useReparacionesQuery({ q, estado, page, size, sort });
   const reparaciones = data?.content ?? [];
   const refreshing = isFetching && isPlaceholderData;
-  usePageBounds(page, onPage, data?.page, !isPlaceholderData);
+  usePageBounds(page, onReplacePage, data?.page, !isPlaceholderData);
 
   if (isError || (!isLoading && !data)) {
     return (

@@ -8,6 +8,7 @@ import { useCajaQuery } from '../api/queries/cobros.queries';
 import { useFunciones } from '../api/queries/suscripcion.queries';
 import { useUrlSearchParams } from '../hooks/useUrlSearchParams';
 import { composeSearchParamsNormalizers, normalizeIsoDateParam } from '../lib/urlSearchParams';
+import { DatosCobroCard } from '../components/DatosCobroCard';
 
 const normalizeCajaSearchParams = composeSearchParamsNormalizers(
   (params) => { normalizeIsoDateParam(params, 'desde'); },
@@ -39,6 +40,8 @@ export const CajaPage = () => {
   return (
     <DashboardLayout title="Caja">
       <div className="ofx-in mx-auto max-w-[900px] space-y-4">
+        <DatosCobroCard />
+
         {/* Filtro de período */}
         <div className="flex flex-col items-stretch gap-3 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-end">
           <div className="min-w-0 sm:w-auto">

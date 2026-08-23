@@ -460,6 +460,23 @@ export interface CobroAnulacionRequest {
   motivo: string;
 }
 
+/** Instrucciones públicas del taller; OrdenFix no procesa ni verifica pagos. */
+export interface DatosCobro {
+  alias: string | null;
+  titular: string | null;
+  entidad: string | null;
+  mostrarEnResumen: boolean;
+  qrDisponible: boolean;
+  qrVersion: string | null;
+}
+
+export interface DatosCobroUpdate {
+  alias: string | null;
+  titular: string | null;
+  entidad: string | null;
+  mostrarEnResumen: boolean;
+}
+
 export interface CobrosReparacion {
   total: number;
   cobrado: number;

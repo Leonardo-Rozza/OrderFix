@@ -184,6 +184,8 @@ export interface MockData {
   recibo?: Record<string, unknown>;
   /** Respuesta de /caja para pruebas de filtros y responsive. */
   caja?: Record<string, unknown>;
+  /** Configuración mutable de referencias públicas del taller. */
+  datosCobro?: Record<string, unknown>;
 }
 
 /** Mockea toda la API (/api/**) a nivel de red, así los E2E no dependen del backend. */
@@ -205,6 +207,19 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
     pagado: false,
     cobros: [],
   };
+  const datosCobro = {
+    alias: null,
+    titular: null,
+    entidad: null,
+    mostrarEnResumen: true,
+    qrDisponible: false,
+    qrVersion: null,
+    ...(data.datosCobro ?? {}),
+  };
+  const qrCobroPng = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    'base64',
+  );
   // Estado mutable del seguimiento (para que aprobar/rechazar cambie el badge al refetch).
   const seguimiento = JSON.parse(JSON.stringify(data.seguimiento ?? defaultSeguimiento));
 
@@ -219,6 +234,38 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
     // Auth
     if (pathname.endsWith('/api/auth/login') && method === 'POST') {
       return route.fulfill({ json: { token: futureToken(), type: 'Bearer', email: 'admin@mvgr.com' } });
+    }
+
+    // Referencias públicas del taller y QR autenticado.
+    if (pathname.endsWith('/api/taller/datos-cobro') && method === 'GET') {
+      return route.fulfill({ json: datosCobro });
+    }
+    if (pathname.endsWith('/api/taller/datos-cobro') && method === 'PUT') {
+      Object.assign(datosCobro, req.postDataJSON() as Record<string, unknown>);
+      return route.fulfill({ json: datosCobro });
+    }
+    if (pathname.endsWith('/api/taller/datos-cobro/qr') && method === 'GET') {
+      if (!datosCobro.qrDisponible) {
+        return route.fulfill({
+          status: 404,
+          json: { status: 404, code: 'QR_COBRO_NO_CONFIGURADO', message: 'QR no configurado' },
+        });
+      }
+      return route.fulfill({
+        body: qrCobroPng,
+        contentType: 'image/png',
+        headers: { 'Cache-Control': 'private, no-store', ETag: String(datosCobro.qrVersion) },
+      });
+    }
+    if (pathname.endsWith('/api/taller/datos-cobro/qr') && method === 'PUT') {
+      datosCobro.qrDisponible = true;
+      datosCobro.qrVersion = `sha-e2e-${Date.now()}`;
+      return route.fulfill({ json: datosCobro });
+    }
+    if (pathname.endsWith('/api/taller/datos-cobro/qr') && method === 'DELETE') {
+      datosCobro.qrDisponible = false;
+      datosCobro.qrVersion = null;
+      return route.fulfill({ json: datosCobro });
     }
 
     // Ingreso rápido

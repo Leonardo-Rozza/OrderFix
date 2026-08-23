@@ -1,5 +1,5 @@
 import type { QueryClient, QueryKey } from '@tanstack/react-query';
-import type { Cliente, Equipo, Reparacion, Suscripcion } from '../types';
+import type { Cliente, DatosCobro, Equipo, Reparacion, Suscripcion } from '../types';
 import { queryKeys } from './queryKeys';
 
 export type ClienteChange =
@@ -185,6 +185,21 @@ export const reconcileCobroChanged = async (
   ]);
 };
 
+/**
+ * Publica la configuración confirmada por el backend y descarta cualquier blob
+ * anterior: la versión SHA forma parte de la key, pero el endpoint siempre lee
+ * el QR vigente del tenant.
+ */
+export const reconcileDatosCobroChanged = async (
+  queryClient: QueryClient,
+  datosCobro: DatosCobro,
+): Promise<void> => {
+  await queryClient.cancelQueries({ queryKey: queryKeys.datosCobro.qrAll });
+  queryClient.removeQueries({ queryKey: queryKeys.datosCobro.qrAll });
+  queryClient.setQueryData(queryKeys.datosCobro.detail, datosCobro);
+  await invalidateKeys(queryClient, [queryKeys.recibos.all]);
+};
+
 /** Conserva la respuesta FREE y elimina datos que ya no deben reaparecer fresh. */
 export const reconcileSuscripcionDegraded = async (
   queryClient: QueryClient,
@@ -194,6 +209,7 @@ export const reconcileSuscripcionDegraded = async (
     queryKeys.inventario.all,
     queryKeys.caja.all,
     queryKeys.cobros.all,
+    queryKeys.datosCobro.all,
     queryKeys.recibos.all,
   ] as const;
 

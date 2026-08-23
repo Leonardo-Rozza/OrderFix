@@ -13,6 +13,8 @@ vi.mock('../api/queries/suscripcion.queries', () => ({
   useFunciones: () => ({ cobros: true, inventario: true, empleadosMultiples: true }),
 }));
 
+vi.mock('../components/DatosCobroCard', () => ({ DatosCobroCard: () => null }));
+
 import { CajaPage } from './CajaPage';
 
 const cajaVacia = {

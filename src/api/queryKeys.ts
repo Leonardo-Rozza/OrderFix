@@ -86,6 +86,12 @@ export const queryKeys = {
     all: ['cobros'] as const,
     byReparacion: (reparacionId: number | undefined) => ['cobros', reparacionId] as const,
   },
+  datosCobro: {
+    all: ['datos-cobro'] as const,
+    detail: ['datos-cobro', 'configuracion'] as const,
+    qrAll: ['datos-cobro', 'qr'] as const,
+    qr: (version: string | null | undefined) => ['datos-cobro', 'qr', version ?? null] as const,
+  },
   caja: {
     all: ['caja'] as const,
     range: (rango: CajaQueryRange) =>

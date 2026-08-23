@@ -568,6 +568,77 @@ test('anulación de cobro: motivo auditable y responsive sin borrar la historia'
   await expectNoHorizontalOverflow(page);
 });
 
+test('datos para cobrar: configura referencias y QR autenticado sin overflow', async ({ page, context }) => {
+  await seedAuth(context);
+  const aliasInicial = `taller.${'alias'.repeat(20)}`;
+  const entidadLarga = `Billetera-${'digital'.repeat(15)}`;
+  await mockApi(page, {
+    ...SMOKE_DATA,
+    datosCobro: {
+      alias: aliasInicial,
+      titular: 'Servicio Técnico Integral del Centro y todas sus sucursales asociadas',
+      entidad: entidadLarga,
+      mostrarEnResumen: true,
+      qrDisponible: true,
+      qrVersion: 'sha-e2e-inicial',
+    },
+  });
+
+  await page.goto('/caja');
+
+  const card = page.getByRole('region', { name: 'Datos para cobrar' });
+  await expect(card.getByText(aliasInicial)).toBeVisible();
+  await expect(card.getByText(entidadLarga)).toBeVisible();
+  await expect(card.getByText(/no accede a tu cuenta ni confirma/i)).toBeVisible();
+  await expect(card.getByAltText('QR de cobro configurado por el taller')).toHaveAttribute('src', /^blob:/);
+  await expectNoHorizontalOverflow(page);
+
+  const configure = card.getByRole('button', { name: 'Configurar' });
+  if ((page.viewportSize()?.width ?? 0) < 640) {
+    const [metrics] = await editableMetrics(page, 'section[aria-label="Datos para cobrar"] button');
+    expectTouchSized(metrics);
+  }
+  await configure.click();
+
+  const rawDialog = page.getByRole('dialog', { name: 'Configurar datos para cobrar' });
+  const alias = rawDialog.getByLabel('Alias');
+  await expect(alias).toBeFocused();
+  const aliasNuevo = `nuevo.${'cobro'.repeat(20)}`;
+  await alias.fill(`  ${aliasNuevo}  `);
+  await rawDialog.locator('input[type="file"]').setInputFiles({
+    name: 'qr-nuevo.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      'base64',
+    ),
+  });
+  const dialog = await expectMobileDialog(page, {
+    title: 'Configurar datos para cobrar',
+    cta: 'Guardar cambios',
+  });
+  await expect(dialog.getByAltText('Vista previa del nuevo QR de cobro')).toHaveAttribute('src', /^blob:/);
+
+  const metadataRequest = page.waitForRequest((request) => (
+    request.method() === 'PUT'
+    && new URL(request.url()).pathname.endsWith('/api/taller/datos-cobro')
+  ));
+  const qrRequest = page.waitForRequest((request) => (
+    request.method() === 'PUT'
+    && new URL(request.url()).pathname.endsWith('/api/taller/datos-cobro/qr')
+  ));
+  await dialog.getByRole('button', { name: 'Guardar cambios' }).click();
+  const [metadata, qr] = await Promise.all([metadataRequest, qrRequest]);
+
+  expect(metadata.postDataJSON()).toMatchObject({ alias: aliasNuevo, mostrarEnResumen: true });
+  expect(qr.headers()['content-type']).toContain('multipart/form-data; boundary=');
+  expect(qr.postData()).toContain('name="file"');
+  expect(qr.postData()).toContain('filename="qr-nuevo.png"');
+  await expect(dialog).toHaveCount(0);
+  await expect(card.getByText(aliasNuevo)).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
+
 test('registro: controles táctiles sin zoom ni overflow horizontal', async ({ page }) => {
   await page.goto('/register');
 

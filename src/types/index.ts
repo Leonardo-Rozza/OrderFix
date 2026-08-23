@@ -30,6 +30,21 @@ export interface TokenClaims {
   exp?: number;
 }
 
+/** Identidad visible de la sesión autenticada (GET /api/perfil). */
+export interface Perfil {
+  usuario: {
+    id: number;
+    username: string;
+    email: string;
+    role: Rol;
+  };
+  taller: {
+    id: number;
+    nombre: string;
+    telefono: string | null;
+  };
+}
+
 // ========== USUARIOS / EMPLEADOS ==========
 export type Rol = 'ADMIN' | 'USER';
 

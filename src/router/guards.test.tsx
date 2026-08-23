@@ -25,6 +25,11 @@ const suscripcion = {
   funciones: { inventario: false, cobros: false, empleadosMultiples: false },
 };
 
+const perfil = {
+  usuario: { id: 1, username: 'Ada Lovelace', email: 'a@a.com', role: 'ADMIN' },
+  taller: { id: 1, nombre: 'Taller A', telefono: null },
+};
+
 const renderProtegida = () => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -47,6 +52,7 @@ const renderProtegida = () => {
 beforeEach(() => {
   authStore.getState().logout();
   window.history.pushState({}, '', '/login');
+  server.use(http.get(`${API}/perfil`, () => HttpResponse.json(perfil)));
 });
 
 describe('ProtectedRoute', () => {
@@ -121,6 +127,60 @@ describe('ProtectedRoute', () => {
     await user.click(screen.getByRole('button', { name: 'Reintentar' }));
     await waitFor(() => expect(screen.getByText('PRIVADO')).toBeInTheDocument());
     expect(intentos).toBe(2);
+  });
+
+  it('inicia perfil y suscripción en paralelo sin bloquear por el perfil', async () => {
+    let perfilSolicitado = false;
+    let responderPerfil: (() => void) | undefined;
+    const perfilPendiente = new Promise<void>((resolve) => {
+      responderPerfil = resolve;
+    });
+    server.use(
+      http.get(`${API}/suscripcion`, () => HttpResponse.json(suscripcion)),
+      http.get(`${API}/perfil`, async () => {
+        perfilSolicitado = true;
+        await perfilPendiente;
+        return HttpResponse.json(perfil);
+      }),
+    );
+    authStore.getState().login(tokenVigente(), 'a@a.com');
+
+    renderProtegida();
+
+    await waitFor(() => expect(perfilSolicitado).toBe(true));
+    expect(await screen.findByText('PRIVADO')).toBeInTheDocument();
+    responderPerfil?.();
+  });
+
+  it('mantiene visible la aplicación si el perfil falla de forma recuperable', async () => {
+    server.use(
+      http.get(`${API}/suscripcion`, () => HttpResponse.json(suscripcion)),
+      http.get(`${API}/perfil`, () => new HttpResponse(null, { status: 500 })),
+    );
+    authStore.getState().login(tokenVigente(), 'a@a.com');
+
+    renderProtegida();
+
+    expect(await screen.findByText('PRIVADO')).toBeInTheDocument();
+    expect(authStore.getState().isAuthenticated).toBe(true);
+  });
+
+  it('cierra la sesión ante 403 de perfil sin una segunda validación base', async () => {
+    let validacionesSuscripcion = 0;
+    server.use(
+      http.get(`${API}/suscripcion`, () => {
+        validacionesSuscripcion += 1;
+        return HttpResponse.json(suscripcion);
+      }),
+      http.get(`${API}/perfil`, () => new HttpResponse(null, { status: 403 })),
+    );
+    authStore.getState().login(tokenVigente(), 'a@a.com');
+
+    renderProtegida();
+
+    expect(await screen.findByText('LOGIN')).toBeInTheDocument();
+    expect(validacionesSuscripcion).toBeLessThanOrEqual(1);
+    expect(authStore.getState().isAuthenticated).toBe(false);
   });
 });
 

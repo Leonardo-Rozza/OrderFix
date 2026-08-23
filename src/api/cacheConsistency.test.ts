@@ -77,6 +77,7 @@ describe('queryKeys', () => {
   it('conserva las tuplas históricas de todas las queries', () => {
     const params = { page: 0, size: 20, search: 'ada' };
 
+    expect(queryKeys.perfil.all).toEqual(['perfil']);
     expect(queryKeys.suscripcion.all).toEqual(['suscripcion']);
     expect(queryKeys.dashboard.all).toEqual(['dashboard']);
     expect(queryKeys.clientes.list(params)).toEqual(['clientes', params]);

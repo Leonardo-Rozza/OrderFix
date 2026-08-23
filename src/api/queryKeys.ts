@@ -31,6 +31,9 @@ export interface CajaQueryRange {
  * consumidor no cree una segunda caché ni descarte datos que ya estaban fresh.
  */
 export const queryKeys = {
+  perfil: {
+    all: ['perfil'] as const,
+  },
   suscripcion: {
     all: ['suscripcion'] as const,
   },

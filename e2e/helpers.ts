@@ -69,6 +69,20 @@ const defaultSuscripcion = {
   funciones: { inventario: true, cobros: true, empleadosMultiples: true },
 };
 
+export const defaultPerfil = {
+  usuario: {
+    id: 1,
+    username: 'Administrador OrdenFix',
+    email: 'admin@mvgr.com',
+    role: 'ADMIN',
+  },
+  taller: {
+    id: 1,
+    nombre: 'MVGR Reparaciones',
+    telefono: '1155550000',
+  },
+};
+
 const defaultSeguimiento = {
   codigo: 'ABC123',
   estado: 'EN_PROCESO',
@@ -138,6 +152,8 @@ const defaultReparacionDetalle = {
 };
 
 export interface MockData {
+  /** Identidad visible del usuario y taller autenticados. */
+  perfil?: Record<string, unknown>;
   reparaciones?: unknown[];
   /** Reparación denormalizada de GET /reparaciones/:id. */
   reparacionDetalle?: Record<string, unknown>;
@@ -173,6 +189,7 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
   const presupuestos = data.presupuestos ?? [];
   const usuarios = data.usuarios ?? [];
   const suscripcion = data.suscripcion ?? defaultSuscripcion;
+  const perfil = data.perfil ?? defaultPerfil;
   const cobros = data.cobros ?? { total: 0, cobrado: 0, saldo: 0, pagado: false, cobros: [] };
   // Estado mutable del seguimiento (para que aprobar/rechazar cambie el badge al refetch).
   const seguimiento = JSON.parse(JSON.stringify(data.seguimiento ?? defaultSeguimiento));
@@ -319,6 +336,11 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
     // Suscripción
     if (pathname.endsWith('/api/suscripcion')) {
       return route.fulfill({ json: suscripcion });
+    }
+
+    // Perfil autenticado. Es explícito para detectar cambios de contrato en E2E.
+    if (pathname.endsWith('/api/perfil') && method === 'GET') {
+      return route.fulfill({ json: perfil });
     }
 
     // Default: lista vacía / OK

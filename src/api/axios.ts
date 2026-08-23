@@ -58,9 +58,10 @@ const isBaseSessionRequest = (url?: string) => {
   if (!url) return false;
   try {
     const pathname = new URL(url, `${API_BASE_URL}/`).pathname.replace(/\/+$/, '');
-    return pathname.endsWith('/suscripcion');
+    return pathname.endsWith('/suscripcion') || pathname.endsWith('/perfil');
   } catch {
-    return url.replace(/\?.*$/, '').replace(/\/+$/, '').endsWith('/suscripcion');
+    const normalized = url.replace(/\?.*$/, '').replace(/\/+$/, '');
+    return normalized.endsWith('/suscripcion') || normalized.endsWith('/perfil');
   }
 };
 
@@ -131,7 +132,7 @@ apiClient.interceptors.response.use(
       window.dispatchEvent(new CustomEvent(LIMITE_PLAN_EVENT, { detail: { message } }));
     } else if (status === 403) {
       if (isBaseSessionRequest(error.config?.url)) {
-        // /suscripcion es la validación base: su 403 significa sesión revocada.
+        // Estos recursos aceptan ambos roles: su 403 significa sesión revocada.
         closeInvalidSession();
       } else {
         // En cualquier otro endpoint un 403 puede ser falta de rol o una cuenta

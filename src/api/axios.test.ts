@@ -143,6 +143,24 @@ describe('axios interceptor de errores', () => {
     expect(authStore.getState().isAuthenticated).toBe(false);
   });
 
+  it('trata un 403 directo de /perfil como sesión inválida sin revalidar', async () => {
+    authStore.getState().login('token-revocado', 'empleado@taller.com');
+    let validaciones = 0;
+    server.use(
+      http.get(`${API}/perfil`, () => new HttpResponse(null, { status: 403 })),
+      http.get(`${API}/suscripcion`, () => {
+        validaciones += 1;
+        return HttpResponse.json({ plan: 'FREE', estado: 'ACTIVA' });
+      }),
+    );
+
+    await expect(apiClient.get('/perfil', { errorMode: 'inline' })).rejects.toBeTruthy();
+
+    expect(validaciones).toBe(0);
+    expect(authStore.getState().isAuthenticated).toBe(false);
+    expect(showError).not.toHaveBeenCalled();
+  });
+
   it('conserva la sesión si la validación del 403 queda indeterminada por un 500', async () => {
     authStore.getState().login('token-vigente', 'empleado@taller.com');
     server.use(

@@ -4,6 +4,7 @@ import { isAxiosError } from 'axios';
 import { authStore, useAuth } from '../store/auth.store';
 import { isTokenExpired } from '../utils/jwt';
 import { useSuscripcionQuery } from '../api/queries/suscripcion.queries';
+import { usePerfilQuery } from '../api/queries/perfil.queries';
 import { Loader } from '../components/Loader';
 import { ErrorState } from '../components/ErrorState';
 
@@ -18,6 +19,9 @@ const sesionValida = (token: string | null, isAuthenticated: boolean) => {
 
 /** No deja renderizar datos del taller hasta validar la sesión contra el backend. */
 const SessionGate = ({ children }: GuardProps) => {
+  // Son recursos independientes: ambos arrancan en esta primera pintura. El
+  // perfil degrada a fallbacks visuales y nunca bloquea el contenido privado.
+  usePerfilQuery();
   const { isPending, isError, error, refetch } = useSuscripcionQuery();
   const status = isAxiosError(error) ? error.response?.status : undefined;
   const sesionInvalida = status === 401 || status === 403;

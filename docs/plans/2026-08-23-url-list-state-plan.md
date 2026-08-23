@@ -3,7 +3,7 @@
 **Fecha:** 2026-08-23  
 **Diseño aprobado:** `docs/plans/2026-08-23-url-list-state-design.md`  
 **Rama:** `codex/frontend-refactor-checkpoint`  
-**Estado:** listo para implementar
+**Estado:** completado y validado
 
 ## Objetivo
 
@@ -278,3 +278,49 @@ docs(lists): registra persistencia URL validada
 ## Criterio de cierre
 
 La etapa se considera terminada cuando las seis pantallas cumplen el diseño aprobado, todas las URLs inválidas se normalizan sin bucles, las protecciones de formularios siguen verdes, la regresión completa pasa y el historial queda compuesto por commits atómicos sin push.
+
+## Resultado ejecutado
+
+### Contrato entregado
+
+| Pantalla | Parámetros persistidos | Correcciones automáticas |
+|---|---|---|
+| Clientes | `q`, `page`, `sort` | allowlist de cuatro órdenes y página con `REPLACE` |
+| Equipos | `q`, `page`, `sort` | allowlist de tres órdenes y página con `REPLACE` |
+| Repuestos | `q`, `page` | página con `REPLACE` |
+| Inventario | `q`, `page` | página con `REPLACE`, sin navegación por entitlement |
+| Reparaciones | `q`, `page`, `sort`, `vista`, `estado`, `nuevo` | enums, sort y flag canonicalizados; página con `REPLACE` |
+| Caja | `desde`, `hasta` | fechas ISO reales canonicalizadas con `REPLACE` |
+
+La búsqueda usa `REPLACE` y debounce de 350 ms. Una carga o navegación `POP` restaura la consulta inmediatamente. Página, orden, vista, estado y fechas usan `PUSH`. Cada interacción agrupa todos sus cambios en una receta porque React Router no encola varios escritores funcionales de search params en el mismo tick.
+
+Reparaciones quedó con un único escritor URL. El alta `nuevo=1` preserva el listado, cerrar elimina sólo el flag y crear reemplaza la entrada por el detalle; el alta abierta localmente conserva navegación `PUSH`. Caja mantiene visible un rango invertido, muestra el error existente y no consulta hasta corregirlo.
+
+### Commits reales
+
+| Hash | Entrega |
+|---|---|
+| `25f6844` | diseño aprobado |
+| `0ea2c9d` | plan técnico |
+| `4c83cba` | codec, sesión URL y hook de listas tipado |
+| `4e3b26f` | Clientes, Equipos, Repuestos e Inventario |
+| `4651c46` | Reparaciones, filtros, vista y `nuevo=1` |
+| `87146f9` | rango de fechas de Caja |
+| `4396626` | E2E desktop y matriz móvil |
+
+El cierre documental se versiona en un commit separado. No se hizo push.
+
+### Validación final
+
+- `npm test`: **66 archivos / 379 pruebas**, todas verdes.
+- `npm run typecheck`: verde.
+- `npm run lint`: verde.
+- `npm run build`: verde; Vite transformó 682 módulos.
+- `npm run test:e2e`: **78 escenarios**, todos verdes.
+- Cobertura nueva focal: 6 escenarios Chromium y 4 ejecuciones móviles en 320 px, 390 px, landscape y WebKit.
+- `git diff --check`: verde.
+- `.agents/` y `public/OrdenFix project naming/` permanecen fuera de los commits.
+
+### Cierre
+
+Los seis listados usan la URL como única fuente de verdad para su estado recuperable. Deep links, recarga, detalle y Atrás/Adelante restauran el recorte operativo; los valores inválidos no llegan al backend; los defaults se omiten; las correcciones no contaminan el historial; y los guards de cambios sin guardar conservaron su destino original durante la regresión completa.

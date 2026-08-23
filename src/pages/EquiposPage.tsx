@@ -39,7 +39,7 @@ const deviceIcon = (
 );
 
 export const EquiposPage = () => {
-  const { q, onSearch, page, setPage, debouncedQ, size, sort, setSort } = useListParams(EQUIPO_LIST_PARAMS);
+  const { q, onSearch, page, setPage, replacePage, debouncedQ, size, sort, setSort } = useListParams(EQUIPO_LIST_PARAMS);
   const { data, isLoading, isError, isFetching, isPlaceholderData, refetch } = useEquiposQuery({ q: debouncedQ, page, size, sort });
   const { isAdmin } = useAuth();
   const deleteMutation = useDeleteEquipoMutation();
@@ -51,7 +51,7 @@ export const EquiposPage = () => {
 
   const equipos = data?.content ?? [];
   const refreshing = isFetching && isPlaceholderData;
-  usePageBounds(page, setPage, data?.page, !isPlaceholderData);
+  usePageBounds(page, replacePage, data?.page, !isPlaceholderData);
 
   const openNew = () => {
     setEditing(null);

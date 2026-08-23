@@ -17,9 +17,11 @@ import { useDeleteArticuloMutation } from '../api/mutations/inventario.mutations
 import { useAuth } from '../store/auth.store';
 import type { Articulo } from '../types';
 
+const INVENTARIO_LIST_OPTIONS = { size: 20 } as const;
+
 export const InventarioPage = () => {
   const { inventario } = useFunciones();
-  const { q, onSearch, page, setPage, debouncedQ, size } = useListParams();
+  const { q, onSearch, page, setPage, replacePage, debouncedQ, size } = useListParams(INVENTARIO_LIST_OPTIONS);
   const { data, isLoading, isError, isFetching, isPlaceholderData, refetch } = useInventarioQuery({ q: debouncedQ, page, size }, inventario);
   const { isAdmin } = useAuth();
   const deleteMutation = useDeleteArticuloMutation();
@@ -31,7 +33,7 @@ export const InventarioPage = () => {
 
   const articulos = data?.content ?? [];
   const refreshing = isFetching && isPlaceholderData;
-  usePageBounds(page, setPage, data?.page, !isPlaceholderData);
+  usePageBounds(page, replacePage, data?.page, !isPlaceholderData);
 
   const openNew = () => {
     setEditing(null);

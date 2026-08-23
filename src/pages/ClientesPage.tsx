@@ -31,7 +31,7 @@ const CLIENTE_LIST_PARAMS = {
 } satisfies UseListParamsOptions;
 
 export const ClientesPage = () => {
-  const { q, onSearch, page, setPage, debouncedQ, size, sort, setSort } = useListParams(CLIENTE_LIST_PARAMS);
+  const { q, onSearch, page, setPage, replacePage, debouncedQ, size, sort, setSort } = useListParams(CLIENTE_LIST_PARAMS);
   const { data, isLoading, isError, isFetching, isPlaceholderData, refetch } = useClientesQuery({ q: debouncedQ, page, size, sort });
   const { isAdmin } = useAuth();
   const deleteMutation = useDeleteClienteMutation();
@@ -44,7 +44,7 @@ export const ClientesPage = () => {
 
   const clientes = data?.content ?? [];
   const refreshing = isFetching && isPlaceholderData;
-  usePageBounds(page, setPage, data?.page, !isPlaceholderData);
+  usePageBounds(page, replacePage, data?.page, !isPlaceholderData);
 
   const openNew = () => {
     setEditing(null);

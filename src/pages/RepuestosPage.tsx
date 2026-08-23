@@ -14,8 +14,10 @@ import { useDeleteRepuestoMutation } from '../api/mutations/repuestos.mutations'
 import { useAuth } from '../store/auth.store';
 import type { Repuesto } from '../types';
 
+const REPUESTOS_LIST_OPTIONS = { size: 20 } as const;
+
 export const RepuestosPage = () => {
-  const { q, onSearch, page, setPage, debouncedQ, size } = useListParams();
+  const { q, onSearch, page, setPage, replacePage, debouncedQ, size } = useListParams(REPUESTOS_LIST_OPTIONS);
   const { data, isLoading, isError, isFetching, isPlaceholderData, refetch } = useRepuestosQuery({ q: debouncedQ, page, size });
   const { isAdmin } = useAuth();
   const deleteMutation = useDeleteRepuestoMutation();
@@ -26,7 +28,7 @@ export const RepuestosPage = () => {
 
   const repuestos = data?.content ?? [];
   const refreshing = isFetching && isPlaceholderData;
-  usePageBounds(page, setPage, data?.page, !isPlaceholderData);
+  usePageBounds(page, replacePage, data?.page, !isPlaceholderData);
 
   const openNew = () => {
     setEditing(null);

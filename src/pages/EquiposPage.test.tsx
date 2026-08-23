@@ -1,12 +1,14 @@
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { http, HttpResponse } from 'msw';
+import { renderWithProviders } from '../test/renderWithProviders';
+import { API, server } from '../test/server';
 import type { Equipo } from '../types';
 
 const mocks = vi.hoisted(() => ({
   deleteEquipo: vi.fn(),
-  refetch: vi.fn(),
 }));
 
 const equipo: Equipo = {
@@ -22,33 +24,44 @@ const equipo: Equipo = {
   reparacionesCount: 2,
 };
 
+interface ListRequest {
+  q: string | null;
+  page: string | null;
+  size: string | null;
+  sort: string | null;
+}
+
+const mockEquipos = (
+  requests: ListRequest[],
+  totalPagesFor: (page: number) => number = (page) => Math.max(page + 2, 2),
+) => {
+  server.use(
+    http.get(`${API}/equipos`, ({ request }) => {
+      const params = new URL(request.url).searchParams;
+      const page = Number(params.get('page') ?? 0);
+      const totalPages = totalPagesFor(page);
+      requests.push({
+        q: params.get('q'),
+        page: params.get('page'),
+        size: params.get('size'),
+        sort: params.get('sort'),
+      });
+
+      return HttpResponse.json({
+        content: [equipo],
+        page: {
+          number: page,
+          size: 20,
+          totalElements: totalPages * 20,
+          totalPages,
+        },
+      });
+    }),
+  );
+};
+
 vi.mock('../layouts/DashboardLayout', () => ({
   DashboardLayout: ({ children }: { children: ReactNode }) => <>{children}</>,
-}));
-
-vi.mock('../hooks/useListParams', () => ({
-  useListParams: () => ({
-    q: '',
-    onSearch: vi.fn(),
-    page: 0,
-    setPage: vi.fn(),
-    debouncedQ: '',
-    size: 20,
-    sort: 'id,desc',
-    setSort: vi.fn(),
-  }),
-}));
-
-vi.mock('../api/queries/equipos.queries', () => ({
-  useEquiposQuery: () => ({
-    data: {
-      content: [equipo],
-      page: { number: 0, size: 20, totalElements: 1, totalPages: 1 },
-    },
-    isLoading: false,
-    isError: false,
-    refetch: mocks.refetch,
-  }),
 }));
 
 vi.mock('../api/mutations/equipos.mutations', () => ({
@@ -58,12 +71,14 @@ vi.mock('../api/mutations/equipos.mutations', () => ({
   }),
 }));
 
-vi.mock('../store/auth.store', () => ({
-  useAuth: () => ({ isAdmin: true }),
-}));
+vi.mock('../store/auth.store', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../store/auth.store')>();
+  return {
+    ...actual,
+    useAuth: () => ({ isAdmin: true }),
+  };
+});
 
-vi.mock('../components/Pagination', () => ({ Pagination: () => null }));
-vi.mock('../components/SortSelect', () => ({ SortSelect: () => null }));
 vi.mock('../components/EquipoFormModal', () => ({
   EquipoFormModal: ({ isOpen, editing }: { isOpen: boolean; editing: Equipo | null }) =>
     isOpen ? <div data-testid="equipo-form">{editing ? `Editando ${editing.modelo}` : 'Nuevo equipo'}</div> : null,
@@ -79,16 +94,124 @@ vi.mock('../components/ConfirmDialog', () => ({
 
 import { EquiposPage } from './EquiposPage';
 
-describe('EquiposPage — semántica de tarjetas', () => {
-  beforeEach(() => {
-    mocks.deleteEquipo.mockReset();
+describe('EquiposPage — estado navegable del listado', () => {
+  it('hidrata q, página y orden desde un deep link y consulta esos valores', async () => {
+    const requests: ListRequest[] = [];
+    mockEquipos(requests);
+
+    renderWithProviders(<EquiposPage />, {
+      initialEntries: ['/equipos?q=%20iphone%20&page=3&sort=marca%2Casc'],
+    });
+
+    expect(screen.getByRole('searchbox', { name: 'Buscar equipos' })).toHaveValue(' iphone ');
+    expect(screen.getByRole('combobox', { name: 'Ordenar' })).toHaveValue('marca,asc');
+    expect(await screen.findByRole('button', { name: 'Ver reparaciones de Apple iPhone 13' })).toBeInTheDocument();
+    expect(requests).toContainEqual({
+      q: 'iphone',
+      page: '3',
+      size: '20',
+      sort: 'marca,asc',
+    });
   });
 
+  it('canonicaliza parámetros inválidos antes de construir una consulta segura', async () => {
+    const requests: ListRequest[] = [];
+    mockEquipos(requests);
+    const { router } = renderWithProviders(<EquiposPage />, {
+      initialEntries: ['/equipos?q=%20%20&page=01&sort=precio%2Cdesc&externo=1'],
+    });
+
+    await waitFor(() => expect(requests.length).toBeGreaterThan(0));
+    expect(requests).toEqual([
+      { q: null, page: '0', size: '20', sort: 'id,desc' },
+    ]);
+    await waitFor(() => expect(router.state.location.search).toBe('?externo=1'));
+    expect(router.state.historyAction).toBe('REPLACE');
+  });
+
+  it('reemplaza la búsqueda y reinicia la página sin perder el orden', async () => {
+    const requests: ListRequest[] = [];
+    mockEquipos(requests);
+    const { router } = renderWithProviders(<EquiposPage />, {
+      initialEntries: ['/equipos?page=2&sort=modelo%2Casc'],
+    });
+
+    await waitFor(() => expect(requests.some(({ page }) => page === '2')).toBe(true));
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar equipos' }), {
+      target: { value: '  Samsung  ' },
+    });
+
+    await waitFor(() => {
+      const params = new URLSearchParams(router.state.location.search);
+      expect(params.get('q')).toBe('  Samsung  ');
+      expect(params.has('page')).toBe(false);
+      expect(params.get('sort')).toBe('modelo,asc');
+    });
+    expect(router.state.historyAction).toBe('REPLACE');
+    await waitFor(
+      () => expect(requests).toContainEqual({
+        q: 'Samsung',
+        page: '0',
+        size: '20',
+        sort: 'modelo,asc',
+      }),
+      { timeout: 1_000 },
+    );
+  });
+
+  it('agrega el orden al historial y reinicia la página', async () => {
+    const user = userEvent.setup();
+    const requests: ListRequest[] = [];
+    mockEquipos(requests);
+    const { router } = renderWithProviders(<EquiposPage />, {
+      initialEntries: ['/equipos?q=iphone&page=2&sort=marca%2Casc'],
+    });
+
+    await waitFor(() => expect(requests.some(({ page }) => page === '2')).toBe(true));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Ordenar' }), 'modelo,asc');
+
+    await waitFor(() => {
+      const params = new URLSearchParams(router.state.location.search);
+      expect(params.get('q')).toBe('iphone');
+      expect(params.has('page')).toBe(false);
+      expect(params.get('sort')).toBe('modelo,asc');
+    });
+    expect(router.state.historyAction).toBe('PUSH');
+    await waitFor(() => expect(requests).toContainEqual({
+      q: 'iphone',
+      page: '0',
+      size: '20',
+      sort: 'modelo,asc',
+    }));
+  });
+
+  it('corrige por metadata con REPLACE y no agrega una entrada espuria', async () => {
+    const requests: ListRequest[] = [];
+    mockEquipos(requests, () => 2);
+    const { router } = renderWithProviders(<EquiposPage />, {
+      initialEntries: ['/anterior', '/equipos?page=5'],
+      initialIndex: 1,
+    });
+
+    await waitFor(() => expect(requests.some(({ page }) => page === '1')).toBe(true));
+    expect(router.state.location.search).toBe('?page=1');
+    expect(router.state.historyAction).toBe('REPLACE');
+
+    await act(async () => {
+      await router.navigate(-1);
+    });
+    expect(router.state.location.pathname).toBe('/anterior');
+  });
+});
+
+describe('EquiposPage — semántica de tarjetas', () => {
   it('mantiene navegación, editar y eliminar como botones hermanos sin interacción anidada', async () => {
     const user = userEvent.setup();
-    const { container } = render(<EquiposPage />);
+    const requests: ListRequest[] = [];
+    mockEquipos(requests);
+    const { container } = renderWithProviders(<EquiposPage />);
 
-    const primary = screen.getByRole('button', { name: 'Ver reparaciones de Apple iPhone 13' });
+    const primary = await screen.findByRole('button', { name: 'Ver reparaciones de Apple iPhone 13' });
     const edit = screen.getByRole('button', { name: 'Editar' });
     const remove = screen.getByRole('button', { name: 'Eliminar' });
     const card = primary.parentElement;

@@ -13,7 +13,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.12.0
           cache: npm
 
       - name: Instalar dependencias
@@ -22,10 +22,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Typecheck + build
+      - name: Typecheck + build protegido
         run: npm run build
+        env:
+          VITE_API_BASE_URL: https://ci-api.ordenfix.com
 
-      - name: Tests (unit/integration)
+      - name: Tests (unit/integration + release guard)
         run: npm test
 
       - name: Instalar navegadores Playwright

@@ -1,12 +1,15 @@
-# OrdenFix — Checklist de deploy (backend + frontend + Sentry + MercadoPago)
+# OrdenFix — Checklist de deploy (backend + frontend + legales + Sentry + Mercado Pago)
 
 Guía paso a paso para salir a producción. Ordenada: primero el backend, después el
 frontend, después los opcionales (Sentry, MercadoPago). Al final, el smoke test.
 
-> Estado al escribir esto (2026-07-05): el frontend ya absorbió el contrato v2 completo
-> (12 estados, pago, presupuestos pro, riesgos, fotos con momento, garantía). El backend
-> nuevo todavía NO está desplegado. El `.env` ya **no** está versionado en git, así que
-> **sin la variable en Vercel el frontend de producción apunta a localhost** ⚠️.
+> Estado al actualizar esto (2026-08-23): el build local saltea el guard de publicación;
+> CI y los previews validan como mínimo que la API de runtime sea una URL HTTPS pública y
+> explícita; producción ejecuta el release guard completo. El lanzamiento público sigue
+> bloqueado de forma intencional hasta cerrar identidad legal, revisión profesional, precio
+> remoto y upload privado. Fuera de desarrollo ya no existe un fallback silencioso a
+> localhost: una configuración incompleta detiene el build y, como segunda barrera, el
+> cliente HTTP falla antes de crear una conexión insegura.
 
 ---
 
@@ -46,19 +49,56 @@ El repo ya tiene `vercel.json`. Lo único que falta son las **variables de entor
 (críticas porque el `.env` ya no está en git):
 
 1. Vercel → tu proyecto → **Settings → Environment Variables** → agregá para
-   *Production* (y *Preview* si querés):
+   *Production*. Las variables `VITE_*` quedan visibles en el JavaScript del navegador:
+   nunca deben contener secretos.
 
    | Variable | Valor |
    |---|---|
-   | `VITE_API_BASE_URL` | `https://TU-BACKEND.onrender.com` (con o sin `/api`, el front lo normaliza solo) |
+   | `VITE_API_BASE_URL` | `https://TU-BACKEND.onrender.com` (con o sin `/api`, el front lo normaliza solo; debe ser HTTPS público) |
+   | `VITE_LEGAL_EMAIL` | contacto legal público que coincide con la publicación aprobada |
+   | `VITE_PRIVACY_EMAIL` | canal público para ejercer derechos sobre datos personales |
+   | `VITE_SUPPORT_EMAIL` | canal público de soporte y gestiones |
+   | `ORDENFIX_LEGAL_PUBLICATION_MANIFEST` | `docs/legal/publications/<publicationId>/publication-manifest.json` |
    | `VITE_SENTRY_DSN` | el DSN de Sentry (opcional — ver sección 3; si no está, Sentry queda apagado sin romper nada) |
-   | `VITE_CLOUDINARY_CLOUD_NAME` | opcional: `dnd9rnidg` ya es el default en el código |
-   | `VITE_CLOUDINARY_UPLOAD_PRESET` | opcional: `ordenfix_unsigned` ya es el default en el código |
 
-2. **Redeploy** (Deployments → ⋯ → Redeploy) para que tome las variables. Las env de
+2. Publicá dentro de `docs/legal/publications/<publicationId>/` únicamente el artefacto
+   inmutable que ya pasó revisión jurídica y contable. Los borradores de
+   `docs/legal/drafts/` nunca son fallback contractual ni pueden apuntarse desde la variable
+   del manifiesto. El guard valida el JSON contra
+   `docs/legal/publication-manifest.schema.json`, comprueba los SHA-256 de los archivos y las
+   afirmaciones, y exige la cobertura de documentos, contextos y roles necesaria para
+   registro, empleados, PRO, atestaciones y cierre. Una corrección crea otro
+   `publicationId`; no se sobrescribe una publicación ya importada.
+3. Antes de promover, ejecutá explícitamente el gate público y el build protegido:
+
+   ```bash
+   npm run check:public-release
+   npm run build:public
+   ```
+
+   El primer comando enumera códigos y archivos pendientes sin imprimir valores de las
+   variables. Hoy debe fallar por diseño hasta completar identidad/contactos y la publicación
+   legal real, retirar el precio fijo del frontend y reemplazar la subida unsigned por el
+   flujo firmado/privado.
+4. **Redeploy** (Deployments → ⋯ → Redeploy) para que tome las variables. Las env de
    Vite se inyectan **en build**, no en runtime: cambiar la variable sin redeploy no hace nada.
-3. Verificá en el navegador: abrí la app → DevTools → Network → las llamadas deben ir a
+5. Verificá en el navegador: abrí la app → DevTools → Network → las llamadas deben ir a
    `TU-BACKEND.onrender.com/api/...` y no a `localhost`.
+
+`vercel.json` fija `npm run build` como comando. El mismo entrypoint elige el nivel de control
+antes de TypeScript/Vite:
+
+- desarrollo local: saltea el release guard y conserva el fallback local;
+- CI y `VERCEL_ENV=preview`: validan la configuración de runtime y exigen una API HTTPS
+  pública, pero no requieren todavía una publicación legal aprobada;
+- `VERCEL_ENV=production` u `ORDENFIX_PUBLIC_RELEASE=true`: ejecutan el release guard
+  completo, incluido manifiesto legal, contactos y escaneo de bloqueos productivos; después de
+  Vite vuelve a inspeccionar `dist/`, por lo que un archivo estático copiado desde `public/` tampoco
+  puede reintroducir un precio PRO fijo o una carga unsigned.
+
+Un preview verde sólo acredita configuración de runtime; no acredita readiness público.
+El job de build público completo se habilitará como obligatorio cuando exista el primer
+manifiesto real aprobado y se hayan retirado los bloqueos enumerados en la sección 6.
 
 Para desarrollo local nada cambia: `.env.local` (gitignoreado) con
 `VITE_API_BASE_URL=http://localhost:8080` sigue funcionando igual.
@@ -112,10 +152,9 @@ Para activarlo (config del **backend**, contrato §10):
    | `MP_BACK_URL` | `https://TU-FRONTEND.vercel.app/suscripcion/resultado` (debe ser HTTPS con MP activo) |
    | `MP_AMOUNT` / `MP_CURRENCY` / `MP_REASON` | opcional (default 24900 ARS "OrdenFix PRO - Suscripción mensual") |
 
-4. Prueba end-to-end en sandbox con el comprador de test:
-   `test_user_7460087649239330478@testuser.com` / `i8AGgyMs78` — pagás, MercadoPago te
-   devuelve a `/suscripcion/resultado`, y en unos segundos el webhook confirma y la app
-   muestra "¡Ya sos PRO!".
+4. Prueba end-to-end en sandbox con un comprador de test generado desde el panel de Mercado Pago.
+   No documentes ni commitees sus credenciales. Al pagar, Mercado Pago devuelve a
+   `/suscripcion/resultado`; el webhook debe confirmar y la app mostrar "¡Ya sos PRO!".
 
 ---
 
@@ -142,21 +181,24 @@ Con backend y frontend arriba, probá el camino crítico completo en producción
 
 ---
 
-## 6. Pendientes conocidos para DESPUÉS del deploy (no bloquean la beta cerrada)
+## 6. Pendientes que bloquean el lanzamiento público
 
-1. ~~Subida real de fotos~~ ✅ HECHO: las fotos se suben a Cloudinary (unsigned, cloud
-   `dnd9rnidg`, preset `ordenfix_unsigned`) directo desde el form, con miniaturas y quitar.
-   El plan free de Cloudinary da 25 GB; monitorear el uso cuando haya talleres reales.
-2. **Dominio propio** (ej. `app.ordenfix.com`): agregarlo en Vercel **y** en el CORS del
+1. **Publicación legal real**: completar identidad/contactos, revisar los textos con abogado
+   y contador, registrar sus referencias, completar la cobertura contractual exigida por el
+   esquema y generar los SHA-256 del contenido definitivo en una publicación inmutable.
+2. **Oferta PRO remota**: retirar cualquier importe fijo del frontend. Precio, moneda,
+   período e impuestos deben venir del backend.
+3. **Upload privado**: reemplazar el preset Cloudinary unsigned y la subida directa desde el
+   navegador por una intención/autorización efímera emitida por backend, con borrado remoto.
+4. **Dominio propio** (ej. `app.ordenfix.com`): agregarlo en Vercel **y** en el CORS del
    backend, y actualizar `APP_PUBLIC_URL` y `MP_BACK_URL`.
-3. **Legal**: términos y condiciones + política de privacidad antes de cobrar a
-   desconocidos.
-4. **Beta cerrada**: 1-2 talleres reales usándolo un par de semanas antes de abrir.
+5. **Contrato backend**: aceptación versionada, oferta/cancelación, exportación y cierre se
+   coordinan con el repositorio Java según el plan de lanzamiento.
 
 ---
 
-## Credenciales de referencia (solo dev/test)
+## Cuentas de prueba
 
-- Admin de prueba (backend local con datos viejos): `admin@mvgr.com` / `admin1234`.
-- Comprador sandbox MercadoPago: `test_user_7460087649239330478@testuser.com` / `i8AGgyMs78`.
-- Si el backend nuevo arranca con base vacía: registrá un taller desde `/register` y listo.
+No documentes contraseñas en el repositorio. Creá las cuentas locales desde `/register` y
+obtené usuarios de prueba de Mercado Pago desde su panel oficial; rotalos o descartalos al
+terminar cada validación.

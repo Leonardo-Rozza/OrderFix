@@ -398,7 +398,7 @@ feat(api): agrega códigos estables a conflictos de negocio
 
 ```bash
 ./mvnw -Dtest=CobroCajaReciboTests,EstadoPagoTests,InventarioStockTests test
-./mvnw -Dit.test=PostgresMigrationIT,CobroConcurrencyIT verify
+./mvnw -Dit.test=PostgresMigrationIT,CobroConcurrencyIT,InventarioConcurrencyIT verify
 ```
 
 La prueba de concurrencia usa Testcontainers/PostgreSQL; si Docker no está disponible se informa por separado, sin sustituirla por una falsa garantía secuencial.
@@ -720,7 +720,7 @@ docs(api): sincroniza cobros y resumen digital
 
 ```bash
 ./mvnw test
-./mvnw -Dit.test=PostgresMigrationIT,CobroConcurrencyIT verify
+./mvnw -Dit.test=PostgresMigrationIT,CobroConcurrencyIT,InventarioConcurrencyIT verify
 ```
 
 ### Frontend

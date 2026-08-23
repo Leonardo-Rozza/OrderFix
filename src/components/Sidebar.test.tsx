@@ -4,6 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Sidebar } from './Sidebar';
 
 const mocks = vi.hoisted(() => ({
+  funciones: {
+    inventario: false,
+    cobros: false,
+    empleadosMultiples: false,
+  },
   identity: {
     nombre: 'Juan Pérez',
     nombreSaludo: 'Juan Pérez',
@@ -22,7 +27,7 @@ vi.mock('../store/auth.store', () => ({
 }));
 
 vi.mock('../api/queries/suscripcion.queries', () => ({
-  useFunciones: () => ({ inventario: false, cobros: false, empleadosMultiples: false }),
+  useFunciones: () => mocks.funciones,
   useSuscripcionQuery: () => ({
     data: {
       plan: 'PRO',
@@ -44,6 +49,11 @@ const renderSidebar = () => render(
 
 describe('Sidebar — identidad del taller', () => {
   beforeEach(() => {
+    Object.assign(mocks.funciones, {
+      inventario: false,
+      cobros: false,
+      empleadosMultiples: false,
+    });
     Object.assign(mocks.identity, {
       nombre: 'Juan Pérez',
       nombreSaludo: 'Juan Pérez',
@@ -95,6 +105,15 @@ describe('Sidebar — identidad del taller', () => {
     })).toBeVisible();
     expect(screen.getByRole('status', { name: 'Cargando taller' })).toBeVisible();
     expect(screen.getByRole('status', { name: 'Cargando identidad de usuario' })).toBeVisible();
+  });
+
+  it('muestra Cobros en el sidebar y conserva el destino técnico /caja', () => {
+    mocks.funciones.cobros = true;
+
+    renderSidebar();
+
+    expect(screen.getByRole('link', { name: 'Cobros' })).toHaveAttribute('href', '/caja');
+    expect(screen.queryByRole('link', { name: 'Caja' })).not.toBeInTheDocument();
   });
 
   it('mantiene el fallback visible y permite reintentar cuando falla el perfil', () => {

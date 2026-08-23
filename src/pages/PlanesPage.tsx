@@ -49,7 +49,7 @@ const buildFeatures = (suscripcion: Suscripcion): Feature[] => {
       pro: proActual ? !suspendida && funciones.inventario : true,
     },
     {
-      label: 'Cobros, caja y recibo',
+      label: 'Cobros manuales y datos para cobrar',
       free: freeActual ? !suspendida && funciones.cobros : false,
       pro: proActual ? !suspendida && funciones.cobros : true,
     },
@@ -65,7 +65,7 @@ const getStatus = (suscripcion: Suscripcion) => {
   const funciones = suscripcion.funciones ?? FUNCIONES_CERRADAS;
   const extras = [
     funciones.inventario ? 'inventario' : null,
-    funciones.cobros ? 'cobros y caja' : null,
+    funciones.cobros ? 'cobros manuales' : null,
     funciones.empleadosMultiples ? 'varios empleados' : null,
   ].filter((item): item is string => item !== null);
   const capacidad =
@@ -191,7 +191,7 @@ export const PlanesPage = () => {
         <div className="text-center">
           <h1 className="text-[24px] font-extrabold tracking-tight">Elegí el plan para tu taller</h1>
           <p className="mx-auto mt-2 max-w-[46ch] text-[14.5px] text-text-2">
-            Empezá gratis. Pasá a PRO cuando necesites inventario, caja y varios empleados.
+            Empezá gratis. Pasá a PRO cuando necesites inventario, cobros manuales y varios empleados.
           </p>
         </div>
 

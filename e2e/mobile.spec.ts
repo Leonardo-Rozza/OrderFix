@@ -586,6 +586,10 @@ test('datos para cobrar: configura referencias y QR autenticado sin overflow', a
 
   await page.goto('/caja');
 
+  const alcance = page.getByRole('note', { name: 'Qué muestra Cobros' });
+  await expect(alcance).toContainText('registrados manualmente');
+  await expect(alcance).toContainText('cuenta bancaria o billetera');
+  await expect(alcance).toContainText('egresos, gastos ni comisiones');
   const card = page.getByRole('region', { name: 'Datos para cobrar' });
   await expect(card.getByText(aliasInicial)).toBeVisible();
   await expect(card.getByText(entidadLarga)).toBeVisible();

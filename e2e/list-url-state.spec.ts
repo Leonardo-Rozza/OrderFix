@@ -123,8 +123,10 @@ test('parámetros inválidos se limpian sin borrar parámetros ajenos', async ({
   await expect(page.getByLabel('Hasta')).toHaveValue('');
 });
 
-test('Caja recorre el rango con Back/Forward y Hoy lo limpia atómicamente', async ({ page }) => {
+test('Cobros recorre el rango con Back/Forward y Hoy sin cambiar /caja', async ({ page }) => {
   await page.goto('/caja?externo=1');
+
+  await expect(page.getByRole('heading', { name: 'Cobros', exact: true })).toBeVisible();
 
   await page.getByLabel('Desde').fill('2026-08-01');
   await expect.poll(() => paramsOf(page)).toMatchObject({ externo: '1', desde: '2026-08-01' });

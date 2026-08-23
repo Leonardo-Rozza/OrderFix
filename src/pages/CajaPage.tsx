@@ -28,19 +28,34 @@ export const CajaPage = () => {
 
   if (!cobrosHabilitado) {
     return (
-      <DashboardLayout title="Caja">
+      <DashboardLayout title="Cobros">
         <FeatureLocked
-          titulo="Caja es una función PRO"
-          detalle="Los cobros, la caja por período y el recibo imprimible están disponibles en el plan PRO."
+          titulo="Cobros es una función PRO"
+          detalle="El registro manual de cobros por período y los datos para cobrar están disponibles en el plan PRO."
         />
       </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout title="Caja">
+    <DashboardLayout title="Cobros">
       <div className="ofx-in mx-auto max-w-[900px] space-y-4">
         <DatosCobroCard />
+
+        <aside
+          role="note"
+          aria-labelledby="alcance-cobros-title"
+          className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-[12.5px] leading-relaxed text-text-2 sm:px-5"
+        >
+          <h2 id="alcance-cobros-title" className="font-extrabold text-text">
+            Qué muestra Cobros
+          </h2>
+          <p className="mt-1">
+            Incluye sólo cobros registrados manualmente en OrdenFix durante el período seleccionado.
+            No es un balance contable, no representa el saldo de una cuenta bancaria o billetera ni confirma acreditaciones reales.
+            No contempla egresos, gastos ni comisiones; el efectivo también depende de lo que registre el taller.
+          </p>
+        </aside>
 
         {/* Filtro de período */}
         <div className="flex flex-col items-stretch gap-3 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-end">
@@ -104,14 +119,20 @@ export const CajaPage = () => {
             role="alert"
             className="rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-[13px] font-semibold text-danger-fg"
           >
-            La fecha “Desde” no puede ser posterior a “Hasta”. Corregí el rango para consultar la caja.
+            La fecha “Desde” no puede ser posterior a “Hasta”. Corregí el rango para consultar los cobros.
           </p>
         ) : (
           <>
             {/* Resumen */}
-            <section aria-label="Resumen de caja" aria-busy={isLoading}>
+            <section aria-label="Resumen de cobros" aria-busy={isLoading}>
               {isLoading ? (
-                <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2" aria-label="Cargando resumen de caja">
+                <div
+                  className="grid grid-cols-1 gap-3.5 sm:grid-cols-2"
+                  role="status"
+                  aria-live="polite"
+                  aria-label="Cargando resumen de cobros"
+                >
+                  <span className="sr-only">Cargando resumen de cobros…</span>
                   <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm" aria-hidden="true">
                     <div className="ofx-skel h-4 w-24 rounded" />
                     <div className="ofx-skel mt-2 h-9 w-40 rounded" />
@@ -131,12 +152,12 @@ export const CajaPage = () => {
                 </div>
               ) : isError || !data ? (
                 <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
-                  <ErrorState onRetry={() => void refetch()} message="No pudimos cargar el resumen de caja." />
+                  <ErrorState onRetry={() => void refetch()} message="No pudimos cargar el resumen de cobros." />
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                   <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
-                    <div className="text-[13px] font-bold text-text-2">Total cobrado</div>
+                    <div className="text-[13px] font-bold text-text-2">Cobrado en el período</div>
                     <div className="mt-1 font-mono text-[30px] font-extrabold tracking-tight text-success">{formatMoney(data.totalCobrado)}</div>
                     <div className="mt-1 text-[12.5px] text-text-3">
                       {data.cantidad} cobro{data.cantidad === 1 ? '' : 's'} · {formatDate(data.desde)}
@@ -160,23 +181,31 @@ export const CajaPage = () => {
 
             {/* Lista de cobros */}
             <section
-              aria-label="Movimientos de caja"
+              aria-labelledby="cobros-registrados-title"
               aria-busy={isLoading}
               className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm"
             >
-              <div className="flex items-center gap-3 border-b border-border px-4 py-3 text-[11.5px] font-extrabold uppercase tracking-wide text-text-3">
-                <div className="flex-1">Cobro</div>
+              <div className="border-b border-border px-4 py-3">
+                <h2 id="cobros-registrados-title" className="text-[15px] font-extrabold text-text">
+                  Cobros registrados
+                </h2>
+              </div>
+              <div className="flex items-center gap-3 border-b border-border px-4 py-2.5 text-[11.5px] font-extrabold uppercase tracking-wide text-text-3">
+                <div className="min-w-0 flex-1">Orden y fecha</div>
                 <div className="hidden w-[120px] sm:block">Método</div>
                 <div className="w-[110px] text-right">Monto</div>
               </div>
               {isLoading ? (
-                Array.from({ length: 4 }).map((_, index) => (
-                  <div key={index} className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-0" aria-hidden="true">
-                    <div className="ofx-skel h-4 flex-1 rounded" />
-                  </div>
-                ))
+                <>
+                  <p role="status" aria-live="polite" className="sr-only">Cargando cobros registrados…</p>
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <div key={index} className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-0" aria-hidden="true">
+                      <div className="ofx-skel h-4 flex-1 rounded" />
+                    </div>
+                  ))}
+                </>
               ) : isError || !data ? (
-                <ErrorState onRetry={() => void refetch()} message="No pudimos cargar los movimientos de caja." />
+                <ErrorState onRetry={() => void refetch()} message="No pudimos cargar los cobros registrados." />
               ) : data.cobros.length === 0 ? (
                 <EmptyState title="Sin cobros en el período" hint="Probá con otro rango de fechas." />
               ) : (

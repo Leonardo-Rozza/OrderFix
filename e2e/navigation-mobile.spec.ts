@@ -123,7 +123,7 @@ test('navegación móvil: cinco destinos, bandeja accesible y herramientas secun
   await expect(dialog).toHaveAttribute('aria-modal', 'true');
   await expect(moreButton).toHaveAttribute('aria-expanded', 'true');
 
-  for (const destination of ['Repuestos', 'Plan', 'Empleados', 'Caja', 'Inventario']) {
+  for (const destination of ['Repuestos', 'Plan', 'Empleados', 'Cobros', 'Inventario']) {
     await expect(dialog.getByRole('link', { name: destination, exact: true })).toBeVisible();
   }
   await expect(dialog.getByRole('link', { name: 'Reportes', exact: true })).toHaveCount(0);
@@ -139,6 +139,17 @@ test('navegación móvil: cinco destinos, bandeja accesible y herramientas secun
   await expect(dialog).toBeHidden();
   await expect(moreButton).toHaveAttribute('aria-expanded', 'false');
   await expect(moreButton).toBeFocused();
+
+  await moreButton.click();
+  const cobrosLink = dialog.getByRole('link', { name: 'Cobros', exact: true });
+  await expect(cobrosLink).toHaveAttribute('href', '/caja');
+  await cobrosLink.click();
+
+  await expect(page).toHaveURL(/\/caja$/);
+  await expect(page.getByRole('note', { name: 'Qué muestra Cobros' })).toBeVisible();
+  await expect(dialog).toBeHidden();
+  await expect(moreButton).toHaveAttribute('aria-current', 'page');
+  await expectNoDocumentOverflow(page);
 
   await moreButton.click();
   await dialog.getByRole('link', { name: 'Inventario', exact: true }).click();

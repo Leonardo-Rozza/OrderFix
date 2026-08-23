@@ -82,11 +82,11 @@ describe('BottomNav', () => {
     ]);
     expect(within(dialog).queryByRole('link', { name: 'Empleados' })).not.toBeInTheDocument();
     expect(within(dialog).queryByRole('link', { name: 'Inventario' })).not.toBeInTheDocument();
-    expect(within(dialog).queryByRole('link', { name: 'Caja' })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('link', { name: 'Cobros' })).not.toBeInTheDocument();
     expect(within(dialog).queryByText('Reportes')).not.toBeInTheDocument();
   });
 
-  it('para USER con funciones habilitadas muestra Inventario y Caja, pero no Empleados', async () => {
+  it('para USER con funciones habilitadas muestra Inventario y Cobros, pero no Empleados', async () => {
     useFuncionesMock.mockReturnValue({
       inventario: true,
       cobros: true,
@@ -99,7 +99,7 @@ describe('BottomNav', () => {
     const { dialog } = await openMore();
 
     expect(within(dialog).getByRole('link', { name: 'Inventario' })).toBeVisible();
-    expect(within(dialog).getByRole('link', { name: 'Caja' })).toBeVisible();
+    expect(within(dialog).getByRole('link', { name: 'Cobros' })).toHaveAttribute('href', '/caja');
     expect(within(dialog).queryByRole('link', { name: 'Empleados' })).not.toBeInTheDocument();
   });
 
@@ -110,7 +110,7 @@ describe('BottomNav', () => {
 
     expect(within(dialog).getByRole('link', { name: 'Empleados' })).toBeVisible();
     expect(within(dialog).queryByRole('link', { name: 'Inventario' })).not.toBeInTheDocument();
-    expect(within(dialog).queryByRole('link', { name: 'Caja' })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('link', { name: 'Cobros' })).not.toBeInTheDocument();
   });
 
   it('para ADMIN con todas las funciones muestra todas las herramientas permitidas', async () => {
@@ -130,7 +130,7 @@ describe('BottomNav', () => {
       'Repuestos',
       'Plan',
       'Empleados',
-      'Caja',
+      'Cobros',
       'Inventario',
     ]);
   });

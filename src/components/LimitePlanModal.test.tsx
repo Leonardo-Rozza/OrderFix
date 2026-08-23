@@ -44,6 +44,8 @@ describe('LimitePlanModal', () => {
     dispararLimite('Alcanzaste el límite de 50 reparaciones.');
     expect(screen.getByRole('dialog', { name: /límite de tu plan/i })).toBeInTheDocument();
     expect(screen.getByText(/50 reparaciones/i)).toBeInTheDocument();
+    expect(screen.getByText('Cobros manuales y varios empleados')).toBeVisible();
+    expect(screen.queryByText(/cobros, caja/i)).not.toBeInTheDocument();
   });
 
   it('queda como único diálogo, atrapa el foco y reactiva el formulario al cerrar', async () => {

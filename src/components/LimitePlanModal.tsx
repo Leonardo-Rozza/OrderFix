@@ -7,7 +7,7 @@ import { btnGhost, btnPrimary } from './ui';
 const beneficios = [
   'Reparaciones mensuales ilimitadas',
   'Inventario y control de stock',
-  'Cobros, caja y varios empleados',
+  'Cobros manuales y varios empleados',
 ];
 
 const Check = () => (

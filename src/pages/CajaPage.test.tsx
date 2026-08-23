@@ -1,16 +1,24 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { http, HttpResponse } from 'msw';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { server, API } from '../test/server';
 
+const mocks = vi.hoisted(() => ({ cobrosHabilitado: true }));
+
 vi.mock('../layouts/DashboardLayout', () => ({
-  DashboardLayout: ({ children }: { children: ReactNode }) => <>{children}</>,
+  DashboardLayout: ({ children, title }: { children: ReactNode; title?: string }) => (
+    <div data-testid="dashboard-layout" data-title={title}>{children}</div>
+  ),
 }));
 
 vi.mock('../api/queries/suscripcion.queries', () => ({
-  useFunciones: () => ({ cobros: true, inventario: true, empleadosMultiples: true }),
+  useFunciones: () => ({
+    cobros: mocks.cobrosHabilitado,
+    inventario: true,
+    empleadosMultiples: true,
+  }),
 }));
 
 vi.mock('../components/DatosCobroCard', () => ({ DatosCobroCard: () => null }));
@@ -32,6 +40,40 @@ const renderUI = (initialEntries: string[] = ['/caja']) => renderWithProviders(
 );
 
 describe('CajaPage — rango de fechas', () => {
+  beforeEach(() => {
+    mocks.cobrosHabilitado = true;
+  });
+
+  it('presenta Cobros como registro manual sin semántica bancaria o contable', async () => {
+    server.use(http.get(`${API}/caja`, () => HttpResponse.json(cajaVacia)));
+
+    renderUI();
+
+    expect(screen.getByTestId('dashboard-layout')).toHaveAttribute('data-title', 'Cobros');
+    const alcance = screen.getByRole('note', { name: 'Qué muestra Cobros' });
+    expect(alcance).toHaveTextContent(/registrados manualmente.*período seleccionado/i);
+    expect(alcance).toHaveTextContent(/no es un balance contable/i);
+    expect(alcance).toHaveTextContent(/cuenta bancaria o billetera/i);
+    expect(alcance).toHaveTextContent(/no.*acreditaciones reales/i);
+    expect(alcance).toHaveTextContent(/egresos, gastos ni comisiones/i);
+    expect(alcance).toHaveTextContent(/efectivo.*registre el taller/i);
+    const resumen = screen.getByRole('region', { name: 'Resumen de cobros' });
+    expect(await within(resumen).findByText('Cobrado en el período')).toBeVisible();
+    expect(screen.getByRole('region', { name: 'Cobros registrados' })).toBeVisible();
+  });
+
+  it('mantiene el gate PRO con la semántica Cobros y sin prometer un recibo imprimible', () => {
+    mocks.cobrosHabilitado = false;
+
+    renderUI();
+
+    expect(screen.getByTestId('dashboard-layout')).toHaveAttribute('data-title', 'Cobros');
+    expect(screen.getByRole('heading', { name: 'Cobros es una función PRO' })).toBeVisible();
+    expect(screen.getByText(/registro manual de cobros por período/i)).toBeVisible();
+    expect(screen.getByText(/datos para cobrar/i)).toBeVisible();
+    expect(screen.queryByText(/caja por período|recibo imprimible/i)).not.toBeInTheDocument();
+  });
+
   it('restaura un rango desde un deep link y lo usa en la consulta', async () => {
     const requests: string[] = [];
     server.use(
@@ -167,8 +209,8 @@ describe('CajaPage — rango de fechas', () => {
 
     renderUI();
 
-    const resumen = screen.getByRole('region', { name: 'Resumen de caja' });
-    const movimientos = screen.getByRole('region', { name: 'Movimientos de caja' });
+    const resumen = screen.getByRole('region', { name: 'Resumen de cobros' });
+    const movimientos = screen.getByRole('region', { name: 'Cobros registrados' });
     expect(resumen).toHaveAttribute('aria-busy', 'true');
     expect(movimientos).toHaveAttribute('aria-busy', 'true');
     expect(within(resumen).queryByText(/\$|0/)).not.toBeInTheDocument();
@@ -197,8 +239,8 @@ describe('CajaPage — rango de fechas', () => {
 
     renderUI();
 
-    const resumen = screen.getByRole('region', { name: 'Resumen de caja' });
-    expect(await within(resumen).findByText('No pudimos cargar el resumen de caja.')).toBeInTheDocument();
+    const resumen = screen.getByRole('region', { name: 'Resumen de cobros' });
+    expect(await within(resumen).findByText('No pudimos cargar el resumen de cobros.')).toBeInTheDocument();
     expect(within(resumen).queryByText(/\$|0/)).not.toBeInTheDocument();
 
     fireEvent.click(within(resumen).getByRole('button', { name: 'Reintentar' }));

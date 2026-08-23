@@ -27,13 +27,14 @@ test('gating PRO: Inventario muestra el bloqueo y lleva a planes', async ({ page
   await expect(page).toHaveURL(/\/planes/);
 });
 
-test('gating PRO: Caja muestra el bloqueo PRO', async ({ page, context }) => {
+test('gating PRO: Cobros muestra el bloqueo PRO', async ({ page, context }) => {
   await seedAuth(context);
   await mockApi(page, { suscripcion: suscripcionFree });
 
   await page.goto('/caja');
 
-  await expect(page.getByRole('heading', { name: /caja es una función pro/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /cobros es una función pro/i })).toBeVisible();
+  await expect(page.getByText(/registro manual de cobros por período/i)).toBeVisible();
   await expect(page.getByRole('button', { name: /ver planes pro/i })).toBeVisible();
 });
 
@@ -46,6 +47,6 @@ test('gating TRIAL: habilita la experiencia PRO aunque el plan nominal sea FREE'
   await expect(page.getByRole('heading', { name: /inventario es una función pro/i })).toHaveCount(0);
 
   await page.goto('/caja');
-  await expect(page.getByText(/total cobrado/i)).toBeVisible();
-  await expect(page.getByRole('heading', { name: /caja es una función pro/i })).toHaveCount(0);
+  await expect(page.getByText('Cobrado en el período', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /cobros es una función pro/i })).toHaveCount(0);
 });

@@ -152,6 +152,9 @@ describe('PlanesPage', () => {
 
     expect(await screen.findByText(estadoVisible)).toBeInTheDocument();
     expect(screen.getAllByText(detalle).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Cobros manuales y datos para cobrar')).toHaveLength(2);
+    expect(screen.getByText(/inventario, cobros manuales y varios empleados/i)).toBeVisible();
+    expect(screen.queryByText(/cobros, caja y recibo/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: accion })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /exportar a excel/i })).not.toBeInTheDocument();
   });

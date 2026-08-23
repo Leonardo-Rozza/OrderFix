@@ -16,6 +16,21 @@ export const formatDate = (value: string | null | undefined): string => {
   return date.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
+/** Fecha y hora legibles para eventos auditables: "16 jun 2026, 14:30". */
+export const formatDateTime = (value: string | null | undefined): string => {
+  if (!value) return '—';
+  const date = new Date(value.length <= 10 ? `${value}T00:00:00` : value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString('es-AR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+};
+
 /** Iniciales para avatares: ("Pedro","Gomez") -> "PG". */
 export const iniciales = (nombre?: string | null, apellido?: string | null): string => {
   const a = nombre?.trim()?.[0] ?? '';

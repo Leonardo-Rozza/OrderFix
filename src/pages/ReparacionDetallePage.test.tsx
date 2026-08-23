@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { Link, MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CobrosReparacion, Reparacion } from '../types';
+import type { Cobro, CobrosReparacion, Reparacion } from '../types';
 
 const mocks = vi.hoisted(() => ({
   useRepuestosQuery: vi.fn(),
@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   refetchPresupuestos: vi.fn(),
   refetchCobros: vi.fn(),
   cambiarEstado: vi.fn(),
+  isAdmin: true,
 }));
 
 const reparacion: Reparacion = {
@@ -73,10 +74,6 @@ vi.mock('../api/mutations/presupuestos.mutations', () => ({
   useRepresupuestarMutation: () => ({ isPending: false, mutate: vi.fn() }),
 }));
 
-vi.mock('../api/mutations/cobros.mutations', () => ({
-  useAnularCobroMutation: () => ({ isPending: false, mutateAsync: vi.fn() }),
-}));
-
 vi.mock('../api/mutations/reparaciones.mutations', () => ({
   useCambiarEstadoMutation: () => ({ isPending: false, mutate: mocks.cambiarEstado }),
   useDeleteReparacionMutation: () => ({ isPending: false, mutateAsync: vi.fn() }),
@@ -87,7 +84,7 @@ vi.mock('../api/mutations/repuestos.mutations', () => ({
 }));
 
 vi.mock('../store/auth.store', () => ({
-  useAuth: () => ({ isAdmin: true }),
+  useAuth: () => ({ isAdmin: mocks.isAdmin }),
 }));
 
 vi.mock('../components/ReparacionFormModal', () => ({ ReparacionFormModal: () => null }));
@@ -106,6 +103,11 @@ vi.mock('../components/RepuestoFormModal', () => ({
 }));
 vi.mock('../components/PresupuestoFormModal', () => ({ PresupuestoFormModal: () => null }));
 vi.mock('../components/CobroFormModal', () => ({ CobroFormModal: () => null }));
+vi.mock('../components/CobroAnulacionModal', () => ({
+  CobroAnulacionModal: ({ isOpen, cobro }: { isOpen: boolean; cobro: Cobro | null }) => (
+    isOpen ? <div role="dialog" aria-label="Anulación simulada">Cobro {cobro?.id}</div> : null
+  ),
+}));
 vi.mock('../components/ReclamoGarantiaModal', () => ({ ReclamoGarantiaModal: () => null }));
 vi.mock('../components/ConfirmDialog', () => ({ ConfirmDialog: () => null }));
 
@@ -152,6 +154,7 @@ describe('ReparacionDetallePage — estados honestos de subconsultas', () => {
     mocks.useRepuestosQuery.mockReturnValue(pendingResult(mocks.refetchRepuestos));
     mocks.usePresupuestosQuery.mockReturnValue(pendingResult(mocks.refetchPresupuestos));
     mocks.useCobrosQuery.mockReturnValue(pendingResult(mocks.refetchCobros));
+    mocks.isAdmin = true;
   });
 
   it('muestra loaders locales, no inventa vacíos ni importes y bloquea las acciones dependientes', () => {
@@ -230,7 +233,8 @@ describe('ReparacionDetallePage — estados honestos de subconsultas', () => {
     );
   });
 
-  it('muestra pendiente y referencia separada, y habilita cobrar sólo con importe disponible', () => {
+  it('muestra activos y anulados como historia auditable, con acción sólo sobre el activo', async () => {
+    const user = userEvent.setup();
     mocks.useRepuestosQuery.mockReturnValue(successResult([], mocks.refetchRepuestos));
     mocks.usePresupuestosQuery.mockReturnValue(successResult([], mocks.refetchPresupuestos));
     mocks.useCobrosQuery.mockReturnValue(successResult<CobrosReparacion>({
@@ -248,6 +252,22 @@ describe('ReparacionDetallePage — estados honestos de subconsultas', () => {
         referencia: 'OP-123',
         observaciones: 'Seña inicial',
         fecha: '2026-08-20T10:00:00',
+        estado: 'ACTIVO',
+        anuladoAt: null,
+        anuladoPorNombre: null,
+        motivoAnulacion: null,
+      }, {
+        id: 3,
+        reparacionId: 7,
+        monto: 5000,
+        metodo: 'EFECTIVO',
+        referencia: null,
+        observaciones: null,
+        fecha: '2026-08-19T10:00:00',
+        estado: 'ANULADO',
+        anuladoAt: '2026-08-21T12:00:00',
+        anuladoPorNombre: 'Juan Pérez',
+        motivoAnulacion: 'Carga duplicada por error de caja',
       }],
     }, mocks.refetchCobros));
 
@@ -259,6 +279,46 @@ describe('ReparacionDetallePage — estados honestos de subconsultas', () => {
     expect(within(cobros).getByText(/Referencia:/)).toHaveTextContent('Referencia: OP-123');
     expect(within(cobros).getByText('Observación: Seña inicial')).toBeVisible();
     expect(within(cobros).getByRole('button', { name: 'Cobrar' })).toBeEnabled();
+    expect(within(cobros).getByText('Anulado')).toBeVisible();
+    expect(within(cobros).getByText(/Anulado el.*por Juan Pérez/)).toBeVisible();
+    expect(within(cobros).getByText('Motivo: Carga duplicada por error de caja')).toBeVisible();
+
+    const acciones = within(cobros).getAllByRole('button', { name: /Anular cobro de/i });
+    expect(acciones).toHaveLength(1);
+    expect(acciones[0]).toHaveAccessibleName(/Anular cobro de.*10\.000.*20/);
+    await user.click(acciones[0]);
+    expect(screen.getByRole('dialog', { name: 'Anulación simulada' })).toHaveTextContent('Cobro 2');
+  });
+
+  it('no ofrece anular movimientos a un empleado', () => {
+    mocks.isAdmin = false;
+    mocks.useRepuestosQuery.mockReturnValue(successResult([], mocks.refetchRepuestos));
+    mocks.usePresupuestosQuery.mockReturnValue(successResult([], mocks.refetchPresupuestos));
+    mocks.useCobrosQuery.mockReturnValue(successResult<CobrosReparacion>({
+      total: 50000,
+      cobrado: 10000,
+      saldo: 40000,
+      excedente: 0,
+      requiereRevision: false,
+      pagado: false,
+      cobros: [{
+        id: 2,
+        reparacionId: 7,
+        monto: 10000,
+        metodo: 'EFECTIVO',
+        referencia: null,
+        observaciones: null,
+        fecha: '2026-08-20T10:00:00',
+        estado: 'ACTIVO',
+        anuladoAt: null,
+        anuladoPorNombre: null,
+        motivoAnulacion: null,
+      }],
+    }, mocks.refetchCobros));
+
+    renderPage();
+
+    expect(screen.queryByRole('button', { name: /Anular cobro de/i })).not.toBeInTheDocument();
   });
 
   it('prioriza el excedente, oculta Pagado y bloquea otro cobro', () => {

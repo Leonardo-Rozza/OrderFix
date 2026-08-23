@@ -432,6 +432,7 @@ export interface RepuestoUpdate extends RepuestoCreate {
 
 // ========== COBROS / CAJA / RECIBO ==========
 export type MetodoPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA' | 'MERCADOPAGO' | 'OTRO';
+export type EstadoCobro = 'ACTIVO' | 'ANULADO';
 
 export interface Cobro {
   id: number;
@@ -442,6 +443,10 @@ export interface Cobro {
   referencia: string | null;
   observaciones: string | null;
   fecha: string;
+  estado: EstadoCobro;
+  anuladoAt: string | null;
+  anuladoPorNombre: string | null;
+  motivoAnulacion: string | null;
 }
 
 export interface CobroCreate {
@@ -449,6 +454,10 @@ export interface CobroCreate {
   metodo: MetodoPago;
   referencia?: string;
   observaciones?: string;
+}
+
+export interface CobroAnulacionRequest {
+  motivo: string;
 }
 
 export interface CobrosReparacion {

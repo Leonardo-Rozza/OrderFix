@@ -466,6 +466,10 @@ test('detalle con excedente: prioriza la revisión sin overflow y bloquea Cobrar
         referencia: referenciaLarga,
         observaciones: 'Carga histórica',
         fecha: '2026-08-01T12:00:00',
+        estado: 'ACTIVO',
+        anuladoAt: null,
+        anuladoPorNombre: null,
+        motivoAnulacion: null,
       }],
     },
   });
@@ -488,6 +492,80 @@ test('detalle con excedente: prioriza la revisión sin overflow y bloquea Cobrar
     expect(headerTargets).toHaveLength(2);
     headerTargets.forEach(expectTouchSized);
   }
+});
+
+test('anulación de cobro: motivo auditable y responsive sin borrar la historia', async ({ page, context }) => {
+  await seedAuth(context);
+  const motivoHistorico = `Duplicado-${'motivo'.repeat(35)}`;
+  await mockApi(page, {
+    ...SMOKE_DATA,
+    cobros: {
+      total: 50_000,
+      cobrado: 10_000,
+      saldo: 40_000,
+      excedente: 0,
+      requiereRevision: false,
+      pagado: false,
+      cobros: [{
+        id: 10,
+        reparacionId: 1,
+        monto: 10_000,
+        metodo: 'TRANSFERENCIA',
+        referencia: 'OP-ACTIVA',
+        observaciones: 'Seña',
+        fecha: '2026-08-20T10:00:00',
+        estado: 'ACTIVO',
+        anuladoAt: null,
+        anuladoPorNombre: null,
+        motivoAnulacion: null,
+      }, {
+        id: 11,
+        reparacionId: 1,
+        monto: 5_000,
+        metodo: 'EFECTIVO',
+        referencia: null,
+        observaciones: null,
+        fecha: '2026-08-19T10:00:00',
+        estado: 'ANULADO',
+        anuladoAt: '2026-08-21T12:00:00',
+        anuladoPorNombre: 'Administrador con un nombre deliberadamente largo para probar el ajuste',
+        motivoAnulacion: motivoHistorico,
+      }],
+    },
+  });
+
+  await page.goto('/reparaciones/1');
+
+  const seccion = page.getByRole('region', { name: 'Cobros' });
+  await expect(seccion.getByText('Anulado', { exact: true })).toBeVisible();
+  await expect(seccion.getByText(`Motivo: ${motivoHistorico}`)).toBeVisible();
+  const acciones = seccion.getByRole('button', { name: /Anular cobro de.*10\.000/i });
+  await expect(acciones).toHaveCount(1);
+  if ((page.viewportSize()?.width ?? 0) < 640) {
+    const [accion] = await editableMetrics(seccion, 'button[title="Anular cobro"]');
+    expectTouchSized(accion);
+  }
+  await expectNoHorizontalOverflow(page);
+
+  await acciones.click();
+  const dialog = await expectMobileDialog(page, { title: 'Anular cobro', cta: 'Anular cobro' });
+  const motivo = dialog.getByLabel('Motivo de anulación');
+  await expect(motivo).toBeFocused();
+  await motivo.fill('  Corrección por carga duplicada  ');
+
+  const anulacionRequest = page.waitForRequest((request) => (
+    request.method() === 'POST'
+    && new URL(request.url()).pathname.endsWith('/api/reparaciones/1/cobros/10/anulacion')
+  ));
+  await dialog.getByRole('button', { name: 'Anular cobro', exact: true }).click();
+  const request = await anulacionRequest;
+  expect(request.postDataJSON()).toEqual({ motivo: 'Corrección por carga duplicada' });
+
+  await expect(dialog).toHaveCount(0);
+  await expect(seccion.getByText('Motivo: Corrección por carga duplicada')).toBeVisible();
+  await expect(seccion.getByText('Cobrado').locator('..')).toContainText('$ 0');
+  await expect(seccion.getByText('Pendiente de cobro').locator('..')).toContainText('$ 50.000');
+  await expectNoHorizontalOverflow(page);
 });
 
 test('registro: controles táctiles sin zoom ni overflow horizontal', async ({ page }) => {

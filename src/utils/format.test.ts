@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatMoney, formatDate, iniciales, whatsappLink } from './format';
+import { formatMoney, formatDate, formatDateTime, iniciales, whatsappLink } from './format';
 
 describe('formatMoney', () => {
   it('formatea ARS sin decimales', () => {
@@ -28,6 +28,20 @@ describe('formatDate', () => {
   });
   it('devuelve el valor original si no es parseable', () => {
     expect(formatDate('no-es-fecha')).toBe('no-es-fecha');
+  });
+});
+
+describe('formatDateTime', () => {
+  it('conserva fecha y hora para una auditoría', () => {
+    const out = formatDateTime('2026-06-16T14:30:00');
+    expect(out).toMatch(/2026/);
+    expect(out).toMatch(/jun/i);
+    expect(out).toMatch(/14:30/);
+  });
+
+  it('mantiene los fallbacks de fecha', () => {
+    expect(formatDateTime(null)).toBe('—');
+    expect(formatDateTime('no-es-fecha')).toBe('no-es-fecha');
   });
 });
 

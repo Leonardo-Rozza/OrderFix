@@ -221,6 +221,10 @@ describe('CajaPage — rango de fechas', () => {
           referencia: 'OP-123',
           observaciones: 'Seña inicial',
           fecha: '2026-08-20T10:00:00',
+          estado: 'ACTIVO',
+          anuladoAt: null,
+          anuladoPorNombre: null,
+          motivoAnulacion: null,
         }],
       })),
     );

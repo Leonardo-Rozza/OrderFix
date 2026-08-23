@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../axios';
-import type { Cobro, CobroCreate } from '../../types';
+import type { Cobro, CobroAnulacionRequest, CobroCreate } from '../../types';
 import { getErrorMessage, showError, showSuccess } from '../../utils/toast';
 import { reconcileCobroChanged } from '../cacheConsistency';
 import { hasApiErrorCode } from '../errors';
@@ -13,8 +13,16 @@ const crearCobro = async (
   return data;
 };
 
-const anularCobro = async (reparacionId: number, cobroId: number): Promise<void> => {
-  await apiClient.delete(`/reparaciones/${reparacionId}/cobros/${cobroId}`);
+const anularCobro = async (
+  reparacionId: number,
+  cobroId: number,
+  body: CobroAnulacionRequest,
+): Promise<Cobro> => {
+  const { data } = await apiClient.post<Cobro>(
+    `/reparaciones/${reparacionId}/cobros/${cobroId}/anulacion`,
+    body,
+  );
+  return data;
 };
 
 export const useCrearCobroMutation = (reparacionId: number) => {
@@ -42,11 +50,19 @@ export const useCrearCobroMutation = (reparacionId: number) => {
 export const useAnularCobroMutation = (reparacionId: number) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ cobroId }: { cobroId: number }) => anularCobro(reparacionId, cobroId),
+    mutationFn: ({ cobroId, motivo }: { cobroId: number; motivo: string }) => (
+      anularCobro(reparacionId, cobroId, { motivo })
+    ),
     onSuccess: async () => {
       await reconcileCobroChanged(qc, reparacionId);
       showSuccess('Cobro anulado');
     },
-    onError: (e) => showError(getErrorMessage(e, 'No se pudo anular el cobro')),
+    onError: async (e) => {
+      if (hasApiErrorCode(e, 'COBRO_YA_ANULADO')) {
+        await reconcileCobroChanged(qc, reparacionId);
+        return;
+      }
+      showError(getErrorMessage(e, 'No se pudo anular el cobro'));
+    },
   });
 };

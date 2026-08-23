@@ -7,6 +7,7 @@ import { RepuestoFormModal } from '../components/RepuestoFormModal';
 import { PresupuestoFormModal } from '../components/PresupuestoFormModal';
 import { PresupuestoBadge } from '../components/PresupuestoBadge';
 import { CobroFormModal } from '../components/CobroFormModal';
+import { CobroAnulacionModal } from '../components/CobroAnulacionModal';
 import { ReclamoGarantiaModal } from '../components/ReclamoGarantiaModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { metodoLabel } from '../config/cobros';
@@ -14,7 +15,7 @@ import { Loader } from '../components/Loader';
 import { ErrorState } from '../components/ErrorState';
 import { btnGhost, btnDanger, card, inputClass } from '../components/ui';
 import { getEstadoMeta, transicionesDesde } from '../config/estados';
-import { formatMoney, formatDate, iniciales } from '../utils/format';
+import { formatMoney, formatDate, formatDateTime, iniciales } from '../utils/format';
 import { equipoLabel, clienteLabel, ordenLabel, fotosPorMomento } from '../utils/reparacion';
 import { PagoChip } from '../components/PagoChip';
 import { apiClient } from '../api/axios';
@@ -30,7 +31,6 @@ import { calidadLabel } from '../config/presupuestos';
 import { cuentaLabel, RIESGO_CUENTA_MSG } from '../config/ingreso';
 import { useCobrosQuery } from '../api/queries/cobros.queries';
 import { useFunciones } from '../api/queries/suscripcion.queries';
-import { useAnularCobroMutation } from '../api/mutations/cobros.mutations';
 import {
   useCambiarEstadoMutation,
   useDeleteReparacionMutation,
@@ -96,7 +96,6 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
     isSuccess: cobrosSuccess,
     refetch: refetchCobros,
   } = useCobrosQuery(cobrosHabilitado ? reparacionId : undefined);
-  const anularCobro = useAnularCobroMutation(reparacionId);
   const responderPresupuesto = useResponderPresupuestoTallerMutation(reparacionId);
   const represupuestarPresupuesto = useRepresupuestarMutation(reparacionId);
   const { isAdmin } = useAuth();
@@ -118,6 +117,9 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
 
   const repuestos = repuestosData ?? EMPTY_REPUESTOS;
   const presupuestos = presupuestosData ?? [];
+  const cobroSeleccionado = cobroToCancel
+    ? (cobros?.cobros.find((cobro) => cobro.id === cobroToCancel.id) ?? cobroToCancel)
+    : null;
 
   const openNewRepuesto = () => {
     setEditingRepuesto(null);
@@ -695,38 +697,64 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
                     {cobros.cobros.length === 0 ? (
                       <div className="border-t border-border px-5 py-5 text-center text-[13.5px] text-text-3">Sin cobros registrados.</div>
                     ) : (
-                      cobros.cobros.map((c) => (
-                        <div key={c.id} className="group flex items-center gap-3 border-t border-border px-5 py-3">
-                          <div className="min-w-0 flex-1">
-                            <div className="text-[14px] font-semibold">{metodoLabel(c.metodo)}</div>
-                            <div className="text-[12px] text-text-3">
-                              {formatDate(c.fecha)}
-                            </div>
-                            {c.referencia && (
-                              <div className="mt-1 break-all text-[12px] font-semibold text-text-2">
-                                Referencia: <span className="font-mono">{c.referencia}</span>
+                      cobros.cobros.map((c) => {
+                        const anulado = c.estado === 'ANULADO';
+                        return (
+                          <div
+                            key={c.id}
+                            className={`group flex flex-wrap items-start gap-3 border-t border-border px-4 py-3 sm:flex-nowrap sm:px-5 ${anulado ? 'bg-surface-2' : ''}`}
+                          >
+                            <div className="min-w-0 flex-1 basis-[180px]">
+                              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                <span className={`text-[14px] font-semibold ${anulado ? 'text-text-2' : ''}`}>
+                                  {metodoLabel(c.metodo)}
+                                </span>
+                                {anulado && (
+                                  <span className="inline-flex rounded-full bg-danger-soft px-2 py-0.5 text-[11px] font-extrabold text-danger-fg">
+                                    Anulado
+                                  </span>
+                                )}
                               </div>
-                            )}
-                            {c.observaciones && (
-                              <div className="mt-1 text-[12px] text-text-3">Observación: {c.observaciones}</div>
+                              <div className="text-[12px] text-text-3">Registrado el {formatDate(c.fecha)}</div>
+                              {c.referencia && (
+                                <div className="mt-1 break-all text-[12px] font-semibold text-text-2">
+                                  Referencia: <span className="font-mono">{c.referencia}</span>
+                                </div>
+                              )}
+                              {c.observaciones && (
+                                <div className="mt-1 [overflow-wrap:anywhere] text-[12px] text-text-3">Observación: {c.observaciones}</div>
+                              )}
+                              {anulado && (
+                                <div className="mt-2 rounded-lg border border-border bg-surface px-3 py-2 text-[12px] text-text-2">
+                                  <div className="font-semibold [overflow-wrap:anywhere]">
+                                    {c.anuladoAt ? `Anulado el ${formatDateTime(c.anuladoAt)}` : 'Anulado'}
+                                    {c.anuladoPorNombre ? ` por ${c.anuladoPorNombre}` : ''}
+                                  </div>
+                                  <div className="mt-0.5 [overflow-wrap:anywhere]">
+                                    Motivo: {c.motivoAnulacion?.trim() || 'No informado'}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            <span className={`shrink-0 font-mono text-[14px] font-bold ${anulado ? 'text-text-3 line-through decoration-danger' : ''}`}>
+                              {formatMoney(c.monto)}
+                            </span>
+                            {isAdmin && !anulado && (
+                              <button
+                                type="button"
+                                aria-label={`Anular cobro de ${formatMoney(c.monto)} del ${formatDate(c.fecha)}`}
+                                title="Anular cobro"
+                                onClick={() => setCobroToCancel(c)}
+                                className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 opacity-100 transition hover:border-danger hover:text-danger focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] sm:h-8 sm:w-8 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+                              >
+                                <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                  <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                                </svg>
+                              </button>
                             )}
                           </div>
-                          <span className="font-mono text-[14px] font-bold">{formatMoney(c.monto)}</span>
-                          {isAdmin && (
-                            <button
-                              type="button"
-                              aria-label="Anular cobro" title="Anular cobro"
-                              disabled={anularCobro.isPending}
-                              onClick={() => setCobroToCancel(c)}
-                              className="grid h-11 w-11 place-items-center rounded-lg border border-border-strong bg-surface text-text-2 opacity-100 transition hover:border-danger hover:text-danger focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-8 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
-                            >
-                              <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
-                              </svg>
-                            </button>
-                          )}
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </>
                 ) : null}
@@ -934,18 +962,11 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
           setRepuestoToDelete(null);
         }}
       />
-      <ConfirmDialog
+      <CobroAnulacionModal
         isOpen={!!cobroToCancel}
-        title="Anular cobro"
-        message={`¿Seguro que querés anular el cobro de ${formatMoney(cobroToCancel?.monto)}? El pendiente de cobro de la orden se recalculará.`}
-        confirmLabel="Anular cobro"
-        loading={anularCobro.isPending}
         onClose={() => setCobroToCancel(null)}
-        onConfirm={async () => {
-          if (!cobroToCancel) return;
-          await anularCobro.mutateAsync({ cobroId: cobroToCancel.id });
-          setCobroToCancel(null);
-        }}
+        reparacionId={rep.id}
+        cobro={cobroSeleccionado}
       />
     </DashboardLayout>
   );

@@ -49,6 +49,10 @@ describe('mutaciones de cobros — invalidación de datos derivados', () => {
           referencia: null,
           observaciones: null,
           fecha: '2026-08-13T12:00:00',
+          estado: 'ACTIVO',
+          anuladoAt: null,
+          anuladoPorNombre: null,
+          motivoAnulacion: null,
         }, { status: 201 }),
       ),
     );
@@ -84,17 +88,55 @@ describe('mutaciones de cobros — invalidación de datos derivados', () => {
     expect(invalidatedKeys()).toEqual(expect.arrayContaining(expectedKeys));
   });
 
-  it('actualiza las mismas vistas al anular un cobro', async () => {
+  it('usa el POST canónico con motivo y actualiza las mismas vistas al anular', async () => {
+    let body: unknown;
     server.use(
-      http.delete(`${API}/reparaciones/7/cobros/3`, () => new HttpResponse(null, { status: 204 })),
+      http.post(`${API}/reparaciones/7/cobros/3/anulacion`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({
+          id: 3,
+          reparacionId: 7,
+          monto: 12000,
+          metodo: 'EFECTIVO',
+          referencia: null,
+          observaciones: null,
+          fecha: '2026-08-13T12:00:00',
+          estado: 'ANULADO',
+          anuladoAt: '2026-08-23T12:00:00',
+          anuladoPorNombre: 'Juan Pérez',
+          motivoAnulacion: 'Carga duplicada',
+        });
+      }),
     );
     const { result, invalidatedKeys } = setup(() => useAnularCobroMutation(7));
 
     await act(async () => {
-      await result.current.mutateAsync({ cobroId: 3 });
+      await result.current.mutateAsync({ cobroId: 3, motivo: 'Carga duplicada' });
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(body).toEqual({ motivo: 'Carga duplicada' });
+    expect(invalidatedKeys()).toEqual(expect.arrayContaining(expectedKeys));
+  });
+
+  it('reconcilia COBRO_YA_ANULADO sin duplicar el feedback inline con un toast', async () => {
+    vi.mocked(showError).mockClear();
+    server.use(
+      http.post(`${API}/reparaciones/7/cobros/3/anulacion`, () => HttpResponse.json({
+        status: 409,
+        code: 'COBRO_YA_ANULADO',
+        message: 'El cobro ya fue anulado.',
+      }, { status: 409 })),
+    );
+    const { result, invalidatedKeys } = setup(() => useAnularCobroMutation(7));
+
+    await act(async () => {
+      await expect(result.current.mutateAsync({ cobroId: 3, motivo: 'Carga duplicada' }))
+        .rejects.toBeTruthy();
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(showError).not.toHaveBeenCalled();
     expect(invalidatedKeys()).toEqual(expect.arrayContaining(expectedKeys));
   });
 });

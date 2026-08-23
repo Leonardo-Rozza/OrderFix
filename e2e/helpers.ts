@@ -257,8 +257,72 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
       return route.fulfill({ json: cobros });
     }
     if (/\/api\/reparaciones\/\d+\/cobros$/.test(pathname) && method === 'POST') {
-      const body = req.postDataJSON() as { monto?: number; metodo?: string };
-      return route.fulfill({ status: 201, json: { id: 1, fecha: '2026-06-22T10:00:00', ...body } });
+      const body = req.postDataJSON() as { monto?: number; metodo?: string; referencia?: string; observaciones?: string };
+      const reparacionId = Number(pathname.match(/reparaciones\/(\d+)\/cobros$/)?.[1]);
+      return route.fulfill({
+        status: 201,
+        json: {
+          id: 1,
+          reparacionId,
+          fecha: '2026-06-22T10:00:00',
+          referencia: null,
+          observaciones: null,
+          estado: 'ACTIVO',
+          anuladoAt: null,
+          anuladoPorNombre: null,
+          motivoAnulacion: null,
+          ...body,
+        },
+      });
+    }
+    const anulacionCobroMatch = pathname.match(/\/api\/reparaciones\/(\d+)\/cobros\/(\d+)\/anulacion$/);
+    if (anulacionCobroMatch && method === 'POST') {
+      const cobroId = Number(anulacionCobroMatch[2]);
+      const body = req.postDataJSON() as { motivo?: string };
+      const movimientos = Array.isArray(cobros.cobros)
+        ? cobros.cobros as Array<Record<string, unknown>>
+        : [];
+      const actual = movimientos.find((movimiento) => movimiento.id === cobroId) ?? {
+        id: cobroId,
+        reparacionId: Number(anulacionCobroMatch[1]),
+        monto: 0,
+        metodo: 'OTRO',
+        referencia: null,
+        observaciones: null,
+        fecha: '2026-06-22T10:00:00',
+      };
+      const anulado = {
+        ...actual,
+        estado: 'ANULADO',
+        anuladoAt: '2026-08-23T12:00:00',
+        anuladoPorNombre: 'Administrador OrdenFix',
+        motivoAnulacion: body.motivo ?? null,
+      };
+      const historiaActualizada = movimientos.some((movimiento) => movimiento.id === cobroId)
+        ? movimientos.map((movimiento) => movimiento.id === cobroId ? anulado : movimiento)
+        : [...movimientos, anulado];
+      cobros.cobros = historiaActualizada;
+      const total = typeof cobros.total === 'number' ? cobros.total : 0;
+      const cobradoActivo = historiaActualizada.reduce((sum, movimiento) => (
+        movimiento.estado === 'ANULADO'
+          ? sum
+          : sum + (typeof movimiento.monto === 'number' ? movimiento.monto : 0)
+      ), 0);
+      cobros.cobrado = cobradoActivo;
+      cobros.saldo = Math.max(total - cobradoActivo, 0);
+      cobros.excedente = Math.max(cobradoActivo - total, 0);
+      cobros.requiereRevision = Number(cobros.excedente) > 0;
+      cobros.pagado = total > 0 && cobradoActivo >= total;
+      reparacionDetalle.cobrado = cobradoActivo;
+      reparacionDetalle.saldo = cobros.saldo;
+      reparacionDetalle.excedente = cobros.excedente;
+      reparacionDetalle.requiereRevision = cobros.requiereRevision;
+      reparacionDetalle.estadoPago = cobros.pagado
+        ? 'PAGADO'
+        : cobradoActivo > 0
+          ? 'PARCIAL'
+          : 'SIN_COBRAR';
+      return route.fulfill({ json: anulado });
     }
 
     // Subrecursos de una reparación: el backend responde arrays simples.

@@ -164,6 +164,9 @@ Si `monto > pendiente`, responderá `409 Conflict`:
   "code": "COBRO_SUPERA_SALDO",
   "message": "El monto supera el pendiente de cobro.",
   "details": {
+    "reparacionId": 10,
+    "total": 151677,
+    "cobrado": 0,
     "monto": 120000,
     "pendiente": 31677
   }
@@ -274,7 +277,7 @@ La redacción final de la leyenda deberá validarse con asesoría contable. No s
 - Los IDs del tenant provienen del principal autenticado; nunca del body o query string.
 - Las reglas de sobrepago se validan en backend bajo transacción.
 - No se confía en claims decodificados para autorizar acciones críticas.
-- Una imagen QR acepta únicamente formatos raster permitidos y una URL HTTPS resultante.
+- Una imagen QR acepta únicamente formatos raster permitidos; el frontend la consume como blob autenticado y crea un object URL efímero, nunca una URL externa persistida.
 - Errores de negocio esperados usan código y mensaje accionable; no generan reintentos automáticos ni toasts duplicados.
 
 ## Rendimiento y caché

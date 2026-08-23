@@ -14,8 +14,9 @@ Si venís de una versión anterior del contrato, esto es lo que cambió / se agr
 2. **Máquina de estados**: `EstadoReparacion` ahora tiene **12 estados** y el backend valida las
    transiciones → un salto ilegal en `PATCH /estado` devuelve **`409`**. El front debería ofrecer
    solo los estados legales según la tabla de transiciones (§4.5).
-3. **Estado de pago** en cada reparación: `cobrado`, `saldo` y `estadoPago`
-   (`SIN_COBRAR | PARCIAL | PAGADO`) — mostrar como chip aparte del estado (§4.5).
+3. **Estado de pago** en cada reparación: `cobrado`, `saldo`, `excedente`,
+   `requiereRevision` y `estadoPago` (`SIN_COBRAR | PARCIAL | PAGADO`). El saldo nunca es
+   negativo; un excedente histórico se muestra como inconsistencia prioritaria, no como deuda (§4.5).
 4. **Ingreso enriquecido**: flags de riesgo (`mojado`, `trabajoEnPlaca`, `noTesteableAlIngreso`),
    bloqueo de cuenta (`tieneCuentaVinculada`, `clienteConoceCredenciales`) y la bandera roja
    derivada **`riesgoCuentaSinCredenciales`** (§4.5). Nuevo **`numeroOrden`** (`ORD-2026-0042`,
@@ -44,6 +45,18 @@ Si venís de una versión anterior del contrato, esto es lo que cambió / se agr
     reparaciones ilimitadas y todas las capacidades habilitadas aunque `plan` todavía sea `FREE`.
 13. **Checkout MP endurecido** (§4.7): abono mensual de **ARS 24.900**, respuesta validada contra
     `collector_id`/`application_id`, kill switch para nuevos checkouts y reintentos idempotentes.
+14. **Identidad autenticada**: `GET /api/perfil` devuelve por separado el usuario actual y el taller
+    al que pertenece. Usalo para mostrar nombre, rol y nombre comercial sin depender del JWT (§4.1.bis).
+15. **Errores de dominio estables**: `ApiError` puede sumar `code` y `details`; el front decide el
+    tratamiento por `code` y usa `message` únicamente como texto visible (§5).
+16. **Cobros manuales auditables**: cada movimiento acepta `referencia`; la anulación principal es
+    `POST .../anulacion` con motivo y conserva el movimiento en el historial (§4.13).
+17. **Datos de cobro del taller**: alias/titular/entidad y QR PNG/JPEG configurables por ADMIN; USER
+    puede consultarlos. OrdenFix no procesa ni verifica transferencias (§4.13).
+18. **Cobros por período**: `/api/caja` conserva su ruta técnica, pero representa únicamente cobros
+    manuales activos registrados en un rango. No es un balance ni el saldo de una cuenta (§4.13).
+19. **Resumen digital de la orden**: el endpoint canónico es `GET .../resumen-digital`;
+    `GET .../recibo` queda como alias deprecado. Es informativo y expresamente no fiscal (§4.13).
 
 Los tipos TS de §7 ya reflejan todo esto.
 
@@ -99,9 +112,12 @@ CORS habilitado para:
 - Duración del token: la define cada entorno mediante `JWT_EXPIRATION`. El front debe guiarse por
   el claim `exp`, no asumir una duración fija. Un token ausente, inválido, revocado o perteneciente
   a un usuario desactivado puede terminar en `403`; ver el manejo de sesión debajo.
-- **Roles**: `ADMIN` (dueño) y `USER` (empleado). Hoy el registro crea siempre ADMIN.
-  Operaciones **solo ADMIN** (un USER recibe `403`): iniciar suscripción PRO (`POST /api/pagos/suscripcion`)
-  y los **borrados** (DELETE de clientes/equipos/reparaciones/repuestos). El resto del CRUD lo puede hacer cualquier usuario autenticado.
+- **Roles**: `ADMIN` (dueño) y `USER` (empleado). Hoy el registro crea siempre ADMIN y luego ese
+  ADMIN puede crear empleados. Ambos roles pertenecen al mismo tenant: USER puede operar el CRUD
+  cotidiano, registrar/consultar cobros, ver Cobros por período, el resumen digital y los datos de
+  cobro. Son **solo ADMIN** (USER recibe `403`): gestión de usuarios, iniciar/cancelar la suscripción,
+  exportación, bajas físicas del CRUD, anulación de cobros y escritura/borrado de los datos de cobro
+  o su QR. El backend sigue siendo la autoridad; ocultar un botón en el front no reemplaza el permiso.
 
 ### Flujo
 1. **Registro** (`POST /api/auth/register`) o **Login** (`POST /api/auth/login`) → devuelven
@@ -178,6 +194,40 @@ Errores: `401` (email o contraseña incorrectos).
 
 ---
 
+### 4.1.bis Perfil autenticado — requiere token
+
+#### `GET /api/perfil`
+
+Devuelve la identidad visible del principal actual y del taller deducido desde la sesión. Está
+disponible para `ADMIN` y `USER`; no se envía `tallerId` como parámetro.
+
+```json
+{
+  "usuario": {
+    "id": 7,
+    "username": "Juan Pérez",
+    "email": "juan@celexpress.com",
+    "role": "ADMIN"
+  },
+  "taller": {
+    "id": 3,
+    "nombre": "CelExpress",
+    "telefono": "1133334444"
+  }
+}
+```
+
+- La propiedad `usuario.role` llega normalizada como `ADMIN | USER`; no tiene el prefijo `ROLE_`
+  que puede aparecer dentro del JWT.
+- Usá `usuario.username` para identificar a la persona y `taller.nombre` como nombre comercial. Son
+  conceptos distintos aunque al crear la cuenta hayan partido del mismo formulario.
+- El perfil no incluye contraseña, PIN/patrón, datos de suscripción ni secretos. Para entitlements
+  se sigue consultando `GET /api/suscripcion`.
+- Puede usarse junto con `/api/suscripcion` como consulta base de sesión. Un `403` directo en esas
+  consultas significa que la sesión ya no es operable y debe limpiarse.
+
+---
+
 ### 4.2 Suscripción / Plan — requiere token
 
 #### `GET /api/suscripcion`
@@ -193,7 +243,7 @@ Plan y consumo del taller actual. Úsalo para la pantalla de Planes y el banner 
   "limiteReparacionesMes": null,   // null = ilimitado (TRIAL o PRO/ACTIVA)
   "funciones": {                   // capacidades del plan: el front habilita/oculta según esto
     "inventario": true,
-    "cobros": true,                // cobros + caja + recibo
+    "cobros": true,                // cobros + vista por período + datos de cobro + resumen digital
     "empleadosMultiples": true     // agregar más de 1 usuario
   }
 }
@@ -201,7 +251,8 @@ Plan y consumo del taller actual. Úsalo para la pantalla de Planes y el banner 
 
 **Entitlements:** durante `estado: "TRIAL"`, el taller recibe la experiencia PRO completa aunque el campo
 `plan` sea `"FREE"`: funciones habilitadas y reparaciones ilimitadas. En `estado: "ACTIVA"`, las funciones
-`inventario`, `cobros` (cobros/caja/recibo) y `empleadosMultiples` quedan habilitadas solo para `plan: "PRO"`.
+`inventario`, `cobros` (cobros, vista por período, datos de cobro y resumen digital) y
+`empleadosMultiples` quedan habilitadas solo para `plan: "PRO"`.
 El front debe usar siempre `funciones` y `limiteReparacionesMes` como fuente de verdad, **no inferir permisos
 solo desde `plan`**. Debe deshabilitar/ocultar las secciones cuyo flag esté en `false`. Si igual se llama a un
 endpoint sin entitlement, el backend responde **`402`** con un `message` accionable (modal "Pasá a PRO").
@@ -354,7 +405,7 @@ ReparacionRequest:
 > espacios) lo borra. Nunca uses la respuesta de un alta/PUT/PATCH para reemplazar en el formulario el
 > secreto que el usuario acaba de escribir. Al pasar a `ENTREGADO`, el backend borra ambos valores.
 
-ReparacionResponse: `{ ...campos no sensibles de ReparacionRequest, numeroOrden, equipoMarca, equipoModelo, clienteId, clienteNombre, clienteApellido, clienteTelefono, codigoSeguimiento, tecnicoId, tecnicoNombre, fotos (FotoDTO[]), fechaConformidadEntrega, totalRepuestos, total, cobrado, saldo, estadoPago, mojado, trabajoEnPlaca, noTesteableAlIngreso, tieneBloqueoPantalla, tieneCuentaVinculada, clienteConoceCredenciales, riesgoCuentaSinCredenciales, garantiaDias, garantiaInicio, garantiaFin, garantiaCondiciones, garantiaVigente, esGarantia, reparacionOrigenId }`. Los campos sensibles excluidos son `patronDesbloqueo` y `pinDesbloqueo`.
+ReparacionResponse: `{ ...campos no sensibles de ReparacionRequest, numeroOrden, equipoMarca, equipoModelo, clienteId, clienteNombre, clienteApellido, clienteTelefono, codigoSeguimiento, tecnicoId, tecnicoNombre, fotos (FotoDTO[]), fechaConformidadEntrega, totalRepuestos, total, cobrado, saldo, excedente, requiereRevision, estadoPago, mojado, trabajoEnPlaca, noTesteableAlIngreso, tieneBloqueoPantalla, tieneCuentaVinculada, clienteConoceCredenciales, riesgoCuentaSinCredenciales, garantiaDias, garantiaInicio, garantiaFin, garantiaCondiciones, garantiaVigente, esGarantia, reparacionOrigenId }`. Los campos sensibles excluidos son `patronDesbloqueo` y `pinDesbloqueo`.
 - **Denormalizado**: cada reparación trae el `equipoMarca/Modelo` y los datos del cliente, así el listado/tablero es autocontenido (no hace falta cruzar con otros endpoints).
 > **Contrato de credenciales:** `ReparacionResponse` **no contiene** `patronDesbloqueo` ni
 > `pinDesbloqueo`. Es la respuesta segura usada por POST, PUT, PATCH, reclamos en garantía, listados,
@@ -363,8 +414,16 @@ ReparacionResponse: `{ ...campos no sensibles de ReparacionRequest, numeroOrden,
 > El seguimiento público nunca los expone. Después de `ENTREGADO`, el detalle devuelve ambos en `null`.
 - `codigoSeguimiento`: código público para compartir con el cliente (ver §4.9).
 - `totalRepuestos`: suma de los repuestos. `total`: mano de obra (`precioFinal ?? precioEstimado ?? 0`) + repuestos.
-- **Estado de pago** (dimensión independiente del estado de reparación): `cobrado` (suma de cobros; **0 en planes FREE**, que no usan cobros), `saldo` = `max(0, total - cobrado)`, y `estadoPago` derivado: `SIN_COBRAR | PARCIAL | PAGADO`.
-  - En el tablero mostrá **las dos dimensiones**: ej. chip de estado ("Listo") + chip de pago ("Falta cobrar $X" si `saldo > 0`).
+- **Estado de pago** (dimensión independiente del estado de reparación): `cobrado` es la suma de
+  movimientos activos; `saldo = max(0, total - cobrado)` y `excedente = max(0, cobrado - total)`.
+  `requiereRevision` es `true` cuando hay excedente. `estadoPago` sigue derivado como
+  `SIN_COBRAR | PARCIAL | PAGADO` por compatibilidad.
+  - En el tablero mostrá **las dos dimensiones**: ej. chip de estado ("Listo") + chip de pago
+    ("Falta cobrar $X" si `saldo > 0`). Si `requiereRevision` o `excedente > 0`, priorizá
+    "Excedente a revisar" aunque `estadoPago` sea `PAGADO`; nunca muestres un saldo negativo.
+  - Los endpoints rechazan un nuevo cobro mayor al pendiente (`COBRO_SUPERA_SALDO`) y una edición
+    que reduzca el total por debajo de lo ya cobrado (`TOTAL_MENOR_QUE_COBRADO`). El excedente sólo
+    puede sobrevivir como dato histórico y requiere corrección/anulación manual.
   - **No bloquea la entrega**: se puede pasar a `ENTREGADO` con saldo pendiente (pago al retirar). El front decide si avisa.
 - **`numeroOrden`**: correlativo por taller con reinicio anual (`ORD-2026-0042`). Útil para etiquetar/buscar el equipo en el estante. Inmutable.
 - **Flags de riesgo del ingreso**: `mojado`, `trabajoEnPlaca`, `noTesteableAlIngreso`, `tieneBloqueoPantalla`, `tieneCuentaVinculada` (`NINGUNA|ICLOUD|GOOGLE|OTRA`), `clienteConoceCredenciales`.
@@ -661,31 +720,216 @@ ArticuloResponse: `{ id, nombre, descripcion, sku, precio, costo, stock, stockMi
 
 ---
 
-### 4.13 Cobros / Caja / Recibo — requiere token · **PRO**
+### 4.13 Cobros manuales / período / resumen digital — requiere token · **PRO**
 
-Pagos de una reparación (parciales o totales), resumen de caja y recibo imprimible.
-> Función PRO: con plan FREE devuelven `402`. Ver `funciones.cobros` en §4.2.
+OrdenFix registra movimientos informados manualmente por el taller. No se conecta con la cuenta
+bancaria o billetera del comercio, no crea transferencias y no confirma acreditaciones. Alias y QR
+son instrucciones que el taller decide mostrar; nunca convierten a OrdenFix en procesador de pagos.
 
-**Cobros de una reparación** (`/api/reparaciones/{reparacionId}`):
+> Función PRO: todos los endpoints de esta sección requieren `funciones.cobros`; sin entitlement
+> devuelven `402`. ADMIN y USER pueden consultar y registrar. Las anulaciones y la configuración del
+> taller son solo ADMIN según la matriz de cada subsección.
 
-| Método | Ruta | Body | Resp |
-|--------|------|------|------|
-| POST   | `/cobros` | `{ "monto": 20000, "metodo": "EFECTIVO", "observaciones"? }` | `201` CobroResponse |
-| GET    | `/cobros` | — | `200` CobrosReparacion (resumen + lista) |
-| DELETE | `/cobros/{cobroId}` | — | `204` (solo ADMIN, anula el cobro) |
-| GET    | `/recibo` | — | `200` Recibo (datos para imprimir) |
+#### Estado de cuenta de una orden
 
+El backend calcula siempre los importes con movimientos **activos**:
+
+- `total`: mano de obra (`precioFinal ?? precioEstimado ?? 0`) + repuestos.
+- `cobrado`: suma de cobros no anulados.
+- `saldo = max(0, total - cobrado)`; nunca representa un número negativo.
+- `excedente = max(0, cobrado - total)`; sólo puede aparecer por datos históricos.
+- `requiereRevision = excedente > 0`; la UI debe priorizar este estado sobre `pagado`/`PAGADO`.
+- `pagado = total > 0 && cobrado >= total` en las respuestas de cobros y resumen.
+
+Registrar un importe mayor al pendiente devuelve `409` con `code: "COBRO_SUPERA_SALDO"` y
+`details.pendiente`. Reducir el total de la orden de forma que aumente un excedente devuelve `409`
+con `code: "TOTAL_MENOR_QUE_COBRADO"`. En ambos casos se conserva el estado anterior.
+
+#### Movimientos de una reparación
+
+| Método | Ruta | Rol | Body | Resp |
+|--------|------|-----|------|------|
+| POST | `/api/reparaciones/{reparacionId}/cobros` | ADMIN/USER | CobroRequest | `201` CobroResponse |
+| GET | `/api/reparaciones/{reparacionId}/cobros` | ADMIN/USER | — | `200` CobrosReparacion |
+| POST | `/api/reparaciones/{reparacionId}/cobros/{cobroId}/anulacion` | ADMIN | `{ "motivo": "..." }` | `200` CobroResponse |
+| DELETE | `/api/reparaciones/{reparacionId}/cobros/{cobroId}` | ADMIN | — | `204` alias legado de anulación |
+
+CobroRequest:
+
+```json
+{
+  "monto": 20000,
+  "metodo": "TRANSFERENCIA",
+  "referencia": "OP-984331",
+  "observaciones": "Informado por el cliente"
+}
+```
+
+- `monto`: obligatorio, positivo, hasta 8 enteros y 2 decimales.
 - `metodo`: `EFECTIVO | TRANSFERENCIA | TARJETA | MERCADOPAGO | OTRO`.
-- `GET /cobros` devuelve: `{ total, cobrado, saldo, pagado, cobros: [...] }` (el `total` lo calcula el backend = mano de obra + repuestos).
-- `GET /recibo` trae todo lo del recibo: taller, cliente, equipo, descripción, `repuestos[{nombre,cantidad,precioUnitario,subtotal}]`, `manoDeObra`, `totalRepuestos`, `total`, `cobrado`, `saldo`, `pagado`, `fecha`. El front lo maqueta/imprime.
+- `referencia`: opcional, máximo 120 caracteres. Se recorta; vacío queda `null`. Es el número de
+  operación o identificación que el operador transcribe y **no prueba una acreditación**.
+- `observaciones`: opcional, máximo 255; es interna y no aparece en el resumen digital.
 
-**Caja** (`/api/caja`):
+Respuesta de `GET .../cobros` (ejemplo abreviado):
 
-| Método | Ruta | Resp |
-|--------|------|------|
-| GET | `/api/caja?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` | `200` CajaResumen |
+```json
+{
+  "total": 50000,
+  "cobrado": 20000,
+  "saldo": 30000,
+  "excedente": 0,
+  "requiereRevision": false,
+  "pagado": false,
+  "cobros": [
+    {
+      "id": 91,
+      "reparacionId": 42,
+      "monto": 20000,
+      "metodo": "TRANSFERENCIA",
+      "referencia": "OP-984331",
+      "observaciones": "Informado por el cliente",
+      "fecha": "2026-08-23T12:30:00",
+      "estado": "ACTIVO",
+      "anuladoAt": null,
+      "anuladoPorNombre": null,
+      "motivoAnulacion": null
+    }
+  ]
+}
+```
 
-Sin params = **hoy**. Devuelve `{ desde, hasta, totalCobrado, cantidad, porMetodo: { EFECTIVO, TRANSFERENCIA, ... }, cobros: [...] }`.
+`GET .../cobros` conserva tanto `ACTIVO` como `ANULADO` para auditoría, ordenados del más reciente
+al más antiguo. Los anulados llevan `anuladoAt`, `anuladoPorNombre` y `motivoAnulacion`, pero ya no
+participan de `cobrado`, `saldo`, el período ni el resumen digital.
+
+La anulación canónica requiere `motivo` no vacío (máximo 255). Repetirla devuelve `409` con
+`code: "COBRO_YA_ANULADO"` y `details: { reparacionId, cobroId }`. El `DELETE` existe sólo para
+compatibilidad, usa un motivo técnico fijo y es idempotente; una integración nueva debe usar el
+`POST .../anulacion` y refrescar cobros, reparación, dashboard y período al completarse.
+
+#### Datos de cobro y QR del taller
+
+| Método | Ruta | Rol | Body / respuesta |
+|--------|------|-----|------------------|
+| GET | `/api/taller/datos-cobro` | ADMIN/USER | `200` DatosCobro |
+| PUT | `/api/taller/datos-cobro` | ADMIN | DatosCobroRequest → `200` DatosCobro |
+| GET | `/api/taller/datos-cobro/qr` | ADMIN/USER | `200 image/png` |
+| PUT | `/api/taller/datos-cobro/qr` | ADMIN | `multipart/form-data`, parte `file` → `200` DatosCobro |
+| DELETE | `/api/taller/datos-cobro/qr` | ADMIN | `200` DatosCobro actualizado |
+
+DatosCobro:
+
+```json
+{
+  "alias": "celexpress.mp",
+  "titular": "Juan Pérez",
+  "entidad": "Mercado Pago",
+  "mostrarEnResumen": true,
+  "qrDisponible": true,
+  "qrVersion": "f9b95d...sha256..."
+}
+```
+
+- El `PUT` textual **reemplaza el recurso completo**: `alias` (máx. 120), `titular` (máx. 160) y
+  `entidad` (máx. 120) aceptan `null`; blanco se normaliza a `null`. `mostrarEnResumen` es obligatorio.
+- El QR se administra por separado y no debe enviarse dentro del JSON. El upload acepta bytes PNG o
+  JPEG reales, máximo 1 MiB, 1024×1024 y 1 megapíxel; el backend lo re-codifica y sirve como PNG.
+  Usá `FormData` con la parte `file` y dejá que el cliente HTTP agregue el boundary.
+- `qrVersion` es el SHA-256 del PNG normalizado. Usalo como parte de la clave de caché; si es `null`,
+  no solicites el blob. `GET .../qr` responde `ETag`, `Cache-Control: private, no-store` y `404`
+  `QR_COBRO_NO_CONFIGURADO` cuando no existe.
+- Imagen inválida → `400 QR_COBRO_INVALIDO`; archivo demasiado grande → `413`
+  `ARCHIVO_DEMASIADO_GRAN`. Una carga inválida no reemplaza el QR vigente.
+- `mostrarEnResumen` sólo controla si estos datos pueden aparecer en el resumen de una orden con
+  saldo pendiente. No confirma que el alias/QR exista externamente ni que un pago haya llegado.
+
+#### Cobros por período (ruta técnica `/api/caja`)
+
+| Método | Ruta | Rol | Resp |
+|--------|------|-----|------|
+| GET | `/api/caja?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` | ADMIN/USER | `200` CajaResumen |
+
+Sin parámetros, ambos extremos son **hoy**. El rango es inclusivo y la respuesta tiene
+`{ desde, hasta, totalCobrado, cantidad, porMetodo, cobros }`. Sólo incluye movimientos activos del
+taller registrados en ese período; `porMetodo` contiene una entrada para cada `MetodoPago`.
+
+En la UI llamá a esta superficie **Cobros** y a la métrica **Cobrado en el período**. Es un registro
+operativo: no es un balance contable, no representa el saldo de una cuenta bancaria/billetera, no
+confirma acreditaciones y no contempla egresos, gastos ni comisiones. El efectivo también depende
+de que el taller cargue cada movimiento manualmente.
+
+#### Resumen digital de la orden
+
+| Método | Ruta | Rol | Estado |
+|--------|------|-----|--------|
+| GET | `/api/reparaciones/{reparacionId}/resumen-digital` | ADMIN/USER | Canónico |
+| GET | `/api/reparaciones/{reparacionId}/recibo` | ADMIN/USER | Alias deprecado; misma respuesta exacta |
+
+Parte canónica de ResumenDigitalOrden (se omiten aquí los campos planos de compatibilidad):
+
+```json
+{
+  "numeroOrden": "ORD-2026-0042",
+  "codigoSeguimiento": "ABC123",
+  "fecha": "2026-08-20T10:15:00",
+  "estado": "COMPLETADO",
+  "taller": { "nombre": "CelExpress", "telefono": "1133334444" },
+  "cliente": { "nombre": "Pedro", "apellido": "Gómez", "telefono": "1155556666" },
+  "equipo": {
+    "marca": "Samsung",
+    "modelo": "A54",
+    "descripcionProblema": "No enciende"
+  },
+  "detalle": {
+    "repuestos": [
+      { "nombre": "Módulo", "cantidad": 1, "precioUnitario": 30000, "subtotal": 30000 }
+    ],
+    "manoDeObra": 20000,
+    "totalRepuestos": 30000
+  },
+  "importes": {
+    "total": 50000,
+    "cobrado": 20000,
+    "saldo": 30000,
+    "excedente": 0,
+    "requiereRevision": false,
+    "pagado": false
+  },
+  "pagos": [
+    {
+      "fecha": "2026-08-23T12:30:00",
+      "monto": 20000,
+      "metodo": "TRANSFERENCIA",
+      "referencia": "OP-984331"
+    }
+  ],
+  "datosCobro": {
+    "alias": "celexpress.mp",
+    "titular": "Juan Pérez",
+    "entidad": "Mercado Pago",
+    "qrDisponible": true,
+    "qrVersion": "f9b95d...sha256..."
+  },
+  "documentoFiscal": false,
+  "leyenda": "Documento informativo. No es factura ni comprobante fiscal y no reemplaza los emitidos por ARCA.",
+  "reparacionId": 42
+}
+```
+
+- El contrato nuevo es la estructura anidada. Durante la migración, la misma respuesta también
+  incluye los campos planos históricos (`tallerNombre`, `clienteNombre`, `repuestos`, `total`, etc.);
+  no construyas código nuevo sobre ellos.
+- `pagos` contiene sólo movimientos activos, en orden cronológico, y deliberadamente no expone IDs,
+  observaciones internas ni datos de anulación.
+- `datosCobro` sólo aparece cuando hay `saldo > 0`, `mostrarEnResumen` está activo y existe al menos
+  un dato textual o QR; en cualquier otro caso es `null`. Si `qrDisponible`, el blob se obtiene de
+  `/api/taller/datos-cobro/qr` con Bearer y su caché se liga a `qrVersion`.
+- El taller es el emisor visible y OrdenFix puede figurar como marca secundaria. La vista no necesita
+  impresión: `documentoFiscal` es siempre `false` y la `leyenda` debe mostrarse completa. No la llames
+  factura, comprobante fiscal ni confirmación de pago.
+- `/recibo` invoca el mismo servicio y devuelve el mismo JSON, pero está deprecado. El frontend nuevo
+  debe consultar `/resumen-digital` y puede conservar una redirección visual desde su ruta histórica.
 
 ---
 
@@ -715,17 +959,36 @@ URL.revokeObjectURL(url);
 
 ---
 
-## 5. Formato de error (todos los endpoints)
+## 5. Formato de error controlado
 
 ```json
 {
-  "timestamp": "2026-06-16T22:02:21.43",
-  "status": 402,
-  "error": "Límite del plan alcanzado",
-  "message": "Alcanzaste el límite de 25 reparaciones por mes del plan FREE...",
-  "path": "/api/reparaciones"
+  "timestamp": "2026-08-23T12:31:10.43",
+  "status": 409,
+  "error": "Conflicto de estado",
+  "message": "El monto supera el pendiente de cobro.",
+  "path": "/api/reparaciones/42/cobros",
+  "code": "COBRO_SUPERA_SALDO",
+  "details": {
+    "reparacionId": 42,
+    "total": 50000,
+    "cobrado": 20000,
+    "monto": 40000,
+    "pendiente": 30000
+  }
 }
 ```
+
+Los campos base son `timestamp`, `status`, `error`, `message` y `path`. `code` y `details` son
+opcionales: aparecen en conflictos de dominio donde el frontend puede tomar una decisión estable.
+
+- Ramificá la UI por `status` + `code`; nunca compares el texto de `message`, porque puede mejorar
+  sin romper el contrato.
+- `message` es el texto humano que puede mostrarse. `details` es contexto tipado para completar la
+  interfaz (por ejemplo, el pendiente vigente); no lo serialices crudo en un toast.
+- Un error genérico o de validación puede no traer `code/details`. Aplicá siempre un fallback por
+  status y, si tampoco hay body JSON (por ejemplo ante ciertos rechazos del filtro de seguridad),
+  usá un mensaje local seguro.
 
 | Código | Significado | Qué hace el front |
 |--------|-------------|-------------------|
@@ -735,9 +998,26 @@ URL.revokeObjectURL(url);
 | 403 | Token ausente/inválido/revocado, usuario desactivado o rol insuficiente | Validar sesión base; logout si falla, o "sin permisos" si la sesión sigue válida |
 | 404 | No encontrado (o recurso de otro taller) | "No existe" |
 | 409 | Conflicto: unicidad, **transición de estado ilegal** (§4.5) o checkout MP ya activo/en creación | Mostrar `message`; para MP, re-consultar suscripción |
+| 413 | Archivo por encima del límite permitido | Mantener el QR anterior y pedir una imagen de hasta 1 MiB |
+| 415 | Tipo de contenido no soportado | Revisar JSON/multipart; no reintentar automáticamente |
 | 429 | Demasiadas solicitudes en login, registro, recuperación o seguimiento público | Mostrar espera, respetar `Retry-After` y no reintentar en loop |
 | 500 | Error interno (mensaje genérico) | Toast genérico "Intentá más tarde" |
 | 502 | Falló MP o están pausados los nuevos checkouts | Toast con `message`; el POST de checkout se puede reintentar |
+
+Códigos estables relevantes para la integración actual:
+
+| `code` | HTTP | `details` útil | Tratamiento |
+|--------|------|----------------|-------------|
+| `COBRO_SUPERA_SALDO` | 409 | `reparacionId`, `total`, `cobrado`, `monto`, `pendiente` | Actualizar el máximo cobrable y mantener abierto el formulario |
+| `TOTAL_MENOR_QUE_COBRADO` | 409 | `reparacionId`, `totalActual`, `totalPropuesto`, `cobrado`, `excedenteActual`, `excedentePropuesto` | No guardar el total; pedir corregir/anular cobros primero |
+| `COBRO_YA_ANULADO` | 409 | `reparacionId`, `cobroId` | Refrescar historial y mostrar que la anulación ya existe |
+| `QR_COBRO_INVALIDO` | 400 | Varía: `formatosPermitidos`; dimensiones; o `parteRequerida` | Conservar archivo/configuración anterior y corregir selección |
+| `ARCHIVO_DEMASIADO_GRAN` | 413 | — | Pedir un archivo de hasta 1 MiB |
+| `QR_COBRO_NO_CONFIGURADO` | 404 | — | Quitar la vista previa y refrescar DatosCobro |
+
+Para `QR_COBRO_INVALIDO`, `details` depende de la causa: puede ser
+`{ formatosPermitidos: "PNG,JPEG" }`, `{ ancho, alto, maximoPorEje, maximoPixeles }` o
+`{ parteRequerida: "file" }`. Tratá estas claves como opcionales entre sí.
 
 ---
 
@@ -745,7 +1025,7 @@ URL.revokeObjectURL(url);
 
 - `estado: "TRIAL"` (aunque `plan: "FREE"`): reparaciones **ilimitadas** + funciones PRO completas.
 - `plan: "FREE"` + `estado: "ACTIVA"`: tope de **25 reparaciones por mes** (configurable por env
-  `FREE_MAX_REPARACIONES`) y sin inventario, cobros/caja ni multi-empleado.
+  `FREE_MAX_REPARACIONES`) y sin inventario, cobros manuales/período/resumen ni multi-empleado.
 - `plan: "PRO"` + `estado: "ACTIVA"`: reparaciones **ilimitadas** + funciones PRO.
 - **Cómo cuenta:** suma 1 por cada reparación **creada** (`POST /api/reparaciones` o `/ingreso-rapido`).
   - **Borrar una reparación NO baja el contador** (no se puede esquivar el límite).
@@ -794,7 +1074,7 @@ api.interceptors.response.use(
     // Un 403 requiere contexto: puede ser rol insuficiente o sesión revocada.
     // Validá la sesión con GET /api/suscripcion antes de desloguear globalmente.
     // Para 429, respetá Number(err.response.headers["retry-after"]).
-    // err.response.data.message trae el mensaje del backend para toasts
+    // err.response.data puede ser ApiErrorBody: ramificá por code y mostrale message al usuario.
     return Promise.reject(err);
   }
 );
@@ -814,6 +1094,15 @@ export type MomentoFoto = "INGRESO" | "POST_REPARACION";
 export interface Foto { url: string; momento: MomentoFoto; }
 
 export interface AuthResponse { token: string; type: string; email: string; emailVerificado: boolean; }
+export type Rol = "ADMIN" | "USER";
+export interface Perfil {
+  usuario: { id: number; username: string; email: string; role: Rol };
+  taller: { id: number; nombre: string; telefono: string | null };
+}
+export interface ApiErrorBody {
+  timestamp?: string; status?: number; error?: string; message?: string; path?: string;
+  code?: string; details?: Record<string, unknown>;
+}
 export interface Suscripcion {
   plan: Plan; estado: EstadoSuscripcion;
   fechaInicio: string | null; fechaFinTrial: string | null; proximoCobro: string | null;
@@ -836,7 +1125,8 @@ export interface Reparacion {
   fechaIngreso: string | null; fechaEstimadaEntrega: string | null; fechaEntrega: string | null;
   codigoSeguimiento: string | null; numeroOrden: string | null;
   totalRepuestos: number; total: number;
-  cobrado: number; saldo: number; estadoPago: EstadoPago;
+  cobrado: number; saldo: number; excedente: number; requiereRevision: boolean;
+  estadoPago: EstadoPago;
   mojado: boolean; trabajoEnPlaca: boolean; noTesteableAlIngreso: boolean;
   tieneBloqueoPantalla: boolean; tieneCuentaVinculada: CuentaVinculada;
   clienteConoceCredenciales: boolean; riesgoCuentaSinCredenciales: boolean;
@@ -867,6 +1157,46 @@ export interface Presupuesto {
   validezDias: number; validoHasta: string | null; vencido: boolean;
   observaciones: string | null; fechaRespuesta: string | null; createdAt: string;
 }
+export type MetodoPago = "EFECTIVO" | "TRANSFERENCIA" | "TARJETA" | "MERCADOPAGO" | "OTRO";
+export type EstadoCobro = "ACTIVO" | "ANULADO";
+export interface Cobro {
+  id: number; reparacionId: number; monto: number; metodo: MetodoPago;
+  referencia: string | null; observaciones: string | null; fecha: string; estado: EstadoCobro;
+  anuladoAt: string | null; anuladoPorNombre: string | null; motivoAnulacion: string | null;
+}
+export interface CobrosReparacion {
+  total: number; cobrado: number; saldo: number; excedente: number;
+  requiereRevision: boolean; pagado: boolean; cobros: Cobro[];
+}
+export interface DatosCobro {
+  alias: string | null; titular: string | null; entidad: string | null;
+  mostrarEnResumen: boolean; qrDisponible: boolean; qrVersion: string | null;
+}
+export interface CajaResumen {
+  desde: string; hasta: string; totalCobrado: number; cantidad: number;
+  porMetodo: Record<MetodoPago, number>; cobros: Cobro[];
+}
+export interface ResumenDigitalItem {
+  nombre: string; cantidad: number; precioUnitario: number; subtotal: number;
+}
+export interface ResumenDigital {
+  numeroOrden: string | null; codigoSeguimiento: string | null;
+  fecha: string; estado: EstadoReparacion; reparacionId: number;
+  taller: { nombre: string; telefono: string | null };
+  cliente: { nombre: string; apellido: string; telefono: string | null };
+  equipo: { marca: string; modelo: string; descripcionProblema: string };
+  detalle: { repuestos: ResumenDigitalItem[]; manoDeObra: number; totalRepuestos: number };
+  importes: {
+    total: number; cobrado: number; saldo: number; excedente: number;
+    requiereRevision: boolean; pagado: boolean;
+  };
+  pagos: Array<{ fecha: string; monto: number; metodo: MetodoPago; referencia: string | null }>;
+  datosCobro: null | {
+    alias: string | null; titular: string | null; entidad: string | null;
+    qrDisponible: boolean; qrVersion: string | null;
+  };
+  documentoFiscal: false; leyenda: string;
+}
 export interface CheckoutResponse { preapprovalId: string; initPoint: string; }
 // Respuesta paginada genérica
 export interface Page<T> { content: T[]; page: { size: number; number: number; totalElements: number; totalPages: number }; }
@@ -878,6 +1208,9 @@ Ejemplos:
 const { data } = await api.post<AuthResponse>("/api/auth/login", { email, password });
 localStorage.setItem("token", data.token);
 
+// identidad visible: usuario y taller son entidades distintas
+const { data: perfil } = await api.get<Perfil>("/api/perfil");
+
 // cambiar estado de una reparación
 await api.patch(`/api/reparaciones/${id}/estado`, { estado: "EN_PROCESO" });
 
@@ -886,6 +1219,11 @@ const { data: detalle } = await api.get<ReparacionDetalle>(`/api/reparaciones/${
 
 // listar por estado
 const { data } = await api.get<Reparacion[]>("/api/reparaciones/estado", { params: { estado: "EN_PROCESO" } });
+
+// resumen digital canónico (no fiscal)
+const { data: resumen } = await api.get<ResumenDigital>(
+  `/api/reparaciones/${id}/resumen-digital`,
+);
 
 // iniciar upgrade a PRO (redirige a MercadoPago)
 const { data } = await api.post<CheckoutResponse>("/api/pagos/suscripcion");
@@ -897,7 +1235,8 @@ window.location.href = data.initPoint;
 ## 8. Pantallas mínimas del frontend
 
 1. **Login** y **Registro** (onboarding del taller).
-2. **Layout protegido** (sidebar: Clientes, Equipos, Reparaciones, Repuestos, Plan) con logout.
+2. **Layout protegido** (sidebar: Dashboard, Clientes, Equipos, Reparaciones, Repuestos, Cobros,
+   Inventario y Plan según entitlements) con identidad de usuario/taller y logout.
 3. **Clientes**: tabla + búsqueda + ABM; ficha con sus equipos.
 4. **Equipos**: tabla + ABM (selector de cliente); ver reparaciones del equipo.
 5. **Reparaciones** (pantalla estrella): tablero/lista por estado, ABM, cambio rápido de estado,
@@ -913,13 +1252,20 @@ window.location.href = data.initPoint;
 8. **Resultado de pago** (`/suscripcion/resultado`): página de retorno de MercadoPago que
    re-consulta `GET /api/suscripcion` hasta confirmar el plan PRO; un checkout `pending` no equivale
    a pago aprobado.
+9. **Cobros**: rango de fechas, total del período, desglose por método y movimientos manuales. Debe
+   conservar visible la aclaración de que no es un balance ni confirma acreditaciones.
+10. **Datos de cobro**: lectura para ADMIN/USER; edición de alias/titular/entidad, visibilidad y QR
+    sólo para ADMIN. Una falla parcial no debe borrar la parte que sí se guardó.
+11. **Resumen digital** (`/reparaciones/{id}/resumen`): taller como emisor, detalle de la orden,
+    importes, pagos activos, datos de cobro sólo si corresponden y leyenda no fiscal. La ruta visual
+    histórica `/reparaciones/{id}/recibo` puede redirigir, pero el fetch usa `/resumen-digital`.
 
 ---
 
 ## 9. Estado actual del backend y roadmap
 
 **Listo y funcionando:**
-- Auth (registro + login por email), JWT con tenant.
+- Auth (registro + login por email), JWT con tenant y `GET /api/perfil` para identidad usuario/taller.
 - **Recuperación de contraseña** por email y **verificación de email** suave (§4.1) — emails vía Resend.
 - Multi-tenancy con aislamiento total por taller.
 - CRUD de Clientes, Equipos, Reparaciones, Repuestos.
@@ -928,20 +1274,25 @@ window.location.href = data.initPoint;
   (`/cancelar`) + webhook con **firma validada**, inbox idempotente, reconciliación y validación de
   collector/aplicación/monto. *(Requiere la configuración de §10.)*
 - **Carga rápida** de reparación (§4.5), **total** de reparación (mano de obra + repuestos).
-- **Máquina de estados** (12 estados, transición ilegal → 409) y **estado de pago** derivado (cobrado/saldo/estadoPago).
+- **Máquina de estados** (12 estados, transición ilegal → 409) y **estado de pago** derivado
+  (`cobrado/saldo/excedente/requiereRevision/estadoPago`).
 - **Orden de trabajo ampliada**: checklist de ingreso (patrón/PIN cifrados y visibles solo en detalle
   autenticado, accesorios, condiciones), técnico asignado, observaciones internas y **fotos con momento**
   (INGRESO/POST_REPARACION).
 - **Ingreso enriquecido**: flags de riesgo, bloqueo de cuenta (iCloud/FRP) con bandera roja, y `numeroOrden` correlativo por taller.
 - **Conformidad de entrega** (sellada al ENTREGADO) y **garantía** (default 90 días) con **reclamo en garantía** que no consume cupo.
 - **Paginación + búsqueda** en todos los listados (§4.2.bis).
-- **Roles ADMIN/USER** (borrados y suscripción solo ADMIN) y **gestión de empleados** (§4.10).
+- **Roles ADMIN/USER** con gestión de empleados y mutaciones administrativas protegidas: bajas,
+  suscripción/exportación, anulaciones y configuración de datos de cobro/QR (§3, §4.10 y §4.13).
 - **Dashboard** (§4.8), **seguimiento público** + **link de WhatsApp** (§4.9).
 - **Presupuestos** con aprobación del cliente desde el link público (§4.11).
 - **Inventario** con stock, ajustes, descuento automático y aviso de stock bajo (§4.12).
-- **Cobros / Caja / Recibo** (§4.13): pagos parciales, saldo, caja por período y recibo imprimible.
+- **Cobros manuales / período / resumen digital** (§4.13): referencia, historial de anulaciones,
+  estado sin saldos negativos, datos de cobro/QR y documento informativo no fiscal.
+- **Errores de dominio** con `code/details` opcionales para resolver conflictos sin comparar mensajes (§5).
 - **Exportación a Excel** (§4.14): el ADMIN descarga todos los datos del taller en un `.xlsx`.
-- **Gating por plan**: inventario, cobros/caja y multi-empleado son PRO (402 + mapa `funciones` en §4.2). Dashboard es FREE.
+- **Gating por plan**: inventario, cobros/período/resumen y multi-empleado son PRO (402 + mapa
+  `funciones` en §4.2). Dashboard es FREE.
 - **Salud** (`/actuator/health`) y **tests** (aislamiento de tenant, 402, firma de webhook).
 - Spring Boot 4 / Java 21, migraciones con Flyway.
 
@@ -984,8 +1335,8 @@ es público pero **valida la firma `x-signature`** con `MP_WEBHOOK_SECRET`; el r
 **Health check (para el deploy):** `GET /actuator/health` es público y devuelve `{"status":"UP"}`. Útil para
 configurar los probes de readiness/liveness en Render/Railway. No expone otros endpoints de Actuator.
 
-> Diseñá la navegación contemplando estas secciones futuras (Dashboard, Caja, Inventario, Reportes)
-> para no rehacer el layout más adelante.
+> Dashboard, Cobros e Inventario ya forman parte de la navegación protegida. Conservá margen para
+> Reportes futuros sin volver a usar "Caja" como sinónimo de balance.
 
 ---
 
@@ -999,8 +1350,13 @@ Usá esta lista para marcar qué está integrado en el repo del frontend.
 - [ ] Limpiar cualquier token de producción guardado antes de probar contra localhost.
 - [ ] Login/registro guardan `token`, `email` y `emailVerificado`; todas las rutas privadas envían Bearer.
 - [ ] Los guards entienden `ROLE_ADMIN` / `ROLE_USER` o normalizan el prefijo de manera consistente.
-- [ ] La carga inicial valida sesión con `GET /api/suscripcion` y distingue sesión inválida de falta de rol.
-- [ ] `401`, `403`, `402`, `409`, `429` y `502` tienen tratamiento explícito; `429` respeta `Retry-After`.
+- [ ] `GET /api/perfil` alimenta por separado la identidad de usuario y nombre/teléfono del taller.
+- [ ] La carga inicial valida sesión con `GET /api/perfil` y/o `/api/suscripcion`, y distingue sesión
+  inválida de falta de rol.
+- [ ] `401`, `403`, `402`, `409`, `413`, `429` y `502` tienen tratamiento explícito; `429` respeta
+  `Retry-After`.
+- [ ] Los conflictos conocidos se resuelven por `ApiError.code`; `message` sólo se usa como copy y
+  `details` nunca se muestra serializado en bruto.
 - [ ] Existen `/reset-password?token=...` y `/verificar-email?token=...`.
 
 ### Datos y navegación
@@ -1008,7 +1364,8 @@ Usá esta lista para marcar qué está integrado en el repo del frontend.
 - [ ] Listados consumen `data.content` + `data.page`; no esperan un array directo.
 - [ ] Búsqueda, filtros, orden y paginación conservan el estado en la URL o store de la pantalla.
 - [ ] Las bajas esperan el `204`; ante `409`/`400` mantienen la fila y muestran `message`.
-- [ ] El dashboard muestra por separado estado de reparación y estado/saldo de pago.
+- [ ] El dashboard muestra por separado estado de reparación y estado de pago; excedente/revisión
+  tiene prioridad sobre `PAGADO` y jamás se representa como saldo negativo.
 - [ ] Descarga Excel usa respuesta `blob` y respeta el nombre del archivo.
 
 ### PIN, patrón y reparación
@@ -1019,6 +1376,23 @@ Usá esta lista para marcar qué está integrado en el repo del frontend.
 - [ ] En PUT, campo omitido conserva; `""` borra; después de POST/PUT/PATCH se refresca el detalle.
 - [ ] Al pasar a `ENTREGADO`, la UI elimina inmediatamente cualquier copia en memoria de esos valores.
 - [ ] La UI ofrece únicamente las transiciones legales y maneja igualmente un `409` del backend.
+
+### Cobros y resumen digital
+
+- [ ] ADMIN y USER pueden registrar/consultar cobros; sólo ADMIN ve anulación y edición de datos/QR.
+- [ ] El alta limita el monto al saldo conocido y, aun así, maneja `COBRO_SUPERA_SALDO` actualizando
+  `details.pendiente` por carreras o datos desactualizados.
+- [ ] `referencia` se muestra separada de observaciones; el historial conserva `ACTIVO` y `ANULADO`
+  con motivo/autor/fecha, mientras totales y período suman sólo activos.
+- [ ] Cobros por período conserva visible que es un registro manual, no balance, saldo bancario ni
+  confirmación de acreditaciones.
+- [ ] DatosCobro se consulta para ambos roles; `PUT` textual reemplaza todos sus campos y el QR usa
+  multipart separado. La caché del blob depende de `qrVersion` y se elimina cuando cambia/desaparece.
+- [ ] Errores `QR_COBRO_INVALIDO`, `ARCHIVO_DEMASIADO_GRAN` y `QR_COBRO_NO_CONFIGURADO` conservan la
+  configuración válida previa y producen feedback inline.
+- [ ] El fetch canónico usa `/resumen-digital`; la ruta visual `/recibo` sólo redirige por compatibilidad.
+- [ ] El resumen muestra taller emisor, pagos activos/referencias, saldo/excedente, datos de cobro sólo
+  cuando llegan y la leyenda no fiscal completa; no expone observaciones ni presenta una impresión fiscal.
 
 ### Plan y Mercado Pago
 
@@ -1036,5 +1410,8 @@ Usá esta lista para marcar qué está integrado en el repo del frontend.
 - [ ] CRUD y búsquedas de clientes, equipos, reparaciones y repuestos con aislamiento por taller.
 - [ ] Ingreso rápido, máquina de estados, presupuestos públicos, garantía y conformidad de entrega.
 - [ ] FREE/ACTIVA, TRIAL, PRO/ACTIVA y PRO/VENCIDA con sus capacidades correctas.
+- [ ] Matriz ADMIN/USER probada: lectura operativa para empleado y mutaciones administrativas bloqueadas.
+- [ ] Cobro parcial/total, conflicto concurrente, anulación auditada, excedente histórico, QR y resumen
+  digital probados en 320 px, 390 px y orientación horizontal sin desbordes.
 - [ ] Tracking público no expone observaciones internas, PIN, patrón ni datos de otro cliente.
 - [ ] Flujo MP completo probado en sandbox antes de habilitar `MP_CHECKOUT_ENABLED` en producción.

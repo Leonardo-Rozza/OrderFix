@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { ReactElement, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { http, HttpResponse } from 'msw';
+import { renderWithProviders } from '../test/renderWithProviders';
 import { server, API } from '../test/server';
 
 vi.mock('../layouts/DashboardLayout', () => ({
@@ -17,13 +17,6 @@ vi.mock('../components/RepuestoFormModal', () => ({
 }));
 
 import { RepuestosPage } from './RepuestosPage';
-
-const renderUI = (ui: ReactElement) => {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-};
 
 describe('RepuestosPage — asociación global', () => {
   it('abre el formulario sin precargar el catálogo de reparaciones', async () => {
@@ -51,7 +44,7 @@ describe('RepuestosPage — asociación global', () => {
       }),
     );
 
-    renderUI(<RepuestosPage />);
+    renderWithProviders(<RepuestosPage />);
     expect(optionRequests).toBe(0);
     expect(screen.getByRole('searchbox', { name: /buscar repuestos/i })).toHaveClass('min-h-11', 'text-base');
     expect(await screen.findByRole('button', { name: 'Editar' })).toHaveClass('h-11', 'w-11');

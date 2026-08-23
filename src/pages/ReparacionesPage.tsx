@@ -14,7 +14,7 @@ import type { EstadoMeta, FaseMeta } from '../config/estados';
 import { formatMoney } from '../utils/format';
 import { equipoLabel, clienteLabel, ordenLabel } from '../utils/reparacion';
 import { PagoChip } from '../components/PagoChip';
-import { useListParams } from '../hooks/useListParams';
+import { useListParams, type UseListParamsOptions } from '../hooks/useListParams';
 import { usePageBounds } from '../hooks/usePageBounds';
 import { useReparacionesQuery } from '../api/queries/reparaciones.queries';
 import { useDashboardQuery } from '../api/queries/dashboard.queries';
@@ -24,12 +24,25 @@ import type { EstadoReparacion, Reparacion } from '../types';
 type Vista = 'board' | 'list';
 type Filtro = EstadoReparacion | 'TODOS';
 
+const REPARACION_SORT_OPTIONS = [
+  { value: 'id,desc', label: 'Más recientes' },
+  { value: 'fechaIngreso,desc', label: 'Ingreso reciente' },
+  { value: 'precioFinal,desc', label: 'Mayor precio' },
+  { value: 'estado,asc', label: 'Estado' },
+];
+
+const REPARACION_LIST_PARAMS = {
+  size: 20,
+  defaultSort: 'id,desc',
+  allowedSorts: REPARACION_SORT_OPTIONS.map(({ value }) => value),
+} satisfies UseListParamsOptions;
+
 export const ReparacionesPage = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const cambiarEstado = useCambiarEstadoMutation();
   const { data: stats } = useDashboardQuery();
-  const { q, onSearch, page, setPage, debouncedQ, size, sort, setSort } = useListParams(20, 'id,desc');
+  const { q, onSearch, page, setPage, debouncedQ, size, sort, setSort } = useListParams(REPARACION_LIST_PARAMS);
   const [vista, setVista] = useState<Vista>('board');
   const [filtro, setFiltro] = useState<Filtro>('TODOS');
   const [localOpen, setLocalOpen] = useState(false);
@@ -127,12 +140,7 @@ export const ReparacionesPage = () => {
             <SortSelect
               value={sort}
               onChange={setSort}
-              options={[
-                { value: 'id,desc', label: 'Más recientes' },
-                { value: 'fechaIngreso,desc', label: 'Ingreso reciente' },
-                { value: 'precioFinal,desc', label: 'Mayor precio' },
-                { value: 'estado,asc', label: 'Estado' },
-              ]}
+              options={REPARACION_SORT_OPTIONS}
             />
           )}
 

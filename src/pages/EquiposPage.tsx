@@ -9,12 +9,24 @@ import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { btnPrimary } from '../components/ui';
 import { iniciales } from '../utils/format';
-import { useListParams } from '../hooks/useListParams';
+import { useListParams, type UseListParamsOptions } from '../hooks/useListParams';
 import { usePageBounds } from '../hooks/usePageBounds';
 import { useEquiposQuery } from '../api/queries/equipos.queries';
 import { useDeleteEquipoMutation } from '../api/mutations/equipos.mutations';
 import { useAuth } from '../store/auth.store';
 import type { Equipo } from '../types';
+
+const EQUIPO_SORT_OPTIONS = [
+  { value: 'id,desc', label: 'Más recientes' },
+  { value: 'marca,asc', label: 'Marca A-Z' },
+  { value: 'modelo,asc', label: 'Modelo A-Z' },
+];
+
+const EQUIPO_LIST_PARAMS = {
+  size: 20,
+  defaultSort: 'id,desc',
+  allowedSorts: EQUIPO_SORT_OPTIONS.map(({ value }) => value),
+} satisfies UseListParamsOptions;
 
 const clienteLabel = (e: Equipo) =>
   e.clienteNombre ? `${e.clienteNombre} ${e.clienteApellido ?? ''}`.trim() : 'Sin cliente';
@@ -27,7 +39,7 @@ const deviceIcon = (
 );
 
 export const EquiposPage = () => {
-  const { q, onSearch, page, setPage, debouncedQ, size, sort, setSort } = useListParams(20, 'id,desc');
+  const { q, onSearch, page, setPage, debouncedQ, size, sort, setSort } = useListParams(EQUIPO_LIST_PARAMS);
   const { data, isLoading, isError, isFetching, isPlaceholderData, refetch } = useEquiposQuery({ q: debouncedQ, page, size, sort });
   const { isAdmin } = useAuth();
   const deleteMutation = useDeleteEquipoMutation();
@@ -75,11 +87,7 @@ export const EquiposPage = () => {
           <SortSelect
             value={sort}
             onChange={setSort}
-            options={[
-              { value: 'id,desc', label: 'Más recientes' },
-              { value: 'marca,asc', label: 'Marca A-Z' },
-              { value: 'modelo,asc', label: 'Modelo A-Z' },
-            ]}
+            options={EQUIPO_SORT_OPTIONS}
           />
           <button type="button" className={`${btnPrimary} ml-auto`} onClick={openNew}>
             <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">

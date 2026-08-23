@@ -10,15 +10,28 @@ import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { btnPrimary } from '../components/ui';
 import { iniciales, formatDate } from '../utils/format';
-import { useListParams } from '../hooks/useListParams';
+import { useListParams, type UseListParamsOptions } from '../hooks/useListParams';
 import { usePageBounds } from '../hooks/usePageBounds';
 import { useClientesQuery } from '../api/queries/clientes.queries';
 import { useDeleteClienteMutation } from '../api/mutations/clientes.mutations';
 import { useAuth } from '../store/auth.store';
 import type { Cliente } from '../types';
 
+const CLIENTE_SORT_OPTIONS = [
+  { value: 'nombre,asc', label: 'Nombre A-Z' },
+  { value: 'nombre,desc', label: 'Nombre Z-A' },
+  { value: 'apellido,asc', label: 'Apellido A-Z' },
+  { value: 'id,desc', label: 'Más recientes' },
+];
+
+const CLIENTE_LIST_PARAMS = {
+  size: 20,
+  defaultSort: 'nombre,asc',
+  allowedSorts: CLIENTE_SORT_OPTIONS.map(({ value }) => value),
+} satisfies UseListParamsOptions;
+
 export const ClientesPage = () => {
-  const { q, onSearch, page, setPage, debouncedQ, size, sort, setSort } = useListParams(20, 'nombre,asc');
+  const { q, onSearch, page, setPage, debouncedQ, size, sort, setSort } = useListParams(CLIENTE_LIST_PARAMS);
   const { data, isLoading, isError, isFetching, isPlaceholderData, refetch } = useClientesQuery({ q: debouncedQ, page, size, sort });
   const { isAdmin } = useAuth();
   const deleteMutation = useDeleteClienteMutation();
@@ -80,12 +93,7 @@ export const ClientesPage = () => {
           <SortSelect
             value={sort}
             onChange={setSort}
-            options={[
-              { value: 'nombre,asc', label: 'Nombre A-Z' },
-              { value: 'nombre,desc', label: 'Nombre Z-A' },
-              { value: 'apellido,asc', label: 'Apellido A-Z' },
-              { value: 'id,desc', label: 'Más recientes' },
-            ]}
+            options={CLIENTE_SORT_OPTIONS}
           />
           <button type="button" className={`${btnPrimary} ml-auto`} onClick={openNew}>
             <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">

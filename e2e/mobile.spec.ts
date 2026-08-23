@@ -239,9 +239,23 @@ const expectMobileDialog = async (page: Page, { title, cta }: DialogAudit) => {
   return dialog;
 };
 
-const closeDialog = async (dialog: Locator) => {
+const closeDialog = async (dialog: Locator, expectDiscard = false) => {
+  const page = dialog.page();
+  const baseLayer = page.locator('[data-modal-layer="base"]');
+  const discardDialog = page.getByRole('dialog', {
+    name: '¿Descartar los cambios?',
+    exact: true,
+  });
+
   await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
-  await expect(dialog).toBeHidden();
+
+  if (expectDiscard) {
+    await expect(discardDialog).toBeVisible();
+    await discardDialog.getByRole('button', { name: 'Descartar cambios', exact: true }).click();
+  }
+
+  await expect(discardDialog).toHaveCount(0);
+  await expect(baseLayer).toHaveCount(0);
 };
 
 const openAuditAndClose = async (page: Page, trigger: Locator, audit: DialogAudit) => {
@@ -272,7 +286,7 @@ test('smoke móvil: todos los formularios críticos respetan viewport, controles
     await dialog.getByLabel(/^cliente/i).click();
     await dialog.getByRole('option', { name: /ana gómez/i }).click();
     await expectMobileDialog(page, { title: 'Nuevo equipo', cta: 'Crear equipo' });
-    await closeDialog(dialog);
+    await closeDialog(dialog, true);
   });
 
   await test.step('Artículo y ajuste de stock', async () => {
@@ -475,8 +489,7 @@ test('combobox remoto: pagina dentro del modal y restaura el foco al cerrar', as
   await expect(trigger).toBeFocused();
   await expect(dialog).toBeVisible();
 
-  await page.keyboard.press('Escape');
-  await expect(dialog).toBeHidden();
+  await closeDialog(dialog, true);
 });
 
 test('listados: búsquedas usables y páginas sin overflow', async ({ page, context }) => {

@@ -281,7 +281,7 @@ hardening. No autoriza publicación ni reemplaza los smokes remotos de las fases
 Completada el 2026-08-23 antes de iniciar la integración legal, porque el backend permitía crear o
 promover un segundo `ADMIN` aunque el diseño aprobado define un titular único y empleados `USER`.
 
-- Repositorio: `/Volumes/DiscoExtern/Desktop/mvrg-backend`.
+- Repositorio hermano backend: `mvrg-backend`.
 - Rama local: `codex/lanzamiento-publico-backend`.
 - Commit local: `c94d334 fix(usuarios): garantiza un titular admin por taller`.
 - Documento propietario:
@@ -303,7 +303,71 @@ promover un segundo `ADMIN` aunque el diseño aprobado define un titular único 
   o con Docker antes de desplegar V26.
 - No se hizo push.
 
-## Tarea 3 / Fase 2.1 — Modelar documentos y requisitos legales remotos
+## Fase 2.1 — Congelar el contrato legal del backend
+
+### Estado
+
+Completada el 2026-08-23 como fase exclusivamente contractual. No crea tablas, controllers,
+allowlists, seeds ni UI y, por lo tanto, los endpoints todavía no están disponibles en runtime.
+
+- Repositorio hermano backend: `mvrg-backend`.
+- Rama local: `codex/lanzamiento-publico-backend`.
+- Documento de decisiones:
+  `docs/plans/2026-08-23-legal-api-contract-v1-design.md` dentro del backend.
+- Fuente normativa del wire: sección 4.1.a de `FRONTEND_INTEGRATION.md` dentro del backend.
+- Se conserva `ADMIN`/`ROLE_ADMIN` como representación wire del titular único; `ADMIN_TITULAR` es
+  audiencia legal interna y no un claim nuevo.
+- Se agregó al contrato `GET /api/aceptaciones-legales`, porque la matriz de permisos ya prometía
+  consultar evidencia propia pero el handoff original sólo definía el POST.
+- El catálogo público descubre versiones vigentes e históricas. Un documento exacto `VIGENTE`
+  revalida su estado; el catálogo pagina resúmenes sin Markdown y sólo
+  `REEMPLAZADA`/`RETIRADA`, que son terminales, usan caché `immutable`.
+- El estado documental es global: versiones vigentes de un tipo+locale no solapan contextos y el
+  reemplazo multicontexto debe cubrirlos todos transaccionalmente; un retiro explícito puede dejar
+  un hueco y hace fallar cerrado cualquier set afectado.
+- `requiresReacceptance` de requisito y documentos se combina con OR sobre todas las versiones
+  intermedias de sus keys estables. Un carry-forward editorial sólo satisface el cálculo de
+  pendientes: no fabrica una aceptación ni una fecha, y el frontend no intenta inferirlo.
+- `requiredSetRevision` y `documentSetRevision` son opacos para el cliente, con formato servidor
+  `sha256:<hex>` y ETag correspondiente.
+- Registro y aceptación usan el header exacto `Idempotency-Key`; un replay de registro emite un JWT
+  nuevo sin persistir contraseña, body o token.
+- `409 DOCUMENTOS_LEGALES_DESACTUALIZADOS`, `428 ACEPTACION_LEGAL_REQUERIDA` y los errores de
+  validación/fail-closed tienen `details` tipados.
+- Una operación legal concurrente espera hasta cinco segundos y luego usa
+  `409 IDEMPOTENCY_EN_PROGRESO` + `Retry-After: 1` si todavía no terminó.
+- La implementación backend debe exponer por CORS `Retry-After`, `X-RateLimit-Limit` y
+  `X-RateLimit-Remaining` además de `Authorization`; hoy `CorsConfig` no permite que Axios los lea.
+
+### Efecto sobre la integración frontend
+
+- Los tipos mínimos siguientes continúan vigentes, pero sus envelopes exactos se toman del contrato
+  backend y no de ejemplos abreviados de este plan.
+- La lectura de aceptaciones propias forma parte de la integración.
+- Requisitos y aceptaciones autenticados no pueden heredar el `staleTime` global: usan
+  `staleTime: 0`, recolección inmediata o limpieza explícita y query keys ligadas a sesión.
+- `BACKEND-HANDOFF 1` todavía no está disponible en staging. La Fase 2.2 modela la persistencia
+  append-only; mini-fases backend posteriores exponen lectura/escritura con enforcement apagado antes
+  de conectar queries reales.
+- No se hizo push.
+
+## Fase 2.2 — Persistencia legal append-only del backend
+
+### Estado y alcance siguiente
+
+Pendiente. Es la próxima mini-fase backend y queda limitada a:
+
+- diseño físico de publicaciones, keys estables, linajes y flags de reaceptación, versiones
+  documentales, requisitos, relaciones y evidencias;
+- idempotencia protegida y unicidades de negocio necesarias para no duplicar aceptaciones;
+- migración Flyway fail-closed y entidades/repositorios Java;
+- tests de migración PostgreSQL e invariantes de persistencia.
+
+No agrega controllers, allowlists públicas, importador operativo, seed, enforcement, `428` ni UI. La
+lectura HTTP, la escritura/registro atómico y la activación gradual se mantienen como cortes backend
+posteriores para que ninguna fase mezcle demasiados riesgos.
+
+## Tarea 3 — Modelar documentos y requisitos legales remotos
 
 ### Dependencia
 
@@ -316,29 +380,78 @@ promover un segundo `ADMIN` aunque el diseño aprobado define un titular único 
 - Crear `src/api/mutations/legal.mutations.ts`.
 - Modificar `src/api/queryKeys.ts`.
 - Modificar `src/api/errors.ts` si hace falta un helper de details tipado.
+- Integrar `GET /api/aceptaciones-legales` para la evidencia propia.
 - Crear pruebas junto a queries y mutations.
 
 ### Tipos mínimos
 
 ```ts
+type LocaleLegal = 'es-AR';
 type TipoActoLegal = 'ACEPTACION' | 'LECTURA' | 'DECLARACION';
 type EstadoDocumentoLegal = 'VIGENTE' | 'REEMPLAZADA' | 'RETIRADA';
+type ContextoLegal =
+  | 'REGISTRO'
+  | 'PRIMER_INGRESO_EMPLEADO'
+  | 'USO_CONTINUADO'
+  | 'CONTRATACION_PRO'
+  | 'ATESTACION_FOTOS'
+  | 'ATESTACION_CREDENCIALES'
+  | 'CIERRE_CUENTA'
+  | 'ARREPENTIMIENTO';
+type TipoDocumentoLegal =
+  | 'TERMINOS_SERVICIO'
+  | 'POLITICA_PRIVACIDAD'
+  | 'ACUERDO_TRATAMIENTO_DATOS'
+  | 'CONDICIONES_PRO'
+  | 'POLITICA_CANCELACIONES_REEMBOLSOS'
+  | 'POLITICA_CIERRE_CUENTA'
+  | 'AVISO_CLIENTES_TALLER'
+  | 'TERMINOS_USUARIO'
+  | 'AVISO_PRIVACIDAD_USUARIO'
+  | 'COMPROMISO_CONFIDENCIALIDAD'
+  | 'ATESTACION_DATOS_CLIENTE';
 
 interface DocumentoLegalVersion {
   id: string;
-  tipo: string;
+  tipo: TipoDocumentoLegal;
   version: string;
   titulo: string;
   contenidoMarkdown: string;
   sha256: string;
   vigenteDesde: string;
   estado: EstadoDocumentoLegal;
-  locale: 'es-AR';
+  locale: LocaleLegal;
+}
+
+interface DocumentoLegalResumen {
+  id: string;
+  tipo: TipoDocumentoLegal;
+  version: string;
+  titulo: string;
+  sha256: string;
+  vigenteDesde: string;
+  estado: EstadoDocumentoLegal;
+  locale: LocaleLegal;
+}
+
+interface PageMeta {
+  size: number;
+  number: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+interface DocumentosLegalesResponse {
+  contexto: ContextoLegal | null;
+  locale: LocaleLegal;
+  documentSetRevision: string;
+  documentos: DocumentoLegalResumen[];
+  page: PageMeta;
 }
 
 interface RequisitoLegalVersion {
   id: string;
-  contexto: string;
+  contexto: ContextoLegal;
   tipoActo: TipoActoLegal;
   afirmacion: string;
   afirmacionSha256: string;
@@ -346,31 +459,97 @@ interface RequisitoLegalVersion {
   requerido: boolean;
 }
 
-interface RequisitosLegalesResponse {
+interface RequisitosLegalesPublicosResponse {
+  contexto: ContextoLegal;
+  locale: LocaleLegal;
   requiredSetRevision: string;
   requisitos: RequisitoLegalVersion[];
 }
+
+interface RequisitosLegalesPendientesResponse {
+  locale: LocaleLegal;
+  requiredSetRevision: string;
+  requisitos: RequisitoLegalVersion[];
+}
+
+interface AceptacionLegalInput {
+  requisitoVersionId: string;
+  tipoActo: TipoActoLegal;
+  afirmacionSha256: string;
+  documentos: Array<{ documentoVersionId: string; sha256: string }>;
+  confirmado: true;
+}
+
+interface AceptacionesLegalesRequest {
+  requiredSetRevision: string;
+  aceptacionesLegales: AceptacionLegalInput[];
+}
+
+interface AceptacionLegalResponse {
+  id: string;
+  requisitoVersionId: string;
+  contexto: ContextoLegal;
+  tipoActo: TipoActoLegal;
+  afirmacion: string;
+  afirmacionSha256: string;
+  documentos: Array<{
+    documentoVersionId: string;
+    tipo: TipoDocumentoLegal;
+    version: string;
+    titulo: string;
+    sha256: string;
+  }>;
+  aceptadoEn: string;
+}
+
+interface AceptacionesLegalesPage {
+  content: AceptacionLegalResponse[];
+  page: PageMeta;
+}
 ```
 
-`PUBLICADA` es un estado editorial backend previo a `vigenteDesde` y no se expone en la API pública. Si el backend decide devolverlo a usuarios autenticados, se agrega al union y se muestra como “todavía no vigente”; nunca puede aceptarse anticipadamente.
+`BORRADOR` y `PUBLICADA` son estados editoriales backend y no se exponen en ninguna API consumidora
+v1, ni pública ni autenticada. Nunca pueden presentarse o aceptarse anticipadamente.
 
 ### Implementación
 
 1. Separar queries públicas de las autenticadas.
-2. Delegar ETag/revalidación al caché HTTP del navegador mediante headers del servidor; no enviar manualmente `If-None-Match`, porque Axios trata un `304` sin body como respuesta no exitosa salvo configuración/caché adicional.
-3. No persistir contenido legal en `localStorage`.
-4. Conservar versiones históricas únicamente en caché de memoria.
-5. Validar forma mínima del contrato antes de habilitar aceptación.
-6. Un documento vacío, sin digest o sin versión se trata como contrato incompleto.
-7. Las versiones inmutables pueden usar caché pública por digest; el manifiesto vigente usa ETag; requisitos autenticados y aceptaciones usan `private, no-store`.
+2. Paginar el catálogo de resúmenes; solicitar Markdown únicamente al abrir la versión exacta por
+   UUID. El backend no devuelve `href`; la query arma `/public/documentos-legales/{id}` sobre el
+   cliente cuya base ya termina en `/api`.
+3. Delegar ETag/revalidación al caché HTTP del navegador mediante headers del servidor; no enviar manualmente `If-None-Match`, porque Axios trata un `304` sin body como respuesta no exitosa salvo configuración/caché adicional.
+4. No persistir contenido legal en `localStorage`.
+5. Conservar versiones históricas únicamente en caché de memoria.
+6. Validar forma mínima del contrato antes de habilitar aceptación.
+7. Un documento vacío, sin digest o sin versión se trata como contrato incompleto.
+8. Catálogo, requisitos públicos y documento exacto `VIGENTE` revalidan con ETag; requisitos
+   autenticados y aceptaciones usan `private, no-store`.
+9. Un documento exacto todavía `VIGENTE` se revalida porque su estado puede cambiar; sólo los estados
+   terminales `REEMPLAZADA` y `RETIRADA` son `immutable`.
+10. Las queries autenticadas legales usan `staleTime: 0`, no heredan el default global y se purgan al
+   cambiar sesión o tenant.
+11. Tratar `GET /api/requisitos-legales` como la decisión autoritativa de pendientes. El frontend no
+    recibe `requiresReacceptance` ni intenta heredar aceptaciones comparando versiones o digests.
+12. La mutación conserva un objeto de intento inmutable con la misma `Idempotency-Key` y el mismo
+    payload. Ante `409 IDEMPOTENCY_EN_PROGRESO`, respeta `Retry-After: 1` y hace reintentos acotados
+    con ese intento exacto; nunca rota la clave, reconstruye el body ni lo trata como conflicto
+    definitivo. Si agota la espera, muestra estado “procesando” y permite reintentar el mismo intento
+    o refetchear, sin habilitar un submit nuevo accidental.
+13. Verificar en un smoke CORS real que Axios puede leer `Retry-After` y `X-RateLimit-*`; no intentar
+    leer ni gestionar `ETag` desde JavaScript.
 
 ### Pruebas
 
 - Conjunto vigente válido.
+- Catálogo paginado devuelve resúmenes sin Markdown y la apertura consulta el UUID exacto.
 - Documento histórico visible con advertencia.
 - Revalidación repetida conserva el contenido; un smoke HTTP del deployment confirma ETag/304 real.
 - Documento incompleto bloquea aceptación.
 - `409 DOCUMENTOS_LEGALES_DESACTUALIZADOS` expone el nuevo conjunto sin perder el formulario consumidor.
+- `409 IDEMPOTENCY_EN_PROGRESO` respeta `Retry-After`, conserva key/payload entre reintentos y un
+  replay exitoso no duplica evidencia.
+- El smoke cross-origin expone los headers de retry/rate limit y deja la revalidación ETag al
+  navegador.
 
 ### Commit frontend
 
@@ -382,7 +561,8 @@ feat(legal): integra documentos y requisitos versionados
 
 ### Dependencias
 
-- Tareas 3 y 4.
+- Tarea 3.
+- `BACKEND-HANDOFF 1` disponible en staging.
 - Instalar `react-markdown` y actualizar lockfile.
 
 ### Archivos frontend
@@ -490,6 +670,13 @@ feat(legal): enlaza privacidad en superficies públicas
 - Tarea 3.
 - `BACKEND-HANDOFF 2` disponible en staging.
 
+Este corte implementa estado, aceptación y logout. Las demás vías de salida se conectan por
+capacidad sólo cuando existen sus pares backend/frontend: baja personal (`BACKEND-HANDOFF 3` y
+Tareas 8/14), cancelación PRO (`BACKEND-HANDOFF 6` y Tarea 12), baja/revisión
+(`BACKEND-HANDOFF 7` y Tarea 13), exportación (`BACKEND-HANDOFF 8` y Tarea 15) y
+cierre/supresión (`BACKEND-HANDOFF 9` y Tarea 16). La ausencia de esas dependencias no se disfraza
+con botones inertes ni llamadas legacy.
+
 ### Archivos frontend
 
 - Ampliar `src/types/index.ts` o crear `src/account/account.types.ts`.
@@ -517,11 +704,23 @@ feat(legal): enlaza privacidad en superficies públicas
 6. `CIERRE_PROGRAMADO` monta estado, exportación disponible, restauración y logout.
 7. `ELIMINACION_EN_PROCESO` muestra referencia, contacto y logout, sin prometer recuperación.
 8. Un `423` o `428` no dispara logout, toast global ni error de suscripción.
-9. Definir allowlists explícitas para `423` y `428`, incluyendo `/cuenta/reauthenticaciones`, documentos, requisitos, aceptaciones, estado, archivo permitido, revocación y logout según el estado.
+9. Definir allowlists exactas de método y ruta para `423` y `428`, incluyendo
+   `/cuenta/reauthenticaciones`, documentos, requisitos, aceptaciones, estado, archivo permitido,
+   revocación y logout según el estado. Bajo `428` también deben quedar disponibles las rutas
+   aplicables para cancelar renovación/suscripción, pedir baja personal o del servicio,
+   iniciar/consultar/descargar una exportación, cerrar la cuenta y solicitar supresión; la excepción
+   no saltea autorización, tenant ni reautenticación y nunca usa wildcards. La UI muestra cada
+   salida sólo si su capacidad compatible está disponible para el rol actual.
 10. `/cuenta/estado` o `/perfil` expone `emailVerificado` autoritativo; no se toman decisiones sensibles desde el snapshot persistido del login.
 11. Cambio de cuenta o logout limpia account/legal/export queries.
 12. La aceptación autenticada envía evidencias/idempotencia, refresca `/cuenta/estado` y sólo libera perfil/suscripción al recibir `ACTIVA`.
-13. Ante `409`, refrescar requisitos y conservar la sesión restringida; la única salida alternativa es logout.
+13. Ante `409`, refrescar requisitos y conservar la sesión restringida; el usuario puede aceptar,
+    cerrar sesión o usar una vía de salida/derecho permitida, pero no entrar a la operación del
+    taller.
+14. Mantener apagado el enforcement `428` de producción hasta que las vías de salida y derechos
+    comprometidas para el lanzamiento estén implementadas, allowlisteadas y verificadas por rol. Las
+    rutas legacy pueden quedar exceptuadas en backend para no bloquear clientes directos, pero este
+    frontend no usa la cancelación inmediata ni el Excel sin reautenticación como sustitutos.
 
 ### Pruebas
 
@@ -534,6 +733,8 @@ feat(legal): enlaza privacidad en superficies públicas
 - `428` monta reaceptación sin logout ni loop.
 - USER y ADMIN ven requisitos distintos; aceptar continúa a la URL originalmente solicitada.
 - `409` no libera el gate y un documento fallido bloquea submit.
+- Una capacidad diferida ausente no muestra un CTA roto y el readiness impide activar `428` sin las
+  salidas compatibles del lanzamiento.
 - Verificar email en otra pestaña y refetch actualiza el permiso sin volver a iniciar sesión.
 - Segundo tenant no reutiliza estado restringido del primero.
 
@@ -569,15 +770,21 @@ feat(cuenta): protege estados de cierre y recuperación
    - representación del taller/tratamiento de datos.
 3. Cada fila puede agrupar actos distintos sólo si backend entrega un requisito versionado que conserva la afirmación exacta.
 4. Abrir el documento en una capa full-screen reutilizando `Modal`, manteniendo el formulario montado.
-5. No persistir la contraseña fuera de React Hook Form.
+5. No persistir la contraseña fuera de React Hook Form y del snapshot transitorio del request activo
+   en memoria. Nunca llevarla a localStorage, query cache, logs o telemetría; bloquear edición del
+   form mientras ese intento puede reintentarse.
 6. Enviar `requiredSetRevision`, requisitos, digests y `Idempotency-Key`.
 7. En `409 DOCUMENTOS_LEGALES_DESACTUALIZADOS`:
    - conservar datos personales y contraseña en memoria;
    - refrescar requisitos;
    - desmarcar únicamente requisitos reemplazados;
    - mover foco al aviso.
-8. Documento o requisito incompleto bloquea el registro.
-9. La cuenta, taller y evidencias deben quedar creados atómicamente por backend.
+8. En `409 IDEMPOTENCY_EN_PROGRESO`, respetar `Retry-After: 1` y reintentar de forma acotada con la
+   misma key y el mismo snapshot de payload/contraseña en memoria. No generar otra key, no reconstruir
+   el request desde campos que pudieron cambiar y no convertirlo en “email ya registrado”; el replay
+   exitoso recibe el JWT nuevo del backend.
+9. Documento o requisito incompleto bloquea el registro.
+10. La cuenta, taller y evidencias deben quedar creados atómicamente por backend.
 
 ### Pruebas
 
@@ -588,6 +795,8 @@ feat(cuenta): protege estados de cierre y recuperación
 - Body exacto y sin token antiguo.
 - Doble click conserva una sola clave e intento.
 - `409` mantiene campos y exige nueva aceptación.
+- `409 IDEMPOTENCY_EN_PROGRESO` espera y reintenta la misma key/payload; si el alta original hizo
+  commit, el replay termina autenticando sin crear otra cuenta.
 - Error de documentos no cae a un texto local.
 
 ### Commit frontend
@@ -632,7 +841,9 @@ feat(auth): registra aceptación legal versionada
 - No puede crear otro ADMIN.
 - Token válido, vencido, usado y revocado.
 - Email verificado antes de la aceptación.
-- Primer login con `428` sólo permite aceptar o salir.
+- Primer login de `USER` con `428` bloquea la operación, pero permite aceptar, cerrar sesión, pedir
+  la baja de su propio acceso y usar el canal de derechos sobre sus datos personales. No muestra ni
+  autoriza exportación integral, cancelación PRO o cierre del taller; esos intentos conservan `403`.
 
 ### Commit frontend
 
@@ -1078,7 +1289,9 @@ feat(cuenta): implementa cierre recuperable del taller
 4. Actualizar React Router/Vite/esbuild/postcss/nanoid según advisories y ejecutar regresión.
 5. Revisar si Sentry necesita email crudo. Preferir ID interno pseudónimo; si se conserva email, documentarlo en Privacidad y limitar acceso/retención.
 6. Agregar release/environment y source maps únicamente con token de CI seguro.
-7. Confirmar políticas diferenciadas: versiones legales inmutables cacheables por digest, manifiesto vigente revalidado con ETag, requisitos autenticados privados y exportaciones `private, no-store`.
+7. Confirmar políticas diferenciadas: catálogo y documento exacto `VIGENTE` revalidados con ETag;
+   documentos terminales `REEMPLAZADA`/`RETIRADA` cacheables como `immutable`; requisitos
+   autenticados privados y exportaciones `private, no-store`.
 
 ### Pruebas
 
@@ -1168,6 +1381,8 @@ No se permite `GO` con:
 - backups/restauración no probados;
 - solicitudes legales sin referencia;
 - cuenta en cierre sin camino de recuperación.
+- enforcement `428` capaz de bloquear una vía aplicable de baja, cancelación, exportación, cierre
+  o supresión para el rol actual.
 
 ### Verificación
 
@@ -1187,15 +1402,23 @@ docs(release): agrega readiness y runbook publico
 
 El chat Java debe implementar y probar:
 
-- versiones inmutables y ciclo `BORRADOR/PUBLICADA/VIGENTE/REEMPLAZADA/RETIRADA`;
-- unicidad vigente por tipo/locale/contexto;
+- versiones inmutables y ciclo
+  `BORRADOR → PUBLICADA → VIGENTE → REEMPLAZADA | RETIRADA`, con estados históricos terminales;
+- unicidad vigente por tipo/locale/contexto; `REEMPLAZADA` exige cobertura completa y `RETIRADA`
+  permite sólo un hueco explícito/auditado que hace fallar cerrado los sets afectados;
+- keys estables y linaje completo de requisitos/documentos; `requiresReacceptance` se evalúa con OR
+  sobre todas las versiones intermedias, y el carry-forward editorial no inserta evidencia ficticia;
 - `requiredSetRevision` y ETag;
 - requisitos versionados con afirmación y `tipoActo`;
-- endpoints públicos/autenticados del diseño;
+- endpoints públicos/autenticados del contrato congelado, incluido historial propio por
+  `GET /api/aceptaciones-legales`;
 - registro atómico de taller, usuario y evidencias;
 - `409 DOCUMENTOS_LEGALES_DESACTUALIZADOS`;
+- `409 IDEMPOTENCY_EN_PROGRESO` con `Retry-After` y replay de la misma key/payload;
+- CORS expone `Retry-After`, `X-RateLimit-Limit` y `X-RateLimit-Remaining` sin requerir que el
+  frontend lea `ETag`;
 - `428 ACEPTACION_LEGAL_REQUERIDA`;
-- auditoría append-only sin secretos.
+- auditoría append-only sin secretos;
 - comando/CLI o import de operación para dry-run, publicar, promover y retirar el manifiesto legal aprobado;
 - seed inicial de staging y producción con tipo, locale, contexto, versión, `vigenteDesde`, contenido y digest, sin editar versiones existentes.
 
@@ -1205,7 +1428,12 @@ El chat Java debe implementar y probar:
 - estados y acciones permitidas;
 - `emailVerificado` autoritativo y enforcement backend para acciones sensibles;
 - sesión restringida bajo `423`/`428`;
-- allowlists para documentos, aceptación, cierre, exportación, restauración, `/cuenta/reauthenticaciones` con propósitos permitidos y logout;
+- allowlists exactas para documentos, aceptación, cancelación de renovación/suscripción, baja
+  personal o del servicio, cierre, exportación, supresión, restauración,
+  `/cuenta/reauthenticaciones` con propósitos permitidos y logout; las excepciones al `428`
+  conservan autorización y reautenticación propias;
+- enforcement `428` apagado hasta que las vías de salida/derechos comprometidas para producción
+  existan, estén allowlisteadas por método+ruta y pasen pruebas por rol;
 - `/perfil` y `/suscripcion` no son requisitos para recuperar una cuenta y pueden permanecer bloqueados mientras el frontend no los solicite;
 - invalidación tenant-safe de sesiones.
 

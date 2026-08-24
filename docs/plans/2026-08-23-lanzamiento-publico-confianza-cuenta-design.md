@@ -224,7 +224,22 @@ Cada versión publicada contiene como mínimo:
 
 Las versiones históricas aceptadas continúan disponibles para consulta.
 
-El ciclo documental usa `BORRADOR → PUBLICADA/VIGENTE → REEMPLAZADA | RETIRADA`. Sólo puede existir una versión vigente por tipo, locale y contexto. El conjunto exigido expone `requiredSetRevision` y `ETag` para detectar cambios sin confiar en el reloj del cliente.
+El ciclo documental usa `BORRADOR → PUBLICADA → VIGENTE → REEMPLAZADA | RETIRADA`; los dos últimos
+estados son terminales. Sólo puede existir una versión vigente por tipo, locale y contexto. El
+conjunto exigido expone `requiredSetRevision` y `ETag` para detectar cambios sin confiar en el reloj
+del cliente.
+
+Una versión multicontexto pasa a `REEMPLAZADA` sólo si sus sucesoras cubren todos sus contextos sin
+solapamientos. `RETIRADA` es una salida explícita y auditada que puede dejar un hueco deliberado; los
+requisitos afectados fallan cerrado hasta publicar una sucesora.
+
+`requiresReacceptance` existe tanto en documentos como en requisitos y el backend los combina con
+OR a través de toda la línea de versiones. Una aceptación previa sólo satisface una edición posterior
+si conserva el mismo key estable de requisito, todos los documentos actuales conservan keys ya
+evidenciados y ninguna versión intermedia marca reaceptación. Un `true`, key nuevo o documento
+agregado exige un acto nuevo. El carry-forward editorial no crea una aceptación ni una fecha
+ficticias: el historial conserva exclusivamente la evidencia real. El frontend no calcula esta
+herencia ni recibe los flags; confía en los requisitos pendientes resueltos por backend.
 
 La evidencia no registra únicamente documentos. Cada checkbox o acción se representa mediante un **requisito legal versionado** con:
 
@@ -320,11 +335,19 @@ Al iniciar sesión por primera vez, o cuando exista una actualización material,
 - el compromiso de confidencialidad;
 - los enlaces a los documentos completos.
 
-El empleado puede aceptar o cerrar sesión. No puede operar hasta completar el requisito. Una corrección editorial que no marque `requiereNuevaAceptacion` no vuelve a bloquearlo.
+El empleado puede aceptar, cerrar sesión, pedir la baja de su propio acceso y ejercer los derechos
+de datos que le correspondan. No puede operar sobre reparaciones ni recursos del taller hasta
+completar el requisito. Una corrección editorial que no marque `requiereNuevaAceptacion` no vuelve a
+bloquearlo.
 
 Cada empleado puede solicitar la baja de su propio acceso o encontrar un canal claro para pedirla al administrador/privacidad. Esa acción desactiva únicamente su usuario y sesiones; nunca cierra ni elimina el taller completo.
 
-Bajo `428 ACEPTACION_LEGAL_REQUERIDA`, la sesión sigue permitiendo exclusivamente documentos públicos, requisitos actuales, registro de aceptación, verificación de email y logout. El gate no puede bloquear los endpoints necesarios para resolver su propio estado.
+Bajo `428 ACEPTACION_LEGAL_REQUERIDA`, la sesión sigue permitiendo documentos públicos, requisitos
+actuales, lectura y registro de aceptaciones propias, verificación de email y logout. También
+conserva las vías aplicables para rechazar el nuevo contrato: cancelar renovación/suscripción,
+pedir la baja personal o del servicio, exportar, cerrar la cuenta y solicitar supresión. La
+excepción al gate no elimina los controles normales de rol, tenant, autenticación o
+reautenticación, ni habilita la operación cotidiana del taller.
 
 ## Fotos, PIN y patrón
 
@@ -563,7 +586,10 @@ La página no expone fotos, PIN, patrón, notas internas ni datos de otros clien
 
 ## Contrato API para handoff
 
-Los nombres son una propuesta estable para coordinar ambos repositorios. El chat del backend debe validarlos contra sus convenciones antes de implementar.
+Los nombres siguientes originaron el handoff. La Fase 2.1 los validó y completó el 2026-08-23; la
+fuente normativa exacta pasó a ser `FRONTEND_INTEGRATION.md` §4.1.a y
+`docs/plans/2026-08-23-legal-api-contract-v1-design.md` del repositorio backend. Ante una diferencia,
+el contrato backend congelado prevalece sobre este resumen histórico.
 
 ### Documentos y aceptaciones
 
@@ -572,32 +598,15 @@ GET  /api/public/documentos-legales?contexto=REGISTRO&locale=es-AR
 GET  /api/public/documentos-legales/{versionId}
 GET  /api/public/requisitos-legales?contexto=REGISTRO&locale=es-AR
 GET  /api/requisitos-legales
+GET  /api/aceptaciones-legales?page=0&size=20
 POST /api/aceptaciones-legales
 ```
 
-El registro incluye:
-
-```json
-{
-  "requiredSetRevision": "registro-es-AR-r7",
-  "aceptacionesLegales": [
-    {
-      "requisitoVersionId": "uuid",
-      "tipoActo": "ACEPTACION",
-      "afirmacionSha256": "sha256-hex",
-      "documentos": [
-        {
-          "documentoVersionId": "uuid",
-          "sha256": "sha256-hex"
-        }
-      ],
-      "confirmado": true
-    }
-  ]
-}
-```
-
-El backend usa su reloj y registra requisito, afirmación exacta, acto, documentos y digests en la misma transacción que usuario y taller.
+El registro agrega `requiredSetRevision` con formato opaco `sha256:<64-hex>`,
+`aceptacionesLegales` con los IDs/digests exactos e `Idempotency-Key`. Los digests de documento y
+afirmación son 64 hex minúsculas sin prefijo. El body, envelopes, errores y headers exactos no se
+duplican aquí: se toman del contrato backend. El backend usa su reloj y registra requisito,
+afirmación exacta, acto, documentos y digests en la misma transacción que usuario y taller.
 
 ### Atestación sensible
 
@@ -744,13 +753,21 @@ El endpoint sensible consume esa credencial mediante `X-Reauth-Token`. El token 
 
 Registro, aceptaciones, atestaciones/intenciones sensibles, checkout, cancelaciones, revocaciones, exportaciones, arrepentimientos, reembolsos y cierre usan `Idempotency-Key` UUID.
 
-- misma clave y mismo payload: devuelve la respuesta original;
-- misma clave y payload distinto: `409 IDEMPOTENCY_KEY_REUTILIZADA`;
+- misma clave y mismo fingerprint: devuelve el mismo resultado semántico sin repetir efectos;
+- si una operación existente usa la misma clave con otro payload:
+  `409 IDEMPOTENCY_KEY_REUTILIZADA`;
+- el replay de registro verifica nuevamente la contraseña y emite un JWT nuevo; nunca persiste ni
+  reproduce el body, contraseña o token original, y queda sujeto al estado actual de login/cuenta;
+- en el contrato legal, una operación concurrente espera hasta cinco segundos y después responde
+  `409 IDEMPOTENCY_EN_PROGRESO` con `Retry-After: 1`; otros recursos deben congelar su política en su
+  propio handoff;
 - repetir una creación `202` devuelve el mismo recurso y encabezado `Location`; el estado actual se consulta mediante `GET`;
 - para invitaciones, verificaciones y reautenticación, backend resuelve primero un replay por misma clave/fingerprint y recién después valida si el token de un solo uso fue consumido; una clave distinta con token ya usado falla;
 - el fingerprint incluye método, ruta normalizada, actor/tenant y payload canónico;
-- registro y endpoints públicos usan email o challenge verificado como scope sin permitir enumeración;
-- el backend conserva sólo el hash de la clave durante un plazo documentado que cubre toda la ventana de reintento;
+- el registro legal usa método + plantilla de ruta + clave aleatoria global; otros endpoints públicos
+  usan el challenge/actor definido por su contrato sin permitir enumeración;
+- el backend conserva sólo HMAC/fingerprint protegido durante un plazo documentado que cubre toda la
+  ventana de reintento;
 - además de la clave técnica existe unicidad de negocio: un cierre activo por taller, una cancelación activa por suscripción y una gestión activa equivalente por pago/motivo.
 
 Una intención de foto todavía utilizable conserva su clave durante reintentos. Si quedó `EXPIRADA` o `FALLIDA`, el usuario inicia una intención lógica nueva con una clave nueva; reutilizar la anterior sólo reproduce el recurso terminal original.
@@ -825,7 +842,11 @@ Nunca se registran:
 
 Los datos técnicos como IP y User-Agent, si se conservan como evidencia, deben minimizarse, protegerse y tener una política de retención documentada.
 
-Las versiones legales inmutables pueden usar caché pública por contenido/digest. El manifiesto de versión vigente se revalida con ETag. Requisitos autenticados, aceptaciones, gestiones, cuenta y exportaciones usan caché privada o `no-store` según sensibilidad; un archivo de exportación siempre usa `private, no-store`.
+El catálogo y un documento exacto todavía `VIGENTE` se revalidan con ETag porque su estado puede
+cambiar. Sólo documentos `REEMPLAZADA`/`RETIRADA`, que son terminales, usan caché pública
+`immutable`. Requisitos autenticados, aceptaciones, gestiones, cuenta y exportaciones usan caché
+privada o `no-store` según sensibilidad; un archivo de exportación siempre usa
+`private, no-store`.
 
 ## Estados de error y recuperación
 

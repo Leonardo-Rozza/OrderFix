@@ -298,9 +298,9 @@ promover un segundo `ADMIN` aunque el diseño aprobado define un titular único 
 - La suite rápida ejecutó 185 pruebas: 184 pasaron y una prueba preexistente produjo un falso positivo
   al encontrar el PIN de fixture `7391` dentro de los microsegundos de un timestamp. No se mezcló esa
   corrección con esta fase.
-- `PostgresMigrationIT` quedó ampliado para probar esquema final y upgrades V25 → V26 incompatibles;
-  no pudo ejecutarse localmente porque Docker/Testcontainers no estaba disponible. Debe correr en CI
-  o con Docker antes de desplegar V26.
+- El bloqueo ambiental de `PostgresMigrationIT` quedó despejado durante la Fase 2.2: sus siete casos
+  pasaron sobre PostgreSQL/Testcontainers, incluidos los dos escenarios de V26 y el upgrade
+  V26 → V27 con preservación de usuarios y talleres.
 - No se hizo push.
 
 ## Fase 2.1 — Congelar el contrato legal del backend
@@ -346,26 +346,56 @@ allowlists, seeds ni UI y, por lo tanto, los endpoints todavía no están dispon
 - La lectura de aceptaciones propias forma parte de la integración.
 - Requisitos y aceptaciones autenticados no pueden heredar el `staleTime` global: usan
   `staleTime: 0`, recolección inmediata o limpieza explícita y query keys ligadas a sesión.
-- `BACKEND-HANDOFF 1` todavía no está disponible en staging. La Fase 2.2 modela la persistencia
-  append-only; mini-fases backend posteriores exponen lectura/escritura con enforcement apagado antes
-  de conectar queries reales.
+- `BACKEND-HANDOFF 1` todavía no está disponible en staging. La Fase 2.2 ya dejó implementada la
+  persistencia append-only; mini-fases backend posteriores deben importar/promover contenido y
+  exponer lectura/escritura con enforcement apagado antes de conectar queries reales.
 - No se hizo push.
 
 ## Fase 2.2 — Persistencia legal append-only del backend
 
-### Estado y alcance siguiente
+### Estado
 
-Pendiente. Es la próxima mini-fase backend y queda limitada a:
+Completada y verificada el 2026-08-23 como base interna de persistencia. No crea todavía una API
+consumible por el frontend.
 
-- diseño físico de publicaciones, keys estables, linajes y flags de reaceptación, versiones
-  documentales, requisitos, relaciones y evidencias;
-- idempotencia protegida y unicidades de negocio necesarias para no duplicar aceptaciones;
-- migración Flyway fail-closed y entidades/repositorios Java;
-- tests de migración PostgreSQL e invariantes de persistencia.
+- Repositorio hermano backend: `mvrg-backend`.
+- Rama local: `codex/lanzamiento-publico-backend`.
+- Commits locales:
+  - `8b4b7b1 feat(db): agrega persistencia legal append-only`;
+  - `984d108 feat(legal): mapea persistencia relacional`;
+  - `cbb5bf1 test(legal): cubre invariantes y concurrencia`;
+  - `e3df78a docs(legal): registra cierre fase 2.2`.
+- Documentos propietarios backend:
+  `docs/plans/2026-08-23-legal-persistence-append-only-design.md` y
+  `docs/plans/2026-08-23-legal-persistence-append-only-implementation.md`.
+- Flyway V27 agrega 25 tablas legales, 47 funciones `legal_*` y 77 triggers, sin datos semilla.
+- JPA agrega 25 entities, 20 repositorios y 7 proyecciones; Hibernate valida el esquema V27.
+- PostgreSQL protege el grafo editorial append-only, estados y slots, reemplazos split/merge,
+  snapshots, evidencia exacta, metadata cifrada purgable por tombstone e idempotencia.
+- Los timestamps críticos son autoritativos del servidor; las funciones fijan su `search_path`; los
+  protocolos con lock y relectura fallan cerrado fuera de `READ COMMITTED` y los sellos se
+  serializan antes de tomar locks de fila.
 
-No agrega controllers, allowlists públicas, importador operativo, seed, enforcement, `428` ni UI. La
-lectura HTTP, la escritura/registro atómico y la activación gradual se mantienen como cortes backend
-posteriores para que ninguna fase mezcle demasiados riesgos.
+### Verificación
+
+- `PostgresMigrationIT`: 7/7, desde cero, upgrade V26 → V27, schema personalizado y datos
+  preexistentes preservados.
+- `LegalPersistenceIT`: 9/9.
+- `LegalConcurrencyIT`: 7/7, incluidas carreras insert-vs-sello, sellos cruzados, orden de linaje y
+  reemplazos solapados.
+- `./mvnw verify`: 185 pruebas unitarias y 28 pruebas de integración, sin fallos ni errores.
+- No se hizo push.
+
+### Alcance siguiente
+
+Esta fase no agrega controllers, endpoints HTTP, allowlists públicas, importador operativo,
+contenido/seed legal, enforcement, `428`, cambios de registro/login, seguridad, CORS ni UI.
+`BACKEND-HANDOFF 1` sigue sin estar disponible en staging hasta implementar y desplegar las capas de
+lectura/escritura del contrato.
+
+El próximo minicorte backend es el importador/dry-run RFC 8785, sellado/promoción transaccional y
+readiness, todavía con enforcement apagado. Las APIs y la aceptación atómica continúan en cortes
+posteriores.
 
 ## Tarea 3 — Modelar documentos y requisitos legales remotos
 

@@ -393,9 +393,74 @@ contenido/seed legal, enforcement, `428`, cambios de registro/login, seguridad, 
 `BACKEND-HANDOFF 1` sigue sin estar disponible en staging hasta implementar y desplegar las capas de
 lectura/escritura del contrato.
 
-El próximo minicorte backend es el importador/dry-run RFC 8785, sellado/promoción transaccional y
-readiness, todavía con enforcement apagado. Las APIs y la aceptación atómica continúan en cortes
-posteriores.
+La validación estática, lectura confinada y canonicalización RFC 8785 se completaron después en la
+Fase 2.3A. El próximo minicorte pendiente es el dry-run JDBC transaccional; sellado/promoción,
+readiness, APIs y aceptación atómica continúan en cortes posteriores, todavía con enforcement
+apagado.
+
+## Fase 2.3A — Manifiesto legal v1 y paridad estática cross-repo
+
+### Estado
+
+Corte estático completado y verificado el 2026-08-24. Congela el artefacto que podrá consumir el
+importador, pero todavía no escribe en PostgreSQL ni habilita `BACKEND-HANDOFF 1`.
+
+- Backend local `mvrg-backend`, rama `codex/lanzamiento-publico-backend`:
+  - `b884b15 build(legal): congela schema y dependencias del manifiesto`;
+  - `d2a52d9 feat(legal): agrega parser estricto y canonicalizacion RFC 8785`;
+  - `dd6dfb5 feat(legal): confina fuentes y valida Markdown legal`;
+  - `1f26ca7 feat(legal): valida contrato y cobertura del release`;
+  - `a6cb9fd test(legal): actualiza handshake con mirror frontend`.
+- Frontend local, rama `codex/frontend-refactor-checkpoint`:
+  - `d38e276 fix(legal): alinea guard con contrato backend v1`.
+- No se hizo push en ninguno de los dos repositorios.
+
+### Contrato congelado
+
+- `publication-manifest.schema.json` es idéntico byte a byte: 10.547 bytes y SHA-256
+  `f7a4ee17f53f5ed3f2613d894fa3a4f46896dfaaec0c80dab055e4320f036f8b`.
+- El schema limita 128 documentos, 256 requisitos y 16 documentos por requisito, y comparte la
+  política reforzada de email público.
+- La fixture golden completa contiene 11 documentos y 6 requisitos obligatorios que cubren 8
+  scopes `contexto:rol`.
+- La cobertura se agrega entre requisitos `required=true`; los opcionales no acreditan cobertura,
+  pero sí vinculan documentos. Los tipos documentales repetidos son válidos si no colisionan key,
+  versión ni fuente.
+- El inventario hermético conserva 35 códigos frontend, excluye `CONTACT_MISMATCH` por ser sólo de
+  deploy y reserva `MANIFEST_DUPLICATE_DOCUMENT_TYPE` por compatibilidad histórica sin emitirlo.
+- Publisher, referencias profesionales, afirmaciones y documentos bloquean placeholders o marcas
+  editoriales fragmentadas con Markdown/Unicode.
+- Los documentos exigen texto canónico y digest exacto, primer H1 ATX visible/plano de hasta 300
+  code points, y bloquean HTML semántico, autolinks angle no permitidos y destinos activos incluso
+  en definiciones no usadas. Código inline/fenced permanece inerte.
+- El frontend usa `mdast-util-from-markdown` sólo en el guard de build; el backend conserva la
+  autoridad, su reader confinado, snapshots inmutables, parser estricto y canonicalización JCS.
+
+### Límites y frontera de seguridad
+
+El frontend comparte las reglas publicables y canonicales necesarias para bloquear un build
+incorrecto. El backend agrega límites autoritativos de bytes/profundidad/tokens/strings, Markdown
+por archivo y total, cantidad de issues, lectura sin symlinks y publicación por snapshot. El
+typestate validado evita que el camino normal publique un release no comprobado; no se presenta
+como defensa criptográfica frente a reflection ni elimina por sí solo todo TOCTOU del filesystem.
+El CUIT v1 valida formato, no checksum ni existencia fiscal.
+
+### Verificación
+
+- Backend: 91 tests enfocados del manifiesto y suite Maven completa de 497 tests, sin fallos,
+  errores ni skips.
+- Frontend: 82 archivos/498 tests Vitest y 42 tests del guard, todos aprobados.
+- Frontend: typecheck, ESLint, build local y `git diff --check`, aprobados.
+- Schema: comparación byte a byte, tamaño y hash aprobados.
+- Auditoría npm: permanece una alerta baja preexistente de `esbuild`, acotada al servidor de
+  desarrollo en Windows; no fue introducida por el parser Markdown ni se mezcló con este corte.
+
+### Alcance siguiente
+
+El Corte 5 debe ejecutar un dry-run JDBC transaccional contra la persistencia V27 y demostrar
+rollback sin residuos ante cualquier fallo. Después siguen la CLI/importación-promoción y el cierre
+regresivo del plan. Hasta desplegar además los cortes HTTP y de aceptación, la Tarea 3 no debe
+conectar queries reales y `BACKEND-HANDOFF 1` permanece no disponible en staging.
 
 ## Tarea 3 — Modelar documentos y requisitos legales remotos
 

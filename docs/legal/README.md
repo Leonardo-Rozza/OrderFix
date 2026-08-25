@@ -1,6 +1,8 @@
 # OrdenFix — documentos legales de lanzamiento
 
-Estado al 2026-08-23: **borradores editables; no aprobados para publicación ni cobro público**.
+Estado editorial al 2026-08-24: **borradores editables; no aprobados para publicación ni cobro
+público**. El contrato técnico v1 y su validación estática ya están coordinados con el backend, pero
+eso no convierte los borradores en documentos aprobados.
 
 Este directorio separa deliberadamente el material de trabajo de una publicación contractual.
 Los textos ayudan a cerrar decisiones de producto y preparar el handoff, pero no sustituyen la
@@ -97,6 +99,48 @@ El comando protegido valida, sin imprimir valores de configuración:
 `ORDENFIX_PUBLIC_RELEASE=true`. En CI y preview ejecuta al menos el nivel runtime, que exige una API
 HTTPS pública; desarrollo local puede avanzar con borradores. Ninguno de esos dos niveles reducidos
 acredita que la app esté lista para abrir al público.
+
+## Paridad técnica del manifiesto v1
+
+El Corte 4 de la Fase 2.3A quedó coordinado el 2026-08-24 entre este repositorio y el backend local
+`mvrg-backend`:
+
+- schema compartido byte a byte: **10.547 bytes**, SHA-256
+  `f7a4ee17f53f5ed3f2613d894fa3a4f46896dfaaec0c80dab055e4320f036f8b`;
+- límites compartidos: hasta 128 documentos, 256 requisitos y 16 documentos por requisito, con el
+  mismo patrón reforzado de email público;
+- matriz mínima: 11 tipos documentales, 6 filas de requisitos obligatorios y 8 scopes
+  `contexto:rol`;
+- la cobertura suma sólo requisitos con `required=true`; todo requisito válido, incluso opcional,
+  vincula sus documentos y evita falsos huérfanos;
+- varias entradas del mismo tipo documental son válidas cuando key, versión y fuente no colisionan;
+  `MANIFEST_DUPLICATE_DOCUMENT_TYPE` queda reservado en el inventario histórico de 35 códigos, pero
+  ya no se emite;
+- los documentos exigen el primer H1 ATX visible, de texto plano y hasta 300 code points; HTML real,
+  autolinks angle no permitidos y destinos `javascript:`, `vbscript:` o `data:` bloquean el release;
+- publisher, afirmaciones y títulos rechazan contenido sólo de espacios, `FORMAT` o `MARK`, además
+  de controles; Markdown y afirmaciones conservan UTF-8/NFC/LF, digest exacto y demás reglas de
+  texto canónico compartidas;
+- el guard usa un AST CommonMark con posiciones para distinguir código inerte, links reales,
+  referencias y definiciones no usadas, y congela sus vectores adversariales en tests herméticos.
+
+La referencia backend del corte es el commit local
+`1f26ca7 feat(legal): valida contrato y cobertura del release`; el espejo frontend es
+`d38e276 fix(legal): alinea guard con contrato backend v1` y el handshake backend actualizado quedó
+en `a6cb9fd test(legal): actualiza handshake con mirror frontend`. No se hizo push.
+
+Los límites defensivos de lectura/parsing del backend —por ejemplo manifiesto de 1 MiB, profundidad
+32, 100.000 tokens, strings de 1 MiB, Markdown de 1 MiB por archivo/16 MiB total y tope de 200
+issues— siguen siendo responsabilidad de ese importador, además del guard frontend. La paridad
+estática no reemplaza esa frontera autoritativa.
+
+Verificación del espejo frontend: 82 archivos/498 tests Vitest, 42 tests del guard, typecheck, lint y
+build local, todos aprobados. La auditoría npm conserva una alerta baja preexistente de `esbuild`,
+limitada al servidor de desarrollo en Windows y ya registrada en el plan.
+
+Este corte todavía no ejecuta JDBC, no importa ni promueve releases y no expone APIs legales. Siguen
+pendientes el dry-run transaccional, la CLI operativa y los cortes HTTP; por eso
+`BACKEND-HANDOFF 1` permanece no disponible para integrar la UI real.
 
 ## Decisiones transversales que no deben contradecirse
 

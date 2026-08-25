@@ -3,6 +3,7 @@ import { lstat, readFile, readdir, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
+import { fromMarkdown } from 'mdast-util-from-markdown';
 
 export const KNOWN_PLACEHOLDERS = Object.freeze([
   '[RAZÓN SOCIAL]',
@@ -18,6 +19,44 @@ export const PUBLIC_CONTACT_VARIABLES = Object.freeze([
   'VITE_LEGAL_EMAIL',
   'VITE_PRIVACY_EMAIL',
   'VITE_SUPPORT_EMAIL',
+]);
+
+export const LEGAL_MANIFEST_ISSUE_CODES = Object.freeze([
+  'PLACEHOLDER_FOUND',
+  'EDITORIAL_MARKER_FOUND',
+  'DOCUMENT_UTF8_REQUIRED',
+  'DOCUMENT_CANONICAL_TEXT_REQUIRED',
+  'MANIFEST_SCHEMA_UNAVAILABLE',
+  'MANIFEST_SCHEMA_INVALID',
+  'MANIFEST_PUBLISHER_INVALID',
+  'MANIFEST_CONTACTS_INVALID',
+  'PROFESSIONAL_REVIEW_REQUIRED',
+  'MANIFEST_DOCUMENTS_INVALID',
+  'MANIFEST_DOCUMENT_INVALID',
+  'MANIFEST_DUPLICATE_DOCUMENT',
+  'MANIFEST_DUPLICATE_DOCUMENT_TYPE',
+  'MANIFEST_DUPLICATE_DOCUMENT_SOURCE',
+  'DOCUMENT_PATH_INVALID',
+  'DOCUMENT_NOT_FOUND',
+  'UNSAFE_MARKDOWN_FOUND',
+  'MANIFEST_DIGEST_MISMATCH',
+  'REQUIRED_DOCUMENT_MISSING',
+  'MANIFEST_REQUIREMENTS_INVALID',
+  'MANIFEST_REQUIREMENT_INVALID',
+  'MANIFEST_DUPLICATE_REQUIREMENT',
+  'REQUIREMENT_CANONICAL_TEXT_REQUIRED',
+  'REQUIREMENT_DIGEST_MISMATCH',
+  'REQUIREMENT_DOCUMENT_UNKNOWN',
+  'REQUIREMENT_CONTEXT_MISMATCH',
+  'REQUIRED_REQUIREMENT_MISSING',
+  'REQUIRED_REQUIREMENT_DOCUMENT_MISSING',
+  'REQUIRED_DOCUMENT_UNBOUND',
+  'MANIFEST_NOT_CONFIGURED',
+  'MANIFEST_PATH_INVALID',
+  'MANIFEST_NOT_FOUND',
+  'MANIFEST_JSON_INVALID',
+  'MANIFEST_HEADER_INVALID',
+  'MANIFEST_PUBLICATION_ID_MISMATCH',
 ]);
 
 const REQUIRED_DOCUMENT_TYPES = Object.freeze([
@@ -147,10 +186,107 @@ const safeOutputTarget = (candidate, fallback) =>
 const normalizeText = (value) =>
   value
     .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[\u00a0\u202f]/g, ' ')
-    .replace(/\s+/g, ' ')
+    .replace(/[\p{M}\p{Cf}]/gu, '')
+    .replace(/[\p{White_Space}\p{Z}]+/gu, ' ')
     .toUpperCase();
+
+const normalizeTextPreservingLines = (value) => {
+  const compatibility = value.normalize('NFKD');
+  let normalized = '';
+  let previousHorizontalWhitespace = false;
+  for (const character of compatibility) {
+    if (/[\p{M}\p{Cf}]/u.test(character)) continue;
+    if (character === '\r' || character === '\n') {
+      normalized += character;
+      previousHorizontalWhitespace = false;
+    } else if (/[\p{White_Space}\p{Z}]/u.test(character)) {
+      if (!previousHorizontalWhitespace) normalized += ' ';
+      previousHorizontalWhitespace = true;
+    } else {
+      normalized += character;
+      previousHorizontalWhitespace = false;
+    }
+  }
+  return normalized.toUpperCase();
+};
+
+const isJavaStripWhitespace = (codePoint) =>
+  (codePoint >= 0x0009 && codePoint <= 0x000d) ||
+  (codePoint >= 0x001c && codePoint <= 0x0020) ||
+  codePoint === 0x1680 ||
+  (codePoint >= 0x2000 && codePoint <= 0x2006) ||
+  (codePoint >= 0x2008 && codePoint <= 0x200a) ||
+  codePoint === 0x2028 ||
+  codePoint === 0x2029 ||
+  codePoint === 0x205f ||
+  codePoint === 0x3000;
+
+const stripUnicodeWhitespace = (value) => {
+  const characters = [...value];
+  let start = 0;
+  let end = characters.length;
+  while (start < end && isJavaStripWhitespace(characters[start].codePointAt(0))) start += 1;
+  while (end > start && isJavaStripWhitespace(characters[end - 1].codePointAt(0))) end -= 1;
+  return characters.slice(start, end).join('');
+};
+
+const isPublishableText = (value) =>
+  typeof value === 'string' &&
+  !/\p{Cc}/u.test(value) &&
+  /[^\p{White_Space}\p{Z}\p{Cf}\p{M}\p{Cc}]/u.test(value);
+
+const visitMarkdown = (node, visitor) => {
+  visitor(node);
+  for (const child of node.children ?? []) visitMarkdown(child, visitor);
+};
+
+const markdownVisibleText = (
+  node,
+  includeLinkLabels = true,
+  softBreaksAsSpaces = false
+) => {
+  if (
+    !includeLinkLabels &&
+    ['link', 'linkReference', 'image', 'imageReference'].includes(node.type)
+  ) {
+    return '';
+  }
+  if (node.type === 'text') {
+    return softBreaksAsSpaces ? (node.value ?? '').replace(/\n/g, ' ') : (node.value ?? '');
+  }
+  if (node.type === 'inlineCode' || node.type === 'code') {
+    return node.value ?? '';
+  }
+  if (node.type === 'break') return '\n';
+  if (node.type === 'image') return node.alt ?? '';
+
+  const visible = (node.children ?? [])
+    .map((child) => markdownVisibleText(child, includeLinkLabels, softBreaksAsSpaces))
+    .join('');
+  return ['root', 'paragraph', 'heading', 'blockquote', 'list', 'listItem'].includes(node.type)
+    ? `${visible}\n`
+    : visible;
+};
+
+const findMarkdownLabelEnd = (content, opening, limit) => {
+  let depth = 0;
+  let escaped = false;
+  for (let index = opening + 1; index < limit; index += 1) {
+    const character = content[index];
+    if (escaped) {
+      escaped = false;
+    } else if (character === '\\') {
+      escaped = true;
+    } else if (character === '[') {
+      depth += 1;
+    } else if (character === ']' && depth === 0) {
+      return index;
+    } else if (character === ']') {
+      depth -= 1;
+    }
+  }
+  return -1;
+};
 
 const isInside = (parent, child) => {
   const relative = path.relative(parent, child);
@@ -267,9 +403,30 @@ const parsePublicUrl = (rawValue) => {
   return { normalized: normalized.toString() };
 };
 
+const isForbiddenPublicEmailCodePoint = (codePoint) =>
+  codePoint <= 0x001f ||
+  (codePoint >= 0x007f && codePoint <= 0x009f) ||
+  codePoint === 0x00a0 ||
+  codePoint === 0x1680 ||
+  (codePoint >= 0x2000 && codePoint <= 0x200a) ||
+  codePoint === 0x2028 ||
+  codePoint === 0x2029 ||
+  codePoint === 0x202f ||
+  codePoint === 0x205f ||
+  codePoint === 0x3000 ||
+  codePoint === 0xfeff;
+
 const isPublicEmail = (rawValue) => {
-  const value = rawValue?.trim() ?? '';
-  if (!EMAIL.test(value)) return false;
+  const raw = rawValue ?? '';
+  const value = raw.trim();
+  if (
+    !EMAIL.test(value) ||
+    [...raw].some((character) =>
+      isForbiddenPublicEmailCodePoint(character.codePointAt(0))
+    )
+  ) {
+    return false;
+  }
   const separator = value.lastIndexOf('@');
   const localPart = value.slice(0, separator);
   const domain = value.slice(separator + 1).toLowerCase();
@@ -337,24 +494,67 @@ export const validatePublicEnvironment = (environment) => {
 
 export const findPlaceholderIssues = (content, target) => {
   const issues = [];
+  const markdown = fromMarkdown(content);
   const normalized = normalizeText(content);
-  const withoutMarkdownLinks = content.replace(/\[[^\]\r\n]+\]\([^\r\n)]+\)/g, '');
-  const normalizedWithoutLinks = normalizeText(withoutMarkdownLinks);
+  const visibleText = markdownVisibleText(markdown);
+  const visibleTextWithSoftBreaks = markdownVisibleText(markdown, true, true);
+  const normalizedVisible = normalizeText(visibleText);
+  const normalizedGenericVisible = normalizeText(markdownVisibleText(markdown, false));
+  const maskedMarkdownLabels = content.split('');
+  visitMarkdown(markdown, (node) => {
+    if (
+      ![
+        'link',
+        'linkReference',
+        'image',
+        'imageReference',
+        'definition',
+      ].includes(node.type)
+    ) {
+      return;
+    }
+    const start = node.position?.start?.offset;
+    const end = node.position?.end?.offset;
+    if (!Number.isInteger(start) || !Number.isInteger(end)) return;
+    const opening = content.indexOf('[', start);
+    if (opening < start || opening >= end) return;
+    const closing = findMarkdownLabelEnd(content, opening, end);
+    if (closing < 0) return;
+    for (let index = opening + 1; index < closing; index += 1) {
+      if (maskedMarkdownLabels[index] !== '\n' && maskedMarkdownLabels[index] !== '\r') {
+        maskedMarkdownLabels[index] = ' ';
+      }
+    }
+  });
+  const normalizedWithoutLinks = normalizeText(maskedMarkdownLabels.join(''));
   const matchesKnown = KNOWN_PLACEHOLDERS.some((placeholder) =>
-    normalized.includes(normalizeText(placeholder))
+    [normalized, normalizedVisible].some((candidate) =>
+      candidate.includes(normalizeText(placeholder))
+    )
   );
-  const matchesTemplate = /\{\{[^{}]+\}\}|<REPLACE_ME>|\bTODO_LEGAL\b/i.test(content);
-  const matchesGeneric = /\[(?:RAZON|CUIT|DOMICILIO|EMAIL|JURISDICCION|HORARIO|REEMPLAZAR|COMPLETAR|PENDIENTE)[^\]]*\]/.test(
-    normalizedWithoutLinks
+  const matchesTemplate = [normalized, normalizedVisible].some((candidate) =>
+    /\{\{[^{}]+\}\}|<REPLACE_ME>|\bTODO_LEGAL\b/.test(candidate)
+  );
+  const genericPlaceholder =
+    /\[(?:RAZON|CUIT|DOMICILIO|EMAIL|JURISDICCION|HORARIO|REEMPLAZAR|COMPLETAR|PENDIENTE)[^\]]*\]/;
+  const matchesGeneric = [normalizedWithoutLinks, normalizedGenericVisible].some((candidate) =>
+    genericPlaceholder.test(candidate)
   );
   if (matchesKnown || matchesTemplate || matchesGeneric) {
     issues.push(issue('PLACEHOLDER_FOUND', target));
   }
 
+  const editorialMarker =
+    /\bBORRADOR\b|NO PUBLICAR|NO COBRAR|(?:VERSION|VIGENCIA)[^\r\n]{0,40}\b(?:NO ASIGNAD[AO]|NO DEFINID[AO])\b|(?:RESPONSABLE|PRESTADOR|PROVEEDOR)[^\r\n]{0,40}\bA COMPLETAR\b|PENDIENTE DE REVISION/;
+  const softBreakEditorialMarker =
+    /\bBORRADOR\b|NO PUBLICAR|NO COBRAR|PENDIENTE DE REVISION/;
+  const editorialSourceCandidates = [
+    normalizeTextPreservingLines(content),
+    normalizeTextPreservingLines(visibleText),
+  ];
   if (
-    /\bBORRADOR\b|NO PUBLICAR|NO COBRAR|(?:VERSI[OÓ]N|VIGENCIA)[^\r\n]{0,40}\b(?:NO ASIGNAD[AO]|NO DEFINID[AO])\b|(?:RESPONSABLE|PRESTADOR|PROVEEDOR)[^\r\n]{0,40}\bA COMPLETAR\b|PENDIENTE DE REVISI[OÓ]N/i.test(
-      content
-    )
+    editorialSourceCandidates.some((candidate) => editorialMarker.test(candidate)) ||
+    softBreakEditorialMarker.test(normalizeTextPreservingLines(visibleTextWithSoftBreaks))
   ) {
     issues.push(issue('EDITORIAL_MARKER_FOUND', target));
   }
@@ -544,6 +744,47 @@ export const validatePublicArtifacts = async (root) => {
   return uniqueSortedIssues(issues);
 };
 
+const hasForbiddenLegalControl = (value) =>
+  [...value].some((character) => {
+    const codePoint = character.codePointAt(0);
+    return (
+      (codePoint <= 0x001f && ![0x0009, 0x000a, 0x000d].includes(codePoint)) ||
+      codePoint === 0x007f ||
+      (codePoint >= 0x0080 && codePoint <= 0x009f)
+    );
+  });
+
+const hasUnicodeNoncharacter = (value) =>
+  [...value].some((character) => {
+    const codePoint = character.codePointAt(0);
+    return (
+      (codePoint >= 0xfdd0 && codePoint <= 0xfdef) ||
+      (codePoint & 0xfffe) === 0xfffe
+    );
+  });
+
+const hasUnpairedSurrogate = (value) => {
+  for (let index = 0; index < value.length; index += 1) {
+    const current = value.charCodeAt(index);
+    if (current >= 0xd800 && current <= 0xdbff) {
+      const next = value.charCodeAt(index + 1);
+      if (!(next >= 0xdc00 && next <= 0xdfff)) return true;
+      index += 1;
+    } else if (current >= 0xdc00 && current <= 0xdfff) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const hasCanonicalTextViolation = (value) =>
+  value.startsWith('\ufeff') ||
+  value.includes('\r') ||
+  hasForbiddenLegalControl(value) ||
+  value !== value.normalize('NFC') ||
+  hasUnpairedSurrogate(value) ||
+  hasUnicodeNoncharacter(value);
+
 const safeReadUtf8 = async (absolute, target, issues) => {
   const buffer = await readFile(absolute);
   let content;
@@ -553,41 +794,170 @@ const safeReadUtf8 = async (absolute, target, issues) => {
     issues.push(issue('DOCUMENT_UTF8_REQUIRED', target));
     return null;
   }
-  if (content.includes('\r') || content !== content.normalize('NFC')) {
+  const hasUtf8Bom =
+    buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf;
+  if (hasUtf8Bom || hasCanonicalTextViolation(content)) {
     issues.push(issue('DOCUMENT_CANONICAL_TEXT_REQUIRED', target));
   }
   return { buffer, content };
 };
 
-const decodeCodePoint = (rawValue, radix) => {
+const decodeCodePoint = (rawValue, radix, fallback) => {
   const codePoint = Number.parseInt(rawValue, radix);
-  return Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff
+  return Number.isInteger(codePoint) &&
+    codePoint >= 0 &&
+    codePoint <= 0x10ffff &&
+    !(codePoint >= 0xd800 && codePoint <= 0xdfff)
     ? String.fromCodePoint(codePoint)
-    : '';
+    : fallback;
 };
 
 const decodeLinkEntities = (value) =>
   value
-    .replace(/&#x([a-f0-9]+);/gi, (_match, hex) => decodeCodePoint(hex, 16))
-    .replace(/&#(\d+);/g, (_match, decimal) => decodeCodePoint(decimal, 10))
+    .replace(/&#x([a-f0-9]+);/gi, (match, hex) => decodeCodePoint(hex, 16, match))
+    .replace(/&#(\d+);/g, (match, decimal) => decodeCodePoint(decimal, 10, match))
     .replace(/&colon;/gi, ':')
     .replace(/&tab;|&newline;/gi, '');
 
-const stripAsciiControlAndSpace = (value) =>
-  [...value].filter((character) => character.codePointAt(0) > 0x20).join('');
+const decodeMarkdownBackslashEscapes = (value) =>
+  value.replace(/\\([!-/:-@[-`{-~])/g, '$1');
+
+const isActiveDestination = (rawValue) => {
+  const decoded = decodeMarkdownBackslashEscapes(decodeLinkEntities(rawValue ?? ''));
+  const compact = [...decoded]
+    .filter((character) => {
+      const codePoint = character.codePointAt(0);
+      return codePoint > 0x20 && codePoint !== 0x7f;
+    })
+    .join('')
+    .replace(/^</, '')
+    .toLowerCase();
+  return ['javascript:', 'vbscript:', 'data:'].some((scheme) => compact.startsWith(scheme));
+};
+
+const inlineVisibleText = (node) => {
+  if (node.type === 'text' || node.type === 'inlineCode') return node.value ?? '';
+  if (node.type === 'break') return ' ';
+  if (node.type === 'image') return node.alt ?? '';
+  return (node.children ?? []).map(inlineVisibleText).join('');
+};
+
+const readRawMarkdownDestination = (content, start, limit) => {
+  let cursor = start;
+  while (cursor < limit && /\s/u.test(content[cursor])) cursor += 1;
+  if (content[cursor] === '<') {
+    const closing = content.indexOf('>', cursor + 1);
+    return closing >= 0 && closing < limit ? content.slice(cursor + 1, closing) : '';
+  }
+
+  let escaped = false;
+  let parenthesisDepth = 0;
+  const destinationStart = cursor;
+  while (cursor < limit) {
+    const character = content[cursor];
+    if (escaped) {
+      escaped = false;
+    } else if (character === '\\') {
+      escaped = true;
+    } else if (/\s/u.test(character)) {
+      break;
+    } else if (character === '(') {
+      parenthesisDepth += 1;
+    } else if (character === ')' && parenthesisDepth === 0) {
+      break;
+    } else if (character === ')') {
+      parenthesisDepth -= 1;
+    }
+    cursor += 1;
+  }
+  return content.slice(destinationStart, cursor);
+};
+
+const rawMarkdownDestinations = (node, content) => {
+  const start = node.position?.start?.offset;
+  const end = node.position?.end?.offset;
+  if (!Number.isInteger(start) || !Number.isInteger(end)) return [];
+  const rawNode = content.slice(start, end).trim();
+  if (node.type === 'link' && rawNode.startsWith('<') && rawNode.endsWith('>')) {
+    return [rawNode.slice(1, -1)];
+  }
+
+  const opening = content.indexOf('[', start);
+  if (opening < start || opening >= end) return [];
+  const closing = findMarkdownLabelEnd(content, opening, end);
+  if (closing < 0) return [];
+  let cursor = closing + 1;
+  if (node.type === 'definition') {
+    if (content[cursor] !== ':') return [];
+    cursor += 1;
+  } else {
+    if (content[cursor] !== '(') return [];
+    cursor += 1;
+  }
+  const destination = readRawMarkdownDestination(content, cursor, end);
+  return destination ? [destination] : [];
+};
 
 const hasUnsafeMarkdown = (content) => {
-  const withoutSafeAutolinks = content.replace(/<(?:https:\/\/|mailto:)[^<>\s]+>/gi, '');
-  const destinations = [
-    ...[...content.matchAll(/\]\(\s*([^\s)]+)/g)].map((match) => match[1]),
-    ...[...content.matchAll(/^\s*\[[^\]\r\n]+\]:\s*(\S+)/gm)].map((match) => match[1]),
-  ];
-  const hasActiveLinkScheme = destinations.some((destination) =>
-    /^(?:javascript|vbscript|data):/i.test(
-      stripAsciiControlAndSpace(decodeLinkEntities(destination))
-    )
-  );
-  return withoutSafeAutolinks.includes('<') || hasActiveLinkScheme;
+  const markdown = fromMarkdown(content);
+  let firstAtxH1;
+  let forbiddenHtml = false;
+  let forbiddenDestination = false;
+
+  visitMarkdown(markdown, (node) => {
+    if (node.type === 'heading' && node.depth === 1 && firstAtxH1 === undefined) {
+      const start = node.position?.start?.offset;
+      const end = node.position?.end?.offset;
+      if (Number.isInteger(start) && Number.isInteger(end)) {
+        const rawHeading = content.slice(start, end);
+        const match = /^[ ]{0,3}#(?:[ \t]+(.*))?$/.exec(rawHeading);
+        if (match) {
+          const title = stripUnicodeWhitespace(inlineVisibleText(node));
+          const sourceTitle = stripUnicodeWhitespace(match[1] ?? '');
+          firstAtxH1 = {
+            plainText:
+              (node.children ?? []).every((child) => child.type === 'text') &&
+              sourceTitle === title &&
+              !sourceTitle.includes('~~'),
+            title,
+          };
+        }
+      }
+    }
+
+    if (node.type === 'html') forbiddenHtml = true;
+    if (['link', 'image', 'definition'].includes(node.type)) {
+      if (
+        isActiveDestination(node.url) ||
+        rawMarkdownDestinations(node, content).some(isActiveDestination)
+      ) {
+        forbiddenDestination = true;
+      }
+      if (node.type === 'link') {
+        const start = node.position?.start?.offset;
+        const end = node.position?.end?.offset;
+        if (Number.isInteger(start) && Number.isInteger(end)) {
+          const rawLink = content.slice(start, end).trim();
+          const normalizedDestination = (node.url ?? '').toLowerCase();
+          if (
+            rawLink.startsWith('<') &&
+            rawLink.endsWith('>') &&
+            !normalizedDestination.startsWith('https://') &&
+            !normalizedDestination.startsWith('mailto:')
+          ) {
+            forbiddenHtml = true;
+          }
+        }
+      }
+    }
+  });
+
+  const invalidH1 =
+    !firstAtxH1 ||
+    !isPublishableText(firstAtxH1.title) ||
+    !firstAtxH1.plainText ||
+    [...stripUnicodeWhitespace(firstAtxH1.title)].length > 300;
+  return invalidH1 || forbiddenHtml || forbiddenDestination;
 };
 
 const validateAgainstSchema = async (root, manifest, target, issues) => {
@@ -636,8 +1006,23 @@ const validatePublisher = (manifest, environment, target, issues) => {
     return;
   }
 
+  if (!nonEmptyString(publisher.taxId)) {
+    issues.push(issue('MANIFEST_PUBLISHER_INVALID', target));
+  }
   for (const property of ['legalName', 'taxId', 'legalAddress', 'jurisdiction', 'businessHours']) {
-    if (!nonEmptyString(publisher[property])) issues.push(issue('MANIFEST_PUBLISHER_INVALID', target));
+    if (typeof publisher[property] === 'string') {
+      issues.push(
+        ...findPlaceholderIssues(
+          publisher[property],
+          `${target}#publisherSnapshot.${property}`
+        )
+      );
+    }
+  }
+  for (const property of ['legalName', 'legalAddress', 'jurisdiction', 'businessHours']) {
+    if (!isPublishableText(publisher[property])) {
+      issues.push(issue('MANIFEST_PUBLISHER_INVALID', target));
+    }
   }
 
   const contacts = publisher.contacts;
@@ -651,6 +1036,14 @@ const validatePublisher = (manifest, environment, target, issues) => {
     ['privacyEmail', 'VITE_PRIVACY_EMAIL'],
     ['supportEmail', 'VITE_SUPPORT_EMAIL'],
   ]) {
+    if (typeof contacts[property] === 'string') {
+      issues.push(
+        ...findPlaceholderIssues(
+          contacts[property],
+          `${target}#publisherSnapshot.contacts.${property}`
+        )
+      );
+    }
     if (!isPublicEmail(contacts[property])) issues.push(issue('MANIFEST_CONTACTS_INVALID', target));
     const configured = environment[variable]?.trim();
     if (configured && contacts[property]?.toLowerCase() !== configured.toLowerCase()) {
@@ -674,6 +1067,14 @@ const validateReviews = (manifest, target, issues) => {
       !validDate(approval.reviewedAt)
     ) {
       issues.push(issue('PROFESSIONAL_REVIEW_REQUIRED', `${target}#review.${discipline}`));
+    }
+    if (nonEmptyString(approval?.reference)) {
+      issues.push(
+        ...findPlaceholderIssues(
+          approval.reference,
+          `${target}#review.${discipline}.reference`
+        )
+      );
     }
   }
 };
@@ -729,9 +1130,6 @@ const validateDocuments = async (manifest, manifestDirectory, root, target, issu
       issues.push(issue('MANIFEST_DUPLICATE_DOCUMENT', document.key));
     } else {
       documentsByKey.set(document.key, document);
-    }
-    if (types.has(document.type)) {
-      issues.push(issue('MANIFEST_DUPLICATE_DOCUMENT_TYPE', document.type));
     }
     types.add(document.type);
     if (sources.has(document.source)) {
@@ -839,11 +1237,11 @@ const validateRequirements = (manifest, documentsByKey, target, issues) => {
     }
     if (keys.has(requirement.key)) issues.push(issue('MANIFEST_DUPLICATE_REQUIREMENT', requirement.key));
     keys.add(requirement.key);
+    if (!isPublishableText(requirement.statement)) {
+      issues.push(issue('MANIFEST_REQUIREMENT_INVALID', requirementTarget));
+    }
     issues.push(...findPlaceholderIssues(requirement.statement, `${requirementTarget}#statement`));
-    if (
-      requirement.statement.includes('\r') ||
-      requirement.statement !== requirement.statement.normalize('NFC')
-    ) {
+    if (hasCanonicalTextViolation(requirement.statement)) {
       issues.push(issue('REQUIREMENT_CANONICAL_TEXT_REQUIRED', requirementTarget));
     }
     if (
@@ -862,7 +1260,7 @@ const validateRequirements = (manifest, documentsByKey, target, issues) => {
       } else {
         compatibleDocuments.push(document);
       }
-      if (document && requirement.required) referencedDocuments.add(documentKey);
+      if (document) referencedDocuments.add(documentKey);
     }
 
     if (requirement.required) {
@@ -949,7 +1347,6 @@ const validateManifest = async (root, environment, configuredManifest) => {
   }
 
   const raw = await readFile(absolute, 'utf8');
-  issues.push(...findPlaceholderIssues(raw, target));
   let manifest;
   try {
     manifest = JSON.parse(raw);

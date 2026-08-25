@@ -6,6 +6,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import {
+  LEGAL_MANIFEST_ISSUE_CODES,
   findPlaceholderIssues,
   formatHumanResult,
   getReleaseCheckLevel,
@@ -198,6 +199,64 @@ const persistManifest = (fixture) =>
     `${JSON.stringify(fixture.manifest, null, 2)}\n`
   );
 
+const replaceDocumentContent = async (fixture, document, content) => {
+  await writeFile(path.join(fixture.publicationDirectory, document.source), content);
+  document.sha256 = digest(content);
+  await persistManifest(fixture);
+};
+
+test('congela el schema v1 compartido byte a byte', async () => {
+  const schema = await readFile(
+    path.join(repositoryRoot, 'docs/legal/publication-manifest.schema.json')
+  );
+  assert.equal(schema.length, 10_547);
+  assert.equal(
+    digest(schema),
+    'f7a4ee17f53f5ed3f2613d894fa3a4f46896dfaaec0c80dab055e4320f036f8b'
+  );
+});
+
+test('congela los 35 códigos legales del handshake sin incluir deploy-only', () => {
+  assert.deepEqual(LEGAL_MANIFEST_ISSUE_CODES, [
+    'PLACEHOLDER_FOUND',
+    'EDITORIAL_MARKER_FOUND',
+    'DOCUMENT_UTF8_REQUIRED',
+    'DOCUMENT_CANONICAL_TEXT_REQUIRED',
+    'MANIFEST_SCHEMA_UNAVAILABLE',
+    'MANIFEST_SCHEMA_INVALID',
+    'MANIFEST_PUBLISHER_INVALID',
+    'MANIFEST_CONTACTS_INVALID',
+    'PROFESSIONAL_REVIEW_REQUIRED',
+    'MANIFEST_DOCUMENTS_INVALID',
+    'MANIFEST_DOCUMENT_INVALID',
+    'MANIFEST_DUPLICATE_DOCUMENT',
+    'MANIFEST_DUPLICATE_DOCUMENT_TYPE',
+    'MANIFEST_DUPLICATE_DOCUMENT_SOURCE',
+    'DOCUMENT_PATH_INVALID',
+    'DOCUMENT_NOT_FOUND',
+    'UNSAFE_MARKDOWN_FOUND',
+    'MANIFEST_DIGEST_MISMATCH',
+    'REQUIRED_DOCUMENT_MISSING',
+    'MANIFEST_REQUIREMENTS_INVALID',
+    'MANIFEST_REQUIREMENT_INVALID',
+    'MANIFEST_DUPLICATE_REQUIREMENT',
+    'REQUIREMENT_CANONICAL_TEXT_REQUIRED',
+    'REQUIREMENT_DIGEST_MISMATCH',
+    'REQUIREMENT_DOCUMENT_UNKNOWN',
+    'REQUIREMENT_CONTEXT_MISMATCH',
+    'REQUIRED_REQUIREMENT_MISSING',
+    'REQUIRED_REQUIREMENT_DOCUMENT_MISSING',
+    'REQUIRED_DOCUMENT_UNBOUND',
+    'MANIFEST_NOT_CONFIGURED',
+    'MANIFEST_PATH_INVALID',
+    'MANIFEST_NOT_FOUND',
+    'MANIFEST_JSON_INVALID',
+    'MANIFEST_HEADER_INVALID',
+    'MANIFEST_PUBLICATION_ID_MISMATCH',
+  ]);
+  assert.equal(LEGAL_MANIFEST_ISSUE_CODES.includes('CONTACT_MISMATCH'), false);
+});
+
 test('el modo automático separa runtime de publicación pública', () => {
   assert.equal(getReleaseCheckLevel('auto', {}), 'skip');
   assert.equal(getReleaseCheckLevel('auto', { VERCEL_ENV: 'preview' }), 'runtime');
@@ -316,6 +375,39 @@ test('rechaza marcadores editoriales aunque ya no queden corchetes', () => {
   ]);
 });
 
+test('detecta fragmentación Unicode y Markdown sin confundir labels reales', () => {
+  assert.ok(
+    findPlaceholderIssues('TO\u200bDO_LEGAL', 'legal.md').some(
+      ({ code }) => code === 'PLACEHOLDER_FOUND'
+    )
+  );
+  assert.ok(
+    findPlaceholderIssues('NO\u2060 PUBLICAR', 'legal.md').some(
+      ({ code }) => code === 'EDITORIAL_MARKER_FOUND'
+    )
+  );
+  assert.ok(
+    findPlaceholderIssues('NO\nPUBLICAR', 'legal.md').some(
+      ({ code }) => code === 'EDITORIAL_MARKER_FOUND'
+    )
+  );
+  assert.ok(
+    findPlaceholderIssues('[CU**IT**]', 'legal.md').some(
+      ({ code }) => code === 'PLACEHOLDER_FOUND'
+    )
+  );
+  assert.equal(
+    findPlaceholderIssues('[EMAIL](mailto:legal@ordenfix.com)', 'legal.md').length,
+    0
+  );
+  assert.ok(
+    findPlaceholderIssues('[texto](/legal/[EMAIL])', 'legal.md').some(
+      ({ code }) => code === 'PLACEHOLDER_FOUND'
+    )
+  );
+  assert.equal(findPlaceholderIssues('Versión\nno asignada', 'legal.md').length, 0);
+});
+
 test('una publicación completa y canónica queda lista', async () => {
   const fixture = await createReadyFixture();
   const issues = await validatePublicRelease({
@@ -324,6 +416,19 @@ test('una publicación completa y canónica queda lista', async () => {
     manifestPath: fixture.manifestPath,
   });
   assert.deepEqual(issues, []);
+});
+
+test('una aprobación profesional no puede conservar marcas editoriales', async () => {
+  const fixture = await createReadyFixture();
+  fixture.manifest.review.legal.reference = 'BORRADOR — TODO_LEGAL';
+  await persistManifest(fixture);
+  const issues = await validatePublicRelease({
+    root: fixture.root,
+    environment: validEnvironment,
+    manifestPath: fixture.manifestPath,
+  });
+  assert.ok(issues.some(({ code }) => code === 'PLACEHOLDER_FOUND'));
+  assert.ok(issues.some(({ code }) => code === 'EDITORIAL_MARKER_FOUND'));
 });
 
 test('aplica el JSON Schema real antes de habilitar la publicación', async () => {
@@ -336,6 +441,22 @@ test('aplica el JSON Schema real antes de habilitar la publicación', async () =
     manifestPath: fixture.manifestPath,
   });
   assert.ok(issues.some(({ code }) => code === 'MANIFEST_SCHEMA_INVALID'));
+});
+
+test('aplica la política de email público también al publisher del manifiesto', async () => {
+  const fixture = await createReadyFixture();
+  fixture.manifest.publisherSnapshot.contacts = {
+    legalEmail: 'legal@example.com',
+    privacyEmail: 'privacidad@127.0.0.1',
+    supportEmail: 'soporte@equipo.internal',
+  };
+  await persistManifest(fixture);
+  const issues = await validatePublicRelease({
+    root: fixture.root,
+    environment: validEnvironment,
+    manifestPath: fixture.manifestPath,
+  });
+  assert.ok(issues.some(({ code }) => code === 'MANIFEST_CONTACTS_INVALID'));
 });
 
 test('exige cobertura por contexto, rol y documento compatible', async () => {
@@ -360,6 +481,56 @@ test('exige cobertura por contexto, rol y documento compatible', async () => {
         code === 'REQUIRED_REQUIREMENT_MISSING' && target === 'CIERRE_CUENTA:ADMIN_TITULAR'
     )
   );
+});
+
+test('un requisito opcional vincula documentos pero no satisface cobertura obligatoria', async () => {
+  const fixture = await createReadyFixture();
+  fixture.manifest.requirements.find(({ key }) => key === 'admin-registration').required = false;
+  await persistManifest(fixture);
+
+  const issues = await validatePublicRelease({
+    root: fixture.root,
+    environment: validEnvironment,
+    manifestPath: fixture.manifestPath,
+  });
+  assert.ok(
+    issues.some(
+      ({ code, target }) =>
+        code === 'REQUIRED_REQUIREMENT_MISSING' && target === 'REGISTRO:ADMIN_TITULAR'
+    )
+  );
+  assert.equal(
+    issues.some(
+      ({ code, target }) =>
+        code === 'REQUIRED_DOCUMENT_UNBOUND' &&
+        ['privacidad', 'tratamiento-datos'].includes(target)
+    ),
+    false
+  );
+});
+
+test('agrega cobertura de varios requisitos obligatorios del mismo scope', async () => {
+  const fixture = await createReadyFixture();
+  const registration = fixture.manifest.requirements.find(
+    ({ key }) => key === 'admin-registration'
+  );
+  registration.documents = ['terminos', 'privacidad'];
+  const statement = 'Confirmo el tratamiento de datos de OrdenFix.';
+  fixture.manifest.requirements.push({
+    ...registration,
+    key: 'admin-registration-data-processing',
+    statement,
+    statementSha256: digest(statement),
+    documents: ['tratamiento-datos'],
+  });
+  await persistManifest(fixture);
+
+  const issues = await validatePublicRelease({
+    root: fixture.root,
+    environment: validEnvironment,
+    manifestPath: fixture.manifestPath,
+  });
+  assert.deepEqual(issues, []);
 });
 
 test('exige fuentes únicas y que cada documento quede vinculado', async () => {
@@ -387,6 +558,79 @@ test('exige fuentes únicas y que cada documento quede vinculado', async () => {
         target === 'REGISTRO:ADMIN_TITULAR:POLITICA_PRIVACIDAD'
     )
   );
+});
+
+test('permite varias versiones documentales del mismo tipo sin perder cobertura', async () => {
+  const fixture = await createReadyFixture();
+  const content = '# Anexo de términos\n\nVersión final revisada para OrdenFix.\n';
+  await writeFile(path.join(fixture.publicationDirectory, 'terminos-anexo.md'), content);
+  fixture.manifest.documents.push({
+    ...fixture.manifest.documents.find(({ key }) => key === 'terminos'),
+    key: 'terminos-anexo',
+    source: 'terminos-anexo.md',
+    sha256: digest(content),
+  });
+  fixture.manifest.requirements.find(({ key }) => key === 'admin-registration').documents.push(
+    'terminos-anexo'
+  );
+  await persistManifest(fixture);
+
+  const issues = await validatePublicRelease({
+    root: fixture.root,
+    environment: validEnvironment,
+    manifestPath: fixture.manifestPath,
+  });
+  assert.deepEqual(issues, []);
+});
+
+test('considera vinculado un documento usado sólo por un requisito opcional', async () => {
+  const fixture = await createReadyFixture();
+  const content = '# Lectura opcional\n\nVersión final revisada para OrdenFix.\n';
+  await writeFile(path.join(fixture.publicationDirectory, 'lectura-opcional.md'), content);
+  fixture.manifest.documents.push({
+    ...fixture.manifest.documents.find(({ key }) => key === 'terminos'),
+    key: 'lectura-opcional',
+    source: 'lectura-opcional.md',
+    sha256: digest(content),
+    contexts: ['USO_CONTINUADO'],
+  });
+  const statement = 'Confirmo que leí el anexo opcional de OrdenFix.';
+  fixture.manifest.requirements.push({
+    key: 'optional-continuous-reading',
+    version: '1.0.0',
+    context: 'USO_CONTINUADO',
+    roles: ['ADMIN_TITULAR'],
+    actType: 'LECTURA',
+    statement,
+    statementSha256: digest(statement),
+    documents: ['lectura-opcional'],
+    required: false,
+    requiresReacceptance: false,
+  });
+  await persistManifest(fixture);
+
+  const issues = await validatePublicRelease({
+    root: fixture.root,
+    environment: validEnvironment,
+    manifestPath: fixture.manifestPath,
+  });
+  assert.deepEqual(issues, []);
+});
+
+test('no interpreta un nombre de archivo editorial como contenido legal', async () => {
+  const fixture = await createReadyFixture();
+  const document = fixture.manifest.documents[0];
+  const content = await readFile(path.join(fixture.publicationDirectory, document.source));
+  document.source = 'borrador.md';
+  await writeFile(path.join(fixture.publicationDirectory, document.source), content);
+  await persistManifest(fixture);
+
+  const issues = await validatePublicRelease({
+    root: fixture.root,
+    environment: validEnvironment,
+    manifestPath: fixture.manifestPath,
+  });
+  assert.deepEqual(issues, []);
 });
 
 test('acepta timestamps ISO con precisión de microsegundos del backend Java', async () => {
@@ -420,6 +664,46 @@ test('hashea exactamente el texto aceptado y exige NFC sin CR', async () => {
   assert.ok(!issues.some(({ code }) => code === 'REQUIREMENT_DIGEST_MISMATCH'));
 });
 
+test('rechaza texto invisible o controles en publisher y afirmaciones', async () => {
+  const fixture = await createReadyFixture();
+  fixture.manifest.publisherSnapshot.legalName = 'Orden\u0000Fix';
+  const statement = '\ufe0f\u034f\u0301';
+  fixture.manifest.requirements[0].statement = statement;
+  fixture.manifest.requirements[0].statementSha256 = digest(statement);
+  await persistManifest(fixture);
+
+  const issues = await validatePublicRelease({
+    root: fixture.root,
+    environment: validEnvironment,
+    manifestPath: fixture.manifestPath,
+  });
+  assert.ok(issues.some(({ code }) => code === 'MANIFEST_PUBLISHER_INVALID'));
+  assert.ok(issues.some(({ code }) => code === 'MANIFEST_REQUIREMENT_INVALID'));
+});
+
+test('bloquea BOM, controles y noncharacters en texto legal canónico', async () => {
+  const fixture = await createReadyFixture();
+  const document = fixture.manifest.documents[0];
+  const rawContent = Buffer.concat([
+    Buffer.from([0xef, 0xbb, 0xbf]),
+    Buffer.from('# Términos\n\nTexto con control \u0001 y noncharacter \ufdd0.\n'),
+  ]);
+  await writeFile(path.join(fixture.publicationDirectory, document.source), rawContent);
+  document.sha256 = digest(rawContent);
+  const statement = 'Confirmo OrdenFix\u0085';
+  fixture.manifest.requirements[0].statement = statement;
+  fixture.manifest.requirements[0].statementSha256 = digest(statement);
+  await persistManifest(fixture);
+
+  const issues = await validatePublicRelease({
+    root: fixture.root,
+    environment: validEnvironment,
+    manifestPath: fixture.manifestPath,
+  });
+  assert.ok(issues.some(({ code }) => code === 'DOCUMENT_CANONICAL_TEXT_REQUIRED'));
+  assert.ok(issues.some(({ code }) => code === 'REQUIREMENT_CANONICAL_TEXT_REQUIRED'));
+});
+
 test('rechaza HTML o esquemas activos dentro del Markdown legal', async () => {
   const fixture = await createReadyFixture();
   const document = fixture.manifest.documents[0];
@@ -441,6 +725,94 @@ test('rechaza HTML o esquemas activos dentro del Markdown legal', async () => {
     manifestPath: fixture.manifestPath,
   });
   assert.ok(issues.some(({ code }) => code === 'UNSAFE_MARKDOWN_FOUND'));
+});
+
+test('exige el primer H1 ATX visible, plano y de hasta 300 code points', async () => {
+  const fixture = await createReadyFixture();
+  const document = fixture.manifest.documents[0];
+  const invalidDocuments = [
+    'Texto sin encabezado\n',
+    '#\n\n# Título posterior\n',
+    '# **Título preliminar**\n\n# Título posterior\n',
+    '# \u200b\u2060\ufeff\n',
+    '# \ufe0f\u034f\u0301\n',
+    `# ${'a'.repeat(301)}\n`,
+    `# ${'😀'.repeat(301)}\n`,
+    '# Título &amp; condiciones\n',
+    '# Título #\n',
+  ];
+
+  for (const content of invalidDocuments) {
+    await replaceDocumentContent(fixture, document, content);
+    const issues = await validatePublicRelease({
+      root: fixture.root,
+      environment: validEnvironment,
+      manifestPath: fixture.manifestPath,
+    });
+    assert.ok(
+      issues.some(({ code }) => code === 'UNSAFE_MARKDOWN_FOUND'),
+      JSON.stringify(content)
+    );
+  }
+
+  await replaceDocumentContent(fixture, document, `# ${'😀'.repeat(300)}\n`);
+  const exactBoundaryIssues = await validatePublicRelease({
+    root: fixture.root,
+    environment: validEnvironment,
+    manifestPath: fixture.manifestPath,
+  });
+  assert.deepEqual(exactBoundaryIssues, []);
+});
+
+test('usa semántica CommonMark para HTML, autolinks y destinos activos', async () => {
+  const fixture = await createReadyFixture();
+  const document = fixture.manifest.documents[0];
+  const unsafeBodies = [
+    '<div>HTML</div>',
+    '<http://ordenfix.com>',
+    '<ftp://archivos.ordenfix.com/legal>',
+    '[acción](java&#x73;cript:alert(1))',
+    '[acción](java&#127;script&colon;alert(1))',
+    '![imagen](data:image/svg+xml;base64,AA==)',
+    '[acción][peligro]\n\n[peligro]: vb&#115;cript&#58;msgbox(1)',
+    '[sin uso]: data:text/html,contenido',
+  ];
+
+  for (const body of unsafeBodies) {
+    const content = `# Título válido\n\n${body}\n`;
+    await replaceDocumentContent(fixture, document, content);
+    const issues = await validatePublicRelease({
+      root: fixture.root,
+      environment: validEnvironment,
+      manifestPath: fixture.manifestPath,
+    });
+    assert.ok(
+      issues.some(({ code }) => code === 'UNSAFE_MARKDOWN_FOUND'),
+      JSON.stringify(body)
+    );
+  }
+
+  const safeContent = [
+    '# Título válido',
+    '',
+    '<https://ordenfix.com/legal> y <mailto:legal@ordenfix.com>.',
+    'La comparación 1 < 2 es texto y [HTTP normal](http://ordenfix.com) está permitida.',
+    '[Entidad fuera de rango](java&#x110000;script:ejemplo) permanece inerte.',
+    '`<div>` y `[x](javascript:ejemplo)` son ejemplos inertes.',
+    '',
+    '```markdown',
+    '<script>alert(1)</script>',
+    '[x](data:text/html,ejemplo)',
+    '```',
+    '',
+  ].join('\n');
+  await replaceDocumentContent(fixture, document, safeContent);
+  const safeIssues = await validatePublicRelease({
+    root: fixture.root,
+    environment: validEnvironment,
+    manifestPath: fixture.manifestPath,
+  });
+  assert.deepEqual(safeIssues, []);
 });
 
 test('rechaza un directorio padre enlazado fuera de la publicación', async () => {

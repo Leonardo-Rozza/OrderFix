@@ -1,8 +1,8 @@
 # OrdenFix — documentos legales de lanzamiento
 
-Estado editorial al 2026-08-24: **borradores editables; no aprobados para publicación ni cobro
-público**. El contrato técnico v1 y su validación estática ya están coordinados con el backend, pero
-eso no convierte los borradores en documentos aprobados.
+Estado editorial al 2026-08-25: **borradores editables; no aprobados para publicación ni cobro
+público**. El contrato técnico v1, la validación estática y el dry-run PostgreSQL rollback-only ya
+están coordinados con el backend, pero eso no convierte los borradores en documentos aprobados.
 
 Este directorio separa deliberadamente el material de trabajo de una publicación contractual.
 Los textos ayudan a cerrar decisiones de producto y preparar el handoff, pero no sustituyen la
@@ -74,8 +74,9 @@ conservar esta lista; una publicación seleccionada por el build público no pue
    debe cumplir `publication-manifest.schema.json`; no se modifica después de ser importado.
 6. **Ejecutar el guard.** Configurar `ORDENFIX_LEGAL_PUBLICATION_MANIFEST` y los contactos públicos;
    correr `npm run check:public-release` y `npm run build:public`.
-7. **Handoff al backend.** Hacer dry-run e importar por `publicationId + digest` de manera idempotente.
-   Una corrección crea otro `publicationId`; nunca sobrescribe evidencia aceptada.
+7. **Preimportación backend.** Ejecutar el `validate` offline y el `dry-run` rollback-only disponibles
+   desde la Fase 2.3A. La importación idempotente por `publicationId + digest` se implementa recién en
+   2.3B. Una corrección crea otro `publicationId`; nunca sobrescribe evidencia aceptada.
 8. **Staging y promoción.** Verificar contenido, versión, vigencia, ETag/readiness y aceptaciones antes
    de promover el release. El backend queda como fuente contractual de contenido, digest y vigencia.
 
@@ -100,10 +101,10 @@ El comando protegido valida, sin imprimir valores de configuración:
 HTTPS pública; desarrollo local puede avanzar con borradores. Ninguno de esos dos niveles reducidos
 acredita que la app esté lista para abrir al público.
 
-## Paridad técnica del manifiesto v1
+## Paridad técnica y cierre de la Fase 2.3A
 
-El Corte 4 de la Fase 2.3A quedó coordinado el 2026-08-24 entre este repositorio y el backend local
-`mvrg-backend`:
+La paridad estática del Corte 4 y el validador/dry-run de los Cortes 5 a 7 quedaron coordinados entre
+este repositorio y el backend local `mvrg-backend`:
 
 - schema compartido byte a byte: **10.547 bytes**, SHA-256
   `f7a4ee17f53f5ed3f2613d894fa3a4f46896dfaaec0c80dab055e4320f036f8b`;
@@ -124,23 +125,27 @@ El Corte 4 de la Fase 2.3A quedó coordinado el 2026-08-24 entre este repositori
 - el guard usa un AST CommonMark con posiciones para distinguir código inerte, links reales,
   referencias y definiciones no usadas, y congela sus vectores adversariales en tests herméticos.
 
-La referencia backend del corte es el commit local
-`1f26ca7 feat(legal): valida contrato y cobertura del release`; el espejo frontend es
-`d38e276 fix(legal): alinea guard con contrato backend v1` y el handshake backend actualizado quedó
-en `a6cb9fd test(legal): actualiza handshake con mirror frontend`. No se hizo push.
+La referencia estática backend parte de `1f26ca7 feat(legal): valida contrato y cobertura del
+release`; el espejo frontend es `d38e276 fix(legal): alinea guard con contrato backend v1` y el
+handshake actualizado quedó en `a6cb9fd test(legal): actualiza handshake con mirror frontend`.
+El cierre JDBC/CLI está en los commits backend `64ee07a`, `8b386db`, `614d3b8`, `5b97e63`,
+`334ba7b`, `143beae` y `8769a6c`. El registro documental del mirror previo está en `b6d93ea`. No se
+hizo push.
 
 Los límites defensivos de lectura/parsing del backend —por ejemplo manifiesto de 1 MiB, profundidad
 32, 100.000 tokens, strings de 1 MiB, Markdown de 1 MiB por archivo/16 MiB total y tope de 200
 issues— siguen siendo responsabilidad de ese importador, además del guard frontend. La paridad
 estática no reemplaza esa frontera autoritativa.
 
-Verificación del espejo frontend: 82 archivos/498 tests Vitest, 42 tests del guard, typecheck, lint y
-build local, todos aprobados. La auditoría npm conserva una alerta baja preexistente de `esbuild`,
-limitada al servidor de desarrollo en Windows y ya registrada en el plan.
+El cierre cross-repo del 2026-08-25 acreditó 42/42 tests dirigidos del guard frontend, build local,
+64/64 pruebas backend enfocadas de schema/paridad/golden/RFC 8785/reporte y la misma fixture golden
+aceptada por ambos validadores con 11 documentos, 6 requisitos y 8 scopes. La puerta backend completa
+ejecutó 562 unitarias y 56 IT. El build local sin flags de deploy saltea deliberadamente el guard
+público completo, por lo que esta evidencia técnica no declara lista una publicación real.
 
-Este corte todavía no ejecuta JDBC, no importa ni promueve releases y no expone APIs legales. Siguen
-pendientes el dry-run transaccional, la CLI operativa y los cortes HTTP; por eso
-`BACKEND-HANDOFF 1` permanece no disponible para integrar la UI real.
+La Fase 2.3A sí ejecuta JDBC provisional mediante una CLI interna y demuestra rollback sin filas
+residuales; no importa, sella, promueve ni expone APIs legales. Esas capacidades comienzan en 2.3B y
+cortes posteriores. `BACKEND-HANDOFF 1` permanece no disponible para integrar la UI real.
 
 ## Decisiones transversales que no deben contradecirse
 

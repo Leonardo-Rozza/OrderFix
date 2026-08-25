@@ -393,26 +393,35 @@ contenido/seed legal, enforcement, `428`, cambios de registro/login, seguridad, 
 `BACKEND-HANDOFF 1` sigue sin estar disponible en staging hasta implementar y desplegar las capas de
 lectura/escritura del contrato.
 
-La validación estática, lectura confinada y canonicalización RFC 8785 se completaron después en la
-Fase 2.3A. El próximo minicorte pendiente es el dry-run JDBC transaccional; sellado/promoción,
-readiness, APIs y aceptación atómica continúan en cortes posteriores, todavía con enforcement
+La validación estática, lectura confinada, canonicalización RFC 8785 y el dry-run JDBC rollback-only
+se completaron después en la Fase 2.3A. El próximo corte es 2.3B, importación idempotente y sello
+real sin promoción; readiness, APIs y aceptación atómica continúan después, todavía con enforcement
 apagado.
 
-## Fase 2.3A — Manifiesto legal v1 y paridad estática cross-repo
+## Fase 2.3A — Manifiesto legal v1, validador y dry-run cross-repo
 
 ### Estado
 
-Corte estático completado y verificado el 2026-08-24. Congela el artefacto que podrá consumir el
-importador, pero todavía no escribe en PostgreSQL ni habilita `BACKEND-HANDOFF 1`.
+Fase cerrada y verificada el 2026-08-25, con sus siete cortes completos. Congela el artefacto,
+valida el release offline y simula su grafo V27 dentro de una transacción siempre revertida. No
+realiza la importación ni habilita `BACKEND-HANDOFF 1`.
 
 - Backend local `mvrg-backend`, rama `codex/lanzamiento-publico-backend`:
   - `b884b15 build(legal): congela schema y dependencias del manifiesto`;
   - `d2a52d9 feat(legal): agrega parser estricto y canonicalizacion RFC 8785`;
   - `dd6dfb5 feat(legal): confina fuentes y valida Markdown legal`;
   - `1f26ca7 feat(legal): valida contrato y cobertura del release`;
-  - `a6cb9fd test(legal): actualiza handshake con mirror frontend`.
+  - `a6cb9fd test(legal): actualiza handshake con mirror frontend`;
+  - `64ee07a feat(legal): simula grafo V27 con rollback obligatorio`;
+  - `8b386db test(legal): acredita rollback y concurrencia del dry-run`;
+  - `614d3b8 docs(legal): documenta contraste transaccional V27`;
+  - `5b97e63 feat(legal): define argumentos y reporte seguro del CLI`;
+  - `334ba7b feat(legal): expone validate y dry-run por CLI aislada`;
+  - `143beae test(legal): acredita aislamiento y procesos del CLI`;
+  - `8769a6c docs(legal): documenta CLI aislada del manifiesto`.
 - Frontend local, rama `codex/frontend-refactor-checkpoint`:
-  - `d38e276 fix(legal): alinea guard con contrato backend v1`.
+  - `d38e276 fix(legal): alinea guard con contrato backend v1`;
+  - `b6d93ea docs(plan): registra paridad estatica del manifiesto v1`.
 - No se hizo push en ninguno de los dos repositorios.
 
 ### Contrato congelado
@@ -447,20 +456,25 @@ El CUIT v1 valida formato, no checksum ni existencia fiscal.
 
 ### Verificación
 
-- Backend: 91 tests enfocados del manifiesto y suite Maven completa de 497 tests, sin fallos,
-  errores ni skips.
-- Frontend: 82 archivos/498 tests Vitest y 42 tests del guard, todos aprobados.
-- Frontend: typecheck, ESLint, build local y `git diff --check`, aprobados.
+- Backend Corte 7: 64/64 pruebas enfocadas de schema, paridad, golden, RFC 8785, validator y reporte;
+  suite Maven completa de 562 unitarias y 56 IT, sin fallos finales.
+- Frontend Corte 7: 42/42 tests dirigidos del guard, build local y `git diff --check`, aprobados. La
+  regresión completa previa de 82 archivos/498 tests Vitest permanece registrada.
+- La fixture golden exacta del backend también pasa el guard frontend con `issues: []`; ambos
+  acreditan el plan estático de 11 documentos, 6 requisitos y 8 scopes. `validate` devuelve PASS y
+  `dry-run` conserva esos datos antes de consultar PostgreSQL.
 - Schema: comparación byte a byte, tamaño y hash aprobados.
 - Auditoría npm: permanece una alerta baja preexistente de `esbuild`, acotada al servidor de
   desarrollo en Windows; no fue introducida por el parser Markdown ni se mezcló con este corte.
+- PostgreSQL 16 acredita que PASS, blockers y errores tardíos dejan cero filas en las 12 tablas. El
+  dry-run sí puede generar WAL, tomar locks y avanzar secuencias; para cero efectos físicos se usa
+  una base descartable.
 
 ### Alcance siguiente
 
-El Corte 5 debe ejecutar un dry-run JDBC transaccional contra la persistencia V27 y demostrar
-rollback sin residuos ante cualquier fallo. Después siguen la CLI/importación-promoción y el cierre
-regresivo del plan. Hasta desplegar además los cortes HTTP y de aceptación, la Tarea 3 no debe
-conectar queries reales y `BACKEND-HANDOFF 1` permanece no disponible en staging.
+El siguiente corte es 2.3B: importación idempotente y sello transaccional real, todavía sin
+promoción. Después siguen publicación/readiness, APIs y aceptación. Hasta desplegar esos cortes, la
+Tarea 3 no debe conectar queries reales y `BACKEND-HANDOFF 1` permanece no disponible en staging.
 
 ## Tarea 3 — Modelar documentos y requisitos legales remotos
 

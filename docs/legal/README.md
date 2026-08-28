@@ -1,8 +1,10 @@
 # OrdenFix — documentos legales de lanzamiento
 
-Estado editorial al 2026-08-25: **borradores editables; no aprobados para publicación ni cobro
-público**. El contrato técnico v1, la validación estática y el dry-run PostgreSQL rollback-only ya
-están coordinados con el backend, pero eso no convierte los borradores en documentos aprobados.
+Estado editorial al 2026-08-27: **borradores editables; no aprobados para publicación ni cobro
+público**. El contrato técnico v1, la validación estática, el dry-run PostgreSQL y la
+importación/sello técnicos e idempotentes ya están coordinados con el backend. El importador deja
+todas las versiones nuevas en `BORRADOR`: no las promueve, no las vuelve vigentes, no publica
+catálogo ni APIs y no convierte estos borradores en documentos aprobados.
 
 Este directorio separa deliberadamente el material de trabajo de una publicación contractual.
 Los textos ayudan a cerrar decisiones de producto y preparar el handoff, pero no sustituyen la
@@ -74,11 +76,14 @@ conservar esta lista; una publicación seleccionada por el build público no pue
    debe cumplir `publication-manifest.schema.json`; no se modifica después de ser importado.
 6. **Ejecutar el guard.** Configurar `ORDENFIX_LEGAL_PUBLICATION_MANIFEST` y los contactos públicos;
    correr `npm run check:public-release` y `npm run build:public`.
-7. **Preimportación backend.** Ejecutar el `validate` offline y el `dry-run` rollback-only disponibles
-   desde la Fase 2.3A. La importación idempotente por `publicationId + digest` se implementa recién en
-   2.3B. Una corrección crea otro `publicationId`; nunca sobrescribe evidencia aceptada.
-8. **Staging y promoción.** Verificar contenido, versión, vigencia, ETag/readiness y aceptaciones antes
-   de promover el release. El backend queda como fuente contractual de contenido, digest y vigencia.
+7. **Preimportación e importación backend.** Ejecutar `validate` offline y `dry-run` rollback-only.
+   Cuando exista un release profesionalmente aprobado y autorización operativa, usar exclusivamente
+   el launcher acreditado con las confirmaciones exactas de `publicationId` y SHA-256. La importación
+   crea o reconcilia el grafo y su sello técnico en una sola transacción, pero conserva las versiones
+   en `BORRADOR`. Una corrección crea otro `publicationId`; nunca sobrescribe evidencia importada.
+8. **Staging y promoción — pendiente.** La Fase 2.3B no promueve el release. La promoción,
+   retiro y readiness editorial corresponden a 2.3C; después deben verificarse contenido, versión,
+   vigencia, ETag/readiness y aceptaciones antes de habilitar consumo público.
 
 No hace falta una pantalla administrativa para este flujo. El artefacto revisado, el comando de
 importación del backend y el readiness de staging forman el control de publicación.
@@ -144,8 +149,37 @@ ejecutó 562 unitarias y 56 IT. El build local sin flags de deploy saltea delibe
 público completo, por lo que esta evidencia técnica no declara lista una publicación real.
 
 La Fase 2.3A sí ejecuta JDBC provisional mediante una CLI interna y demuestra rollback sin filas
-residuales; no importa, sella, promueve ni expone APIs legales. Esas capacidades comienzan en 2.3B y
-cortes posteriores. `BACKEND-HANDOFF 1` permanece no disponible para integrar la UI real.
+residuales; no importa, sella, promueve ni expone APIs legales. La importación y el sello internos se
+completaron después en 2.3B; la promoción, las APIs y el resto del rollout continúan pendientes.
+
+## Cierre técnico de la Fase 2.3B
+
+La Fase 2.3B quedó cerrada y verificada el 2026-08-27 en la rama backend local
+`codex/lanzamiento-publico-backend`. Sus seis cortes funcionales están registrados en `22e464b`,
+`6da82cf`, `dff55c6`, `d317a69`, `e4f8944` y `79f18ee`; el diseño, plan y precisión contractual
+previos están en `a8cc352`, `76dc24c` y `cf2aaaf`. No se hizo push.
+
+El backend puede importar de forma interna un release previamente validado, persistir el grafo V27
+completo y dejar la publicación técnicamente `SELLADO` en una sola transacción. El replay exacto no
+escribe ni avanza secuencias, y una credencial PostgreSQL restringida carece de capacidad de
+promoción. La suite final acreditó 729 pruebas unitarias y 113 de integración, incluida concurrencia
+sobre PostgreSQL 16.14, deadlocks, timeouts, reconciliación `UNKNOWN`, procesos reales, aislamiento
+de configuración y las cardinalidades máximas —128 documentos, 256 requisitos, 16 documentos por
+requisito y 16 scopes— dentro del presupuesto de Markdown. La fixture máxima no simuló un payload
+total de 16 MiB.
+
+La regresión frontend del cierre aprobó 42/42 pruebas dirigidas del guard, 82 archivos con 498
+pruebas Vitest y el build local. Ese build omitió deliberadamente los controles de release y
+artefactos públicos porque no se proporcionó un manifiesto profesional ni variables de deploy; no
+acredita readiness público. Los archivos no versionados `.agents/` y
+`public/OrdenFix project naming/` se preservaron y no forman parte del commit.
+
+El sello es únicamente una garantía técnica de integridad e inmutabilidad. La fase no ejecutó una
+importación operativa de contenido legal real, no promovió versiones
+`BORRADOR → PUBLICADA → VIGENTE`, no desplegó nada y no agregó catálogo remoto, endpoints HTTP,
+readiness, aceptaciones, enforcement ni integración frontend. Por lo tanto, la Tarea 3 continúa
+bloqueada y `BACKEND-HANDOFF 1` permanece no disponible en staging. El siguiente alcance es 2.3C:
+promoción/retiro y readiness editorial, todavía sin enforcement.
 
 ## Decisiones transversales que no deben contradecirse
 

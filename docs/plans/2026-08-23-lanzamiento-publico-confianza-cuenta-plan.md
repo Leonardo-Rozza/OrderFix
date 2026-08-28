@@ -346,9 +346,10 @@ allowlists, seeds ni UI y, por lo tanto, los endpoints todavía no están dispon
 - La lectura de aceptaciones propias forma parte de la integración.
 - Requisitos y aceptaciones autenticados no pueden heredar el `staleTime` global: usan
   `staleTime: 0`, recolección inmediata o limpieza explícita y query keys ligadas a sesión.
-- `BACKEND-HANDOFF 1` todavía no está disponible en staging. La Fase 2.2 ya dejó implementada la
-  persistencia append-only; mini-fases backend posteriores deben importar/promover contenido y
-  exponer lectura/escritura con enforcement apagado antes de conectar queries reales.
+- `BACKEND-HANDOFF 1` todavía no está disponible en staging. La Fase 2.2 dejó implementada la
+  persistencia append-only y 2.3B agregó después importación idempotente más sello técnico interno.
+  Aún deben promoverse contenidos y exponerse lectura/escritura con enforcement apagado antes de
+  conectar queries reales.
 - No se hizo push.
 
 ## Fase 2.2 — Persistencia legal append-only del backend
@@ -394,9 +395,10 @@ contenido/seed legal, enforcement, `428`, cambios de registro/login, seguridad, 
 lectura/escritura del contrato.
 
 La validación estática, lectura confinada, canonicalización RFC 8785 y el dry-run JDBC rollback-only
-se completaron después en la Fase 2.3A. El próximo corte es 2.3B, importación idempotente y sello
-real sin promoción; readiness, APIs y aceptación atómica continúan después, todavía con enforcement
-apagado.
+se completaron después en la Fase 2.3A. La Fase 2.3B agregó posteriormente la importación
+idempotente y el sello técnico interno, sin promoción. La siguiente fase es 2.3C:
+promoción/retiro y readiness editorial; APIs, aceptación atómica e integración frontend continúan
+después, todavía con enforcement apagado.
 
 ## Fase 2.3A — Manifiesto legal v1, validador y dry-run cross-repo
 
@@ -472,9 +474,58 @@ El CUIT v1 valida formato, no checksum ni existencia fiscal.
 
 ### Alcance siguiente
 
-El siguiente corte es 2.3B: importación idempotente y sello transaccional real, todavía sin
-promoción. Después siguen publicación/readiness, APIs y aceptación. Hasta desplegar esos cortes, la
-Tarea 3 no debe conectar queries reales y `BACKEND-HANDOFF 1` permanece no disponible en staging.
+La Fase 2.3B posterior ya implementó y acreditó la importación idempotente y el sello transaccional
+interno; su cierre se documenta a continuación. Ese avance no promovió contenido ni desplegó las
+capas HTTP. Hasta completar y desplegar 2.3C, las APIs y la aceptación, la Tarea 3 no debe conectar
+queries reales y `BACKEND-HANDOFF 1` permanece no disponible en staging.
+
+## Fase 2.3B — Importación idempotente y sello técnico interno
+
+### Estado
+
+Fase cerrada y verificada el 2026-08-27. El backend importa internamente un release previamente
+validado, persiste o reconcilia el grafo V27 completo y deja la publicación técnicamente `SELLADO`
+en una única transacción. Las versiones documentales y de requisitos nuevas permanecen en
+`BORRADOR`; el sello no las publica ni las vuelve vigentes.
+
+- Backend local `mvrg-backend`, rama `codex/lanzamiento-publico-backend`:
+  - `22e464b feat(legal): calcula revision definitiva de requisitos`;
+  - `6da82cf refactor(legal): comparte gate y writer del manifiesto`;
+  - `dff55c6 feat(legal): importa manifiestos de forma idempotente`;
+  - `d317a69 feat(legal): restringe acceso DB del importador`;
+  - `e4f8944 feat(legal): expone import seguro en CLI aislada`;
+  - `79f18ee test(legal): acredita importacion y reconciliacion real`.
+- Diseño, plan y precisión contractual: `a8cc352`, `76dc24c` y `cf2aaaf`.
+- No se hizo push, deploy ni importación operativa de documentos reales.
+
+### Verificación
+
+- Import fresco: `IMPORTED`, commit único y receipt técnico.
+- Replay exacto: `ALREADY_IMPORTED`, mismo receipt, cero escrituras y cero avance de secuencias.
+- Conflictos e inputs incompatibles: `BLOCKED`; fallos conocidos: `ERROR`; una finalización DB
+  realmente ambigua: `persisted=null` y `outcome=UNKNOWN`. No permite inferir commit ni rollback:
+  debe reconciliarse repitiendo exactamente el mismo bundle y confirmaciones; el caso acreditado de
+  pérdida de acuse terminó en `ALREADY_IMPORTED`.
+- PostgreSQL 16.14 acreditó concurrencia, deadlocks, timeouts, pérdida de acuse de commit, stdout
+  ausente, rol restringido, aislamiento de propiedades hostiles y las cardinalidades máximas —128
+  documentos, 256 requisitos, 16 documentos por requisito y 16 scopes— dentro del presupuesto de
+  Markdown. La fixture máxima no simuló un payload total de 16 MiB.
+- Suite backend completa: 729 pruebas unitarias y 113 de integración, sin fallos, errores ni
+  omitidas.
+- Regresión frontend del cierre: 42/42 pruebas dirigidas del guard, 82 archivos con 498 pruebas
+  Vitest y build local aprobados. El build omitió deliberadamente los controles de release y
+  artefactos públicos por no existir manifiesto profesional ni variables de deploy; no acredita
+  readiness público.
+- Los no versionados frontend `.agents/` y `public/OrdenFix project naming/` permanecieron intactos
+  y fuera del commit.
+
+### Frontera pendiente
+
+La fase no promueve `BORRADOR → PUBLICADA → VIGENTE`, no ofrece catálogo ni documentos remotos, no
+agrega endpoints HTTP, readiness, aceptaciones, enforcement ni integración frontend. El próximo
+alcance es 2.3C —promoción/retiro y readiness editorial, todavía sin enforcement— seguido por V28
+multicontexto, APIs y aceptación atómica. Hasta desplegar esas capas, la Tarea 3 no debe crear API
+client, queries, mutations, botones ni flags reales y `BACKEND-HANDOFF 1` permanece cerrado.
 
 ## Tarea 3 — Modelar documentos y requisitos legales remotos
 
@@ -1509,7 +1560,13 @@ docs(release): agrega readiness y runbook publico
 
 ## BACKEND-HANDOFF 1 — Documentos, requisitos y evidencias
 
-El chat Java debe implementar y probar:
+Estado al 2026-08-27: **parcialmente implementado, todavía no disponible en staging**. La Fase 2.3B
+ya entrega `validate`, `dry-run`, importación idempotente y sello técnico internos. Continúan
+pendientes la promoción/retiro, readiness, catálogo y documentos remotos, endpoints autenticados,
+aceptaciones, registro atómico, CORS y enforcement. El sello interno no satisface por sí solo este
+handoff.
+
+El alcance contractual completo exige:
 
 - versiones inmutables y ciclo
   `BORRADOR → PUBLICADA → VIGENTE → REEMPLAZADA | RETIRADA`, con estados históricos terminales;
@@ -1528,7 +1585,8 @@ El chat Java debe implementar y probar:
   frontend lea `ETag`;
 - `428 ACEPTACION_LEGAL_REQUERIDA`;
 - auditoría append-only sin secretos;
-- comando/CLI o import de operación para dry-run, publicar, promover y retirar el manifiesto legal aprobado;
+- CLI interna para `validate`, `dry-run`, `import` y sello técnico, implementada en 2.3B;
+- operación separada para promover y retirar el manifiesto aprobado, pendiente de 2.3C;
 - seed inicial de staging y producción con tipo, locale, contexto, versión, `vigenteDesde`, contenido y digest, sin editar versiones existentes.
 
 ## BACKEND-HANDOFF 2 — Estado de cuenta y allowlists

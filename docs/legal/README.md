@@ -1,10 +1,10 @@
 # OrdenFix — documentos legales de lanzamiento
 
-Estado editorial al 2026-08-27: **borradores editables; no aprobados para publicación ni cobro
-público**. El contrato técnico v1, la validación estática, el dry-run PostgreSQL y la
-importación/sello técnicos e idempotentes ya están coordinados con el backend. El importador deja
-todas las versiones nuevas en `BORRADOR`: no las promueve, no las vuelve vigentes, no publica
-catálogo ni APIs y no convierte estos borradores en documentos aprobados.
+Estado editorial al 2026-08-31: **borradores editables; no aprobados para publicación ni cobro
+público**. El contrato técnico v1, la validación estática, el dry-run PostgreSQL, la
+importación/sello y la promoción, reemplazo, retiro y readiness editoriales ya están acreditados
+como operaciones internas del backend. Esa capacidad no publicó estos textos, no creó un catálogo
+HTTP, no desplegó contenido ni convierte los borradores en documentos aprobados.
 
 Este directorio separa deliberadamente el material de trabajo de una publicación contractual.
 Los textos ayudan a cerrar decisiones de producto y preparar el handoff, pero no sustituyen la
@@ -74,19 +74,27 @@ conservar esta lista; una publicación seleccionada por el build público no pue
    `docs/legal/publications/<publicationId>/`, en UTF-8, NFC y saltos LF.
 5. **Calcular digests.** Completar el SHA-256 de cada archivo y de cada afirmación exacta. El manifiesto
    debe cumplir `publication-manifest.schema.json`; no se modifica después de ser importado.
-6. **Ejecutar el guard.** Configurar `ORDENFIX_LEGAL_PUBLICATION_MANIFEST` y los contactos públicos;
-   correr `npm run check:public-release` y `npm run build:public`.
-7. **Preimportación e importación backend.** Ejecutar `validate` offline y `dry-run` rollback-only.
-   Cuando exista un release profesionalmente aprobado y autorización operativa, usar exclusivamente
-   el launcher acreditado con las confirmaciones exactas de `publicationId` y SHA-256. La importación
-   crea o reconcilia el grafo y su sello técnico en una sola transacción, pero conserva las versiones
-   en `BORRADOR`. Una corrección crea otro `publicationId`; nunca sobrescribe evidencia importada.
-8. **Staging y promoción — pendiente.** La Fase 2.3B no promueve el release. La promoción,
-   retiro y readiness editorial corresponden a 2.3C; después deben verificarse contenido, versión,
-   vigencia, ETag/readiness y aceptaciones antes de habilitar consumo público.
+6. **Validar y simular sin escritura.** Ejecutar `validate` offline y `dry-run` rollback-only contra
+   el release congelado. Ambos deben usar el mismo manifiesto; conservar su `publicationId` y
+   SHA-256 exactos para `import` y las etapas siguientes.
+7. **Importar y sellar.** Con autorización operativa, usar exclusivamente el launcher acreditado.
+   La importación crea o reconcilia el grafo y su sello técnico en una sola transacción, pero conserva
+   las versiones nuevas en `BORRADOR`. Una corrección crea otro `publicationId`; nunca sobrescribe
+   evidencia importada.
+8. **Planificar, aplicar y verificar editorialmente.** Generar el plan canónico y continuar sólo si
+   devuelve `APPLICABLE`; ejecutar el `apply-*` correspondiente con las confirmaciones exactas y
+   consultar nuevamente `readiness`. Promoción/reemplazo deben terminar `READY`; un retiro exitoso
+   termina deliberadamente `APPLIED + NOT_READY`.
+9. **Publicación pública — pendiente.** Cuando existan contenido definitivo autorizado, V28,
+   catálogo/documentos/requisitos HTTP, aceptación y registro atómicos, seguridad/CORS, `409`,
+   `428`, enforcement y un entorno real, configurar el manifiesto/contactos, ejecutar
+   `npm run check:public-release` y `npm run build:public`, desplegar en staging y acreditar ETag y
+   smokes públicos.
 
-No hace falta una pantalla administrativa para este flujo. El artefacto revisado, el comando de
-importación del backend y el readiness de staging forman el control de publicación.
+No hace falta una pantalla administrativa para este flujo interno. El bundle revisado, los
+launchers de importación y edición, los planes canónicos y sus receipts forman el control técnico.
+El readiness público de staging es una puerta posterior y no se sustituye por el readiness
+editorial de la CLI.
 
 ## Guard de lanzamiento público
 
@@ -150,7 +158,8 @@ público completo, por lo que esta evidencia técnica no declara lista una publi
 
 La Fase 2.3A sí ejecuta JDBC provisional mediante una CLI interna y demuestra rollback sin filas
 residuales; no importa, sella, promueve ni expone APIs legales. La importación y el sello internos se
-completaron después en 2.3B; la promoción, las APIs y el resto del rollout continúan pendientes.
+completaron después en 2.3B; la promoción/reemplazo/retiro y el readiness editoriales se acreditaron
+en 2.3C. Las APIs y el resto del rollout continúan pendientes.
 
 ## Cierre técnico de la Fase 2.3B
 
@@ -174,12 +183,47 @@ artefactos públicos porque no se proporcionó un manifiesto profesional ni vari
 acredita readiness público. Los archivos no versionados `.agents/` y
 `public/OrdenFix project naming/` se preservaron y no forman parte del commit.
 
-El sello es únicamente una garantía técnica de integridad e inmutabilidad. La fase no ejecutó una
-importación operativa de contenido legal real, no promovió versiones
-`BORRADOR → PUBLICADA → VIGENTE`, no desplegó nada y no agregó catálogo remoto, endpoints HTTP,
-readiness, aceptaciones, enforcement ni integración frontend. Por lo tanto, la Tarea 3 continúa
-bloqueada y `BACKEND-HANDOFF 1` permanece no disponible en staging. El siguiente alcance es 2.3C:
-promoción/retiro y readiness editorial, todavía sin enforcement.
+El sello es únicamente una garantía técnica de integridad e inmutabilidad. La Fase 2.3B no ejecutó
+una importación operativa de contenido legal real ni promovió versiones. Esa capacidad editorial
+se implementó después en 2.3C sobre fixtures y bases descartables; tampoco publicó estos borradores
+ni agregó catálogo remoto, endpoints HTTP, aceptaciones, enforcement o integración frontend.
+
+## Cierre técnico de la Fase 2.3C
+
+La implementación editorial interna quedó acreditada el 2026-08-31 en la rama backend local
+`codex/lanzamiento-publico-backend`. Los Cortes 1 a 10 culminan en
+`ccfe894 docs(legal): cierra corte de procesos reales`; el diseño y el plan del cierre cross-repo
+están en `6852c64` y `1c74652`. El runbook operativo y la closure definitiva se congelan en:
+
+- `docs/runbooks/legal-manifest-editorial-postgresql.md` del backend;
+- `docs/plans/2026-08-27-legal-manifest-promotion-closure.md` del backend.
+
+La CLI interna expone exactamente siete comandos: `readiness`, `plan-promote`, `apply-promote`,
+`plan-replace`, `apply-replace`, `plan-retire` y `apply-retire`. Trabajan sobre PostgreSQL 16, V27 y
+el schema fijo `public`, con un rol editorial temporal distinto del importador. Los planes,
+confirmaciones y reportes v3 permiten distinguir `READY/NOT_READY`, `APPLICABLE/BLOCKED` y
+`APPLIED/ALREADY_APPLIED/BLOCKED/ERROR/UNKNOWN`. Un retiro aplicado puede terminar correctamente
+`APPLIED + NOT_READY`: el hueco explícito hace fallar cerrado los sets afectados.
+
+El Corte 10 cerró tres puertas limpias: `4.283` unitarias + `10` IT de
+concurrencia/fallos/capacidad, `4.283` + `22` IT de procesos/aislamiento/JAR y la regresión global
+de `4.283` + `250` IT, sin fallos, errores ni omitidas. También acreditó roles restringidos,
+capacidad máxima, procesos reales, launcher, pérdida total/parcial de stdout y retry exacto sin
+duplicar transiciones. Es evidencia técnica del motor interno, no de una publicación real.
+
+El flujo coordinado queda congelado así:
+
+1. revisión o aprobación editorial responsable del contenido;
+2. digest, `validate` y `dry-run`;
+3. `import` y sello técnico, conservando nuevas versiones en `BORRADOR`;
+4. plan editorial con resultado `APPLICABLE`;
+5. `apply` con confirmaciones exactas;
+6. `readiness` final con resultado `READY`, salvo el hueco explícito de un retiro.
+
+No se importó ni promovió contenido legal real, no se modificó V27 ni el schema v1 compartido y no
+hubo seed, V28, APIs, frontend funcional, staging, deploy o push. Por lo tanto, la Tarea 3 continúa
+bloqueada y `BACKEND-HANDOFF 1` permanece no disponible en staging hasta completar y desplegar las
+capas públicas restantes.
 
 ## Decisiones transversales que no deben contradecirse
 

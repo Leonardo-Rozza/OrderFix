@@ -157,7 +157,11 @@ No se crea commit para esta tarea.
 7. Definir un manifiesto de publicación con tipo, locale, contextos, versión, `vigenteDesde`, archivo fuente y digest. El manifiesto real sólo se completa después de la revisión profesional.
 8. Validar el manifiesto real contra `publication-manifest.schema.json`, además de los invariantes que JSON Schema no puede resolver: unicidad, referencias, confinamiento de rutas, texto canónico, SHA-256 exacto y correspondencia entre contexto, rol y documentos.
 9. Exigir cobertura explícita para registro del `ADMIN_TITULAR`, primer ingreso de `USER`, contratación PRO, atestaciones de fotos/credenciales para ambos roles y cierre por `ADMIN_TITULAR`.
-10. Documentar el procedimiento: revisión → digest → dry-run backend → publicación inmutable en staging → readiness → promoción de vigencia. Una corrección crea otro `publicationId`; no se sobrescribe una publicación importada. No se necesita una UI administrativa.
+10. Documentar el procedimiento interno: revisión → digest → `validate`/`dry-run` → importación y
+    sello en `BORRADOR` → plan `APPLICABLE` → aplicación → readiness editorial. Sólo después de
+    completar V28, APIs, aceptación, seguridad y contenido autorizado se ejecutan el guard/build
+    públicos, el deploy en staging y el readiness público. Una corrección crea otro `publicationId`;
+    no se sobrescribe una publicación importada. No se necesita una UI administrativa.
 
 ### Pruebas
 
@@ -347,9 +351,9 @@ allowlists, seeds ni UI y, por lo tanto, los endpoints todavía no están dispon
 - Requisitos y aceptaciones autenticados no pueden heredar el `staleTime` global: usan
   `staleTime: 0`, recolección inmediata o limpieza explícita y query keys ligadas a sesión.
 - `BACKEND-HANDOFF 1` todavía no está disponible en staging. La Fase 2.2 dejó implementada la
-  persistencia append-only y 2.3B agregó después importación idempotente más sello técnico interno.
-  Aún deben promoverse contenidos y exponerse lectura/escritura con enforcement apagado antes de
-  conectar queries reales.
+  persistencia append-only, 2.3B agregó importación idempotente más sello técnico y 2.3C acreditó la
+  promoción/reemplazo/retiro y el readiness editoriales internos. Aún faltan V28, contenido real,
+  lectura/escritura HTTP, aceptación, seguridad y deploy antes de conectar queries reales.
 - No se hizo push.
 
 ## Fase 2.2 — Persistencia legal append-only del backend
@@ -395,10 +399,10 @@ contenido/seed legal, enforcement, `428`, cambios de registro/login, seguridad, 
 lectura/escritura del contrato.
 
 La validación estática, lectura confinada, canonicalización RFC 8785 y el dry-run JDBC rollback-only
-se completaron después en la Fase 2.3A. La Fase 2.3B agregó posteriormente la importación
-idempotente y el sello técnico interno, sin promoción. La siguiente fase es 2.3C:
-promoción/retiro y readiness editorial; APIs, aceptación atómica e integración frontend continúan
-después, todavía con enforcement apagado.
+se completaron después en la Fase 2.3A. La Fase 2.3B agregó la importación idempotente y el sello
+técnico interno; 2.3C completó posteriormente promoción, reemplazo, retiro y readiness editoriales
+sobre la misma V27. APIs, aceptación atómica e integración frontend continúan después, todavía con
+enforcement apagado.
 
 ## Fase 2.3A — Manifiesto legal v1, validador y dry-run cross-repo
 
@@ -475,9 +479,9 @@ El CUIT v1 valida formato, no checksum ni existencia fiscal.
 ### Alcance siguiente
 
 La Fase 2.3B posterior ya implementó y acreditó la importación idempotente y el sello transaccional
-interno; su cierre se documenta a continuación. Ese avance no promovió contenido ni desplegó las
-capas HTTP. Hasta completar y desplegar 2.3C, las APIs y la aceptación, la Tarea 3 no debe conectar
-queries reales y `BACKEND-HANDOFF 1` permanece no disponible en staging.
+interno; su cierre se documenta a continuación. La Fase 2.3C completó luego el ciclo editorial
+interno sin desplegar las capas HTTP. Hasta implementar V28, APIs, aceptación, seguridad y staging,
+la Tarea 3 no debe conectar queries reales y `BACKEND-HANDOFF 1` permanece no disponible.
 
 ## Fase 2.3B — Importación idempotente y sello técnico interno
 
@@ -519,13 +523,71 @@ en una única transacción. Las versiones documentales y de requisitos nuevas pe
 - Los no versionados frontend `.agents/` y `public/OrdenFix project naming/` permanecieron intactos
   y fuera del commit.
 
-### Frontera pendiente
+### Frontera posterior
 
-La fase no promueve `BORRADOR → PUBLICADA → VIGENTE`, no ofrece catálogo ni documentos remotos, no
-agrega endpoints HTTP, readiness, aceptaciones, enforcement ni integración frontend. El próximo
-alcance es 2.3C —promoción/retiro y readiness editorial, todavía sin enforcement— seguido por V28
-multicontexto, APIs y aceptación atómica. Hasta desplegar esas capas, la Tarea 3 no debe crear API
-client, queries, mutations, botones ni flags reales y `BACKEND-HANDOFF 1` permanece cerrado.
+La fase no promueve `BORRADOR → PUBLICADA → VIGENTE`, no ofrece catálogo ni documentos remotos y no
+agrega endpoints HTTP, readiness, aceptaciones, enforcement ni integración frontend. La Fase 2.3C
+posterior agregó promoción/reemplazo/retiro y readiness sólo como operación editorial interna. V28
+multicontexto, APIs, aceptación atómica, seguridad y staging permanecen pendientes. Hasta desplegar
+esas capas, la Tarea 3 no debe crear API client, queries, mutations, botones ni flags reales y
+`BACKEND-HANDOFF 1` permanece cerrado.
+
+## Fase 2.3C — Promoción, retiro y readiness editorial internos
+
+### Estado
+
+Implementación técnica cerrada y verificada el 2026-08-31; la coordinación cross-repo se completa mediante
+el Corte 11 sin habilitar integración frontend. El backend mantiene V27 y agrega una CLI editorial
+interna para consultar readiness, generar planes, aplicar primera promoción, reemplazos
+uno-a-uno/split/merge y retiros, y reconciliar resultados inciertos por postestado.
+
+- Backend local `mvrg-backend`, rama `codex/lanzamiento-publico-backend`.
+- Cortes 1 a 10 técnicos culminados en
+  `ccfe894 docs(legal): cierra corte de procesos reales`.
+- Diseño y plan del cierre Corte 11: `6852c64` y `1c74652`.
+- Este commit frontend registra el espejo documental; el backend incorpora su SHA en la closure.
+- Runbook y cierre propietarios backend:
+  - `docs/runbooks/legal-manifest-editorial-postgresql.md`;
+  - `docs/plans/2026-08-27-legal-manifest-promotion-closure.md`.
+- No se hizo push, deploy, seed, importación ni promoción de contenido legal real.
+
+### Contrato operativo interno
+
+Los siete comandos case-sensitive son `readiness`, `plan-promote`, `apply-promote`,
+`plan-replace`, `apply-replace`, `plan-retire` y `apply-retire`. Usan PostgreSQL 16, V27 y schema
+fijo `public`; el rol editorial temporal permanece separado del importador. Los reportes v3 y exit
+codes distinguen:
+
+- readiness `READY` o `NOT_READY`;
+- plan `APPLICABLE` o `BLOCKED`;
+- apply `APPLIED`, `ALREADY_APPLIED`, `BLOCKED`, `ERROR` o `UNKNOWN`;
+- retiro exitoso `APPLIED + NOT_READY` con exit `0` cuando deja un hueco explícito.
+
+La secuencia autoritativa es revisión o aprobación editorial responsable →
+digest/`validate`/`dry-run` → `import`/sello → plan `APPLICABLE` → `apply` → readiness final
+`READY`, salvo el hueco deliberado de un retiro. Ante stdout ausente, truncado o inválido no se
+infiere rollback: se conserva el mismo bundle, plan, IDs y hashes y se ejecuta el retry exacto.
+
+### Evidencia
+
+El Corte 10 acreditó tres puertas finales sin fallos, errores ni omitidas:
+
+- concurrencia, fallos y capacidad: `4.283` unitarias + `10` IT;
+- procesos, aislamiento y JAR: `4.283` + `22` IT;
+- regresión global: `4.283` + `250` IT.
+
+La evidencia incluye PostgreSQL 16.14, roles mínimo/hostiles, advisory lock común, replay sin DML
+duplicado, capacidad máxima, JAR y launcher reales, redacción, stdout perdido/parcial y retry
+`ALREADY_APPLIED`. El inventario editorial permanece en 19 tablas y 10 secuencias. El schema v1
+cross-repo conserva 10.547 bytes y SHA-256
+`f7a4ee17f53f5ed3f2613d894fa3a4f46896dfaaec0c80dab055e4320f036f8b`.
+
+### Frontera pública pendiente
+
+2.3C acredita solamente operación editorial interna. Continúan pendientes V28 multicontexto,
+catálogo, documentos y requisitos HTTP, ETag, aceptación y registro atómicos, seguridad, CORS,
+`409`, `428`, enforcement, contenido definitivo autorizado, staging y deploy. La Tarea 3 no cambia
+y `BACKEND-HANDOFF 1` permanece cerrado.
 
 ## Tarea 3 — Modelar documentos y requisitos legales remotos
 
@@ -1560,11 +1622,11 @@ docs(release): agrega readiness y runbook publico
 
 ## BACKEND-HANDOFF 1 — Documentos, requisitos y evidencias
 
-Estado al 2026-08-27: **parcialmente implementado, todavía no disponible en staging**. La Fase 2.3B
-ya entrega `validate`, `dry-run`, importación idempotente y sello técnico internos. Continúan
-pendientes la promoción/retiro, readiness, catálogo y documentos remotos, endpoints autenticados,
-aceptaciones, registro atómico, CORS y enforcement. El sello interno no satisface por sí solo este
-handoff.
+Estado al 2026-08-31: **parcialmente implementado, todavía no disponible en staging**. Las Fases
+2.3A–2.3C ya entregan `validate`, `dry-run`, importación/sello y
+promoción/reemplazo/retiro/readiness editoriales internos. Continúan pendientes V28, contenido
+definitivo, catálogo y documentos remotos, endpoints autenticados, aceptaciones, registro atómico,
+CORS, seguridad, enforcement y deploy. La operación interna no satisface por sí sola este handoff.
 
 El alcance contractual completo exige:
 
@@ -1586,7 +1648,8 @@ El alcance contractual completo exige:
 - `428 ACEPTACION_LEGAL_REQUERIDA`;
 - auditoría append-only sin secretos;
 - CLI interna para `validate`, `dry-run`, `import` y sello técnico, implementada en 2.3B;
-- operación separada para promover y retirar el manifiesto aprobado, pendiente de 2.3C;
+- operación interna separada para promover, reemplazar, retirar y consultar readiness, implementada
+  en 2.3C pero todavía no ejecutada con contenido real;
 - seed inicial de staging y producción con tipo, locale, contexto, versión, `vigenteDesde`, contenido y digest, sin editar versiones existentes.
 
 ## BACKEND-HANDOFF 2 — Estado de cuenta y allowlists

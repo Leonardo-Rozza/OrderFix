@@ -3,8 +3,9 @@
 Fecha: 2026-09-08
 
 Estado: ajuste de prioridad acordado con el titular; control manual de cobros y registro
-con consentimiento cerrados localmente. Los cortes de implementación se documentan abajo; todavía
-no se acredita disponibilidad en staging.
+con consentimiento cerrados localmente. El recorrido de registro navegador → HTTP → PostgreSQL
+también quedó verificado en laboratorio. Los cortes se documentan abajo; todavía no se acredita
+disponibilidad en staging.
 
 ## Decisión de producto
 
@@ -208,3 +209,79 @@ Commits atómicos de este cierre, uno por repositorio, sin push:
 `feat(legal): integra consentimiento en el registro` y
 `feat(registro): incorpora consentimiento de cuenta`. Se conservan `.agents/` y
 `public/OrdenFix project naming/` fuera del commit.
+
+## Corte cerrado — registro completo en laboratorio local
+
+Fecha: 2026-09-09. Baselines: frontend `76fdcdd`, backend `d6e99d2`.
+El titular autorizó continuar con la comprobación navegador → servidor → PostgreSQL. No hay un
+staging identificado en la configuración versionada ni una publicación legal definitiva; se pidió
+identificar ese entorno y se avanza con un laboratorio local aislado, sin usar datos reales.
+
+Diseño: PostgreSQL 16 efímero y servidor Spring Boot HTTP real, con seguridad, CORS y sesión
+productivos; fixtures técnicas de publicación y roles restringidos existentes. Playwright ejecuta
+el frontend con consentimiento activado en loopback. El harness de pruebas es dueño del servidor
+y de la base, valida después las filas durables y libera los recursos. No añade endpoints de control
+ni cambia configuración productiva, migraciones, suscripciones o transportes de email.
+
+Se elige este recorrido local reproducible porque reutiliza los fixtures y acredita la conexión
+que faltaba. Repetir sólo los mocks no resolvería ese faltante; el staging remoto requiere las URLs,
+la configuración y el contenido aprobado del entorno. La prueba local no sustituye esa acreditación.
+
+Casos focales en escritorio y móvil 320 px: alta con lectura/confirmación explícita y sesión real;
+pérdida de una respuesta 201 ya recibida del backend y reintento con la misma clave/payload;
+fallo de red al leer requisitos que impide registrar sin fallback legacy. La interrupción de red es
+una inyección de fallo de Playwright; las respuestas de negocio no se simulan. PostgreSQL debe
+acreditar una única cuenta/evidencia por alta y ninguna escritura del caso bloqueado.
+
+Lista nominal frontend: `playwright.registration-real.config.ts`,
+`e2e-registration-real/registro.spec.ts`, `scripts/run-registration-real.mjs`, `package.json`,
+README y este plan. Backend agrega un test opt-in `LegalRegistrationBrowserE2E` y su documentación,
+reutilizando fixtures existentes; la lista exacta se registra en su plan antes de editar.
+El nombre opt-in evita agregar dependencias de Node/navegador al gate Maven habitual.
+
+Validación prevista: compilación de tests backend y ejecución focal de ese E2E, lint de archivos
+frontend nuevos y revisión del diff. Sólo se amplía a pruebas de runtime o integral si un fallo o
+cambio transversal lo exige. Un commit por repositorio, sin push y con archivos ajenos preservados.
+
+### Evidencia de cierre
+
+Ejecución final aprobada el **2026-09-09 a las 07:36:06 -03:00** mediante
+`JAVA_HOME=<Java 21> npm run test:e2e:registration-real`. La compilación de los tests tomó 17.871 s
+y el foco Failsafe 27.601 s. El XML registra **un harness JUnit aprobado que ejecuta y verifica seis
+casos Playwright**, sin fallos, errores, omisiones ni reintentos; no se cuentan como siete recorridos.
+Playwright terminó `passed`, con cero tests fallidos.
+
+- Navegador Chromium de escritorio y móvil 320 px; frontend Vite real, aplicación completa con
+  Tomcat y PostgreSQL **16.14**. Seguridad, CORS, JWT, tenant y servicios de perfil/suscripción/dashboard
+  participaron del recorrido. El rate limiter estuvo activo, con límite de registro de 20 para
+  permitir la matriz de prueba; no se acredita el límite productivo por defecto de cinco.
+- Se leyó el texto visible exacto de cada documento, se confirmaron los requisitos obligatorios y
+  se contrastaron revisión, actos y digests enviados. Las consultas privadas del frontend devolvieron
+  200 con el JWT real y la identidad del titular creado.
+- PostgreSQL confirmó cuatro usuarios/talleres/suscripciones nuevos y ninguno para los dos casos
+  bloqueados. Se verificaron lotes, actos, documentos, HMAC de idempotencia, metadata cifrada y un
+  token de verificación por cuenta. Perder y recuperar la respuesta no duplicó esos registros.
+- Se acreditaron cuatro roles físicos distintos y no privilegiados: aplicación, registro,
+  requisitos públicos y documentos públicos. Los grants adicionales pertenecen sólo a la base efímera.
+- Lint y TypeScript focales aprobaron. El guard de configuración rechazó URL ausente y remota;
+  con loopback enumeró exactamente seis casos sin iniciar servicios durante esa comprobación.
+- El contenedor exclusivo fue eliminado y los puertos de Vite, Tomcat y PostgreSQL quedaron cerrados.
+
+Dos corridas previas no se presentan como aprobadas: la primera encontró una consulta de secuencias
+que asumía `id` en `reparacion_fotos`; la segunda pasó navegador/SQL pero falló al cerrar manualmente
+el contexto antes de los callbacks de Spring. Se corrigieron sólo el harness y su ciclo de vida.
+La revisión también reforzó identidad de procesos al limpiar, normalización de URL y comparación
+literal de los documentos. La fuente final pasó el foco completo después de esas correcciones.
+
+Este corte modifica pruebas, su runner y documentación. La lógica productiva, dependencias y
+migraciones congeladas conservan sus versiones; no se repitió `clean verify`. Las 8.661 pruebas
+del corte anterior siguen siendo baseline, no evidencia nueva de éste.
+
+**Cuenta utilizable tiene ahora evidencia local del recorrido completo.** Staging sigue pendiente:
+hay que identificar las URLs/entorno, configurar los recursos y usar contenido legal aprobado.
+Las fixtures técnicas no se publican. Tampoco se acreditan HTTPS/proxy, entrega de email, cobros,
+Mercado Pago ni los demás recorridos de la lista mediante estos seis casos.
+
+Backend verificado y cerrado en `a252aba`. Commits del corte, uno por repositorio y sin push: backend
+`test(legal): acredita registro completo con navegador` y frontend
+`test(registro): verifica alta real y recuperacion`. Archivos ajenos preservados.

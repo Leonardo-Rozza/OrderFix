@@ -23,6 +23,24 @@ npx playwright test --config=playwright.registration.config.ts --workers=2
 El [plan de salida inicial](docs/plans/2026-09-08-salida-inicial-alcance-y-cierre.md) distingue esta
 evidencia local del recorrido pendiente en staging con backend y PostgreSQL reales.
 
+Prueba completa con servidor HTTP real y PostgreSQL 16 descartable:
+
+```sh
+npm run test:e2e:registration-real
+```
+
+Requiere Java 21 (`JAVA_HOME`), Docker activo, dependencias npm instaladas y el backend hermano
+`../mvrg-backend`; `ORDENFIX_BACKEND_DIR` permite indicar otra ruta. El runner compila los tests y
+ejecuta únicamente `LegalRegistrationBrowserE2E`. Ese harness crea la base, arranca Spring Boot
+en un puerto aleatorio de loopback, ejecuta Playwright en escritorio/móvil y valida la evidencia
+persistida antes de cerrar los recursos. Vite usa `127.0.0.1:5175` y no reutiliza servidores ajenos.
+
+Este laboratorio utiliza identidades, claves y textos técnicos de prueba. No envía email ni activa
+Mercado Pago; no publica borradores legales ni apunta a staging/producción. Los casos de red cortan
+deliberadamente una lectura o descartan una respuesta real 201 para comprobar la recuperación.
+Las respuestas de negocio y la sesión provienen del backend. La configuración de navegador exige
+la URL local y el reporte del harness, por lo que no se ejecuta directamente contra una API remota.
+
 ## 📋 Tabla de Contenidos
 
 - [Características](#-características)

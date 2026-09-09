@@ -14,6 +14,7 @@
     "test:release": "node --test scripts/check-public-release.test.mjs",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:registration-real": "node scripts/run-registration-real.mjs",
     "typecheck": "tsc -b --noEmit"
   },
   "engines": {

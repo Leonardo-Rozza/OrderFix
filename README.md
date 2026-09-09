@@ -41,8 +41,13 @@ Conserva los seis casos de registro y dos recorridos de empleados (escritorio y 
 Agrega cuatro recorridos de reparación: presupuesto aprobado o rechazado desde el seguimiento
 público y entrega sin cobros, en ambos dispositivos. Usa talleres sintéticos FREE/ACTIVA para
 comprobar el módulo deshabilitado y el consumo del cupo; esa preparación no prueba el vencimiento
-del trial. PostgreSQL comprueba las altas legales, roles, pertenencia, importes, respuesta y entrega,
-y exige cero registros nuevos de cobros o pagos. Son doce casos de navegador en total.
+del trial. Esas reparaciones conservan cero cobros registrados.
+
+Otros dos recorridos comprueban el módulo opcional en TRIAL: entrega antes de registrar cobros,
+carga externa manual por un USER, anulación reservada al titular y nueva carga corregida. El
+historial conserva el movimiento anulado y la vista por período cuenta sólo el activo. PostgreSQL
+verifica importes, pertenencia y auditoría, sin registros nuevos en las tablas de pagos del proveedor.
+Son catorce casos en total. El filtro de login sigue activo con límite de 20 sólo en el laboratorio.
 
 Este laboratorio utiliza identidades, claves y textos técnicos de prueba. No envía email ni activa
 Mercado Pago; no publica borradores legales ni apunta a staging/producción. Los casos de red cortan

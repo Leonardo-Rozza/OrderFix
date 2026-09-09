@@ -18,6 +18,11 @@ type Evidence = {
 } | {
   case: 'repair-approved' | 'repair-rejected'; project: string; email: string;
   ownerId: number; clientId: number; equipmentId: number; repairId: number; budgetId: number; trackingCode: string;
+} | {
+  case: 'collections'; project: string; email: string;
+  requiredSetRevision: string; acceptances: RegistrationAcceptance[]; idempotencyKey: string;
+  ownerId: number; employee: { id: number; email: string }; otherOwnerId: number;
+  clientId: number; equipmentId: number; repairId: number; originalCobroId: number; correctedCobroId: number;
 };
 
 export const matches = (url: string, path: string) => url === `${api}${path}`;

@@ -2,10 +2,10 @@
 
 Fecha: 2026-09-08
 
-Estado: ajuste de prioridad acordado con el titular; control manual de cobros y registro
-con consentimiento cerrados localmente. El recorrido de registro navegador → HTTP → PostgreSQL
-también quedó verificado en laboratorio. Los cortes se documentan abajo; todavía no se acredita
-disponibilidad en staging.
+Estado: cuenta, taller/empleados, reparación/presupuesto y control opcional de cobros verificados
+localmente con navegador → HTTP → PostgreSQL. Los cortes y sus límites se documentan abajo.
+El siguiente criterio local es Evidencia y documentos. Confianza y cuenta y Operación real conservan
+sus pendientes; todavía no se acredita disponibilidad en staging.
 
 ## Decisión de producto
 
@@ -55,8 +55,9 @@ de datos y baja. V27/V28 y los contratos congelados conservan su protección.
 
 ## Lista de cierre de la salida inicial
 
-Cada fila requiere evidencia del flujo completo en el entorno elegido. Todas siguen pendientes de
-esa acreditación; “pendiente” no significa que toda su implementación deba construirse nuevamente.
+Cada fila requiere evidencia del flujo completo en el entorno de salida. Las comprobaciones locales
+se detallan abajo; su validación en staging sigue pendiente. “Pendiente” no significa que toda la
+implementación deba construirse nuevamente.
 
 | Criterio | Evidencia necesaria para cerrar |
 | --- | --- |
@@ -425,3 +426,88 @@ frontend `test(reparaciones): verifica entrega sin cobros`. Archivos ajenos pres
 **Reparación y presupuesto queda acreditado localmente sin Cobros.** El siguiente criterio es el
 registro manual opcional de un cobro externo, su historial y corrección según permisos. Staging,
 documentos/evidencia y los demás criterios de salida mantienen los pendientes de esta lista.
+
+## Corte cerrado localmente — registro manual, historial y corrección de cobros externos
+
+Fecha: 2026-09-09. Baselines: frontend `a63db58`, backend `e2d7760`.
+Se continúa el criterio autorizado de control opcional de cobros con un recorrido nuevo en escritorio
+y otro en móvil 320 px, conservando los doce casos anteriores. El taller declara lo recibido por fuera
+de OrdenFix; este corte no introduce procesamiento, verificación o conciliación de pagos.
+
+Diseño: cada caso registra desde la UI un titular FREE/TRIAL, comprueba Cobros habilitado y crea
+un empleado USER. El titular ingresa una reparación de 50.000 y la entrega antes de registrar cobros,
+para acreditar también la opcionalidad con el módulo habilitado. El empleado inicia sesión y registra
+una transferencia externa de 50.000. Puede consultar el movimiento, pero la UI no permite anularlo y
+el servidor rechaza esa acción con 403. Otro titular habilitado recibe 404 al consultar/anular esos IDs.
+
+El titular corrige la carga mediante la operación existente: anula con motivo y luego registra un
+nuevo movimiento de 30.000. Se conserva el cobro original de 50.000 y su auditoría de anulación;
+el historial muestra ambos y el saldo derivado pasa a 20.000. Repetir la anulación devuelve 409 sin
+cambiar su auditoría. La vista por período incluye sólo el movimiento activo. La reparación sigue
+entregada, con la misma conformidad, y no se inicia checkout ni se llama a proveedores de pagos.
+
+Se reutilizan registro, sesión, formularios y laboratorio existentes, sin nuevas cuentas sembradas,
+endpoints de control ni infraestructura. La alternativa de edición directa del importe no corresponde
+al contrato vigente: la corrección es anulación más nueva carga. La autoría USER del registro se
+acredita por su sesión y petición HTTP; la base identifica al autor de la anulación y no tiene una
+columna de autoría del alta. No se atribuye una protección general de inmutabilidad que no existe.
+
+PostgreSQL verificará cuatro cobros nuevos exactos, dos anulados por sus titulares y dos activos,
+con sus importes/referencias/talleres y fechas. Las cuatro reparaciones FREE del corte anterior
+conservan cero cobros; las demás filas de cobros, inventario y tablas de pagos permanecen sin cambios.
+Se mantienen los controles completos de alta y consentimiento para los dos titulares nuevos.
+
+Lista nominal frontend: `e2e-registration-real/cobros.spec.ts`, `e2e-registration-real/helpers.ts`,
+README y este plan. Backend amplía `LegalRegistrationBrowserE2E`, README y su plan. El laboratorio
+fija el límite de login en 20 para admitir las 14 autenticaciones de la matriz sin depender de su
+duración, manteniendo activo el filtro. El default productivo de 10 no cambia ni se acredita aquí.
+
+Validación prevista: lint/TypeScript, compilación y Failsafe serial con catorce casos reales, revisión
+del diff, evidencia SQL y recursos liberados. Un commit atómico por repositorio, sin push; cambios
+ajenos preservados. No se modifican lógica productiva, migraciones V27/V28/V29 ni planes comerciales.
+El resultado será evidencia local; staging y los siguientes criterios conservan sus pendientes.
+
+### Evidencia de cierre
+
+Ejecución final aprobada el **2026-09-09 a las 09:53:49 -03:00**, con
+`JAVA_HOME=<Java 21> npm run test:e2e:registration-real` desde el frontend y Node 24.14.0.
+La compilación tomó 17.058 s y Failsafe aproximadamente 71 s. El XML registra **un harness JUnit
+que ejecutó y verificó catorce casos Playwright**, cero fallos/errores/omisiones y sin reintentos
+internos. La suite JUnit tomó 69.517 s. Lint, TypeScript, listado de catorce casos y revisión
+independiente del frontend y Java también aprobaron.
+
+- Los dos casos nuevos, escritorio y móvil 320 px, entregaron antes de registrar cobros. El USER
+  cargó 50000 por UI y obtuvo 201. Su intento de anulación recibió 403 y el titular ajeno obtuvo
+  404; las lecturas posteriores conservaron el movimiento original.
+- El titular anuló con motivo y auditoría, recibió 409 al repetir y cargó el importe corregido de
+  30000. Ambos usuarios vieron los dos movimientos; sólo el titular pudo anular el activo. El saldo
+  derivado quedó en 20000 y la vista por período incluyó sólo 30000. La reparación mantuvo ENTREGADO
+  y la misma conformidad. Esos importes describen lo declarado, sin verificar acreditaciones.
+- PostgreSQL **16.14** confirmó cuatro cobros exactos, dos anulados y dos activos, con pertenencia,
+  referencias, importes, autoría ADMIN de anulación y secuencia entrega → alta → anulación → nueva
+  alta. Se verificaron los deltas completos de cuentas, consentimiento y reparaciones. Las cuatro
+  reparaciones FREE previas conservaron cero cobros y las tablas de pagos del proveedor no cambiaron.
+  El baseline de cobros estaba vacío: se exige exactamente el conjunto nuevo; la comparación de
+  filas y xmin queda preparada para preservar filas anteriores, pero no acredita aquí un testigo
+  previo no vacío. El ADMIN y taller ajenos sí conservan sus valores y xmin.
+- La fase observada exigió seis POST canónicos, incluidos los intentos rechazados, sin checkout ni
+  llamadas a proveedores. Se confirmó la eliminación de los cuatro PostgreSQL efímeros y sus
+  contenedores auxiliares, y el cierre de los puertos utilizados en las cuatro ejecuciones.
+
+Se corrigieron tres defectos del laboratorio sin cambiar el producto: los selectores de etiquetas
+obligatorias debían admitir el asterisco; el email sintético del empleado excedía 64 caracteres antes
+del arroba y ahora usa el prefijo `cobro-user`; AssertJ no admite un conjunto vacío como argumento de
+`doesNotContainAnyElementsOf`, por lo que la exclusión de IDs usa `noneMatch`. Las primeras dos
+corridas aprobaron los doce casos previos y fallaron antes de crear empleados en los nuevos; la
+tercera aprobó los catorce casos de navegador y falló en esa aserción final. La cuarta recompiló y
+aprobó la matriz completa y sus verificaciones SQL. No se relajaron validaciones productivas.
+
+Sólo cambiaron pruebas y documentación. No se repitió `clean verify`: los fallos fueron del
+laboratorio, sin cambios productivos o transversales. V27/V28/V29 conservan sus hashes congelados.
+Un commit por repositorio, sin push y con los 77 archivos ajenos no versionados preservados:
+backend `test(cobros): acredita historial y correccion real`; frontend
+`test(cobros): verifica registro manual y anulacion`.
+
+**Control opcional de cobros queda acreditado localmente.** Sigue Evidencia y documentos: acceso,
+consentimiento aplicable y resumen informativo sin presentación fiscal. Staging, textos definitivos,
+gestión de datos/baja y operación real conservan los pendientes de la lista de salida.

@@ -9,6 +9,12 @@ Copiá este archivo al repo del frontend (o usalo como referencia para Claude Co
 
 Si venís de una versión anterior del contrato, esto es lo que cambió / se agregó:
 
+**2026-09-09 — Fotos privadas:** los archivos nuevos usan requisitos contextuales, intención,
+PUT binario y finalización bajo `/api/reparaciones/{id}`. El frontend guarda primero la reparación
+y conserva su ID durante los reintentos; no sube directamente a Cloudinary. La lectura y el borrado
+son autenticados. El contrato anterior `{url,momento}` se conserva para leer referencias legacy;
+no representa el contrato de carga nuevo. Ver el [plan y contrato de fotos privadas](plans/2026-09-09-fotos-privadas-implementation.md).
+
 1. **⚠️ BREAKING — Fotos**: el campo `fotos` de reparación pasó de `string[]` a
    `{ url, momento }[]` con `momento: "INGRESO" | "POST_REPARACION"` (§4.5).
 2. **Máquina de estados**: `EstadoReparacion` ahora tiene **12 estados** y el backend valida las
@@ -384,18 +390,15 @@ ReparacionRequest:
   "tieneCuentaVinculada": "NINGUNA",   // NINGUNA | ICLOUD | GOOGLE | OTRA
   "clienteConoceCredenciales": false,  // ¿puede quitar la cuenta?
   "tecnicoId": 1,                      // id de un usuario del taller (404 si no existe)
-  "fotos": [                           // la subida del archivo la hace el front a su storage
-    { "url": "https://cdn/ingreso1.jpg", "momento": "INGRESO" },
-    { "url": "https://cdn/post1.jpg",    "momento": "POST_REPARACION" }
-  ],
+  // Fotos nuevas: se omite este campo y se usa el protocolo privado con el ID guardado.
   "fechaConformidadEntrega": null,     // opcional; si no, se sella solo al pasar a ENTREGADO
   "garantiaDias": 90,                  // opcional; si no, el default del backend al entregar
   "garantiaCondiciones": "Cubre solo el repuesto cambiado" // opcional
 }
 ```
-> **Fotos**: cada una lleva `momento` (`INGRESO` | `POST_REPARACION`; si se omite, `INGRESO`).
-> Las de ingreso prueban la condición de entrada; las post, el trabajo (QA). **Cambió el formato:**
-> antes era `string[]`, ahora es `{ url, momento }[]`.
+> **Fotos**: cada una lleva `momento` (`INGRESO` | `POST_REPARACION`). Las nuevas se crean mediante
+> el protocolo privado; no se asocian enviando URLs en el alta o edición. Las referencias legacy
+> `{url,momento}` siguen disponibles en lectura y no adquieren privacidad por migrar la base de datos.
 > El **`numeroOrden`** NO se envía: lo genera el backend al crear (correlativo por taller con
 > reinicio anual, ej. `ORD-2026-0042`) y es inmutable. El ingreso rápido también lo asigna; los
 > flags de riesgo se pueden completar después editando la reparación.

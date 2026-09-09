@@ -83,7 +83,8 @@ vi.mock('../api/mutations/repuestos.mutations', () => ({
   useDeleteRepuestoMutation: () => ({ isPending: false, mutateAsync: vi.fn() }),
 }));
 
-vi.mock('../store/auth.store', () => ({
+vi.mock('../store/auth.store', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../store/auth.store')>(),
   useAuth: () => ({ isAdmin: mocks.isAdmin }),
 }));
 

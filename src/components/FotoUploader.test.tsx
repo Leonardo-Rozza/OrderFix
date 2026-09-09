@@ -1,114 +1,63 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FotoUploader } from './FotoUploader';
 
-const mocks = vi.hoisted(() => ({
-  showError: vi.fn(),
-  subirFoto: vi.fn(),
-}));
-
-vi.mock('../lib/cloudinary', () => ({
-  FotoInvalidaError: class FotoInvalidaError extends Error {},
-  subirFoto: mocks.subirFoto,
-}));
-
-vi.mock('../utils/toast', () => ({ showError: mocks.showError }));
-
-const deferred = <T,>() => {
-  let resolve!: (value: T) => void;
-  let reject!: (reason?: unknown) => void;
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, reject, resolve };
+const file = (name = 'local.jpg', type = 'image/jpeg') => new File(['foto'], name, { type });
+const Harness = () => {
+  const [files, setFiles] = useState<File[]>([]);
+  return <FotoUploader id="fotos" value={files} onChange={setFiles} />;
 };
+beforeEach(() => {
+  vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:local-preview'), revokeObjectURL: vi.fn() }));
+});
+afterEach(() => vi.unstubAllGlobals());
 
-const Harness = ({
-  initial = [],
-  onChange,
-  onUploadingChange,
-}: {
-  initial?: string[];
-  onChange?: (urls: string[]) => void;
-  onUploadingChange?: (uploading: boolean) => void;
-}) => {
-  const [value, setValue] = useState(initial);
-  return (
-    <FotoUploader
-      id="fotos"
-      value={value}
-      onChange={(urls) => {
-        setValue(urls);
-        onChange?.(urls);
-      }}
-      onUploadingChange={onUploadingChange}
-    />
-  );
-};
-
-describe('FotoUploader', () => {
-  beforeEach(() => {
-    mocks.showError.mockReset();
-    mocks.subirFoto.mockReset();
-  });
-
-  it('conserva la lista más reciente si se quita una foto durante una subida', async () => {
+describe('FotoUploader — selección local', () => {
+  it('seleccionar, quitar y desmontar no transmite archivos ni metadatos y revoca el preview', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
     const user = userEvent.setup();
-    const upload = deferred<string>();
-    const onChange = vi.fn();
-    const onUploadingChange = vi.fn();
-    mocks.subirFoto.mockReturnValueOnce(upload.promise);
-    const { container } = render(
-      <Harness initial={['https://img/old.jpg']} onChange={onChange} onUploadingChange={onUploadingChange} />,
-    );
-
-    const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]');
-    fireEvent.change(fileInput as HTMLInputElement, {
-      target: { files: [new File(['foto'], 'nueva.jpg', { type: 'image/jpeg' })] },
-    });
-    await waitFor(() => expect(onUploadingChange).toHaveBeenLastCalledWith(true));
-
-    await user.click(screen.getByRole('button', { name: 'Quitar foto 1' }));
-    expect(screen.queryByAltText('Foto subida 1')).not.toBeInTheDocument();
-
-    await act(async () => upload.resolve('https://img/new.jpg'));
-    await waitFor(() => expect(screen.getByAltText('Foto subida 1')).toHaveAttribute('src', 'https://img/new.jpg'));
-    expect(onChange).toHaveBeenLastCalledWith(['https://img/new.jpg']);
-    expect(onUploadingChange).toHaveBeenLastCalledWith(false);
-  });
-
-  it('acumula un lote secuencial sin perder la URL de la subida anterior', async () => {
-    const first = deferred<string>();
-    const second = deferred<string>();
-    const onChange = vi.fn();
-    mocks.subirFoto.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
-    const { container } = render(<Harness onChange={onChange} />);
-
-    fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
-      target: {
-        files: [
-          new File(['a'], 'a.jpg', { type: 'image/jpeg' }),
-          new File(['b'], 'b.jpg', { type: 'image/jpeg' }),
-        ],
-      },
-    });
-    await act(async () => first.resolve('https://img/a.jpg'));
-    await act(async () => second.resolve('https://img/b.jpg'));
-
-    await waitFor(() => expect(onChange).toHaveBeenLastCalledWith(['https://img/a.jpg', 'https://img/b.jpg']));
-  });
-
-  it('deshabilita todas las mutaciones externas y mantiene un target táctil para quitar', () => {
-    const { rerender } = render(
-      <FotoUploader id="fotos" value={['https://img/a.jpg']} onChange={vi.fn()} />,
-    );
+    const { container, unmount } = render(<Harness />);
+    fireEvent.change(container.querySelector('input')!, { target: { files: [file()] } });
+    expect(screen.getByAltText('Foto local 1')).toHaveAttribute('src', 'blob:local-preview');
+    expect(fetchSpy).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Quitar foto 1' })).toHaveClass('h-11', 'w-11');
-
-    rerender(<FotoUploader id="fotos" value={['https://img/a.jpg']} onChange={vi.fn()} disabled />);
-    expect(screen.getByRole('button', { name: 'Quitar foto 1' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Quitar foto 1' }));
+    expect(screen.queryByAltText('Foto local 1')).not.toBeInTheDocument();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:local-preview');
+    fireEvent.change(container.querySelector('input')!, { target: { files: [file()] } });
+    unmount();
+    expect(URL.revokeObjectURL).toHaveBeenCalledTimes(2);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+  it.each(['image/svg+xml', 'image/webp', 'text/plain'])('rechaza %s sin conservar la selección ni filtrar nombres', (type) => {
+    const change = vi.fn();
+    const { container } = render(<FotoUploader id="fotos" onChange={change} />);
+    fireEvent.change(container.querySelector('input')!, { target: { files: [file('secret-name', type)] } });
+    expect(change).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('JPEG o PNG');
+    expect(screen.getByRole('alert')).not.toHaveTextContent('secret-name');
+  });
+  it('rechaza un lote con archivo vacío o demasiado grande y mantiene las fotos previas', () => {
+    const change = vi.fn();
+    const previous = file();
+    const { container } = render(<FotoUploader id="fotos" value={[previous]} onChange={change} />);
+    const large = file();
+    Object.defineProperty(large, 'size', { value: 8_000_001 });
+    for (const invalid of [new File([], 'empty.png', { type: 'image/png' }), large]) {
+      fireEvent.change(container.querySelector('input')!, { target: { files: [file(), invalid] } });
+      expect(change).not.toHaveBeenCalled();
+      expect(screen.getByAltText('Foto local 1')).toBeVisible();
+    }
+  });
+  it('respeta disabled también ante un evento directo del input', () => {
+    const change = vi.fn();
+    const { container } = render(<FotoUploader id="fotos" value={[file()]} onChange={change} disabled />);
+    fireEvent.change(container.querySelector('input')!, { target: { files: [file()] } });
+    expect(change).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Agregar fotos' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Quitar foto 1' })).toBeDisabled();
   });
 });

@@ -7,6 +7,7 @@ import { UnsavedChangesGuard } from './UnsavedChangesGuard';
 import { FormField } from './FormField';
 import { AsyncCombobox } from './AsyncCombobox';
 import { FotoUploader } from './FotoUploader';
+import { PhotoUploadPanel } from './PhotoUploadPanel';
 import { MoneyInput } from './MoneyInput';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import { ESTADOS, ESTADOS_LIST, transicionesDesde } from '../config/estados';
@@ -20,13 +21,12 @@ import { useUsuariosQuery } from '../api/queries/usuarios.queries';
 import { equiposOptionsSource } from '../api/queries/equipos.queries';
 import { useAuth } from '../store/auth.store';
 import { CUENTA_LABEL, RIESGO_CUENTA_MSG } from '../config/ingreso';
-import { clienteLabel, fotosPorMomento } from '../utils/reparacion';
+import { clienteLabel } from '../utils/reparacion';
 import { toLocalDateInputValue } from '../utils/date';
 import { showSuccess } from '../utils/toast';
 import type {
   CuentaVinculada,
   EstadoReparacion,
-  Foto,
   IngresoRapidoRequest,
   IngresoRapidoResponse,
   Reparacion,
@@ -61,8 +61,6 @@ const schema = z
     condicionesIngreso: z.string().optional(),
     observaciones: z.string().optional(),
     tecnicoId: z.union([z.number(), z.nan()]).optional(),
-    fotosIngreso: z.array(z.string()),
-    fotosPost: z.array(z.string()),
     // Riesgos del ingreso (contrato §4.5)
     mojado: z.boolean(),
     trabajoEnPlaca: z.boolean(),
@@ -122,13 +120,6 @@ const credencialEditada = (
   // Vacío intencional: el contrato exige mandar "" para borrarlo.
   return actual;
 };
-const fotosArray = (ingreso: string[], post: string[]): Foto[] | undefined => {
-  const arr: Foto[] = [
-    ...ingreso.map((url): Foto => ({ url, momento: 'INGRESO' })),
-    ...post.map((url): Foto => ({ url, momento: 'POST_REPARACION' })),
-  ];
-  return arr.length ? arr : undefined;
-};
 const conoceCredencialesDeCuenta = (
   cuenta: CuentaVinculada,
   conoceCredenciales: boolean | null | undefined,
@@ -149,19 +140,20 @@ export const ReparacionFormModal = ({
   const ingresoRapido = useIngresoRapidoMutation();
   const completarIngresoRapido = useCompletarIngresoRapidoMutation();
   const [ingresoRapidoPendiente, setIngresoRapidoPendiente] = useState<IngresoRapidoResponse | null>(null);
-  const [subiendoFotosIngreso, setSubiendoFotosIngreso] = useState(false);
-  const [subiendoFotosPost, setSubiendoFotosPost] = useState(false);
+  const [fotosIngreso, setFotosIngreso] = useState<File[]>([]);
+  const [fotosPost, setFotosPost] = useState<File[]>([]);
+  const [photoTarget, setPhotoTarget] = useState<{ id: number; created: boolean } | null>(null);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const fechaIngresoInicial = useRef(toLocalDateInputValue());
   const detallesRef = useRef<HTMLDetailsElement>(null);
   const formKeyRef = useRef<string | null>(null);
-  const { isAdmin } = useAuth();
+  const { isAdmin, token } = useAuth();
   const { data: tecnicos = [] } = useUsuariosQuery(isAdmin);
 
   const saving = createMutation.isPending
     || updateMutation.isPending
     || ingresoRapido.isPending
     || completarIngresoRapido.isPending;
-  const uploadingPhotos = subiendoFotosIngreso || subiendoFotosPost;
   const blocking = saving || uploadingPhotos;
 
   const {
@@ -177,8 +169,6 @@ export const ReparacionFormModal = ({
     defaultValues: {
       modo: 'nuevo',
       estado: 'INGRESADO',
-      fotosIngreso: [],
-      fotosPost: [],
       mojado: false,
       trabajoEnPlaca: false,
       noTesteableAlIngreso: false,
@@ -216,15 +206,21 @@ export const ReparacionFormModal = ({
       setValue('patronDesbloqueo', '');
       setValue('pinDesbloqueo', '');
       setIngresoRapidoPendiente(null);
+      setFotosIngreso([]);
+      setFotosPost([]);
+      setPhotoTarget(null);
       formKeyRef.current = null;
       return;
     }
 
-    const formKey = editing ? `editar-${editing.id}` : 'crear';
+    const formKey = `${token ?? ''}:${editing ? `editar-${editing.id}` : 'crear'}`;
     // Una invalidación del detalle no debe pisar lo que el técnico ya escribió.
     if (formKeyRef.current === formKey) return;
     formKeyRef.current = formKey;
     setIngresoRapidoPendiente(null);
+    setFotosIngreso([]);
+    setFotosPost([]);
+    setPhotoTarget(null);
 
     if (editing) {
       reset({
@@ -242,8 +238,6 @@ export const ReparacionFormModal = ({
         condicionesIngreso: editing.condicionesIngreso ?? '',
         observaciones: editing.observaciones ?? '',
         tecnicoId: editing.tecnicoId ?? Number.NaN,
-        fotosIngreso: fotosPorMomento(editing.fotos, 'INGRESO'),
-        fotosPost: fotosPorMomento(editing.fotos, 'POST_REPARACION'),
         mojado: editing.mojado ?? false,
         trabajoEnPlaca: editing.trabajoEnPlaca ?? false,
         noTesteableAlIngreso: editing.noTesteableAlIngreso ?? false,
@@ -280,8 +274,6 @@ export const ReparacionFormModal = ({
         condicionesIngreso: '',
         observaciones: '',
         tecnicoId: Number.NaN,
-        fotosIngreso: [],
-        fotosPost: [],
         mojado: false,
         trabajoEnPlaca: false,
         noTesteableAlIngreso: false,
@@ -292,7 +284,7 @@ export const ReparacionFormModal = ({
         garantiaCondiciones: '',
       });
     }
-  }, [isOpen, editing, credenciales, reset, setValue]);
+  }, [isOpen, editing, credenciales, reset, setValue, token]);
 
   const ordenTrabajo = (data: FormData, omitirCredenciales = false) => ({
     patronDesbloqueo: omitirCredenciales
@@ -309,7 +301,6 @@ export const ReparacionFormModal = ({
     condicionesIngreso: str(data.condicionesIngreso),
     observaciones: str(data.observaciones),
     tecnicoId: numId(data.tecnicoId),
-    fotos: fotosArray(data.fotosIngreso, data.fotosPost),
     mojado: data.mojado,
     trabajoEnPlaca: data.trabajoEnPlaca,
     noTesteableAlIngreso: data.noTesteableAlIngreso,
@@ -354,20 +345,28 @@ export const ReparacionFormModal = ({
     ...ordenTrabajo(data, data.estado === 'ENTREGADO'),
   });
 
+  const finishSaved = (id: number, created: boolean, commitAndClose: () => void) => {
+    if (fotosIngreso.length || fotosPost.length) {
+      setPhotoTarget({ id, created });
+      return;
+    }
+    commitAndClose();
+    if (created) onCreated?.(id);
+  };
+
   const finalizarIngresoRapido = (
     response: IngresoRapidoResponse,
     commitAndClose: () => void,
   ) => {
     setIngresoRapidoPendiente(null);
     showSuccess(response.clienteNuevo ? 'Reparación y cliente creados' : 'Reparación creada');
-    commitAndClose();
-    onCreated?.(response.reparacion.id);
+    finishSaved(response.reparacion.id, true, commitAndClose);
   };
 
   const onSubmit = async (data: FormData, commitAndClose: () => void) => {
     // El botón externo queda deshabilitado, pero este guard también cubre un
     // submit implícito por Enter mientras el input de archivos sigue trabajando.
-    if (uploadingPhotos) return;
+    if (blocking || photoTarget) return;
 
     const eliminaCredenciales = data.estado === 'ENTREGADO';
     if (eliminaCredenciales) {
@@ -407,7 +406,7 @@ export const ReparacionFormModal = ({
         }
         return;
       }
-      commitAndClose();
+      finishSaved(editing.id, false, commitAndClose);
       return;
     }
 
@@ -468,11 +467,11 @@ export const ReparacionFormModal = ({
       ...ordenTrabajo(data, eliminaCredenciales),
     };
     try {
-      await createMutation.mutateAsync(payload);
+      const created = await createMutation.mutateAsync(payload);
+      finishSaved(created.id, true, commitAndClose);
     } catch {
       return;
     }
-    commitAndClose();
   };
 
   const onInvalid = (invalid: typeof errors) => {
@@ -493,7 +492,12 @@ export const ReparacionFormModal = ({
     }
   };
 
-  const partialCloseCopy = ingresoRapidoPendiente
+  const partialCloseCopy = photoTarget
+    ? {
+      message: 'La orden ya está guardada. Cerrar descarta sólo la selección local pendiente; las fotos guardadas permanecen en la orden.',
+      discardLabel: 'Cerrar y completar después',
+    }
+    : ingresoRapidoPendiente
     ? {
       message: 'La orden ya existe y no se va a eliminar ni duplicar. Sólo se descartarán los detalles locales que todavía no se guardaron.',
       discardLabel: 'Cerrar y completar después',
@@ -503,7 +507,7 @@ export const ReparacionFormModal = ({
   return (
     <UnsavedChangesGuard
       isOpen={isOpen}
-      isDirty={isDirty || Boolean(ingresoRapidoPendiente)}
+      isDirty={isDirty || Boolean(ingresoRapidoPendiente) || Boolean(photoTarget) || fotosIngreso.length > 0 || fotosPost.length > 0}
       isBusy={blocking}
       onClose={onClose}
       onNavigationDiscard={onNavigationDiscard}
@@ -513,16 +517,16 @@ export const ReparacionFormModal = ({
         <Modal
           isOpen
           onClose={guard.requestClose}
-          title={editing ? 'Editar reparación' : 'Nueva reparación'}
+          title={photoTarget ? 'Fotos de la orden guardada' : editing ? 'Editar reparación' : 'Nueva reparación'}
           size="lg"
           preventClose={blocking}
           suspended={guard.isSuspended}
           footer={(
             <FormActions>
               <button type="button" className={btnGhost} onClick={guard.requestClose} disabled={blocking}>
-                {ingresoRapidoPendiente ? 'Cerrar y completar después' : 'Cancelar'}
+                {ingresoRapidoPendiente || photoTarget ? 'Cerrar y completar después' : 'Cancelar'}
               </button>
-              <button type="submit" form="reparacion-form" className={btnPrimary} disabled={submitBlocked}>
+              {!photoTarget && <button type="submit" form="reparacion-form" className={btnPrimary} disabled={submitBlocked}>
                 {uploadingPhotos
                   ? 'Subiendo fotos…'
                   : saving
@@ -532,11 +536,22 @@ export const ReparacionFormModal = ({
                       : editing
                         ? 'Guardar cambios'
                         : 'Crear reparación'}
-              </button>
+              </button>}
             </FormActions>
           )}
         >
-          <form
+          {photoTarget ? <PhotoUploadPanel
+            repairId={photoTarget.id}
+            photos={[
+              ...fotosIngreso.map((file) => ({ file, momento: 'INGRESO' as const })),
+              ...fotosPost.map((file) => ({ file, momento: 'POST_REPARACION' as const })),
+            ]}
+            onBusyChange={setUploadingPhotos}
+            onComplete={() => {
+              guard.commitAndClose();
+              if (photoTarget.created) onCreated?.(photoTarget.id);
+            }}
+          /> : <form
             id="reparacion-form"
             onSubmit={handleSubmit((data) => onSubmit(data, guard.commitAndClose), onInvalid)}
             noValidate
@@ -828,41 +843,18 @@ export const ReparacionFormModal = ({
                 </div>
 
                 <FormField label="Fotos del ingreso" htmlFor="fotosIngreso">
-                  <Controller
-                    control={control}
-                    name="fotosIngreso"
-                    render={({ field }) => (
-                      <FotoUploader
-                        id="fotosIngreso"
-                        value={field.value}
-                        onChange={field.onChange}
-                        onUploadingChange={setSubiendoFotosIngreso}
-                        disabled={saving}
-                      />
-                    )}
-                  />
+                  <FotoUploader id="fotosIngreso" value={fotosIngreso} onChange={setFotosIngreso} disabled={saving} />
                 </FormField>
                 <FormField label="Fotos post-reparación" htmlFor="fotosPost">
-                  <Controller
-                    control={control}
-                    name="fotosPost"
-                    render={({ field }) => (
-                      <FotoUploader
-                        id="fotosPost"
-                        value={field.value}
-                        onChange={field.onChange}
-                        onUploadingChange={setSubiendoFotosPost}
-                        disabled={saving}
-                      />
-                    )}
-                  />
+                  <FotoUploader id="fotosPost" value={fotosPost} onChange={setFotosPost} disabled={saving} />
                 </FormField>
+                {Boolean(editing?.fotos?.length) && <p className="text-sm text-text-3">Las fotos anteriores se conservan y pueden consultarse en el detalle de la reparación.</p>}
               </div>
             </details>
         </div>
 
             </fieldset>
-          </form>
+          </form>}
         </Modal>
       )}
     </UnsavedChangesGuard>

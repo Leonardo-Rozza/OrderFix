@@ -4,8 +4,8 @@ Fecha: 2026-09-08
 
 Estado: cuenta, taller/empleados, reparación/presupuesto y control opcional de cobros verificados
 localmente con navegador → HTTP → PostgreSQL. Los cortes y sus límites se documentan abajo.
-En Evidencia y documentos, el resumen está verificado y siguen pendientes fotos privadas y
-consentimiento contextual. Confianza y cuenta y Operación real conservan sus pendientes;
+En Evidencia y documentos, resumen, fotos y confirmación contextual están verificados localmente.
+Quedan la acreditación de Cloudinary real y el tratamiento de referencias legacy en el entorno de salida. Confianza y cuenta y Operación real conservan sus pendientes;
 todavía no se acredita disponibilidad en staging.
 
 ## Decisión de producto
@@ -587,3 +587,23 @@ corte debe abordar el recorrido de fotos privadas y la confirmación contextual 
 BACKEND-HANDOFF 4/Tarea 9: carga, acceso por permisos y eliminación del archivo, reutilizando las
 primitivas legales existentes. No se agregan nuevas familias de infraestructura como objetivo
 independiente ni se habilita el flujo unsigned para la salida. Staging conserva sus pendientes.
+
+## Corte cerrado localmente — fotos privadas y confirmación contextual
+
+Fecha: 2026-09-09. Baselines frontend `f29b9ba`, backend `e10070b`. Se implementó el recorrido
+previsto: selección local, confirmación canónica por reparación, intención/carga/finalización,
+lectura autenticada y eliminación reintentable. Se preserva la orden al fallar las fotos y se retira
+el upload unsigned del navegador. Un commit por repositorio, sin push, con 77 archivos ajenos
+no versionados preservados. V27–V29 no cambian; la evolución usa V30.
+
+Aprobados cuatro recorridos de fotos en escritorio/320 px sobre V30 y la regresión de catorce
+recorridos anteriores sobre su fixture V29. El frontend aprobó 566 Vitest, 42 controles de publicación,
+typecheck, lint y build. El integral backend ejecutó 7.413 unitarias y 1.350 IT; sus fallos se detallan
+en el [cierre de fotos](2026-09-09-fotos-privadas-implementation.md), junto con la revalidación
+aprobada de las cinco suites afectadas (85 IT, incluida una prueba nueva). No se afirma que aquel
+clean verify terminara verde ni se sustituyen sus incidentes por el resultado de otra corrida.
+
+**Evidencia y documentos sigue pendiente de acreditación en el entorno de salida:** cuenta real
+Cloudinary, bloqueo de acceso anónimo a originales/derivados, borrado y retención operativos,
+y tratamiento explícito de las referencias legacy. También quedan Confianza y cuenta y Operación
+real. El siguiente trabajo se elige de esas filas; este corte no abre otra familia de infraestructura.

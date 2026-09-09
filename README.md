@@ -59,6 +59,21 @@ deliberadamente una lectura o descartan una respuesta real 201 para comprobar la
 Las respuestas de negocio y la sesión provienen del backend. La configuración de navegador exige
 la URL local y el reporte del harness, por lo que no se ejecuta directamente contra una API remota.
 
+El recorrido de fotos privadas tiene un laboratorio separado:
+
+```sh
+npm run test:e2e:photos-real
+```
+
+Usa los mismos requisitos de Java, Docker y Node; ejecuta `PrivatePhotoBrowserE2E` con Vite en
+`127.0.0.1:5176`. Cuatro casos cubren alta nueva/existente en escritorio y 320 px: selección local,
+confirmación contextual antes de transmitir, recuperación de una carga con respuesta incierta sin
+duplicar la orden, lectura por titular/empleado, rechazo ajeno/anónimo y eliminación. PostgreSQL
+acredita manifiestos, pertenencia y evidencia canónica. El almacenamiento local de prueba conserva
+bytes y simula el fallo: este laboratorio no verifica una cuenta Cloudinary ni sustituye staging.
+El [plan de fotos privadas](docs/plans/2026-09-09-fotos-privadas-implementation.md) registra el
+contrato, los límites y los resultados de validación.
+
 ## 📋 Tabla de Contenidos
 
 - [Características](#-características)

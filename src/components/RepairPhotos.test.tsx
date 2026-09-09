@@ -1,0 +1,97 @@
+import { act, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { RepairPhotos } from './RepairPhotos';
+import { authStore } from '../store/auth.store';
+import { deletePrivatePhoto, getPrivatePhoto, listPrivatePhotos } from '../api/repairPhotos';
+vi.mock('../api/repairPhotos', () => ({ deletePrivatePhoto: vi.fn(), getPrivatePhoto: vi.fn(), listPrivatePhotos: vi.fn() }));
+const id = '00000000-0000-4000-8000-000000000001';
+const photo = { id, momento: 'INGRESO' as const, mimeType: 'image/jpeg' as const, bytes: 3, sha256: 'a'.repeat(64), createdAt: '2026-09-09T01:00:00Z' };
+beforeEach(() => {
+  vi.resetAllMocks();
+  URL.createObjectURL = vi.fn(() => 'blob:private-photo');
+  URL.revokeObjectURL = vi.fn();
+  vi.mocked(listPrivatePhotos).mockResolvedValue([photo]);
+  vi.mocked(getPrivatePhoto).mockResolvedValue(new Blob(['abc'], { type: 'image/jpeg' }));
+});
+describe('RepairPhotos', () => {
+  it('lee metadata y Blob autenticado bajo demanda, sin URL de proveedor, y revoca al desmontar', async () => {
+    const user = userEvent.setup();
+    const { container, unmount } = render(<RepairPhotos repairId={9} />);
+    expect(listPrivatePhotos).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Ver fotos privadas' }));
+    await screen.findByText('Foto del ingreso');
+    expect(getPrivatePhoto).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Ver foto' }));
+    expect(await screen.findByAltText('Foto privada del ingreso')).toHaveAttribute('src', 'blob:private-photo');
+    expect(getPrivatePhoto).toHaveBeenCalledWith(9, id, expect.any(AbortSignal));
+    expect(container.querySelector('a[href]')).toBeNull();
+    expect(localStorage.length).toBe(0);
+    unmount();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:private-photo');
+    expect(vi.mocked(getPrivatePhoto).mock.calls[0][2].aborted).toBe(true);
+  });
+  it('el borrado fallido mantiene foto/ID y sólo la retira después de confirmación remota', async () => {
+    const user = userEvent.setup();
+    vi.mocked(deletePrivatePhoto).mockRejectedValueOnce(new Error('provider')).mockResolvedValueOnce(undefined);
+    render(<RepairPhotos repairId={9} />);
+    await user.click(screen.getByRole('button', { name: 'Ver fotos privadas' }));
+    await user.click(await screen.findByRole('button', { name: 'Ver foto' }));
+    await screen.findByAltText('Foto privada del ingreso');
+    await user.click(screen.getByRole('button', { name: 'Eliminar foto' }));
+    expect(deletePrivatePhoto).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Confirmar eliminación' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se confirmó el borrado');
+    expect(screen.getByAltText('Foto privada del ingreso')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Confirmar eliminación' }));
+    await waitFor(() => expect(screen.queryByAltText('Foto privada del ingreso')).not.toBeInTheDocument());
+    expect(vi.mocked(deletePrivatePhoto).mock.calls.map(([repairId, photoId]) => [repairId, photoId])).toEqual([[9, id], [9, id]]);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:private-photo');
+  });
+  it('un fallo de metadata nunca se muestra como una lista vacía ni carga bytes', async () => {
+    const user = userEvent.setup();
+    vi.mocked(listPrivatePhotos).mockRejectedValueOnce(new Error('503'));
+    render(<RepairPhotos repairId={9} />);
+    await user.click(screen.getByRole('button', { name: 'Ver fotos privadas' }));
+    await screen.findByRole('alert');
+    expect(screen.queryByText('No hay fotos privadas guardadas.')).not.toBeInTheDocument();
+    expect(getPrivatePhoto).not.toHaveBeenCalled();
+  });
+  it('abre sólo una imagen, revoca la anterior y libera la última al cerrar', async () => {
+    const user = userEvent.setup();
+    const second = { ...photo, id: '00000000-0000-4000-8000-000000000002', momento: 'POST_REPARACION' as const };
+    vi.mocked(listPrivatePhotos).mockResolvedValue([photo, second]);
+    render(<RepairPhotos repairId={9} />);
+    await user.click(screen.getByRole('button', { name: 'Ver fotos privadas' }));
+    await screen.findByText('Foto post-reparación');
+    expect(getPrivatePhoto).not.toHaveBeenCalled();
+    await user.click(screen.getAllByRole('button', { name: 'Ver foto' })[0]);
+    await screen.findByAltText('Foto privada del ingreso');
+    expect(getPrivatePhoto).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole('button', { name: 'Ver foto' }));
+    await screen.findByAltText('Foto privada post-reparación');
+    expect(screen.queryByAltText('Foto privada del ingreso')).not.toBeInTheDocument();
+    expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(getPrivatePhoto).mock.calls[0][2].aborted).toBe(true);
+    await user.click(screen.getByRole('button', { name: 'Cerrar foto' }));
+    expect(screen.queryByAltText('Foto privada post-reparación')).not.toBeInTheDocument();
+    expect(URL.revokeObjectURL).toHaveBeenCalledTimes(2);
+  });
+  it.each(['sesión', 'reparación'] as const)('un cambio de %s destruye la galería sin descargar para la nueva identidad', async (change) => {
+    const user = userEvent.setup();
+    const { rerender } = render(<RepairPhotos repairId={9} />);
+    await user.click(screen.getByRole('button', { name: 'Ver fotos privadas' }));
+    await user.click(await screen.findByRole('button', { name: 'Ver foto' }));
+    await screen.findByAltText('Foto privada del ingreso');
+    if (change === 'reparación') rerender(<RepairPhotos repairId={10} />);
+    else act(() => authStore.setState({ token: 'different-session' }));
+    expect(screen.queryByAltText('Foto privada del ingreso')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ver foto' })).not.toBeInTheDocument();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:private-photo');
+    expect(vi.mocked(getPrivatePhoto).mock.calls[0][2].aborted).toBe(true);
+    expect(listPrivatePhotos).toHaveBeenCalledTimes(1);
+    expect(getPrivatePhoto).toHaveBeenCalledTimes(1);
+    if (change === 'sesión') act(() => authStore.setState({ token: null }));
+  });
+
+});

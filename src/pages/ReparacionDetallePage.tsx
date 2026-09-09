@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { EstadoBadge } from '../components/EstadoBadge';
 import { ReparacionFormModal } from '../components/ReparacionFormModal';
+import { RepairPhotos } from '../components/RepairPhotos';
 import { RepuestoFormModal } from '../components/RepuestoFormModal';
 import { PresupuestoFormModal } from '../components/PresupuestoFormModal';
 import { PresupuestoBadge } from '../components/PresupuestoBadge';
@@ -472,6 +473,8 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
                   })}
               </div>
             )}
+
+            <RepairPhotos key={`photos-${rep.id}-${editOpen}`} repairId={rep.id} />
 
             {/* Presupuestos */}
             <section

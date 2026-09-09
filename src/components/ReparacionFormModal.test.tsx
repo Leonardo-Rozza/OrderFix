@@ -11,6 +11,12 @@ vi.mock('../utils/toast', async (orig) => {
   return { ...actual, showError: vi.fn(), showSuccess: vi.fn() };
 });
 
+vi.mock('../api/repairPhotos', async (original) => ({
+  ...await original<typeof import('../api/repairPhotos')>(),
+  getPhotoRequirements: vi.fn(), preparePhotoAttempt: vi.fn(), uploadPhotoAttempt: vi.fn(),
+}));
+import { getPhotoRequirements, preparePhotoAttempt, uploadPhotoAttempt, type PhotoAttempt, type PhotoRequirements, type PrivatePhoto } from '../api/repairPhotos';
+
 import { ReparacionFormModal } from './ReparacionFormModal';
 import { authStore } from '../store/auth.store';
 import { showError, showSuccess } from '../utils/toast';
@@ -481,5 +487,106 @@ describe('ReparacionFormModal — edición segura de credenciales', () => {
     expect(body).not.toHaveProperty('pinDesbloqueo');
     expect(body).not.toHaveProperty('patronDesbloqueo');
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('ReparacionFormModal — fotos sobre una orden confirmada', () => {
+  const requirementId = '00000000-0000-4000-8000-000000000001';
+  const requirements: PhotoRequirements = {
+    locale: 'es-AR', requiredSetRevision: `sha256:${'a'.repeat(64)}`,
+    limites: { maxBytes: 8_000_000, mimeTypes: ['image/jpeg', 'image/png'] },
+    requisitos: [{ id: requirementId, contexto: 'ATESTACION_FOTOS', tipoActo: 'DECLARACION',
+      afirmacion: 'Autorizo las fotografías del cliente', afirmacionSha256: 'b'.repeat(64), requerido: true,
+      documentos: [{ id: requirementId, tipo: 'ATESTACION_DATOS_CLIENTE', version: '1', titulo: 'Fotos',
+        contenidoMarkdown: 'Condiciones para fotos', sha256: 'c'.repeat(64), vigenteDesde: '2026-09-09T00:00:00Z',
+        estado: 'VIGENTE', locale: 'es-AR' }] }],
+  };
+  beforeEach(() => {
+    URL.createObjectURL = vi.fn(() => 'blob:local-photo');
+    URL.revokeObjectURL = vi.fn();
+    vi.mocked(getPhotoRequirements).mockReset().mockResolvedValue(requirements);
+    vi.mocked(preparePhotoAttempt).mockReset();
+    vi.mocked(uploadPhotoAttempt).mockReset();
+  });
+
+  it.each(['nuevo', 'existente'] as const)('en modo %s un fallo de carga conserva ID y reintenta sólo fotos', async (mode) => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const onCreated = vi.fn();
+    const selectedFile = new File(['photo'], 'local.jpg', { type: 'image/jpeg' });
+    const retainedAttempt: PhotoAttempt = { key: requirementId, file: selectedFile, payload: {
+      nombre: 'local.jpg', mimeType: 'image/jpeg', bytes: 5, sha256: 'd'.repeat(64), momento: 'INGRESO',
+      requiredSetRevision: requirements.requiredSetRevision, aceptacionesLegales: [],
+      atestacion: { tipo: 'AUTORIZACION_DATOS_CLIENTE', alcances: ['FOTOS'], confirmada: true },
+    } };
+    const savedPhoto: PrivatePhoto = { id: requirementId, momento: 'INGRESO', mimeType: 'image/jpeg',
+      bytes: 5, sha256: 'd'.repeat(64), createdAt: '2026-09-09T00:01:00Z' };
+    vi.mocked(preparePhotoAttempt).mockResolvedValue(retainedAttempt);
+    vi.mocked(uploadPhotoAttempt).mockRejectedValueOnce(new Error('network')).mockResolvedValueOnce(savedPhoto);
+    let creations = 0;
+    let updates = 0;
+    const bodies: object[] = [];
+    server.use(
+      http.get(`${API}/equipos`, () => HttpResponse.json({ content: [{ id: 5, marca: 'Samsung', modelo: 'A52', clienteId: 1 }],
+        page: { size: 20, number: 0, totalElements: 1, totalPages: 1 } })),
+      http.post(`${API}/reparaciones/ingreso-rapido`, async ({ request }) => {
+        creations++; bodies.push(await request.json() as object);
+        return HttpResponse.json({ clienteId: 1, equipoId: 5, clienteNuevo: true, reparacion: { id: 9, equipoId: 5 } }, { status: 201 });
+      }),
+      http.post(`${API}/reparaciones`, async ({ request }) => {
+        creations++; bodies.push(await request.json() as object);
+        return HttpResponse.json({ id: 9, equipoId: 5 }, { status: 201 });
+      }),
+      http.put(`${API}/reparaciones/9`, () => { updates++; return HttpResponse.json({ id: 9 }); }),
+    );
+    const { container } = renderUI(<ReparacionFormModal isOpen editing={null} onClose={onClose} onCreated={onCreated} />);
+    if (mode === 'nuevo') await completarMinimos(user);
+    else {
+      await user.click(screen.getByRole('button', { name: /elegir equipo existente/i }));
+      await user.click(screen.getByLabelText(/^equipo/i));
+      await user.click(await screen.findByRole('option', { name: /Samsung A52/i }));
+      await user.type(screen.getByLabelText(/problema/i), 'No carga');
+    }
+    await user.click(screen.getByText('Detalles de ingreso (opcional)', { exact: true }));
+    fireEvent.change(container.querySelector('#fotosIngreso')!, { target: { files: [selectedFile] } });
+    expect(getPhotoRequirements).not.toHaveBeenCalled();
+    expect(preparePhotoAttempt).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Crear reparación' }));
+    await screen.findByRole('heading', { name: 'Fotos de la orden guardada' });
+    expect(creations).toBe(1);
+    expect(updates).toBe(0);
+    expect(bodies[0]).not.toHaveProperty('fotos');
+    expect(onClose).not.toHaveBeenCalled();
+    expect(getPhotoRequirements).toHaveBeenCalledWith(9, expect.any(AbortSignal));
+    expect(uploadPhotoAttempt).not.toHaveBeenCalled();
+    await user.click(await screen.findByRole('checkbox', { name: /Autorizo las fotografías/ }));
+    await user.click(screen.getByRole('checkbox', { name: /Confirmo que cuento/ }));
+    await user.click(screen.getByRole('button', { name: 'Confirmar y guardar fotos' }));
+    await screen.findByText(/No se completó la carga de fotos/);
+    expect(creations).toBe(1);
+    expect(onCreated).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Reintentar fotos' }));
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+    expect(onCreated).toHaveBeenCalledWith(9);
+    expect(creations).toBe(1);
+    expect(updates).toBe(0);
+    expect(vi.mocked(uploadPhotoAttempt).mock.calls.map(([id, attempt]) => [id, attempt])).toEqual([[9, retainedAttempt], [9, retainedAttempt]]);
+    expect(preparePhotoAttempt).toHaveBeenCalledOnce();
+  });
+
+  it('editar una orden con referencias legacy conserva su lectura sin reenviar URLs', async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | undefined;
+    server.use(http.put(`${API}/reparaciones/15`, async ({ request }) => {
+      body = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({ ...reparacionEnEdicion, ...body });
+    }));
+    renderUI(<ReparacionFormModal isOpen editing={{ ...reparacionEnEdicion, fotos: [{ url: 'https://legacy.test/a.jpg', momento: 'INGRESO' }] }} onClose={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(body).toBeDefined());
+    expect(body).not.toHaveProperty('fotos');
+    expect(JSON.stringify(body)).not.toContain('legacy.test');
+    expect(getPhotoRequirements).not.toHaveBeenCalled();
   });
 });

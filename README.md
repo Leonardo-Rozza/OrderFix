@@ -37,8 +37,12 @@ persistida antes de cerrar los recursos. Vite usa `127.0.0.1:5175` y no reutiliz
 
 También recorre titular y empleados: alta de USER desde una cuenta TRIAL, login y operación con
 clientes, restricciones por rol, aislamiento entre talleres y pérdida de acceso al desactivar.
-Conserva los seis casos de registro y agrega dos recorridos de empleados (escritorio y móvil 320 px).
-PostgreSQL comprueba las altas legales, los roles, la pertenencia y el estado final de los datos.
+Conserva los seis casos de registro y dos recorridos de empleados (escritorio y móvil 320 px).
+Agrega cuatro recorridos de reparación: presupuesto aprobado o rechazado desde el seguimiento
+público y entrega sin cobros, en ambos dispositivos. Usa talleres sintéticos FREE/ACTIVA para
+comprobar el módulo deshabilitado y el consumo del cupo; esa preparación no prueba el vencimiento
+del trial. PostgreSQL comprueba las altas legales, roles, pertenencia, importes, respuesta y entrega,
+y exige cero registros nuevos de cobros o pagos. Son doce casos de navegador en total.
 
 Este laboratorio utiliza identidades, claves y textos técnicos de prueba. No envía email ni activa
 Mercado Pago; no publica borradores legales ni apunta a staging/producción. Los casos de red cortan

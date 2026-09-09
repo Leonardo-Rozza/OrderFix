@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { expect, type Page, type Request, type TestInfo } from '@playwright/test';
 import type { RegistrationAcceptance, RegistrationRequirements } from '../src/api/registrationConsent';
+import type { AuthResponse, Perfil } from '../src/types';
 
 export const api = new URL(process.env.ORDENFIX_REGISTRATION_E2E_API_URL!).origin;
 const runId = process.env.ORDENFIX_REGISTRATION_E2E_RUN_ID!;
@@ -14,6 +15,9 @@ type Evidence = {
   case: 'created' | 'replayed' | 'blocked' | 'employees'; project: string; email: string;
   employee?: { id: number; email: string }; client?: { id: number }; ownerId?: number; otherOwnerId?: number;
   requiredSetRevision?: string; acceptances?: RegistrationAcceptance[]; idempotencyKey?: string;
+} | {
+  case: 'repair-approved' | 'repair-rejected'; project: string; email: string;
+  ownerId: number; clientId: number; equipmentId: number; repairId: number; budgetId: number; trackingCode: string;
 };
 
 export const matches = (url: string, path: string) => url === `${api}${path}`;
@@ -92,4 +96,52 @@ export const verifyNoAttemptStorage = async (page: Page, key: string) => {
   const storage = await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } }));
   expect(storage).not.toContain(password);
   expect(storage).not.toContain(key);
+};
+
+export const noHorizontalOverflow = async (page: Page) => {
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+};
+
+export const storedTokenMatches = (page: Page, token: string) => page.evaluate((expected) => {
+  const stored = JSON.parse(localStorage.getItem('ordenfix-auth') ?? '{}');
+  return stored.state?.token === expected;
+}, token);
+
+// Fetch del navegador conserva CORS y el JWT original: los rechazos no pasan por
+// el interceptor que podría cerrar la sesión y falsear el siguiente control.
+export const authenticated = async <T = unknown>(page: Page, token: string, path: string, method = 'GET', body?: unknown) => {
+  return page.evaluate(async (input) => {
+    const response = await fetch(input.url, {
+      method: input.method,
+      headers: {
+        Authorization: `Bearer ${input.token}`,
+        ...(input.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      },
+      ...(input.body === undefined ? {} : { body: JSON.stringify(input.body) }),
+    });
+    const text = await response.text();
+    return { status: response.status, body: (text ? JSON.parse(text) : null) as T };
+  }, { url: `${api}${path}`, token, method, body });
+};
+
+export const login = async (page: Page, email: string, credentials = password) => {
+  await page.goto('/login');
+  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page.getByLabel('Contraseña', { exact: true }).fill(credentials);
+  const responsePromise = page.waitForResponse((response) => matches(response.url(), '/api/auth/login') && response.request().method() === 'POST');
+  const profilePromise = page.waitForResponse((response) => matches(response.url(), '/api/perfil') && response.request().method() === 'GET');
+  const subscriptionPromise = page.waitForResponse((response) => matches(response.url(), '/api/suscripcion') && response.request().method() === 'GET');
+  await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
+  const [response, profile, subscription] = await Promise.all([responsePromise, profilePromise, subscriptionPromise]);
+  expect(response.status()).toBe(200);
+  expect(profile.status()).toBe(200);
+  expect(subscription.status()).toBe(200);
+  const session = await response.json() as AuthResponse;
+  expect(typeof session.token === 'string' && session.token.length > 0).toBe(true);
+  await expect(page).toHaveURL(/\/dashboard$/);
+  expect(await storedTokenMatches(page, session.token)).toBe(true);
+  const identity = await profile.json() as Perfil;
+  expect(identity.usuario.email).toBe(email);
+  await noHorizontalOverflow(page);
+  return { token: session.token, profile: identity };
 };

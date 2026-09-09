@@ -4,6 +4,13 @@ Fecha: 2026-08-23
 
 Estado: decisiones de producto aprobadas; contrato técnico propuesto para handoff y validación con backend
 
+Actualización de alcance — 2026-09-08: la
+[salida inicial y sus criterios de cierre](2026-09-08-salida-inicial-alcance-y-cierre.md) tienen prioridad
+para el trabajo pendiente. La descripción de lanzamiento pago de abajo conserva el alcance completo
+histórico; PRO/Mercado Pago y ampliaciones de email quedan para fases posteriores. Los cobros del taller
+ocurren fuera de OrdenFix y su registro manual es opcional. La autorización posterior del usuario permite
+trabajar en ambos repositorios cuando lo requiera el contrato, según el plan de implementación.
+
 Refinamiento de Fase 1: la revisión de normativa oficial vigente separó los accesos públicos de arrepentimiento, baja y revisión de cobro. Cuando el régimen de consumo resulte aplicable, los dos primeros deben conservar las denominaciones y el plazo de constancia exigidos; la verificación de identidad no reinicia el reloj de la solicitud.
 
 Repositorio implementador de interfaz: `/Volumes/DiscoExtern/Desktop/mvgr-reparaciones-frontend`

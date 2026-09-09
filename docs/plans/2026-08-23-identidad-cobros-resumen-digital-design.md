@@ -2,6 +2,15 @@
 
 Fecha: 2026-08-23
 
+## Aclaración ratificada — 2026-09-08
+
+El taller cobra por fuera de OrdenFix y decide si carga esos movimientos para llevar su control.
+OrdenFix permite aceptar presupuestos; esa aceptación no inicia pagos ni crea un cobro registrado.
+Los resúmenes son informativos y sin validez fiscal. No se verifican acreditaciones bancarias;
+se conservan las validaciones de consistencia y permisos sobre los datos declarados.
+La [lista de cierre de la salida inicial](2026-09-08-salida-inicial-alcance-y-cierre.md) exige probar
+el recorrido de reparación también sin utilizar Cobros. PRO corresponde a otra relación comercial.
+
 ## Contexto
 
 OrdenFix ya pide `nombreTaller`, `telefonoTaller` y `nombreAdmin` durante el registro, pero la sesión autenticada sólo conserva token, email y verificación. El JWT expone `sub`, `role`, `tallerId` y `exp`; no existe un endpoint que devuelva el usuario actual junto con su taller. Como consecuencia:

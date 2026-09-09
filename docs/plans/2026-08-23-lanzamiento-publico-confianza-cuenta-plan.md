@@ -4,6 +4,15 @@ Fecha: 2026-08-23
 
 Diseño aprobado: `docs/plans/2026-08-23-lanzamiento-publico-confianza-cuenta-design.md`
 
+## Prioridad vigente — 2026-09-08
+
+La [salida inicial y sus criterios de cierre](2026-09-08-salida-inicial-alcance-y-cierre.md) ordenan
+el trabajo restante. Este plan conserva el desarrollo completo y su historia; las tareas de PRO,
+Mercado Pago y ampliaciones de email corresponden a fases posteriores. Los cobros taller-cliente
+son externos y su carga en OrdenFix es opcional. Presupuesto aceptado y cobro registrado son hechos
+separados; los resúmenes son informativos y sin validez fiscal. El ajuste no cambia guards ni acredita
+staging: se debe verificar el alcance accesible antes de la salida.
+
 ## Objetivo
 
 Preparar OrdenFix para un lanzamiento público pago con:

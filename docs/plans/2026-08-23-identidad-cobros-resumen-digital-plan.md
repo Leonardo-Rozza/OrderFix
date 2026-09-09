@@ -4,6 +4,11 @@ Fecha: 2026-08-23
 
 Diseño aprobado: `docs/plans/2026-08-23-identidad-cobros-resumen-digital-design.md`
 
+Alcance ratificado — 2026-09-08: cobro externo y registro manual opcional; aceptación de presupuesto
+independiente del cobro; resumen informativo sin validez fiscal. Las validaciones de los registros
+no verifican una acreditación bancaria. La
+[salida inicial](2026-09-08-salida-inicial-alcance-y-cierre.md) fija la prioridad del trabajo restante.
+
 ## Objetivo
 
 Implementar de extremo a extremo la identidad Taller → Usuario, corregir la inconsistencia que permite y muestra pendientes negativos, delimitar Cobros como registro manual, guardar datos públicos de cobro por tenant y convertir el recibo imprimible en un resumen digital interno y responsive.

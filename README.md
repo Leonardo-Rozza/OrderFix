@@ -35,6 +35,11 @@ ejecuta únicamente `LegalRegistrationBrowserE2E`. Ese harness crea la base, arr
 en un puerto aleatorio de loopback, ejecuta Playwright en escritorio/móvil y valida la evidencia
 persistida antes de cerrar los recursos. Vite usa `127.0.0.1:5175` y no reutiliza servidores ajenos.
 
+También recorre titular y empleados: alta de USER desde una cuenta TRIAL, login y operación con
+clientes, restricciones por rol, aislamiento entre talleres y pérdida de acceso al desactivar.
+Conserva los seis casos de registro y agrega dos recorridos de empleados (escritorio y móvil 320 px).
+PostgreSQL comprueba las altas legales, los roles, la pertenencia y el estado final de los datos.
+
 Este laboratorio utiliza identidades, claves y textos técnicos de prueba. No envía email ni activa
 Mercado Pago; no publica borradores legales ni apunta a staging/producción. Los casos de red cortan
 deliberadamente una lectura o descartan una respuesta real 201 para comprobar la recuperación.

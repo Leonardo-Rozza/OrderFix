@@ -285,3 +285,68 @@ Mercado Pago ni los demás recorridos de la lista mediante estos seis casos.
 Backend verificado y cerrado en `a252aba`. Commits del corte, uno por repositorio y sin push: backend
 `test(legal): acredita registro completo con navegador` y frontend
 `test(registro): verifica alta real y recuperacion`. Archivos ajenos preservados.
+
+## Corte cerrado — taller y empleados en laboratorio local
+
+Fecha: 2026-09-09. Baselines: frontend `1df6756`, backend `a252aba`.
+Se continúa el criterio **Taller y empleados** de la salida inicial autorizada. El corte acredita
+el comportamiento existente: titular ADMIN único, alta de USER, operación permitida, restricciones
+por rol, aislamiento entre talleres y desactivación. No redefine capacidades ni política comercial.
+
+Diseño: ampliar el laboratorio existente con un recorrido por dispositivo, conservando los seis
+casos de registro. Cada recorrido crea un titular mediante el registro real, comprueba TRIAL y la
+capacidad de empleados, crea el USER por UI e inicia su sesión real. El empleado crea un cliente
+por UI. Se contrastan operaciones permitidas (200) con administración prohibida (403), promoción
+de rol rechazada (400) y acceso de otro titular a IDs existentes (404). Lecturas posteriores
+comprueban identidad y valores sin cambios; al final el titular desactiva al empleado desde la UI,
+y se rechazan tanto su token anterior como un nuevo login. PostgreSQL contrasta pertenencia,
+roles, estado final, cliente y evidencia de las altas, sin duplicaciones.
+
+Se reutiliza el titular sintético de otro taller ya presente en el laboratorio. No se añaden
+fixtures de negocio, endpoints de control, dependencias ni respuestas simuladas. La alternativa
+de otra matriz MockMvc no probaría el navegador; crear un harness nuevo duplicaría infraestructura.
+Los helpers de registro se extraen sin cambiar sus aserciones para usarlos en el nuevo recorrido.
+
+Lista nominal frontend: `e2e-registration-real/helpers.ts`, `e2e-registration-real/registro.spec.ts`,
+`e2e-registration-real/empleados.spec.ts`, README y este plan. Backend amplía únicamente
+`LegalRegistrationBrowserE2E`, README y su plan. Configuración, lógica productiva y migraciones
+V27/V28/V29 permanecen congeladas. Un commit atómico por repositorio, sin push.
+
+Validación prevista: lint y TypeScript de las fuentes E2E; compilación de tests y el único harness
+opt-in, que debe ejecutar ocho casos de navegador en escritorio y móvil 320 px. Revisión del diff,
+resultados SQL y liberación de recursos. El gate integral se reserva para cambios transversales o
+fallos que lo requieran. Esta evidencia local no acredita staging ni FREE/ACTIVA, cuyo acceso a
+empleados múltiples sigue sujeto a la decisión pendiente para los talleres iniciales.
+
+### Evidencia de cierre
+
+Gate aprobado el **2026-09-09 a las 09:06:24 -03:00**. Se ejecutaron secuencialmente las dos fases
+del runner `test:e2e:registration-real`: `./mvnw -B -DskipTests test-compile` (18.368 s) y
+`./mvnw -B -Dit.test=LegalRegistrationBrowserE2E -Dordenfix.browser.frontend=<frontend> failsafe:integration-test failsafe:verify`
+(42.202 s), con Java 21. El XML registra **un harness JUnit que ejecutó y verificó ocho casos
+Playwright**, cero fallos/errores/omisiones, sin reintentos. Lint y TypeScript de los tres archivos
+E2E aprobaron; `--list` enumeró los ocho casos. La revisión confirmó que la extracción conserva
+los cuerpos y aserciones de las seis pruebas de registro anteriores.
+
+- Titulares nuevos FREE/TRIAL con `funciones.empleadosMultiples=true`; creación de USER por UI
+  (201), login real y creación de cliente por UI (200) en escritorio y móvil 320 px, sin overflow.
+- USER no consulta automáticamente la gestión de empleados ni muestra su formulario. El servidor
+  rechaza listar empleados, desactivar al titular y borrar un cliente (403); el titular tampoco
+  puede promover al USER (400 `ROL_USUARIO_INMUTABLE`).
+- Otro ADMIN autenticado recibe 404 al leer/modificar esos empleados y clientes existentes.
+  Las lecturas propias posteriores devuelven 200 y conservan los valores. La desactivación desde
+  la UI deja al empleado inactivo, rechaza el JWT original (403) y un nuevo login (401).
+- PostgreSQL **16.14** acredita seis altas legales completas, ocho usuarios nuevos (seis titulares
+  y dos empleados) y dos clientes en sus talleres. Cada taller mantiene un único ADMIN. Las filas
+  y versiones físicas del titular baseline y su taller permanecen iguales. Se conservan los
+  controles de no duplicación por replay y ausencia de alta cuando falla la lectura de condiciones.
+- El contenedor PostgreSQL exclusivo fue eliminado; Vite, Tomcat y PostgreSQL liberaron sus puertos.
+
+Sólo cambian pruebas y documentación: no se modifica la lógica de producto ni se repite el gate
+integral. V27/V28/V29 mantienen sus hashes congelados. Los cambios ajenos siguen preservados.
+Commits previstos de este cierre: backend `test(usuarios): acredita empleados y aislamiento real`;
+frontend `test(empleados): verifica permisos y acceso real`, uno por repositorio y sin push.
+
+**Taller y empleados queda acreditado localmente durante TRIAL.** Staging y la política para los
+primeros talleres siguen pendientes. El siguiente criterio operativo es el recorrido real de
+reparación → presupuesto → entrega, manteniendo los cobros externos y el registro manual opcional.

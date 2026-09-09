@@ -4,6 +4,7 @@ import {
   api, authenticated, emailFor, login, matches, noHorizontalOverflow, observeAttempt, openAndConfirm,
   password, saveEvidence, verifyAttempt, verifyNoAttemptStorage, verifySession,
 } from './helpers';
+import { verifySummaryDocuments } from './resumen';
 
 const registerCollection = async (page: Page, token: string, repairId: number, monto: number, referencia: string, observaciones: string) => {
   await page.getByRole('region', { name: 'Cobros', exact: true }).getByRole('button', { name: 'Registrar cobro', exact: true }).click();
@@ -268,6 +269,24 @@ test('empleado registra cobros externos y titular anula y corrige con historial'
     await expect(scopeNote).toContainText('ni confirma acreditaciones reales');
     await noHorizontalOverflow(page);
 
+    const anonymousPage = await isolatedPage();
+    const anonymousContext = anonymousPage.context();
+    const observeAnonymous = (request: Request) => {
+      const url = new URL(request.url());
+      observed.push({ side: 'anonymous', origin: url.origin, path: url.pathname, method: request.method() });
+    };
+    anonymousContext.on('request', observeAnonymous);
+    listeners.push({ context: anonymousContext, listener: observeAnonymous });
+    const documentsStart = observed.length;
+    expect(observed.filter((request) => request.path.endsWith('/resumen-digital'))).toEqual([]);
+    await verifySummaryDocuments({
+      owner: { page, token: owner.token }, employee: { page: employeePage, token: employeeSession.token },
+      other: { page: otherPage, token: other.token }, anonymousPage, repair: finalRepair.body,
+      activeCobro: finalCollections.body.cobros.find((collection) => collection.id === correctedCobroId)!,
+    });
+    const documentRequests = observed.slice(documentsStart);
+    expect(documentRequests.filter((request) => /\/(?:recibo|qr)(?:\/|$)/i.test(request.path))).toEqual([]);
+
     expect(observed.filter((request) => !['GET', 'HEAD', 'OPTIONS'].includes(request.method))).toEqual([
       { side: 'employee', origin: api, path: collectionsPath, method: 'POST' },
       { side: 'employee', origin: api, path: annulPath, method: 'POST' },
@@ -276,7 +295,7 @@ test('empleado registra cobros externos y titular anula y corrige con historial'
       { side: 'owner', origin: api, path: annulPath, method: 'POST' },
       { side: 'owner', origin: api, path: collectionsPath, method: 'POST' },
     ]);
-    expect(observed.filter((request) => request.path.startsWith('/api/') && /\/(?:pagos|checkout|resumen-digital)(?:\/|$)/i.test(request.path))).toEqual([]);
+    expect(observed.filter((request) => request.path.startsWith('/api/') && /\/(?:pagos|checkout)(?:\/|$)/i.test(request.path))).toEqual([]);
     expect(observed.filter((request) => /mercadopago|paypal|stripe/i.test(request.origin))).toEqual([]);
     saveEvidence({
       case: 'collections', project: info.project.name, email,

@@ -4,8 +4,9 @@ Fecha: 2026-09-08
 
 Estado: cuenta, taller/empleados, reparación/presupuesto y control opcional de cobros verificados
 localmente con navegador → HTTP → PostgreSQL. Los cortes y sus límites se documentan abajo.
-El siguiente criterio local es Evidencia y documentos. Confianza y cuenta y Operación real conservan
-sus pendientes; todavía no se acredita disponibilidad en staging.
+En Evidencia y documentos, el resumen está verificado y siguen pendientes fotos privadas y
+consentimiento contextual. Confianza y cuenta y Operación real conservan sus pendientes;
+todavía no se acredita disponibilidad en staging.
 
 ## Decisión de producto
 
@@ -511,3 +512,78 @@ backend `test(cobros): acredita historial y correccion real`; frontend
 **Control opcional de cobros queda acreditado localmente.** Sigue Evidencia y documentos: acceso,
 consentimiento aplicable y resumen informativo sin presentación fiscal. Staging, textos definitivos,
 gestión de datos/baja y operación real conservan los pendientes de la lista de salida.
+
+## Corte cerrado localmente — resumen digital, permisos y límites de evidencia
+
+Fecha: 2026-09-09. Baselines: frontend `04dbede`, backend `8efa565`.
+Se continúa Evidencia y documentos con una comprobación del resumen existente. La revisión detectó
+que las fotos aún usan `src/lib/cloudinary.ts`: upload unsigned desde el navegador, persistencia de
+URL y acceso directo desde `FotoUploader`/detalle. Quitar la referencia no borra el objeto remoto.
+Backend conserva URL/momento en `reparacion_fotos`; no tiene upload, autorización de lectura ni
+borrado del archivo. Tampoco existe la confirmación contextual de fotos previa a la transmisión.
+El consentimiento de registro no acredita esa atestación específica.
+
+La Tarea 9 del plan general ya identifica el upload privado y su dependencia backend. Esta revisión
+no accedió a archivos de clientes ni contactó al proveedor. No acredita que una URL conocida quede
+protegida por el aislamiento de la API de reparaciones. Fotos privadas y consentimiento aplicable
+siguen siendo un bloqueo de Evidencia y documentos; no se sustituirán por una prueba con mocks.
+
+Diseño del corte: ampliar los dos casos reales de cobros, conservando catorce recorridos totales,
+con lecturas del resumen después de anular el original de 50000 y registrar el activo de 30000.
+Titular y empleado del taller accederán por UI al contrato canónico; se comprobarán el emisor,
+cliente/equipo, total 50000, cobrado 30000, pendiente 20000, movimiento activo y leyenda informativa
+sin presentación fiscal. El resumen no incluirá la observación interna ni la auditoría del cobro.
+Otro titular habilitado recibirá 404 y un navegador sin sesión no podrá leer el resumen privado.
+El seguimiento público conservará su proyección mínima, sin fotos, credenciales ni datos internos.
+La fase sólo admitirá lecturas: no nuevas altas, cambios de estado, cobros, checkout o proveedores.
+
+Se reutilizan las órdenes y contextos reales ya creados, sin nuevos seeds ni aumento de límites.
+Crear dos casos con altas duplicadas o otra infraestructura agregaría preparación sin mejorar esta
+comprobación. Probar imágenes mediante respuestas simuladas no resolvería el faltante de acceso.
+No se cambian APIs productivas, almacenamiento, UI, contratos comerciales ni V27/V28/V29.
+
+Lista nominal frontend: nuevo helper `e2e-registration-real/resumen.ts`, ampliación de
+`e2e-registration-real/cobros.spec.ts`, README y este plan. Backend sólo README y su plan: el harness
+existente conserva sus aserciones SQL y deltas exactos, suficientes porque no se agregan escrituras.
+Validación prevista: ESLint/TypeScript E2E, revisión independiente, runner real serial con Java 21,
+PostgreSQL 16 y catorce casos, más recursos liberados. Un commit atómico por repositorio, sin push,
+preservando archivos ajenos. Staging y el criterio completo de Evidencia y documentos siguen abiertos.
+
+### Evidencia de cierre
+
+Ejecución aprobada al primer intento el **2026-09-09 a las 10:44:30 -03:00** con
+`JAVA_HOME=<Java 21> npm run test:e2e:registration-real`, desde frontend y Node 24.14.0.
+La comprobación de compilación incremental tomó 0.788 s (Java no cambió), y Failsafe aproximadamente
+75 s. El XML registra un harness JUnit que ejecutó y verificó los **catorce casos Playwright**,
+cero fallos/errores/omisiones y sin reintentos; suite 74.140 s, método 62.841 s. ESLint, TypeScript,
+listado exacto y revisión independiente también aprobaron.
+
+- Titular y empleado abrieron el resumen desde el enlace de la orden y volvieron por la UI. La
+  respuesta canónica coincidió en ambas sesiones, con 31 campos explícitos y pagos de cuatro campos.
+  El documento conservó total 50000, cobrado 30000 y pendiente 20000, y mostró sólo EXTERNO-30000.
+  El original anulado, las observaciones y el motivo de anulación no aparecieron en JSON ni pantalla.
+- Se verificaron documentoFiscal=false y la leyenda informativa completa. La pantalla explica que
+  los registros no confirman acreditaciones bancarias; no ofrece impresión ni muestra datos/QR de
+  cobro no configurados. El titular ajeno, con sesión y capacidad válidas, recibió 404.
+- El contexto sin sesión fue dirigido a login. Su GET directo, sin Authorization ni cookies, obtuvo
+  **403**, que es el fallback de seguridad actual para esta ruta; no se cambió a 401. El seguimiento
+  anónimo devolvió 200 y exactamente ocho campos operativos, con presupuesto=null en estas órdenes,
+  sin datos del cliente, fotos, credenciales ni notas internas. Esto no acredita acceso privado a
+  un archivo externo conocido ni el contenido de presupuestos de otros escenarios.
+- Se conservaron las seis escrituras originales de cobros y la ausencia de consultas al resumen
+  antes de la fase documental. Ésta no añadió escrituras, rutas legacy/QR, checkout ni proveedores
+  de pagos. PostgreSQL 16.14 confirmó los mismos IDs, importes, auditoría y deltas del corte anterior,
+  sin altas adicionales. El contenedor de base y su auxiliar fueron eliminados y los puertos de
+  Vite, Tomcat y PostgreSQL quedaron cerrados.
+
+Sólo cambiaron pruebas frontend y documentación de ambos repositorios. El harness Java y
+V27/V28/V29 permanecen sin cambios; no se repitió clean verify al no haber cambios productivos ni
+fallos. Commit frontend `test(documentos): verifica resumen digital real`; backend
+`docs(lanzamiento): registra verificacion del resumen`. Sin push y con los 77 archivos ajenos no
+versionados preservados.
+
+**Resumen digital queda acreditado localmente; Evidencia y documentos sigue abierto.** El siguiente
+corte debe abordar el recorrido de fotos privadas y la confirmación contextual ya previstos en
+BACKEND-HANDOFF 4/Tarea 9: carga, acceso por permisos y eliminación del archivo, reutilizando las
+primitivas legales existentes. No se agregan nuevas familias de infraestructura como objetivo
+independiente ni se habilita el flujo unsigned para la salida. Staging conserva sus pendientes.

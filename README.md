@@ -48,6 +48,10 @@ carga externa manual por un USER, anulación reservada al titular y nueva carga 
 historial conserva el movimiento anulado y la vista por período cuenta sólo el activo. PostgreSQL
 verifica importes, pertenencia y auditoría, sin registros nuevos en las tablas de pagos del proveedor.
 Son catorce casos en total. El filtro de login sigue activo con límite de 20 sólo en el laboratorio.
+Los dos casos de cobros también verifican el resumen digital por titular y empleado: documento
+informativo, importes declarados, exclusión del anulado y de observaciones internas, y rechazo de
+accesos ajenos o sin sesión. El seguimiento público conserva sus datos mínimos. Estas lecturas no
+agregan escrituras ni acreditan todavía fotos privadas, borrado remoto o consentimiento contextual.
 
 Este laboratorio utiliza identidades, claves y textos técnicos de prueba. No envía email ni activa
 Mercado Pago; no publica borradores legales ni apunta a staging/producción. Los casos de red cortan

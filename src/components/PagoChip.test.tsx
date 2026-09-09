@@ -14,7 +14,7 @@ describe('PagoChip', () => {
     );
 
     expect(screen.getByText(/Excedente a revisar.*88\.323/)).toBeVisible();
-    expect(screen.queryByText('Pagado')).not.toBeInTheDocument();
+    expect(screen.queryByText('Cobro completo registrado')).not.toBeInTheDocument();
   });
 
   it('deriva la revisión de un excedente positivo aunque falte el booleano', () => {
@@ -29,10 +29,10 @@ describe('PagoChip', () => {
     expect(screen.getByText(/Pendiente de cobro.*12\.345/)).toBeVisible();
   });
 
-  it('muestra Pagado sólo cuando no existe revisión', () => {
+  it('muestra Cobro completo registrado sólo cuando no existe revisión', () => {
     render(<PagoChip estadoPago="PAGADO" saldo={0} excedente={0} requiereRevision={false} />);
 
-    expect(screen.getByText('Pagado')).toBeVisible();
+    expect(screen.getByText('Cobro completo registrado')).toBeVisible();
   });
 
   it('no inventa un estado sin datos de pago visibles', () => {

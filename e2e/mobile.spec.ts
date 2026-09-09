@@ -427,7 +427,7 @@ test('smoke móvil: todos los formularios críticos respetan viewport, controles
     );
     await openAuditAndClose(
       page,
-      page.getByRole('button', { name: 'Cobrar', exact: true }),
+      page.getByRole('button', { name: 'Registrar cobro', exact: true }),
       { title: 'Registrar cobro', cta: 'Registrar cobro' },
     );
     await openAuditAndClose(
@@ -438,7 +438,7 @@ test('smoke móvil: todos los formularios críticos respetan viewport, controles
   });
 });
 
-test('detalle con excedente: prioriza la revisión sin overflow y bloquea Cobrar', async ({ page, context }) => {
+test('detalle con excedente: prioriza la revisión sin overflow y bloquea Registrar cobro', async ({ page, context }) => {
   await seedAuth(context);
   const referenciaLarga = `OP-${'9'.repeat(117)}`;
   await mockApi(page, {
@@ -479,7 +479,7 @@ test('detalle con excedente: prioriza la revisión sin overflow y bloquea Cobrar
   const seccion = page.getByRole('region', { name: 'Cobros' });
   await expect(seccion.getByText('Excedente a revisar', { exact: true })).toBeVisible();
   await expect(seccion.getByRole('alert')).toContainText('excedente histórico');
-  await expect(seccion.getByRole('button', { name: 'Cobrar', exact: true })).toBeDisabled();
+  await expect(seccion.getByRole('button', { name: 'Registrar cobro', exact: true })).toBeDisabled();
   await expect(seccion.getByText(/Referencia:/)).toContainText(referenciaLarga);
   await expectNoHorizontalOverflow(page);
 

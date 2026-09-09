@@ -1,6 +1,54 @@
 import { test, expect } from '@playwright/test';
 import { mockApi, seedAuth } from './helpers';
 
+for (const cobrosHabilitados of [false, true]) {
+  test(`entrega sin cobros registrados, con módulo ${cobrosHabilitados ? 'habilitado' : 'deshabilitado'}`, async ({ page, context }) => {
+    await seedAuth(context);
+    await mockApi(page, {
+      suscripcion: {
+        plan: cobrosHabilitados ? 'PRO' : 'FREE',
+        estado: 'ACTIVA',
+        funciones: { inventario: false, cobros: cobrosHabilitados, empleadosMultiples: false },
+      },
+      reparacionDetalle: {
+        estado: 'COMPLETADO',
+        fechaEntrega: null,
+        cobrado: 0,
+        saldo: 50000,
+        estadoPago: 'SIN_COBRAR',
+      },
+      cobros: { total: 50000, cobrado: 0, saldo: 50000, pagado: false, cobros: [] },
+    });
+    const escrituras: string[] = [];
+    const consultasCobros: string[] = [];
+    page.on('request', (request) => {
+      const pathname = new URL(request.url()).pathname;
+      if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method())) escrituras.push(pathname);
+      if (request.method() === 'GET' && pathname.endsWith('/cobros')) consultasCobros.push(pathname);
+    });
+
+    await page.goto('/reparaciones/1');
+    const cambiarEstado = page.getByLabel('Cambiar estado', { exact: true });
+    await expect(cambiarEstado).toHaveValue('COMPLETADO');
+    if (cobrosHabilitados) {
+      await expect(page.getByRole('button', { name: 'Registrar cobro', exact: true })).toBeEnabled();
+    } else {
+      await expect(page.getByRole('region', { name: 'Cobros', exact: true })).toHaveCount(0);
+    }
+
+    const entrega = page.waitForRequest((request) => (
+      new URL(request.url()).pathname === '/api/reparaciones/1/estado'
+      && request.method() === 'PATCH'
+    ));
+    await cambiarEstado.selectOption('ENTREGADO');
+    expect((await entrega).postDataJSON()).toEqual({ estado: 'ENTREGADO' });
+    await expect(cambiarEstado).toHaveValue('ENTREGADO');
+    await expect(page.getByText('Pendiente de cobro $ 50.000', { exact: true })).toBeVisible();
+    expect(escrituras).toEqual(['/api/reparaciones/1/estado']);
+    if (!cobrosHabilitados) expect(consultasCobros).toEqual([]);
+  });
+}
+
 test('alta rápida: crea una reparación en un paso desde ?nuevo=1', async ({ page, context }) => {
   await seedAuth(context);
   await mockApi(page);

@@ -98,3 +98,56 @@ con revisión del diff y de sus referencias, sin repetir suites de runtime.
 - [Diseño de cobros manuales y resumen digital](2026-08-23-identidad-cobros-resumen-digital-design.md).
 - Backend: `docs/plans/2026-09-06-legal-account-consent-implementation.md` y su diseño asociado,
   en `/Volumes/DiscoExtern/Desktop/mvrg-backend`.
+
+## Corte cerrado — control manual de cobros y entrega opcional
+
+Fecha: 2026-09-08. Baseline frontend `5f251ea`; backend conservado en `74764df`.
+
+- La acción del detalle pasa de “Cobrar” a “Registrar cobro”. Detalle y formulario explican que se
+  cargan pagos recibidos por fuera de OrdenFix; el estado completo se presenta como “Cobro completo
+  registrado”, también en los lugares que reutilizan `PagoChip`.
+- Se conservan APIs, validaciones de importes, permisos, límites de plan y cálculos. La aceptación
+  de presupuesto y la entrega continúan separadas del registro manual de cobros.
+- Dos pruebas nuevas de navegador entregan una reparación con saldo pendiente y cero cobros, con
+  el módulo habilitado y deshabilitado. Comprueban que la única escritura es el cambio de estado;
+  cuando el módulo está deshabilitado tampoco se consulta Cobros. La prueba de aprobación pública
+  ahora comprueba que sólo se envía la respuesta al presupuesto, sin cargar cobros ni iniciar checkout.
+- El mock de cambio de estado conserva la transición para el siguiente GET, de modo que la prueba
+  comprueba el estado visible tras el refetch. No representa persistencia PostgreSQL.
+
+Validación aprobada: **40 Vitest focalizados, 9 Playwright desktop y 6 móviles** (320/390 px),
+typecheck, ESLint de archivos afectados y revisión de diff. Playwright usa Vite con API simulada.
+No se ejecutó Maven ni se acreditó staging. Los casos de aprobación y entrega son recorridos
+separados; queda pendiente el recorrido integrado con backend real.
+
+Comandos ejecutados:
+
+```sh
+npx vitest run src/components/PagoChip.test.tsx src/components/CobroFormModal.test.tsx src/pages/ReparacionDetallePage.test.tsx src/pages/ResumenDigitalPage.test.tsx src/pages/DashboardPage.test.tsx src/pages/SeguimientoPage.test.tsx src/api/mutations/cobros.mutations.test.tsx src/api/mutations/presupuestos.mutations.test.tsx
+npm run typecheck
+npx eslint src/components/PagoChip.tsx src/components/CobroFormModal.tsx src/pages/ReparacionDetallePage.tsx src/components/PagoChip.test.tsx src/pages/ReparacionDetallePage.test.tsx src/pages/ResumenDigitalPage.test.tsx src/pages/DashboardPage.test.tsx e2e/helpers.ts e2e/presupuesto.spec.ts e2e/reparacion.spec.ts e2e/mobile.spec.ts
+npx playwright test e2e/reparacion.spec.ts e2e/presupuesto.spec.ts e2e/resumen-digital.spec.ts --project=chromium --workers=2
+npx playwright test e2e/mobile.spec.ts --project=mobile-320 --project=mobile-390 --grep 'smoke móvil:|detalle con excedente:|resumen digital:' --workers=2
+```
+
+### Faltantes observados que orientan el siguiente trabajo
+
+1. **Cuenta utilizable:** `RegisterPage` y su mutación sólo envían los cinco campos legacy.
+   `AuthController.register` sigue delegando en `RegistroService`. El siguiente trabajo conecta
+   el GET público de requisitos y el consentimiento visible con el servicio de registro ya construido:
+   integración HTTP M3C, clave de idempotencia, revisión/actos, recuperación de errores y sesión.
+   Después debe probarse navegador → backend → PostgreSQL real. No requiere otra generalización interna.
+2. **Acceso de los primeros talleres:** la lectura de `PlanLimitService`, `UsuarioService` y
+   `SuscripcionScheduler` confirma que empleados y registro de cobros requieren TRIAL/PRO;
+   FREE permite sólo titular y hasta 25 reparaciones por mes. Antes de salir con Mercado Pago diferido
+   se debe definir y comprobar qué capacidades tendrán los talleres iniciales. Este corte no modifica
+   esa política ni los estados de suscripción.
+3. **Recorrido real sin Cobros:** la lectura de `PresupuestoService` y `ReparacionServiceImpl`
+   confirma que aprobación y entrega no exigen saldo pagado ni llaman al checkout. Hay pruebas backend
+   de esos caminos, pero no se ejecutaron en este corte. La prueba existente
+   `EstadoPagoTests.reparacionFreeSinCobrosQuedaSinCobrar` inicia en TRIAL, por lo que su nombre no
+   acredita FREE/ACTIVA. La verificación real pendiente debe usar el plan explícito.
+
+El próximo criterio prioritario es **Cuenta utilizable**. Esta comprobación frontend cierra el ajuste
+de lenguaje y aporta evidencia de opcionalidad; las siete filas siguen requiriendo acreditación en el
+entorno elegido. Commit: `fix(cobros): aclara registro externo y acredita entrega opcional`.

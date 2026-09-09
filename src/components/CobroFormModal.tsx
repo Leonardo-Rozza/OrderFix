@@ -155,6 +155,9 @@ export const CobroFormModal = ({
             </FormActions>
           )}
         >
+          <p className="mb-4 text-[13px] leading-relaxed text-text-2">
+            Registrá un pago que el taller ya recibió por fuera de OrdenFix. Esta carga no procesa ni verifica el pago.
+          </p>
           <form
             id="cobro-form"
             onSubmit={handleSubmit((data) => onSubmit(data, commitAndClose))}

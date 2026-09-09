@@ -642,9 +642,13 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
                     <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 5v14M5 12h14" />
                     </svg>
-                    Cobrar
+                    Registrar cobro
                   </button>
                 </div>
+
+                <p className="border-b border-border px-4 py-3 text-[12.5px] leading-relaxed text-text-3 sm:px-5">
+                  Control opcional de cobros recibidos por fuera de OrdenFix. Los importes reflejan lo registrado por el taller.
+                </p>
 
                 {cobrosPending ? (
                   <SectionLoader label="cobros" />
@@ -688,7 +692,7 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
                       </div>
                     ) : cobros.pagado && cobros.total > 0 ? (
                       <div className="border-t border-border bg-success-soft px-5 py-2 text-center text-[12.5px] font-bold text-success">
-                        Pagado en su totalidad
+                        Cobro completo registrado
                       </div>
                     ) : null}
 

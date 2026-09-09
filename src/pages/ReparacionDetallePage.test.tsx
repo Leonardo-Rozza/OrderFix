@@ -173,7 +173,7 @@ describe('ReparacionDetallePage — estados honestos de subconsultas', () => {
     expect(within(cobros).queryByText('Sin cobros registrados.')).not.toBeInTheDocument();
     expect(within(repuestos).getByRole('button', { name: 'Agregar' })).toBeDisabled();
     expect(within(presupuestos).getByRole('button', { name: 'Nuevo' })).toBeDisabled();
-    expect(within(cobros).getByRole('button', { name: 'Cobrar' })).toBeDisabled();
+    expect(within(cobros).getByRole('button', { name: 'Registrar cobro' })).toBeDisabled();
     expect(within(cobros).getByRole('link', { name: 'Resumen digital' }))
       .toHaveAttribute('aria-disabled', 'true');
     expect(within(cobros).queryByText('$0')).not.toBeInTheDocument();
@@ -228,8 +228,8 @@ describe('ReparacionDetallePage — estados honestos de subconsultas', () => {
     expect(screen.getByText('Sin cobros registrados.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Agregar' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Nuevo' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Cobrar' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Cobrar' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Registrar cobro' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Registrar cobro' })).toHaveAttribute(
       'title',
       'La orden no tiene pendiente de cobro',
     );
@@ -282,7 +282,7 @@ describe('ReparacionDetallePage — estados honestos de subconsultas', () => {
     expect(within(cobros).getByText(/40\.000/)).toBeVisible();
     expect(within(cobros).getByText(/Referencia:/)).toHaveTextContent('Referencia: OP-123');
     expect(within(cobros).getByText('Observación: Seña inicial')).toBeVisible();
-    expect(within(cobros).getByRole('button', { name: 'Cobrar' })).toBeEnabled();
+    expect(within(cobros).getByRole('button', { name: 'Registrar cobro' })).toBeEnabled();
     expect(within(cobros).getByText('Anulado')).toBeVisible();
     expect(within(cobros).getByText(/Anulado el.*por Juan Pérez/)).toBeVisible();
     expect(within(cobros).getByText('Motivo: Carga duplicada por error de caja')).toBeVisible();
@@ -325,7 +325,7 @@ describe('ReparacionDetallePage — estados honestos de subconsultas', () => {
     expect(screen.queryByRole('button', { name: /Anular cobro de/i })).not.toBeInTheDocument();
   });
 
-  it('prioriza el excedente, oculta Pagado y bloquea otro cobro', () => {
+  it('prioriza el excedente, oculta Cobro completo registrado y bloquea otro cobro', () => {
     mocks.useRepuestosQuery.mockReturnValue(successResult([], mocks.refetchRepuestos));
     mocks.usePresupuestosQuery.mockReturnValue(successResult([], mocks.refetchPresupuestos));
     mocks.useCobrosQuery.mockReturnValue(successResult<CobrosReparacion>({
@@ -343,8 +343,8 @@ describe('ReparacionDetallePage — estados honestos de subconsultas', () => {
     const cobros = screen.getByRole('region', { name: 'Cobros' });
     expect(within(cobros).getByText('Excedente a revisar')).toBeVisible();
     expect(within(cobros).getByRole('alert')).toHaveTextContent(/excedente histórico/i);
-    expect(within(cobros).queryByText('Pagado en su totalidad')).not.toBeInTheDocument();
-    expect(within(cobros).getByRole('button', { name: 'Cobrar' })).toBeDisabled();
+    expect(within(cobros).queryByText('Cobro completo registrado')).not.toBeInTheDocument();
+    expect(within(cobros).getByRole('button', { name: 'Registrar cobro' })).toBeDisabled();
   });
 
   it('serializa los cambios de estado y bloquea todos los controles hasta finalizar', () => {

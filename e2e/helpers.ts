@@ -341,11 +341,12 @@ export const mockApi = async (page: Page, data: MockData = {}) => {
       return route.fulfill({ json: { id, ...(req.postDataJSON() as object) } });
     }
 
-    // Cambiar estado: PATCH /api/reparaciones/:id/estado (body = "ESTADO")
+    // Cambiar estado: el siguiente GET debe reflejar la transición confirmada.
     if (/\/api\/reparaciones\/\d+\/estado$/.test(pathname) && method === 'PATCH') {
       const id = Number(pathname.match(/reparaciones\/(\d+)\/estado/)![1]);
       const estado = (req.postDataJSON() as { estado?: string })?.estado;
-      return route.fulfill({ json: { id, estado } });
+      Object.assign(reparacionDetalle, { id, estado });
+      return route.fulfill({ json: reparacionDetalle });
     }
 
     // Alta de reparación contra equipo existente

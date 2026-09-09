@@ -155,7 +155,7 @@ describe('ResumenDigitalPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Pagado')).toBeVisible();
+    expect(await screen.findByText('Cobro completo registrado')).toBeVisible();
     expect(screen.getByText('Orden #7')).toBeVisible();
     expect(screen.queryByRole('heading', { name: 'Datos para cobrar' })).not.toBeInTheDocument();
     expect(screen.getByText('Sin cobros registrados.')).toBeVisible();

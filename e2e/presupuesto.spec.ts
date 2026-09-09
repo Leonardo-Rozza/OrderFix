@@ -3,6 +3,12 @@ import { mockApi } from './helpers';
 
 test('seguimiento público: aprobar presupuesto cambia el estado a Aprobado', async ({ page }) => {
   await mockApi(page); // sin sesión: es un cliente del taller
+  const escrituras: string[] = [];
+  page.on('request', (request) => {
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method())) {
+      escrituras.push(new URL(request.url()).pathname);
+    }
+  });
 
   await page.goto('/seguimiento/ABC123');
 
@@ -21,6 +27,8 @@ test('seguimiento público: aprobar presupuesto cambia el estado a Aprobado', as
   await expect(page.getByText('Aprobado', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /aprobar presupuesto/i })).toBeHidden();
   await expect(page.getByRole('button', { name: /^rechazar$/i })).toBeHidden();
+  // La aceptación sólo registra la respuesta: no carga cobros ni inicia un checkout.
+  expect(escrituras).toEqual(['/api/seguimiento/ABC123/presupuesto/aprobar']);
 });
 
 test('seguimiento público: rechazar presupuesto cambia el estado a Rechazado', async ({ page }) => {

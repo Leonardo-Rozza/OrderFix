@@ -125,7 +125,7 @@ describe('DashboardPage — consistencia de indicadores', () => {
     expect(screen.queryByText(/2\.000/)).not.toBeInTheDocument();
   });
 
-  it('prioriza el excedente de una reparación reciente sobre Pagado', () => {
+  it('prioriza el excedente de una reparación reciente sobre Cobro completo registrado', () => {
     dashboardData.ultimasReparaciones[0].saldo = 0;
     dashboardData.ultimasReparaciones[0].excedente = 88323;
     dashboardData.ultimasReparaciones[0].requiereRevision = true;
@@ -134,7 +134,7 @@ describe('DashboardPage — consistencia de indicadores', () => {
     renderPage();
 
     expect(screen.getByText(/Excedente a revisar.*88\.323/)).toBeVisible();
-    expect(screen.queryByText('Pagado')).not.toBeInTheDocument();
+    expect(screen.queryByText('Cobro completo registrado')).not.toBeInTheDocument();
   });
 
   it('mantiene todo el bloque de KPI como desconocido mientras carga', () => {

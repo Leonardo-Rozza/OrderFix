@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -8,6 +9,9 @@ import { AuthAside } from '../components/AuthAside';
 import { Logo } from '../components/Logo';
 import { PasswordInput } from '../components/PasswordInput';
 import { useRetryAfter } from '../hooks/useRetryAfter';
+import { registrationConsentMode } from '../api/registrationConsent';
+import { useRegistrationConsent } from '../hooks/useRegistrationConsent';
+import { RegistrationConsent } from '../components/RegistrationConsent';
 
 const registerSchema = z.object({
   nombreTaller: z.string().trim().min(1, 'El nombre del taller es requerido').max(120, 'Máximo 120 caracteres'),
@@ -27,28 +31,46 @@ const errClass = 'mt-1.5 text-[12.5px] text-danger-fg';
 export const RegisterPage = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const registerMutation = useRegisterMutation();
-  const retryAfter = useRetryAfter();
+  const mode = registrationConsentMode();
+  const consent = useRegistrationConsent(mode === 'consent');
+  const registerMutation = useRegisterMutation(mode === 'consent' ? { errorMode: 'inline' } : undefined);
+  const legacyRetry = useRetryAfter();
+  const retryAfter = mode === 'consent' ? consent.retry : legacyRetry;
+  const inFlight = useRef(false);
+  const [sending, setSending] = useState(false);
+  const { reset } = registerMutation;
+  useEffect(() => () => reset(), [reset]);
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormData>({ resolver: zodResolver(registerSchema) });
+  const busy = isSubmitting || sending;
 
   const onSubmit = async (data: RegisterFormData) => {
+    if (inFlight.current || mode === 'invalid' || retryAfter.isCoolingDown
+      || (mode === 'consent' && !consent.ready)) return;
+    inFlight.current = true;
+    setSending(true);
     try {
-      const res = await registerMutation.mutateAsync({
+      const registration = {
         nombreTaller: data.nombreTaller.trim(),
         nombreAdmin: data.nombreAdmin.trim(),
         email: data.email.trim(),
         password: data.password,
         telefonoTaller: data.telefonoTaller || undefined,
-      });
+      };
+      const res = await registerMutation.mutateAsync(mode === 'consent' ? consent.submission(registration) : registration);
       login(res.token, res.email, res.emailVerificado);
       navigate('/dashboard', { replace: true });
     } catch (error) {
-      retryAfter.startRetryAfter(error);
+      if (mode === 'consent') await consent.failed(error);
+      else retryAfter.startRetryAfter(error);
+    } finally {
+      inFlight.current = false;
+      setSending(false);
+      registerMutation.reset();
     }
   };
 
@@ -63,52 +85,55 @@ export const RegisterPage = () => {
           <h1 className="mb-1.5 mt-[18px] text-[26px] font-extrabold tracking-tight">Creá tu taller</h1>
           <p className="mb-6 text-[14.5px] text-text-2">Empezá gratis. 14 días de prueba, sin tarjeta.</p>
 
-          <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} onChange={mode === 'consent' ? consent.edited : undefined} noValidate className="space-y-4">
             <div>
               <label htmlFor="registro-taller" className={labelClass}>Nombre del taller</label>
-              <input id="registro-taller" placeholder="CelExpress" {...register('nombreTaller')} className={fieldClass} aria-invalid={!!errors.nombreTaller} aria-describedby={errors.nombreTaller ? 'registro-taller-error' : undefined} />
+              <input disabled={busy} id="registro-taller" placeholder="CelExpress" {...register('nombreTaller')} className={fieldClass} aria-invalid={!!errors.nombreTaller} aria-describedby={errors.nombreTaller ? 'registro-taller-error' : undefined} />
               {errors.nombreTaller && <p id="registro-taller-error" role="alert" className={errClass}>{errors.nombreTaller.message}</p>}
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="registro-nombre" className={labelClass}>Tu nombre</label>
-                <input id="registro-nombre" placeholder="Juan" {...register('nombreAdmin')} className={fieldClass} aria-invalid={!!errors.nombreAdmin} aria-describedby={errors.nombreAdmin ? 'registro-nombre-error' : undefined} />
+                <input disabled={busy} id="registro-nombre" placeholder="Juan" {...register('nombreAdmin')} className={fieldClass} aria-invalid={!!errors.nombreAdmin} aria-describedby={errors.nombreAdmin ? 'registro-nombre-error' : undefined} />
                 {errors.nombreAdmin && <p id="registro-nombre-error" role="alert" className={errClass}>{errors.nombreAdmin.message}</p>}
               </div>
               <div>
                 <label htmlFor="registro-telefono" className={labelClass}>Teléfono <span className="font-normal text-text-3">(opcional)</span></label>
-                <input id="registro-telefono" type="tel" autoComplete="tel" placeholder="11 3333 4444" {...register('telefonoTaller')} className={fieldClass} aria-invalid={!!errors.telefonoTaller} aria-describedby={errors.telefonoTaller ? 'registro-telefono-error' : undefined} />
+                <input disabled={busy} id="registro-telefono" type="tel" autoComplete="tel" placeholder="11 3333 4444" {...register('telefonoTaller')} className={fieldClass} aria-invalid={!!errors.telefonoTaller} aria-describedby={errors.telefonoTaller ? 'registro-telefono-error' : undefined} />
                 {errors.telefonoTaller && <p id="registro-telefono-error" role="alert" className={errClass}>{errors.telefonoTaller.message}</p>}
               </div>
             </div>
 
             <div>
               <label htmlFor="registro-email" className={labelClass}>Email</label>
-              <input id="registro-email" type="email" autoComplete="email" placeholder="juan@celexpress.com" {...register('email')} className={fieldClass} aria-invalid={!!errors.email} aria-describedby={errors.email ? 'registro-email-error' : undefined} />
+              <input disabled={busy} id="registro-email" type="email" autoComplete="email" placeholder="juan@celexpress.com" {...register('email')} className={fieldClass} aria-invalid={!!errors.email} aria-describedby={errors.email ? 'registro-email-error' : undefined} />
               {errors.email && <p id="registro-email-error" role="alert" className={errClass}>{errors.email.message}</p>}
             </div>
 
             <div>
               <label htmlFor="registro-password" className={labelClass}>Contraseña</label>
-              <PasswordInput id="registro-password" autoComplete="new-password" placeholder="Mínimo 6 caracteres" {...register('password')} className={fieldClass} aria-invalid={!!errors.password} aria-describedby={errors.password ? 'registro-password-error' : undefined} />
+              <PasswordInput disabled={busy} id="registro-password" autoComplete="new-password" placeholder="Mínimo 6 caracteres" {...register('password')} className={fieldClass} aria-invalid={!!errors.password} aria-describedby={errors.password ? 'registro-password-error' : undefined} />
               {errors.password && <p id="registro-password-error" role="alert" className={errClass}>{errors.password.message}</p>}
             </div>
 
+            {mode === 'consent' && <RegistrationConsent consent={consent} disabled={busy} />}
+            {mode === 'invalid' && <p role="alert" className={errClass}>El registro no está disponible por un problema de configuración. Intentá nuevamente más tarde.</p>}
+            {mode === 'consent' && consent.message && <p role="alert" className="text-sm text-text-2">{consent.message}</p>}
             <button
               type="submit"
-              disabled={isSubmitting || retryAfter.isCoolingDown}
+              disabled={busy || retryAfter.isCoolingDown || mode === 'invalid' || (mode === 'consent' && !consent.ready)}
               className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-primary py-3.5 text-[15px] font-bold text-primary-fg shadow-sm transition hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:opacity-60"
             >
               {retryAfter.isCoolingDown
                 ? `Reintentá en ${retryAfter.secondsRemaining} s`
-                : isSubmitting
+                : busy
                   ? 'Creando taller…'
                   : 'Crear taller'}
             </button>
             {retryAfter.isCoolingDown && (
               <p role="status" aria-live="polite" className="text-center text-[12.5px] font-semibold text-warning">
-                Demasiados intentos. Esperá antes de volver a crear el taller.
+                Esperá antes de volver a intentar. Tus datos se conservan en esta pantalla.
               </p>
             )}
           </form>

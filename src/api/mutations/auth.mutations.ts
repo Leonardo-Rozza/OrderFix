@@ -3,6 +3,7 @@ import type { AuthResponse, LoginRequest, RegisterRequest } from '../../types';
 import { getErrorMessage, showError, showSuccess } from '../../utils/toast';
 import { getRetryAfterSeconds } from '../../utils/retryAfter';
 import { publicClient } from '../axios';
+import type { RegistrationAttempt } from '../registrationConsent';
 
 const authErrorMessage = (error: unknown, fallback: string) =>
   getRetryAfterSeconds(error) != null
@@ -14,8 +15,12 @@ const loginUser = async (credentials: LoginRequest): Promise<AuthResponse> => {
   return data;
 };
 
-const registerTaller = async (payload: RegisterRequest): Promise<AuthResponse> => {
-  const { data } = await publicClient.post<AuthResponse>('/auth/register', payload);
+const registerTaller = async (input: RegisterRequest | RegistrationAttempt): Promise<AuthResponse> => {
+  const { data } = 'payload' in input
+    ? await publicClient.post<AuthResponse>('/auth/register', input.payload, {
+      headers: { 'Idempotency-Key': input.idempotencyKey }, timeout: 40_000,
+    })
+    : await publicClient.post<AuthResponse>('/auth/register', input);
   return data;
 };
 
@@ -31,14 +36,16 @@ export const useLoginMutation = () => {
   });
 };
 
-export const useRegisterMutation = () => {
+export const useRegisterMutation = (options?: { errorMode: 'inline' }) => {
   return useMutation({
     mutationFn: registerTaller,
+    retry: false,
+    gcTime: 0,
     onSuccess: () => {
       showSuccess('¡Taller creado! Bienvenido a OrdenFix');
     },
     onError: (error) => {
-      showError(authErrorMessage(error, 'No se pudo crear el taller'));
+      if (options?.errorMode !== 'inline') showError(authErrorMessage(error, 'No se pudo crear el taller'));
     },
   });
 };

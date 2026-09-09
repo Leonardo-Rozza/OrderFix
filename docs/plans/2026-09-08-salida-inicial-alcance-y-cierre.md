@@ -2,8 +2,9 @@
 
 Fecha: 2026-09-08
 
-Estado: ajuste de prioridad acordado con el titular. Este corte documenta el alcance; no acredita
-disponibilidad en staging ni cambia el comportamiento de la aplicación.
+Estado: ajuste de prioridad acordado con el titular; control manual de cobros y registro
+con consentimiento cerrados localmente. Los cortes de implementación se documentan abajo; todavía
+no se acredita disponibilidad en staging.
 
 ## Decisión de producto
 
@@ -151,3 +152,59 @@ npx playwright test e2e/mobile.spec.ts --project=mobile-320 --project=mobile-390
 El próximo criterio prioritario es **Cuenta utilizable**. Esta comprobación frontend cierra el ajuste
 de lenguaje y aporta evidencia de opcionalidad; las siete filas siguen requiriendo acreditación en el
 entorno elegido. Commit: `fix(cobros): aclara registro externo y acredita entrega opcional`.
+
+## Corte cerrado localmente — registro con consentimiento visible
+
+Fecha: 2026-09-08. Baselines: frontend `aadfcf9`, backend `74764df`.
+Se conecta el registro existente con el contrato legal disponible. Alcance: GET público de requisitos
+y textos exactos, confirmaciones explícitas, POST con clave y bloque legal, reintentos seguros y sesión.
+`VITE_REGISTRATION_CONSENT=true` habilita el flujo; ausente/false conserva rollout legacy y un valor
+inválido bloquea el registro. La pantalla falla cerrada si no puede obtener las condiciones.
+Los textos Markdown se leen completos como texto seguro, sin HTML activo ni nuevas dependencias.
+
+Archivos frontend nominales: API y tests `src/api/registrationConsent.*`,
+`src/hooks/useRegistrationConsent.ts`, `src/components/RegistrationConsent.tsx`,
+`src/pages/RegisterPage.tsx` y su test, mutación/test de auth, `.env.example`, este plan y README.
+Pruebas de navegador aisladas en `e2e-registration/registro.spec.ts` y
+`playwright.registration.config.ts`, para activar el rollout sin modificar los E2E legacy.
+Backend integra M3C sobre la ruta existente; su apertura nominal está en su plan del bloque 15.
+
+La clave y el payload del intento viven sólo en memoria. Los reintentos conservan ambos ante
+respuesta perdida; editar o revisar condiciones crea otra clave y las revisiones nuevas requieren
+confirmaciones nuevas. No se publican borradores ni se activa el flujo en producción en este corte.
+
+Validación frontend terminada el 2026-09-09: **46 Vitest focalizados**, typecheck, ESLint de los
+archivos afectados, **6 Playwright de registro** (3 desktop y 3 móvil de 320 px) y **8 Playwright de
+regresión** de autenticación, reparación y presupuesto. Todos aprobaron con la fuente final.
+El build con `VITE_REGISTRATION_CONSENT=true` también aprobó; conserva el aviso de chunk mayor a
+500 kB. Los guards de release y artefactos públicos quedaron `SKIPPED` por ser un build local:
+este resultado no acredita preparación para publicación.
+
+El primer foco encontró que un segundo submit podía liberar `isSubmitting` mientras el primer POST
+seguía pendiente. Se corrigió con estado de envío propio y exclusión por intento, y se repitieron
+el foco, typecheck, lint y navegador después de la corrección. No se debilitó la prueba.
+
+```sh
+npx vitest run src/api/registrationConsent.test.ts src/pages/RegisterPage.test.tsx src/api/mutations/auth.mutations.test.tsx src/store/auth.store.test.tsx
+npm run typecheck
+npx playwright test --config=playwright.registration.config.ts --workers=2
+npx playwright test e2e/auth.spec.ts e2e/reparacion.spec.ts e2e/presupuesto.spec.ts --project=chromium --workers=2
+VITE_REGISTRATION_CONSENT=true npm run build
+```
+
+Playwright usa API simulada; las pruebas separadas de backend utilizan MockMvc y PostgreSQL 16.
+No constituyen un recorrido navegador → servidor → PostgreSQL ni acreditan staging. **Cuenta
+utilizable** queda implementada localmente y requiere esa acreditación con publicación y
+configuración reales. El siguiente trabajo se limita a resolver los faltantes observados de la lista
+de salida; no abre automáticamente N/O/P/Q ni modifica TRIAL/PRO, cobros o email.
+
+Cierre coordinado backend `d6e99d2` el 2026-09-09: **8.661 pruebas** en `clean verify` fresco, 7.327 Surefire y
+1.334 Failsafe, sin fallos, errores, omitidas ni reintentos internos. Incluye las 55 integraciones del
+foco de registro/sesión/legacy; no se suman corridas como casos diferentes. La revisión cruzada del
+JSON, enums, errores y headers no encontró incompatibilidades con la pantalla. El backend mantiene
+V27/V28/V29 congeladas y los flags apagados por defecto.
+
+Commits atómicos de este cierre, uno por repositorio, sin push:
+`feat(legal): integra consentimiento en el registro` y
+`feat(registro): incorpora consentimiento de cuenta`. Se conservan `.agents/` y
+`public/OrdenFix project naming/` fuera del commit.

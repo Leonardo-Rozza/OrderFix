@@ -49,9 +49,13 @@ describe('mutaciones públicas de autenticación', () => {
 
   it('registro no adjunta el Bearer de una sesión anterior', async () => {
     let authorization: string | null = 'sin-request';
+    let idempotencyKey: string | null = 'sin-request';
+    let body: unknown;
     server.use(
-      http.post(`${API}/auth/register`, ({ request }) => {
+      http.post(`${API}/auth/register`, async ({ request }) => {
         authorization = request.headers.get('authorization');
+        idempotencyKey = request.headers.get('idempotency-key');
+        body = await request.json();
         return HttpResponse.json({
           token: 'token-nuevo',
           type: 'Bearer',
@@ -72,5 +76,7 @@ describe('mutaciones públicas de autenticación', () => {
     });
 
     expect(authorization).toBeNull();
+    expect(idempotencyKey).toBeNull();
+    expect(body).toEqual({ nombreTaller: 'Taller Nuevo', nombreAdmin: 'Ana', email: 'admin@nuevo.com', password: 'secreto' });
   });
 });

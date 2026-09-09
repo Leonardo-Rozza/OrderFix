@@ -2,6 +2,27 @@
 
 Sistema de gestión de reparaciones desarrollado con React, TypeScript y Vite. Aplicación web moderna y profesional para administrar clientes, equipos, reparaciones y repuestos.
 
+## Registro con consentimiento
+
+`VITE_REGISTRATION_CONSENT=true` habilita la lectura de condiciones y las confirmaciones explícitas
+en `/register`. Requiere el GET público de requisitos publicado y el consentimiento de registro
+habilitado en backend. Ausente/`false` conserva el rollout legacy; un valor inválido bloquea el registro.
+El flag frontend no reemplaza el enforcement del servidor. No activarlo con borradores ni antes de
+verificar la configuración y publicación en staging.
+
+La pantalla conserva clave y payload sólo en memoria para recuperar una respuesta perdida. Cambiar
+datos o revisar condiciones inicia otro intento; una versión nueva exige confirmar de nuevo.
+Los documentos recibidos se muestran completos como texto seguro, sin ejecutar HTML.
+
+Prueba de navegador del rollout activo, con servidor aislado en 5174 y API simulada:
+
+```sh
+npx playwright test --config=playwright.registration.config.ts --workers=2
+```
+
+El [plan de salida inicial](docs/plans/2026-09-08-salida-inicial-alcance-y-cierre.md) distingue esta
+evidencia local del recorrido pendiente en staging con backend y PostgreSQL reales.
+
 ## 📋 Tabla de Contenidos
 
 - [Características](#-características)

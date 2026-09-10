@@ -10,6 +10,8 @@ declare module 'axios' {
   interface AxiosRequestConfig {
     /** La superficie que hace el GET muestra su propio error y acción de reintento. */
     errorMode?: 'inline';
+    /** Las consultas de Cuenta comprueban el 403 sin depender de la suscripción. */
+    sessionValidation?: 'profile';
   }
 }
 
@@ -50,6 +52,7 @@ type SessionValidationResult = 'valida' | 'invalida' | 'indeterminada';
 
 let pendingSessionValidation: {
   token: string;
+  resource: '/perfil' | '/suscripcion';
   promise: Promise<SessionValidationResult>;
 } | null = null;
 
@@ -78,12 +81,12 @@ const closeInvalidSession = () => {
   redirectToLogin();
 };
 
-const validateBaseSession = (token: string | null): Promise<SessionValidationResult> => {
+const validateBaseSession = (token: string | null, resource: '/perfil' | '/suscripcion'): Promise<SessionValidationResult> => {
   if (!token) return Promise.resolve('invalida');
-  if (pendingSessionValidation?.token === token) return pendingSessionValidation.promise;
+  if (pendingSessionValidation?.token === token && pendingSessionValidation.resource === resource) return pendingSessionValidation.promise;
 
   const promise = sessionValidationClient
-    .get('/suscripcion', { headers: { Authorization: `Bearer ${token}` } })
+    .get(resource, { headers: { Authorization: `Bearer ${token}` }, ...(resource === '/perfil' ? { timeout: 20_000 } : {}) })
     .then<SessionValidationResult>(() => 'valida')
     .catch((validationError: unknown): SessionValidationResult => {
       const validationStatus = axios.isAxiosError(validationError)
@@ -92,7 +95,7 @@ const validateBaseSession = (token: string | null): Promise<SessionValidationRes
       return validationStatus === 401 || validationStatus === 403 ? 'invalida' : 'indeterminada';
     });
 
-  pendingSessionValidation = { token, promise };
+  pendingSessionValidation = { token, resource, promise };
   void promise.finally(() => {
     if (pendingSessionValidation?.promise === promise) pendingSessionValidation = null;
   });
@@ -137,16 +140,17 @@ apiClient.interceptors.response.use(
         // En cualquier otro endpoint un 403 puede ser falta de rol o una cuenta
         // desactivada. La consulta base deduplicada permite distinguirlos.
         const token = authStore.getState().token;
-        const validation = await validateBaseSession(token);
+        const accountRead = error.config?.sessionValidation === 'profile';
+        const validation = await validateBaseSession(token, accountRead ? '/perfil' : '/suscripcion');
 
         // Si la identidad cambió mientras validábamos, no afectamos la nueva sesión.
         if (authStore.getState().token === token) {
           if (validation === 'valida') {
-            showError(getErrorMessage(error, 'No tenés permisos para esta acción.'));
+            if (!accountRead) showError(getErrorMessage(error, 'No tenés permisos para esta acción.'));
           } else if (validation === 'invalida') {
             closeInvalidSession();
           } else {
-            showError('No pudimos verificar tu sesión. Revisá tu conexión e intentá de nuevo.');
+            if (!accountRead) showError('No pudimos verificar tu sesión. Revisá tu conexión e intentá de nuevo.');
           }
         }
       }

@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router';
+import { Link, Navigate } from 'react-router';
 import { useEffect, type ReactNode } from 'react';
 import { isAxiosError } from 'axios';
 import { authStore, useAuth } from '../store/auth.store';
@@ -49,11 +49,16 @@ const SessionGate = ({ children }: GuardProps) => {
 
   if (isError) {
     return (
-      <ErrorState
-        title="No pudimos validar tu sesión"
-        message="Revisá tu conexión e intentá de nuevo. Tu sesión sigue abierta."
-        onRetry={() => void refetch()}
-      />
+      <div className="text-center">
+        <ErrorState
+          title="No pudimos validar tu sesión"
+          message="Revisá tu conexión e intentá de nuevo. Tu sesión sigue abierta."
+          onRetry={() => void refetch()}
+        />
+        <Link to="/cuenta" className="inline-flex min-h-11 items-center rounded-lg px-4 text-sm font-semibold text-primary underline focus-visible:outline focus-visible:outline-primary">
+          Ir a Cuenta y privacidad
+        </Link>
+      </div>
     );
   }
 

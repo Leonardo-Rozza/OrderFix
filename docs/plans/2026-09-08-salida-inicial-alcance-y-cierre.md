@@ -607,3 +607,24 @@ clean verify terminara verde ni se sustituyen sus incidentes por el resultado de
 Cloudinary, bloqueo de acceso anónimo a originales/derivados, borrado y retención operativos,
 y tratamiento explícito de las referencias legacy. También quedan Confianza y cuenta y Operación
 real. El siguiente trabajo se elige de esas filas; este corte no abre otra familia de infraestructura.
+
+## Corte cerrado localmente — Cuenta y consulta documental
+
+Fecha: 2026-09-09. Baselines frontend `04bd706`, backend `ef8d9f4`. El
+[corte de consulta de Cuenta](2026-09-09-cuenta-documentos-implementation.md) agrega
+un destino único para titular y empleado: identidad remota, historial propio paginado,
+lectura de versiones exactas y contactos configurados. Cuenta no consulta suscripción;
+incluso un 403 del historial comprueba la sesión por perfil. El error comercial ofrece
+un enlace de acceso a Cuenta. Solicitudes, exportación integral y baja no se simulan.
+
+Pasaron 123 pruebas focalizadas, 631 Vitest + 42 controles de publicación, cinco
+recorridos Chromium con API simulada en escritorio/320 px, typecheck, lint y build.
+Las capturas fueron revisadas. No es evidencia de integración con PostgreSQL ni de
+staging. Backend limpio y sin cambios; V27–V30 y los 77 archivos ajenos preservados.
+Commit frontend `feat(cuenta): centraliza privacidad y documentos`, sin push.
+
+**Confianza y cuenta sigue abierto:** confirmar operador/buzones reales y completar
+un circuito atendido de solicitudes de datos y baja. Es el próximo pendiente concreto
+de esa fila, junto con su comprobación en el entorno de salida. La acreditación real de
+Cloudinary y legacy de fotos, staging, backup/restauración y recuperación operativa
+siguen pendientes; este corte no altera esos límites.

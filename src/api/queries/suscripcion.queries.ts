@@ -11,10 +11,11 @@ export const fetchSuscripcion = async (): Promise<Suscripcion> => {
   return data;
 };
 
-export const useSuscripcionQuery = () => {
+export const useSuscripcionQuery = (enabled = true) => {
   return useQuery({
     queryKey: queryKeys.suscripcion.all,
     queryFn: fetchSuscripcion,
+    enabled,
   });
 };
 
@@ -24,8 +25,8 @@ export const useSuscripcionQuery = () => {
  * Fallan cerradas: mientras el contrato está pendiente, falló o llegó sin el
  * mapa `funciones`, ningún consumidor debe llamar endpoints restringidos.
  */
-export const useFunciones = () => {
-  const query = useSuscripcionQuery();
+export const useFunciones = (enabled = true) => {
+  const query = useSuscripcionQuery(enabled);
   const funciones = query.data?.funciones;
   const contratoValido = query.isSuccess && funciones != null;
 

@@ -6,11 +6,11 @@ import { useAuth } from '../store/auth.store';
 import { MobileMoreMenu } from './MobileMoreMenu';
 
 /** Barra de navegación inferior (solo mobile). */
-export const BottomNav = () => {
+export const BottomNav = ({ accountMode = false }: { accountMode?: boolean }) => {
   const [moreOpen, setMoreOpen] = useState(false);
   const { pathname } = useLocation();
   const { isAdmin } = useAuth();
-  const funciones = useFunciones();
+  const funciones = useFunciones(!accountMode);
   const visibleMoreItems = mobileMoreItems.filter((item) =>
     isNavItemVisible(item, { isAdmin, funciones })
   );

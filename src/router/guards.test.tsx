@@ -124,6 +124,7 @@ describe('ProtectedRoute', () => {
 
     expect(await screen.findByText('No pudimos validar tu sesión')).toBeInTheDocument();
     expect(authStore.getState().isAuthenticated).toBe(true);
+    expect(screen.getByRole('link', { name: 'Ir a Cuenta y privacidad' })).toHaveAttribute('href', '/cuenta');
     await user.click(screen.getByRole('button', { name: 'Reintentar' }));
     await waitFor(() => expect(screen.getByText('PRIVADO')).toBeInTheDocument());
     expect(intentos).toBe(2);

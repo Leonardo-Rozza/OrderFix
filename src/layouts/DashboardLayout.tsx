@@ -9,9 +9,11 @@ interface DashboardLayoutProps {
   children: ReactNode;
   /** Título mostrado en la barra superior (desktop) */
   title?: string;
+  /** Cuenta se valida por perfil y no consulta ni exige el estado comercial. */
+  accountMode?: boolean;
 }
 
-export const DashboardLayout = ({ children, title }: DashboardLayoutProps) => (
+export const DashboardLayout = ({ children, title, accountMode = false }: DashboardLayoutProps) => (
   <div className="min-h-dvh bg-bg text-text">
     <a
       href="#contenido"
@@ -19,15 +21,15 @@ export const DashboardLayout = ({ children, title }: DashboardLayoutProps) => (
     >
       Saltar al contenido
     </a>
-    <Sidebar />
+    <Sidebar accountMode={accountMode} />
     <div className="flex min-h-dvh flex-col lg:pl-64">
-      <EmailVerificacionBanner />
+      {!accountMode && <EmailVerificacionBanner />}
       <Navbar title={title} />
       <main id="contenido" tabIndex={-1} className="flex-1 px-4 py-5 outline-none lg:px-6 lg:py-6">
         <div className="mx-auto max-w-6xl">{children}</div>
       </main>
-      <BottomNav />
+      <BottomNav accountMode={accountMode} />
     </div>
-    <LimitePlanModal />
+    {!accountMode && <LimitePlanModal />}
   </div>
 );

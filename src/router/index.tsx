@@ -20,9 +20,15 @@ import { OlvidePasswordPage } from '../pages/OlvidePasswordPage';
 import { ResetPasswordPage } from '../pages/ResetPasswordPage';
 import { VerificarEmailPage } from '../pages/VerificarEmailPage';
 import { ReciboCompatRedirect } from './ReciboCompatRedirect';
+import { AccountRoute } from './AccountRoute';
+import { AccountPage } from '../pages/AccountPage';
 
 // Configuración de rutas
 const appRoutes = [
+  {
+    path: '/cuenta',
+    element: <AccountRoute><AccountPage /></AccountRoute>,
+  },
   {
     path: '/login',
     element: (

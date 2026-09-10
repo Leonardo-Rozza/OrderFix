@@ -41,8 +41,8 @@ vi.mock('../hooks/useSessionIdentity', () => ({
   useSessionIdentity: () => mocks.identity,
 }));
 
-const renderSidebar = () => render(
-  <MemoryRouter initialEntries={['/dashboard']}>
+const renderSidebar = (path = '/dashboard') => render(
+  <MemoryRouter initialEntries={[path]}>
     <Sidebar />
   </MemoryRouter>,
 );
@@ -114,6 +114,13 @@ describe('Sidebar — identidad del taller', () => {
 
     expect(screen.getByRole('link', { name: 'Cobros' })).toHaveAttribute('href', '/caja');
     expect(screen.queryByRole('link', { name: 'Caja' })).not.toBeInTheDocument();
+  });
+
+  it('mantiene Cuenta visible para empleados sin funciones de pago y activa en subrutas', () => {
+    renderSidebar('/cuenta/documentos/version-historica');
+
+    expect(screen.getByRole('link', { name: 'Cuenta' })).toHaveAttribute('href', '/cuenta');
+    expect(screen.getByRole('link', { name: 'Cuenta' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('mantiene el fallback visible y permite reintentar cuando falla el perfil', () => {

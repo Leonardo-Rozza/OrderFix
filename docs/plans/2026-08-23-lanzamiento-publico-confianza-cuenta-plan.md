@@ -1345,6 +1345,12 @@ feat(cuenta): agrega gestiones de cobro y arrepentimiento
 
 ## Tarea 14 — Crear Cuenta y Privacidad como destino único
 
+Avance 2026-09-09: [corte de consulta de Cuenta](2026-09-09-cuenta-documentos-implementation.md)
+implementa identidad remota, historial propio, versiones exactas y contactos
+validados en sidebar/Más, con acceso independiente del plan. Es un cierre parcial:
+el perfil no informa verificación de email y siguen pendientes identidad/contactos
+reales y circuito operativo de solicitudes/baja. No se simulan exportación ni cierre.
+
 ### Dependencia
 
 - `BACKEND-HANDOFF 3` para baja individual o, hasta disponerlo, un canal de solicitud claramente documentado.

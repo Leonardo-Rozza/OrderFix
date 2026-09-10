@@ -73,12 +73,13 @@ describe('BottomNav', () => {
     expect(within(dialog).getByRole('link', { name: 'Plan' })).toHaveAttribute('href', '/planes');
   });
 
-  it('para USER FREE muestra solo Repuestos y Plan', async () => {
+  it('para USER FREE muestra Repuestos, Plan y Cuenta', async () => {
     const { dialog } = await openMore();
 
     expect(within(dialog).getAllByRole('link').map((link) => link.textContent?.trim())).toEqual([
       'Repuestos',
       'Plan',
+      'Cuenta',
     ]);
     expect(within(dialog).queryByRole('link', { name: 'Empleados' })).not.toBeInTheDocument();
     expect(within(dialog).queryByRole('link', { name: 'Inventario' })).not.toBeInTheDocument();
@@ -129,6 +130,7 @@ describe('BottomNav', () => {
     expect(within(dialog).getAllByRole('link').map((link) => link.textContent?.trim())).toEqual([
       'Repuestos',
       'Plan',
+      'Cuenta',
       'Empleados',
       'Cobros',
       'Inventario',
@@ -164,6 +166,24 @@ describe('BottomNav', () => {
     const user = userEvent.setup();
     await user.click(trigger);
     expect(screen.getByRole('link', { name: 'Plan' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it.each([false, true])('mantiene Cuenta en Más y activa sus documentos históricos (ADMIN=%s)', async (isAdmin) => {
+    useAuthMock.mockReturnValue({ isAdmin });
+    const { trigger, dialog } = await openMore('/cuenta/documentos/version-historica');
+
+    expect(trigger).toHaveAttribute('aria-current', 'page');
+    expect(within(dialog).getByRole('link', { name: 'Cuenta' })).toHaveAttribute('href', '/cuenta');
+    expect(within(dialog).getByRole('link', { name: 'Cuenta' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('navega a Cuenta desde Más y cierra la bandeja', async () => {
+    const { user, dialog } = await openMore();
+
+    await user.click(within(dialog).getByRole('link', { name: 'Cuenta' }));
+
+    expect(screen.queryByRole('dialog', { name: 'Más herramientas' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent('/cuenta');
   });
 
   it('cierra con Escape y restaura el foco en el botón Más', async () => {

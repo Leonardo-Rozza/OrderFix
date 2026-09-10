@@ -81,6 +81,12 @@ export const navItems: NavItem[] = [
     icon: <Svg><path d="m12 3 2.4 5 5.6.8-4 3.9.9 5.5L12 21l-4.9-2.8.9-5.5-4-3.9 5.6-.8z" /></Svg>,
   },
   {
+    key: 'cuenta',
+    label: 'Cuenta',
+    path: '/cuenta',
+    icon: <Svg><circle cx="12" cy="8" r="4" /><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2" /></Svg>,
+  },
+  {
     key: 'usuarios',
     label: 'Empleados',
     path: '/usuarios',

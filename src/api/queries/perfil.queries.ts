@@ -8,10 +8,11 @@ import type { Perfil } from '../../types';
 export const PERFIL_KEY = queryKeys.perfil.all;
 
 /** Perfil del principal actual. La señal cancela requests que pierden observadores. */
-export const fetchPerfil = async (signal?: AbortSignal): Promise<Perfil> => {
+export const fetchPerfil = async (signal?: AbortSignal, timeout?: number): Promise<Perfil> => {
   const { data } = await apiClient.get<Perfil>('/perfil', {
     signal,
     errorMode: 'inline',
+    ...(timeout === undefined ? {} : { timeout }),
   });
   return data;
 };

@@ -49,6 +49,12 @@ beforeEach(() => {
 });
 
 describe('perfil query', () => {
+  it('Cuenta puede limitar la espera del perfil sin alterar los demás consumidores', async () => {
+    const signal = new AbortController().signal;
+    const get = vi.spyOn(apiClient, 'get').mockResolvedValueOnce({ data: perfil });
+    await expect(fetchPerfil(signal, 20_000)).resolves.toEqual(perfil);
+    expect(get).toHaveBeenCalledWith('/perfil', { signal, errorMode: 'inline', timeout: 20_000 });
+  });
   it('envía la señal de cancelación y delega el error a la superficie inline', async () => {
     const controller = new AbortController();
     const get = vi.spyOn(apiClient, 'get').mockResolvedValueOnce({ data: perfil });

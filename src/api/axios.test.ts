@@ -28,6 +28,36 @@ afterEach(() => {
 });
 
 describe('axios interceptor de errores', () => {
+  it.each([200, 503])('un 403 de Cuenta comprueba perfil %s sin consultar la suscripción ni duplicar errores', async (status) => {
+    authStore.getState().login('token-cuenta', 'cuenta@taller.com');
+    let subscriptions = 0;
+    let profiles = 0;
+    server.use(
+      http.get(`${API}/aceptaciones-legales`, () => new HttpResponse(null, { status: 403 })),
+      http.get(`${API}/perfil`, ({ request }) => {
+        profiles++;
+        expect(request.headers.get('authorization')).toBe('Bearer token-cuenta');
+        return HttpResponse.json({}, { status });
+      }),
+      http.get(`${API}/suscripcion`, () => { subscriptions++; return new HttpResponse(null, { status: 403 }); }),
+    );
+    await expect(apiClient.get('/aceptaciones-legales', { sessionValidation: 'profile', errorMode: 'inline' })).rejects.toBeTruthy();
+    expect(authStore.getState().isAuthenticated).toBe(true);
+    expect(profiles).toBe(1);
+    expect(subscriptions).toBe(0);
+    expect(showError).not.toHaveBeenCalled();
+  });
+
+  it.each([401, 403])('un 403 de Cuenta cierra sesión si el perfil remoto responde %s', async (status) => {
+    authStore.getState().login('token-cuenta', 'cuenta@taller.com');
+    server.use(
+      http.get(`${API}/aceptaciones-legales`, () => new HttpResponse(null, { status: 403 })),
+      http.get(`${API}/perfil`, () => new HttpResponse(null, { status })),
+    );
+    await expect(apiClient.get('/aceptaciones-legales', { sessionValidation: 'profile', errorMode: 'inline' })).rejects.toBeTruthy();
+    expect(authStore.getState().isAuthenticated).toBe(false);
+  });
+
   it('muestra toast ante un error en un GET', async () => {
     server.use(http.get(`${API}/clientes`, () => new HttpResponse(null, { status: 500 })));
     await expect(apiClient.get('/clientes')).rejects.toBeTruthy();

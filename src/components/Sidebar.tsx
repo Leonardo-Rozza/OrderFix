@@ -6,11 +6,11 @@ import { useFunciones, useSuscripcionQuery } from '../api/queries/suscripcion.qu
 import { useSessionIdentity } from '../hooks/useSessionIdentity';
 
 /** Sidebar de escritorio (oculto en mobile; en mobile se usa BottomNav). */
-export const Sidebar = () => {
+export const Sidebar = ({ accountMode = false }: { accountMode?: boolean }) => {
   const { isAdmin } = useAuth();
   const identity = useSessionIdentity();
-  const funciones = useFunciones();
-  const { data: sus } = useSuscripcionQuery();
+  const funciones = useFunciones(!accountMode);
+  const { data: sus } = useSuscripcionQuery(!accountMode);
   const items = navItems.filter((item) => isNavItemVisible(item, { isAdmin, funciones }));
 
   // Consumo del plan FREE (nudge a PRO)
@@ -84,7 +84,7 @@ export const Sidebar = () => {
       </nav>
 
       <div className="border-t border-border p-3">
-        {limite != null && (
+        {!accountMode && limite != null && (
           <Link to="/planes" className="mb-2 block rounded-lg bg-surface-2 px-3 py-2.5 transition hover:bg-surface-3">
             <div className="mb-1.5 flex items-center justify-between text-[12px]">
               <span className="font-bold text-text-2">Plan FREE</span>

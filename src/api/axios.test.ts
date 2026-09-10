@@ -11,6 +11,7 @@ vi.mock('../utils/toast', async (orig) => {
 vi.mock('../lib/sentry', () => ({ captureError: vi.fn() }));
 
 import { apiClient, LIMITE_PLAN_EVENT } from './axios';
+import { queryClient } from './queryClient';
 import { showError } from '../utils/toast';
 import { captureError } from '../lib/sentry';
 import { authStore } from '../store/auth.store';
@@ -28,6 +29,84 @@ afterEach(() => {
 });
 
 describe('axios interceptor de errores', () => {
+  it.each([
+    { path: '/perfil', method: 'GET', status: 401 },
+    { path: '/perfil', method: 'GET', status: 403 },
+    { path: '/cuenta/baja-acceso', method: 'POST', status: 401 },
+    { path: '/cuenta/baja-acceso', method: 'POST', status: 403 },
+  ])('un $status tardío de $method $path conserva la nueva sesión, caché y guards', async ({ path, method, status }) => {
+    authStore.getState().login('token-anterior', 'anterior@taller.com');
+    let markSent!: () => void;
+    const sent = new Promise<void>((resolve) => { markSent = resolve; });
+    let releaseResponse!: () => void;
+    const held = new Promise<void>((resolve) => { releaseResponse = resolve; });
+    const releaseGuard = vi.fn();
+    const unsubscribe = subscribeUnsavedChangesRelease(releaseGuard);
+    let validations = 0;
+    const respond = async ({ request }: { request: Request }) => {
+      expect(request.headers.get('authorization')).toBe('Bearer token-anterior');
+      markSent();
+      await held;
+      return new HttpResponse(null, { status });
+    };
+    server.use(
+      method === 'GET' ? http.get(`${API}${path}`, respond) : http.post(`${API}${path}`, respond),
+      http.get(`${API}/perfil`, () => { validations++; return HttpResponse.json({}); }),
+      http.get(`${API}/suscripcion`, () => { validations++; return HttpResponse.json({}); }),
+    );
+    const config = { sessionValidation: 'profile' as const, errorMode: 'inline' as const };
+    const pending = method === 'GET' ? apiClient.get(path, config) : apiClient.post(path, {}, config);
+    const result = expect(pending).rejects.toMatchObject({ response: { status } });
+    try {
+      await sent;
+      authStore.getState().login('token-nuevo', 'nuevo@taller.com');
+      queryClient.setQueryData(['nuevo-taller'], { reparacion: 91 });
+      releaseResponse();
+      await result;
+
+      expect(authStore.getState()).toMatchObject({ token: 'token-nuevo', email: 'nuevo@taller.com', isAuthenticated: true });
+      expect(queryClient.getQueryData(['nuevo-taller'])).toEqual({ reparacion: 91 });
+      expect(releaseGuard).not.toHaveBeenCalled();
+      expect(validations).toBe(0);
+      expect(showError).not.toHaveBeenCalled();
+      expect(captureError).not.toHaveBeenCalled();
+    } finally { releaseResponse(); unsubscribe(); }
+  });
+
+  it('un cambio de sesión durante la validación del 403 tampoco cierra la nueva identidad', async () => {
+    authStore.getState().login('token-anterior', 'anterior@taller.com');
+    let markValidation!: () => void;
+    const validationStarted = new Promise<void>((resolve) => { markValidation = resolve; });
+    let releaseValidation!: () => void;
+    const held = new Promise<void>((resolve) => { releaseValidation = resolve; });
+    const releaseGuard = vi.fn();
+    const unsubscribe = subscribeUnsavedChangesRelease(releaseGuard);
+    server.use(
+      http.post(`${API}/cuenta/baja-acceso`, () => new HttpResponse(null, { status: 403 })),
+      http.get(`${API}/perfil`, async ({ request }) => {
+        expect(request.headers.get('authorization')).toBe('Bearer token-anterior');
+        markValidation();
+        await held;
+        return new HttpResponse(null, { status: 401 });
+      }),
+    );
+    const result = expect(apiClient.post('/cuenta/baja-acceso', {}, {
+      sessionValidation: 'profile', errorMode: 'inline',
+    })).rejects.toMatchObject({ response: { status: 403 } });
+    try {
+      await validationStarted;
+      authStore.getState().login('token-nuevo', 'nuevo@taller.com');
+      queryClient.setQueryData(['nuevo-taller'], { reparacion: 92 });
+      releaseValidation();
+      await result;
+
+      expect(authStore.getState()).toMatchObject({ token: 'token-nuevo', isAuthenticated: true });
+      expect(queryClient.getQueryData(['nuevo-taller'])).toEqual({ reparacion: 92 });
+      expect(releaseGuard).not.toHaveBeenCalled();
+      expect(showError).not.toHaveBeenCalled();
+    } finally { releaseValidation(); unsubscribe(); }
+  });
+
   it.each([200, 503])('un 403 de Cuenta comprueba perfil %s sin consultar la suscripción ni duplicar errores', async (status) => {
     authStore.getState().login('token-cuenta', 'cuenta@taller.com');
     let subscriptions = 0;

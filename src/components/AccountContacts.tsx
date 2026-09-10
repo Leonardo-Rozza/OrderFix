@@ -1,3 +1,4 @@
+import { Link } from 'react-router';
 import {
   readLegalContactConfig,
   validateLegalContactConfig,
@@ -32,7 +33,7 @@ export const AccountContacts = ({ isAdmin, tallerTelefono }: AccountContactsProp
     <section aria-labelledby="account-privacy-title" className="rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-5">
       <h2 id="account-privacy-title" className="text-[16px] font-extrabold">Privacidad, datos y baja</h2>
       <p className="mt-2 text-[13.5px] leading-relaxed text-text-2">
-        Las solicitudes de datos y baja todavía no se gestionan desde la app.
+        Las solicitudes sobre tus datos personales todavía no se gestionan desde la app.
       </p>
       {isAdmin ? (
         <p className="mt-2 text-[13.5px] leading-relaxed text-text-2">
@@ -42,9 +43,10 @@ export const AccountContacts = ({ isAdmin, tallerTelefono }: AccountContactsProp
       ) : (
         <div className="mt-2 space-y-2 text-[13.5px] leading-relaxed text-text-2">
           <p>
-            Para pedir la baja de tu propio acceso, contactá al titular del taller
-            {privacyAvailable ? ' o al contacto de privacidad' : ''}. Esto no cierra el taller.
+            Podés dar de baja tu propio acceso desde Cuenta. Esto no cierra el taller ni elimina tus datos personales.
           </p>
+          <Link to="/cuenta/baja-acceso" className="inline-flex min-h-11 items-center rounded-md font-bold text-primary underline focus-visible:outline focus-visible:outline-primary">Dar de baja mi acceso</Link>
+          <p>Para otras consultas, contactá al titular del taller{privacyAvailable ? ' o al contacto de privacidad' : ''}.</p>
           {tallerTelefono?.trim() && (
             <p className="[overflow-wrap:anywhere]">Teléfono del taller: {tallerTelefono}</p>
           )}

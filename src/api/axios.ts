@@ -1,4 +1,4 @@
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, AxiosHeaders } from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
 import { authStore } from '../store/auth.store';
 import { getErrorMessage, showError } from '../utils/toast';
@@ -123,6 +123,14 @@ apiClient.interceptors.response.use(
       throw error;
     }
 
+    const accountRead = error.config?.sessionValidation === 'profile';
+    if (accountRead) {
+      // El interceptor corre antes que el catch de la pantalla. Una respuesta
+      // de otra sesión no puede cerrar la identidad nueva ni liberar sus guards.
+      const currentToken = authStore.getState().token;
+      const sentAuthorization = AxiosHeaders.from(error.config?.headers).get('Authorization');
+      if (!currentToken || sentAuthorization !== `Bearer ${currentToken}`) throw error;
+    }
     const status = error.response?.status;
 
     if (status === 401) {
@@ -140,7 +148,6 @@ apiClient.interceptors.response.use(
         // En cualquier otro endpoint un 403 puede ser falta de rol o una cuenta
         // desactivada. La consulta base deduplicada permite distinguirlos.
         const token = authStore.getState().token;
-        const accountRead = error.config?.sessionValidation === 'profile';
         const validation = await validateBaseSession(token, accountRead ? '/perfil' : '/suscripcion');
 
         // Si la identidad cambió mientras validábamos, no afectamos la nueva sesión.

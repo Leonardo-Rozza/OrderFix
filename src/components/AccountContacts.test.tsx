@@ -1,6 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { render as renderUi, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccountContacts } from './AccountContacts';
+
+const render = (content: ReactNode) => renderUi(<MemoryRouter>{content}</MemoryRouter>);
 
 describe('AccountContacts', () => {
   beforeEach(() => {
@@ -17,7 +21,7 @@ describe('AccountContacts', () => {
     expect(screen.getAllByText('Contacto todavía no disponible.')).toHaveLength(3);
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
-    expect(screen.getByText(/Las solicitudes de datos y baja todavía no se gestionan/)).toBeVisible();
+    expect(screen.getByText(/Las solicitudes sobre tus datos personales todavía no se gestionan/)).toBeVisible();
     expect(screen.getByText(/El cierre del taller y la exportación integral todavía no están disponibles/)).toBeVisible();
   });
 
@@ -55,17 +59,18 @@ describe('AccountContacts', () => {
     vi.stubEnv('VITE_PRIVACY_EMAIL', email);
     render(<AccountContacts isAdmin={false} tallerTelefono={null} />);
 
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Dar de baja mi acceso' })).toHaveAttribute('href', '/cuenta/baja-acceso');
+    expect(document.querySelector('a[href^="mailto:"]')).toBeNull();
     expect(screen.getAllByText('Contacto todavía no disponible.')).toHaveLength(3);
-    expect(screen.getByText(/contactá al titular del taller\. Esto no cierra el taller/)).toBeVisible();
+    expect(screen.getByText(/Para otras consultas, contactá al titular del taller/)).toBeVisible();
   });
 
   it('orienta al empleado por su acceso personal y conserva el teléfono como texto', () => {
     render(<AccountContacts isAdmin={false} tallerTelefono="+54 11 4567-8900" />);
 
-    expect(screen.getByText(/Para pedir la baja de tu propio acceso/)).toBeVisible();
+    expect(screen.getByText(/Podés dar de baja tu propio acceso/)).toBeVisible();
     expect(screen.getByText('Teléfono del taller: +54 11 4567-8900')).toBeVisible();
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Dar de baja mi acceso' })).toHaveAttribute('href', '/cuenta/baja-acceso');
     expect(screen.queryByRole('button', { name: /cerrar|exportar|enviar/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/El cierre del taller y la exportación integral/)).not.toBeInTheDocument();
   });

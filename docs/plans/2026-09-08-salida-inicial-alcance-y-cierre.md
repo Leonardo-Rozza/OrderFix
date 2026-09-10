@@ -628,3 +628,33 @@ un circuito atendido de solicitudes de datos y baja. Es el próximo pendiente co
 de esa fila, junto con su comprobación en el entorno de salida. La acreditación real de
 Cloudinary y legacy de fotos, staging, backup/restauración y recuperación operativa
 siguen pendientes; este corte no altera esos límites.
+
+## Corte cerrado localmente — baja del acceso propio del empleado
+
+Fecha: 2026-09-09. Baselines frontend `540f619`, backend `ef8d9f4`. El
+[corte de baja individual](2026-09-09-cuenta-baja-acceso-implementation.md) completa
+la operación USER prevista por Tarea 14/BACKEND-HANDOFF 3: contraseña actual,
+confirmación explícita, usuario inactivo y versión de sesión incrementada en la
+misma transacción. Cuenta permite salir sin consultar suscripción ni requerir correo.
+El titular conserva su gestión de empleados; esta acción no cierra el taller ni
+elimina reparaciones, evidencia o datos personales.
+
+La revocación se preserva ante reset, verificación de email y actualización
+administrativa concurrentes. El navegador descarta la contraseña al enviar, bloquea
+el doble envío y sólo confirma con 204. Un error incierto no afirma que hubo baja;
+una respuesta de una sesión anterior no cierra la nueva. El cierre conserva una
+constancia en login y vacía la caché privada.
+
+Aprobaron **105 pruebas backend**, incluidas **15 PostgreSQL 16**, **661 Vitest +
+42 controles de publicación**, nueve recorridos Chromium con API simulada en
+escritorio/320 px, typecheck, lint y build. Las correcciones detectadas y los límites
+de esta evidencia se detallan en el plan del corte. No es una acreditación de staging
+ni del recorrido integrado navegador → PostgreSQL. V27–V30 y los 77 archivos ajenos
+no versionados se preservaron. Un commit por repositorio, sin push.
+
+**La baja individual queda implementada y verificada localmente.** Confianza y cuenta
+sigue pendiente de identidad/contactos reales y un circuito atendido para solicitudes
+de datos y cierre del taller. La acreditación del proveedor de fotos/legacy y la
+operación en el entorno de salida conservan sus pendientes. No se abre una familia
+adicional de infraestructura ni se retoman como imprescindibles todas las mejoras
+del plan histórico.

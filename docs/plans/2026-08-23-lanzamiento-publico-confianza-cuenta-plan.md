@@ -1351,6 +1351,12 @@ validados en sidebar/Más, con acceso independiente del plan. Es un cierre parci
 el perfil no informa verificación de email y siguen pendientes identidad/contactos
 reales y circuito operativo de solicitudes/baja. No se simulan exportación ni cierre.
 
+Segundo avance 2026-09-09: el [corte de baja del acceso propio](2026-09-09-cuenta-baja-acceso-implementation.md)
+incorpora el contrato backend y formulario USER con contraseña actual, desactivación
+y revocación de sesiones. No depende de suscripción ni correo y no elimina registros
+ni cierra el taller. Quedan identidad/contactos reales, atención de solicitudes de
+datos y cierre del taller; la baja individual ya tiene una operación implementada.
+
 ### Dependencia
 
 - `BACKEND-HANDOFF 3` para baja individual o, hasta disponerlo, un canal de solicitud claramente documentado.

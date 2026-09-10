@@ -64,7 +64,7 @@ for (const role of ['ADMIN', 'USER'] as const) {
       await expect(page.locator('main').getByText('cuenta.personal.con.un.nombre.largo@taller-prueba.test', { exact: true })).toBeVisible();
       await expect(page.locator('main').getByText(role === 'ADMIN' ? 'Titular del taller' : 'Empleado', { exact: true })).toBeVisible();
       await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);
-      if (role === 'USER') await expect(page.getByText(/Para pedir la baja de tu propio acceso/)).toBeVisible();
+      if (role === 'USER') await expect(page.getByRole('link', { name: 'Dar de baja mi acceso' })).toBeVisible();
       await expect(page.getByRole('button', { name: /Cerrar taller|Exportar datos|Solicitar baja/i })).toHaveCount(0);
 
       await page.getByRole('button', { name: 'Reintentar historial' }).click();

@@ -22,9 +22,14 @@ import { VerificarEmailPage } from '../pages/VerificarEmailPage';
 import { ReciboCompatRedirect } from './ReciboCompatRedirect';
 import { AccountRoute } from './AccountRoute';
 import { AccountPage } from '../pages/AccountPage';
+import { AccountAccessExitPage } from '../pages/AccountAccessExitPage';
 
 // Configuración de rutas
 const appRoutes = [
+  {
+    path: '/cuenta/baja-acceso',
+    element: <AccountRoute><AccountAccessExitPage /></AccountRoute>,
+  },
   {
     path: '/cuenta',
     element: <AccountRoute><AccountPage /></AccountRoute>,

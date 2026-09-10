@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Link, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { useLoginMutation } from '../api/mutations/auth.mutations';
 import { useAuth } from '../store/auth.store';
 import { AuthAside } from '../components/AuthAside';
@@ -21,6 +21,7 @@ const fieldClass =
 
 export const LoginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
   const loginMutation = useLoginMutation();
   const retryAfter = useRetryAfter();
@@ -51,6 +52,10 @@ export const LoginPage = () => {
 
           <h1 className="mb-1.5 mt-[18px] text-[26px] font-extrabold tracking-tight">Iniciá sesión</h1>
           <p className="mb-6 text-[14.5px] text-text-2">Ingresá con tu cuenta del taller.</p>
+
+          {location.state?.accessDeactivated === true && <p role="status" className="mb-5 rounded-lg bg-surface-2 p-3 text-sm leading-6 text-text-2">
+            Tu acceso fue desactivado. Tus sesiones anteriores ya no permiten ingresar.
+          </p>}
 
           <form onSubmit={handleSubmit(onSubmit)} noValidate>
             <label htmlFor="login-email" className="mb-1.5 block text-[13px] font-bold">Email</label>

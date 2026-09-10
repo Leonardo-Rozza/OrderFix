@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render as renderUi, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Perfil } from '../types';
@@ -17,6 +18,8 @@ vi.mock('../components/AccountLegalHistory', () => ({
 }));
 
 import { AccountPage } from './AccountPage';
+
+const render = (content: ReactNode) => renderUi(<MemoryRouter>{content}</MemoryRouter>);
 
 const profile: Perfil = {
   usuario: { id: 8, username: 'Ana Técnica', email: 'ana@taller.com', role: 'ADMIN' },
@@ -57,7 +60,8 @@ describe('AccountPage', () => {
     render(<AccountPage />);
 
     expect(screen.getByText('Empleado', { exact: true })).toBeVisible();
-    expect(screen.getByText(/Para pedir la baja de tu propio acceso/)).toBeVisible();
+    expect(screen.getByText(/Podés dar de baja tu propio acceso/)).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Dar de baja mi acceso' })).toHaveAttribute('href', '/cuenta/baja-acceso');
     expect(screen.queryByText('Titular del taller', { exact: true })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /empleados|cerrar|exportar/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();

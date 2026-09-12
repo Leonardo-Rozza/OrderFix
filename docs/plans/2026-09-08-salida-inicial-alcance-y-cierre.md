@@ -114,8 +114,20 @@ El corte B implementa la captura consistente y el paquete local: dieciséis cate
 JSON, documentos legales propios exactos, QR local y manifiesto con SHA-256. Las
 fotos remotas elegibles aparecen como pendientes; URLs legacy y código de seguimiento quedan
 excluidos. El paquete declara expresamente que todavía está incompleto para entrega.
-C conserva generación durable, cifrado, recuperación y limpieza; D, API/pantalla y
-protección del reporte directo. No hay un nuevo botón ni una descarga habilitada.
+Al cerrar B quedaban C (generación, cifrado y limpieza) y D (API/pantalla y
+protección del reporte directo). No hay un nuevo botón ni una descarga habilitada.
+
+**C cerrado localmente:** el trabajo durable consume la prueba
+junto con el pedido, conserva la captura en reintentos y genera un ZIP cifrado con
+fotos permitidas. Caduca como máximo a las 24 horas, respeta revocaciones y elimina
+sus archivos temporales de PostgreSQL. V32 agrega la tabla independiente; las
+migraciones anteriores permanecen intactas. Configuración apagada por defecto.
+El runbook backend `docs/operations/exports.md` documenta claves y recuperación.
+Validación consolidada: 7.537 unitarias y 1.446 casos de integración; dos expectativas
+históricas V31/V32 se corrigieron y revalidaron con sus clases completas. El acta
+backend distingue el integral de la revalidación focalizada final aprobada.
+D queda a cargo de la API, pantalla, límites HTTP y descarga autorizada; la entrega
+al usuario continúa sin habilitarse. No se activa MP ni se hace push/merge.
 
 El paquete excluye PIN/patrón, credenciales y tokens internos. La constancia legal
 personal se limita al solicitante; ser ADMIN no habilita descargar aceptaciones

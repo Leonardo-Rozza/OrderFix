@@ -148,13 +148,18 @@ Estos cinco frentes continúan abiertos; terminar A–D no los marca como resuel
 | MP | Checkout, firma/inbox, reintentos, conciliación y cancelación con pruebas locales. | Aplicación/cuentas de prueba, retorno y webhook HTTPS; probar alta, activación/rechazo, cancelación y matriz de eventos contra el proveedor. No procesa pagos taller–cliente. |
 | Fotos | Flujo privado local; adapter productivo contra Cloudinary real acreditado con PNG/JPEG: carga, lectura exacta, HTTP 401 anónimo y borrado confirmado. | Recorrido completo en staging, configuración del rol y política de retención/backups/CDN. Identificar antes de limpiar cuentas y assets históricos de prueba autorizados. |
 | Email C | SMTP Resend y dominio verificado; correo autorizado recibido. | Registro, verificación y recuperación desde la app desplegada, enlaces HTTPS y operación del envío. La recepción de una prueba no cierra este recorrido. |
-| Datos, cierre y publicación legal | Cuenta, baja del empleado y reporte operativo ensayados localmente; bloqueo de enlaces de talleres inactivos y runbook con casos sintéticos. Exportación integral A/B: reautenticación interna y captura consistente con paquete local incompleto, categorías explícitas y manifiesto; secuencia A–D en el plan backend `2026-09-12-exportacion-integral-implementation.md`. | Completar generación temporal, fotos remotas, cifrado/limpieza y API/pantalla de exportación; después cierre coordinado ADMIN y vía real de solicitudes/entrega, retención y contactos atendidos. La baja USER y el Excel no resuelven esos pedidos. Identidad/alta y textos definitivos conservan la etapa final acordada, después de MP y Email. |
+| Datos, cierre y publicación legal | Cuenta, baja del empleado y reporte operativo ensayados localmente; bloqueo de enlaces de talleres inactivos y runbook con casos sintéticos. Exportación integral A/B/C: reautenticación, captura consistente y generación durable de ZIP cifrado con fotos permitidas, vencimiento y limpieza; secuencia A–D en el plan backend `2026-09-12-exportacion-integral-implementation.md`. | Completar D: API/pantalla, límites HTTP y descarga autorizada de exportación; después cierre coordinado ADMIN y vía real de solicitudes/entrega, retención y contactos atendidos. La baja USER y el Excel no resuelven esos pedidos. Identidad/alta y textos definitivos conservan la etapa final acordada, después de MP y Email. |
 | Despliegue y recuperación | Ramas identificadas y Vercel conectado a main. | Configurar y acreditar versión frontend/API en staging, gates de publicación, recorrido móvil, backup restaurado y recuperación del despliegue. El usuario hará push/merge. |
 
 Exportación integral B queda cerrado localmente con 7 unitarias y 102 de integración
 focalizadas aprobadas; acta y límites en el plan backend mencionado. La captura y
-el manifiesto no habilitan entrega: siguen C (generación temporal/archivos/cifrado)
-y D (API/pantalla/descarga autorizada). Este cambio frontend es documental.
+el manifiesto no habilitan entrega. C queda cerrado localmente con generación
+temporal, archivos, cifrado y limpieza. La validación consolidada cubre 7.537
+unitarias y 1.446 casos de integración; el integral detectó dos expectativas
+históricas V31/V32, corregidas y revalidadas con sus clases completas y `verify`
+aprobado. El acta backend conserva comandos y resultados separados. Queda D para
+API/pantalla y descarga autorizada. El worker continúa deshabilitado por defecto.
+Este cambio frontend es documental.
 
 El titular pospuso MP y se completó la prueba sintética de almacenamiento real de
 fotos el 2026-09-12: 2 casos aprobados y ambos assets eliminados. Se registra en el

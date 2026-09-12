@@ -5,8 +5,36 @@ Fecha: 2026-09-08
 Estado: cuenta, taller/empleados, reparación/presupuesto y control opcional de cobros verificados
 localmente con navegador → HTTP → PostgreSQL. Los cortes y sus límites se documentan abajo.
 En Evidencia y documentos, resumen, fotos y confirmación contextual están verificados localmente.
-Quedan la acreditación de Cloudinary real y el tratamiento de referencias legacy en el entorno de salida. Confianza y cuenta y Operación real conservan sus pendientes;
+Quedan la acreditación de Cloudinary real y la limpieza identificada de los datos históricos de
+prueba, autorizada el 2026-09-12 en lugar de migrarlos. Confianza y cuenta y Operación real conservan sus pendientes;
 todavía no se acredita disponibilidad en staging.
+
+## Ajuste de prioridades — 2026-09-12
+
+El titular del proyecto confirma que las cuentas y datos históricos existentes son
+de prueba y autoriza descartarlos. Para preparar la salida se elige limpiar ese
+conjunto en lugar de construir una migración de fotos/usuarios legacy. Primero se
+identificarán la base, las cuentas y los objetos concretos del proveedor afectados;
+esta decisión no ejecuta todavía un borrado, no autoriza borrar bases ajenas y no
+modifica los esquemas o migraciones congelados. Quitar las cuentas no acredita por
+sí mismo que se hayan eliminado sus archivos externos.
+
+La identidad del prestador y su alta se definirán al final, después de completar
+MP y Email. Los contactos y textos definitivos se cerrarán en esa etapa; no se
+volverán a pedir como condición para continuar con el desarrollo técnico. Siguen
+siendo necesarios antes de habilitar la salida pública, sin publicar borradores.
+
+Se continúa con las capacidades técnicas que no dependen de esos datos. Para fotos,
+la implementación privada se conserva y el próximo paso de integración requiere
+un entorno Cloudinary identificado y sus credenciales sólo en backend: cloud name,
+API key y API secret. Se probarán carga, lectura autenticada, denegación de acceso
+anónimo y borrado con imágenes sintéticas. La política de retención de futuros
+clientes sigue pendiente; descartar datos de prueba no la reemplaza.
+
+MP conserva su alcance de suscripción del taller a OrdenFix. No se incorpora cobro,
+validación de acreditaciones ni facturación fiscal del taller a sus clientes.
+Este ajuste documental se valida por revisión del diff, sin repetir suites de
+runtime, sin activar servicios externos ni realizar push.
 
 ## Decisión de producto
 

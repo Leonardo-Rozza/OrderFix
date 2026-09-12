@@ -31,10 +31,11 @@ frontend, después los opcionales (Sentry, MercadoPago). Al final, el smoke test
 
 3. **Health check**: configurá el probe de Render a `GET /actuator/health` (público,
    devuelve `{"status":"UP"}`). Con esto Render sabe cuándo la app está viva.
-4. **CORS**: el backend ya permite `http://localhost:5173` y
-   `https://mvgr-reparaciones-frontend.vercel.app`. Si el front va a otro dominio
-   (dominio propio, otro proyecto de Vercel), hay que agregarlo en `CorsConfig` del
-   backend **antes** de usarlo.
+4. **CORS**: configurá `CORS_ORIGINS` en el servicio backend con los orígenes exactos
+   del frontend que realmente se usan. El dominio propio también debe coincidir con
+   `APP_PUBLIC_URL`, que forma los enlaces de cuenta. No hace falta editar `CorsConfig`.
+   `orden-fix.com.ar` ya tiene delegación DNS en Vercel (consulta del 2026-09-12), pero
+   falta acreditar su asignación al proyecto y el despliegue HTTPS definitivo.
 5. Verificá que responde: `curl https://TU-BACKEND.onrender.com/actuator/health`.
 
 > Ojo con el plan free de Render: el servicio "duerme" tras ~15 min sin tráfico y la
@@ -44,6 +45,13 @@ frontend, después los opcionales (Sentry, MercadoPago). Al final, el smoke test
 ---
 
 ## 2. Frontend en Vercel
+
+El dominio confirmado por el usuario es `orden-fix.com.ar`. Agregalo al proyecto y
+usá los registros que indique Vercel. Resend tiene su configuración de correo por
+separado en esa misma zona DNS: DKIM y SPF/Return-Path del dominio de envío elegido.
+La API key de Resend va sólo en el backend Java; no es una variable del frontend.
+La guía y los cortes Email A–C están en
+[Email transaccional del backend](../mvrg-backend/docs/operations/email.md).
 
 El repo ya tiene `vercel.json`. Lo único que falta son las **variables de entorno**
 (críticas porque el `.env` ya no está en git):

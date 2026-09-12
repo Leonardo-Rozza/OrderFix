@@ -36,6 +36,31 @@ validación de acreditaciones ni facturación fiscal del taller a sus clientes.
 Este ajuste documental se valida por revisión del diff, sin repetir suites de
 runtime, sin activar servicios externos ni realizar push.
 
+## Email — continuación acordada el 2026-09-12
+
+El usuario confirmó propiedad de `orden-fix.com.ar`. Su DNS público ya delega en
+Vercel; falta acreditar la asignación al proyecto, deploy HTTPS y verificación de
+remitente en Resend. La nueva API key pasó autenticación SMTP con TLS sin enviar
+correos; tiene permisos de envío, sin acceso administrativo a dominios.
+
+Se divide el trabajo restante de Email en tres cortes acotados:
+
+- **A cerrado localmente:** credenciales conectadas al SMTP existente, launcher que
+  importa secretos sólo al arrancar, TLS obligatorio/timeouts y recuperación enviada
+  después del commit con HTML escapado y errores sanitizados. Backend: 61 pruebas
+  focalizadas aprobadas y cuatro escenarios del launcher simulado. No hubo envío real.
+- **B pendiente:** dominio de envío, registros Resend en DNS Vercel, remitente y
+  recepción de un correo controlado en una casilla autorizada.
+- **C pendiente de staging:** registro, verificación y recuperación de contraseña con
+  frontend/backend reales, enlaces HTTPS y operación del correo.
+
+La implementación quedó en backend `93860d4`; su evidencia está en
+`docs/plans/2026-09-12-email-transaccional-implementation.md`; los pasos operativos en
+`docs/operations/email.md`. La API key se conserva sólo en backend, nunca en `VITE_*`.
+El remitente de cuenta no se presenta como canal de soporte o privacidad. Identidad,
+alta y contactos definitivos conservan su fase al final, después de MP y Email.
+Este corte frontend es documental, se valida por revisión de diff y no repite runtime.
+
 ## Decisión de producto
 
 La prioridad es completar una primera salida controlada con pocos talleres y recorridos utilizables.

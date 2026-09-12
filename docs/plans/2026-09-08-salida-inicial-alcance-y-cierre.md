@@ -105,7 +105,19 @@ transacción del trabajo que autoriza. Todavía no hay endpoint, pantalla ni des
 integral disponible; el Excel operativo conserva su alcance. El corte D debe
 protegerlo o retirarlo para que no evite la reautenticación prevista.
 
-El paquete excluirá PIN/patrón, credenciales y tokens internos. La constancia legal
+**B cerrado localmente:** 7 pruebas unitarias y 102 de integración focalizadas
+aprobadas (34 nuevas y 68 de regresión legal). V27–V31 permanecen intactas.
+El acta backend distingue la corrección de una fixture JPA de los resultados
+finales aprobados; frontend sólo modifica documentación y revisa su diff.
+
+El corte B implementa la captura consistente y el paquete local: dieciséis categorías
+JSON, documentos legales propios exactos, QR local y manifiesto con SHA-256. Las
+fotos remotas elegibles aparecen como pendientes; URLs legacy y código de seguimiento quedan
+excluidos. El paquete declara expresamente que todavía está incompleto para entrega.
+C conserva generación durable, cifrado, recuperación y limpieza; D, API/pantalla y
+protección del reporte directo. No hay un nuevo botón ni una descarga habilitada.
+
+El paquete excluye PIN/patrón, credenciales y tokens internos. La constancia legal
 personal se limita al solicitante; ser ADMIN no habilita descargar aceptaciones
 personales de empleados. El cierre coordinado del taller sigue como operación
 posterior. MP conserva la pausa acordada y no se reabre el pulido A–D cerrado.

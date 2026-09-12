@@ -658,3 +658,29 @@ de datos y cierre del taller. La acreditación del proveedor de fotos/legacy y l
 operación en el entorno de salida conservan sus pendientes. No se abre una familia
 adicional de infraestructura ni se retoman como imprescindibles todas las mejoras
 del plan histórico.
+
+## Corte cerrado localmente — enlaces públicos de talleres inactivos
+
+Fecha: 2026-09-12. Baselines frontend `5c43da5`, backend `061b680`. Al preparar el
+circuito de atención se detectó que un taller inactivo perdía acceso privado pero
+sus códigos todavía permitían seguimiento y respuestas a presupuestos. La búsqueda
+pública ahora exige taller activo en SQL: lectura, aprobación y rechazo devuelven
+404 sin modificar datos y sin distinguir un código inexistente de un taller inactivo.
+
+El [corte y sus límites](2026-09-12-taller-inactivo-enlaces-publicos-implementation.md)
+registra **17 pruebas backend, incluida una PostgreSQL 16, y 4 frontend aprobadas**.
+No cambia el runtime frontend, no agrega endpoints ni modifica V27–V30. Las pruebas
+usan talleres sintéticos y solicitudes posteriores al commit; no acreditan carreras
+de un futuro cierre, revocación definitiva de códigos o eliminación de información.
+
+Se preparó el procedimiento `docs/runbooks/solicitudes-datos-y-cierre.md` en backend:
+recepción, referencia, responsable, verificación, alcance, respuesta y evidencia.
+No se considera un canal habilitado ni una baja ejecutable. Faltan prestador/buzón
+reales, responsable de atención, decisiones de conservación/entrega y ejecución
+comprobada del circuito. Los contactos se solicitaron al titular del proyecto; no
+se fabricaron valores ni se publicaron borradores.
+
+Esta corrección cierra el faltante de acceso público identificado. **Confianza y
+cuenta permanece abierto**, junto con las comprobaciones de proveedor de fotos,
+legacy, staging y recuperación operativa ya enumeradas. Se conserva un commit por
+repositorio, sin push y con los archivos ajenos preservados.

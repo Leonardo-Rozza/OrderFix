@@ -58,8 +58,9 @@ test('planes: el empleado consulta el precio y no inicia ni cancela suscripcione
   await testInfo.attach('planes-empleado', { path: capture, contentType: 'image/png' });
 });
 
-test('planes: ADMIN inicia una sola contratación habilitada y el retorno no concede PRO', async ({ page, context, baseURL }) => {
+test('planes: ADMIN contrata una vez y el retorno confirma sólo con un GET PRO, incluso tras el timeout', async ({ page, context, baseURL }) => {
   await seedAuth(context);
+  await page.clock.install();
   await mockApi(page, { suscripcion: { ...free, ofertaPro: { ...oferta, contratacionDisponible: true } } });
   let checkouts = 0;
   await page.route('**/api/pagos/suscripcion', (route) => {
@@ -72,8 +73,21 @@ test('planes: ADMIN inicia una sola contratación habilitada y el retorno no con
   await page.goto('/planes');
   await page.getByRole('button', { name: /suscribirme a pro/i }).click();
   await expect(page).toHaveURL(/\/suscripcion\/resultado$/);
-  await expect(page.getByRole('heading', { name: /confirmando tu pago/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /confirmando tu suscripción/i })).toBeVisible();
   await expect(page.getByRole('heading', { name: /ya sos pro/i })).toHaveCount(0);
+  expect(checkouts).toBe(1);
+
+  await page.clock.fastForward(60_000);
+  await expect(page.getByRole('heading', { name: 'Todavía no pudimos confirmarlo' })).toBeVisible();
+  await expect(page.getByText(/si completaste la suscripción en Mercado Pago/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: /ya sos pro/i })).toHaveCount(0);
+  // Una lectura posterior confirma la suscripción; la URL de retorno no lo hace.
+  await page.route('**/api/suscripcion', (route) => route.fulfill({ json: {
+    ...free, plan: 'PRO', limiteReparacionesMes: null,
+    funciones: { inventario: true, cobros: true, empleadosMultiples: true },
+  } }));
+  await page.getByRole('button', { name: 'Reintentar' }).click();
+  await expect(page.getByRole('heading', { name: /ya sos pro/i })).toBeVisible();
   expect(checkouts).toBe(1);
 });
 

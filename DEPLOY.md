@@ -144,32 +144,47 @@ Notas:
 
 ---
 
-## 4. MercadoPago (cobrar el plan PRO) — cuando quieras activar pagos reales
+## 4. Mercado Pago — suscripción del taller a OrdenFix
 
-Hoy está `MP_ENABLED=false`: el botón "Pasar a PRO" devuelve 502 con mensaje claro.
-Para activarlo (config del **backend**, contrato §10):
+Planes lee precio y disponibilidad desde `GET /api/suscripcion`. Con MP o checkout
+apagados muestra contratación no disponible; sólo el ADMIN puede iniciar el checkout
+cuando el backend lo habilita. Los cobros a clientes siguen siendo registros manuales.
+
+Primero completar el ensayo con cuentas de prueba en una instancia y base aisladas.
+El backend conserva el procedimiento en
+`docs/plans/2026-09-12-mercadopago-pruebas-y-cortes.md` y
+`docs/runbooks/mercadopago-release.md`. Activar MP también permite procesar eventos y
+conciliaciones previas, aunque checkout esté apagado. Producción conserva su gate de salida.
+
+Configuración del **backend** para ese entorno (contrato §10):
 
 1. En el [panel de desarrolladores de MercadoPago](https://www.mercadopago.com.ar/developers):
-   creá una aplicación → obtené el **Access Token** (para probar: credenciales de test,
-   también empiezan con `APP_USR-`).
-2. Configurá el **webhook**: panel MP → Webhooks → URL
-   `https://TU-BACKEND.onrender.com/api/pagos/webhook` → copiá la **clave secreta**.
-3. Variables en el backend (Render):
+   identificá aplicación, vendedor y comprador de prueba. Confirmá la cuenta del
+   **Access Token**; su prefijo por sí solo no identifica el entorno.
+2. Verificá el mecanismo de **webhook** disponible para Suscripciones en esa aplicación
+   y la entrega firmada a `https://TU-BACKEND-PRUEBA/api/pagos/webhook`. La guía actual
+   del proveedor tiene una advertencia sobre la configuración de Suscripciones desde
+   el panel; el runbook registra la comprobación pendiente. Guardá su secreto sólo
+   en configuración privada del backend.
+3. Variables del backend; habilitar únicamente después de verificar el entorno de prueba:
 
    | Variable | Valor |
    |---|---|
    | `MP_ENABLED` | `true` |
    | `MP_CHECKOUT_ENABLED` | `true` para habilitar nuevos checkouts; `false` funciona como kill switch sin apagar webhooks ni cancelaciones |
    | `MP_ACCESS_TOKEN` | el access token |
-   | `MP_WEBHOOK_SECRET` | la clave del webhook (**obligatoria** con MP activo: sin ella el webhook rechaza todo) |
+   | `MP_WEBHOOK_SECRET` | la clave del webhook (**obligatoria**: sin ella el backend no arranca con MP activo) |
    | `MP_COLLECTOR_ID` | ID de la cuenta cobradora esperada (**obligatorio** con MP activo) |
    | `MP_APPLICATION_ID` | ID de la aplicación esperada (**obligatorio** con MP activo) |
    | `MP_BACK_URL` | `https://TU-FRONTEND.vercel.app/suscripcion/resultado` (debe ser HTTPS con MP activo) |
    | `MP_AMOUNT` / `MP_CURRENCY` / `MP_REASON` | opcional (default 24900 ARS "OrdenFix PRO - Suscripción mensual") |
 
 4. Prueba end-to-end en sandbox con un comprador de test generado desde el panel de Mercado Pago.
-   No documentes ni commitees sus credenciales. Al pagar, Mercado Pago devuelve a
+   No documentes ni commitees sus credenciales. Al autorizar la suscripción, Mercado Pago devuelve a
    `/suscripcion/resultado`; el webhook debe confirmar y la app mostrar "¡Ya sos PRO!".
+   Iniciá sesión y checkout desde el mismo origen HTTPS usado en `MP_BACK_URL` para
+   conservar la sesión. Verificá CORS, la recarga directa de esa ruta y, si usás un túnel
+   hacia Vite, permití sólo su host exacto o configurá el proxy.
 
 ---
 

@@ -16,9 +16,10 @@ export const SuscripcionResultadoPage = () => {
   const navigate = useNavigate();
   const [timedOut, setTimedOut] = useState(false);
 
-  const { data: sus, isError, refetch } = useQuery({
+  const { data: sus, isError, isSuccess, isFetchedAfterMount, refetch } = useQuery({
     queryKey: SUSCRIPCION_KEY,
     queryFn: fetchSuscripcion,
+    refetchOnMount: 'always',
     refetchInterval: (query) => {
       const d = query.state.data;
       const ok = d?.plan === 'PRO' && d?.estado === 'ACTIVA';
@@ -26,7 +27,9 @@ export const SuscripcionResultadoPage = () => {
       return POLL_MS;
     },
   });
-  const confirmado = sus?.plan === 'PRO' && sus?.estado === 'ACTIVA';
+  // Volver por historial puede traer un PRO anterior en caché. El resultado
+  // requiere una lectura exitosa de este montaje, incluso si esa caché está fresca.
+  const confirmado = isFetchedAfterMount && isSuccess && sus?.plan === 'PRO' && sus?.estado === 'ACTIVA';
   // Si la consulta falla (agotados los retries), mostramos el estado de "no
   // confirmado" con reintento en vez de dejar el spinner girando hasta el timeout.
   const polling = !confirmado && !timedOut && !isError;
@@ -65,7 +68,7 @@ export const SuscripcionResultadoPage = () => {
           ) : polling ? (
             <>
               <span className="mx-auto block h-12 w-12 animate-spin rounded-full border-4 border-surface-3 border-t-primary" />
-              <h1 className="mt-4 text-[20px] font-extrabold">Confirmando tu pago…</h1>
+              <h1 className="mt-4 text-[20px] font-extrabold">Confirmando tu suscripción…</h1>
               <p className="mt-2 text-[14px] text-text-2">
                 Estamos esperando la confirmación de MercadoPago. Esto puede tardar unos segundos, no cierres esta pantalla.
               </p>
@@ -79,7 +82,7 @@ export const SuscripcionResultadoPage = () => {
               </span>
               <h1 className="mt-4 text-[20px] font-extrabold">Todavía no pudimos confirmarlo</h1>
               <p className="mt-2 text-[14px] text-text-2">
-                Si ya pagaste, la confirmación puede demorar un poco más. Revisá en unos minutos desde la pantalla de Planes.
+                Si completaste la suscripción en Mercado Pago, la confirmación puede demorar un poco más. Revisá en unos minutos desde la pantalla de Planes.
               </p>
               <div className="mt-6 flex flex-col gap-3">
                 <button type="button" className={btnPrimary} onClick={reintentar}>

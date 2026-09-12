@@ -4,19 +4,21 @@ import { isNavItemVisible, navItems } from '../config/nav';
 import { useAuth } from '../store/auth.store';
 import { useFunciones, useSuscripcionQuery } from '../api/queries/suscripcion.queries';
 import { useSessionIdentity } from '../hooks/useSessionIdentity';
+import { getOfertaPro } from '../utils/ofertaPro';
 
 /** Sidebar de escritorio (oculto en mobile; en mobile se usa BottomNav). */
 export const Sidebar = ({ accountMode = false }: { accountMode?: boolean }) => {
   const { isAdmin } = useAuth();
   const identity = useSessionIdentity();
   const funciones = useFunciones(!accountMode);
-  const { data: sus } = useSuscripcionQuery(!accountMode);
+  const { data: sus, isError } = useSuscripcionQuery(!accountMode);
   const items = navItems.filter((item) => isNavItemVisible(item, { isAdmin, funciones }));
 
   // Consumo del plan FREE (nudge a PRO)
   const limite = sus?.plan === 'FREE' ? sus.limiteReparacionesMes : null;
   const usados = sus?.reparacionesEsteMes ?? 0;
   const pct = limite ? Math.min(100, Math.round((usados / limite) * 100)) : 0;
+  const ofrecePro = isAdmin && !isError && getOfertaPro(sus)?.contratacionDisponible === true;
 
   return (
     <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-border bg-surface lg:flex">
@@ -93,7 +95,7 @@ export const Sidebar = ({ accountMode = false }: { accountMode?: boolean }) => {
             <div className="h-1.5 overflow-hidden rounded-full bg-surface-3">
               <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: pct >= 80 ? 'var(--warning)' : 'var(--primary)' }} />
             </div>
-            <div className="mt-1.5 text-[11.5px] font-bold text-primary">Pasar a PRO →</div>
+            <div className="mt-1.5 text-[11.5px] font-bold text-primary">{ofrecePro ? 'Ver opciones PRO →' : 'Ver plan del taller →'}</div>
           </Link>
         )}
         {identity.isLoading ? (

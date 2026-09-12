@@ -1,10 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router';
 import { LimitePlanModal } from './LimitePlanModal';
 import { LIMITE_PLAN_EVENT } from '../api/axios';
 import { Modal } from './Modal';
+
+const auth = vi.hoisted(() => ({ isAdmin: true }));
+vi.mock('../store/auth.store', () => ({ useAuth: () => auth }));
 
 const renderModal = (withBaseForm = false) =>
   render(
@@ -34,6 +37,7 @@ const dispararLimite = (message?: string) =>
   });
 
 describe('LimitePlanModal', () => {
+  beforeEach(() => { auth.isAdmin = true; });
   it('no muestra nada hasta que llega el evento de límite', () => {
     renderModal();
     expect(screen.queryByText(/límite de tu plan/i)).not.toBeInTheDocument();
@@ -46,6 +50,8 @@ describe('LimitePlanModal', () => {
     expect(screen.getByText(/50 reparaciones/i)).toBeInTheDocument();
     expect(screen.getByText('Cobros manuales y varios empleados')).toBeVisible();
     expect(screen.queryByText(/cobros, caja/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Consultá las opciones disponibles para el plan/)).toBeVisible();
+    expect(screen.queryByText(/Pasá a PRO/)).not.toBeInTheDocument();
   });
 
   it('queda como único diálogo, atrapa el foco y reactiva el formulario al cerrar', async () => {
@@ -84,11 +90,11 @@ describe('LimitePlanModal', () => {
     await waitFor(() => expect(baseField).toHaveFocus());
   });
 
-  it('navega a /planes al tocar "Ver planes PRO"', async () => {
+  it('navega a /planes al tocar "Consultar plan" sin prometer una contratación', async () => {
     const user = userEvent.setup();
     renderModal();
     dispararLimite();
-    await user.click(screen.getByRole('button', { name: /ver planes pro/i }));
+    await user.click(screen.getByRole('button', { name: 'Consultar plan' }));
     expect(screen.getByText('PANTALLA PLANES')).toBeInTheDocument();
   });
 
@@ -98,5 +104,15 @@ describe('LimitePlanModal', () => {
     dispararLimite();
     await user.click(screen.getByRole('button', { name: /ahora no/i }));
     expect(screen.queryByText(/límite de tu plan/i)).not.toBeInTheDocument();
+  });
+
+  it('orienta al empleado al titular y conserva la consulta del plan', () => {
+    auth.isAdmin = false;
+    renderModal();
+    dispararLimite();
+
+    expect(screen.getByText(/Contactá al titular del taller para revisar el plan/)).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Consultar plan' })).toBeVisible();
+    expect(screen.queryByText(/Pasá a PRO|Consultá las opciones disponibles/)).not.toBeInTheDocument();
   });
 });

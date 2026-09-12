@@ -6,6 +6,7 @@ import { Loader } from '../components/Loader';
 import { useSuscripcionQuery } from '../api/queries/suscripcion.queries';
 import { useIniciarPagoProMutation, useCancelarSuscripcionMutation } from '../api/mutations/pagos.mutations';
 import { useAuth } from '../store/auth.store';
+import { getOfertaPro } from '../utils/ofertaPro';
 import type { Suscripcion } from '../types';
 
 /** Una fila de la comparativa. value: texto, true (incluido) o false (no incluido). */
@@ -94,7 +95,7 @@ const getStatus = (suscripcion: Suscripcion) => {
     const estado = suscripcion.estado === 'VENCIDA' ? 'vencido' : 'cancelado';
     return {
       title: `Plan ${suscripcion.plan} ${estado}`,
-      detail: 'Las funciones PRO están pausadas. Reactivá el plan para volver a utilizarlas.',
+      detail: 'Las funciones PRO están pausadas. Consultá abajo las opciones disponibles para el taller.',
       className: 'border-warning/40 bg-warning-soft text-warning',
     };
   }
@@ -135,7 +136,7 @@ const FeatureRow = ({ value, label, accent }: { value: string | boolean; label: 
 );
 
 export const PlanesPage = () => {
-  const { data: sus, isPending, isError, refetch } = useSuscripcionQuery();
+  const { data: sus, isPending, isError, isFetching, refetch } = useSuscripcionQuery();
   const { isAdmin } = useAuth();
   const iniciarPago = useIniciarPagoProMutation();
   const cancelar = useCancelarSuscripcionMutation();
@@ -182,16 +183,29 @@ export const PlanesPage = () => {
   const proSuspendido = plan === 'PRO' && (sus.estado === 'VENCIDA' || sus.estado === 'CANCELADA');
   const features = buildFeatures(sus);
   const status = getStatus(sus);
+  const oferta = getOfertaPro(sus);
+  const precioPro = oferta ? new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: oferta.moneda,
+    currencyDisplay: 'code',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(oferta.precioMensual) : null;
+  const puedeContratar = isAdmin && oferta?.contratacionDisponible === true && !proActivo;
 
-  const suscribir = () => iniciarPago.mutate();
+  const suscribir = () => {
+    if (puedeContratar && !iniciarPago.isPending) iniciarPago.mutate();
+  };
 
   return (
     <DashboardLayout title="Planes">
       <div className="ofx-in mx-auto max-w-[920px] space-y-5">
         <div className="text-center">
-          <h1 className="text-[24px] font-extrabold tracking-tight">Elegí el plan para tu taller</h1>
+          <h1 className="text-[24px] font-extrabold tracking-tight">{isAdmin ? 'Elegí el plan para tu taller' : 'El plan de tu taller'}</h1>
           <p className="mx-auto mt-2 max-w-[46ch] text-[14.5px] text-text-2">
-            Empezá gratis. Pasá a PRO cuando necesites inventario, cobros manuales y varios empleados.
+            {isAdmin
+              ? 'Empezá gratis. PRO incluye inventario, cobros manuales y varios empleados.'
+              : 'El titular administra la suscripción. Acá podés consultar las funciones y el uso del taller.'}
           </p>
         </div>
 
@@ -216,7 +230,7 @@ export const PlanesPage = () => {
               />
             </div>
             <div className="mt-2 text-[12.5px] text-text-2">
-              En el plan Free se bloquea al llegar a {limite}. Pasate a PRO para no frenar.
+              El plan FREE permite cargar hasta {limite} reparaciones por mes.
             </div>
           </div>
         )}
@@ -230,8 +244,7 @@ export const PlanesPage = () => {
               {esTrial ? 'Experiencia completa durante la prueba' : 'Para arrancar a ordenarte'}
             </div>
             <div className="my-4">
-              <span className="text-[36px] font-extrabold tracking-tight">$0</span>
-              <span className="text-[14px] font-semibold text-text-3"> /mes</span>
+              <span className="text-[36px] font-extrabold tracking-tight">Gratis</span>
             </div>
             <button
               type="button"
@@ -250,7 +263,7 @@ export const PlanesPage = () => {
           {/* PRO */}
           <div className={`relative rounded-2xl border-2 bg-surface p-6 shadow-md ${proSuspendido ? 'border-warning' : 'border-primary'}`}>
             <span className={`absolute -top-3 left-6 rounded-full px-3 py-1 text-[11.5px] font-extrabold tracking-wide ${proSuspendido ? 'border border-warning bg-warning-soft text-warning' : 'bg-primary text-primary-fg'}`}>
-              {proActivo ? 'TU PLAN' : proSuspendido ? 'VENCIDO' : 'RECOMENDADO'}
+              {proActivo ? 'TU PLAN' : proSuspendido ? (sus.estado === 'CANCELADA' ? 'CANCELADO' : 'VENCIDO') : 'RECOMENDADO'}
             </span>
             <div className="flex items-center gap-2">
               <div className="text-[16px] font-extrabold">PRO</div>
@@ -260,9 +273,25 @@ export const PlanesPage = () => {
             </div>
             <div className="mt-0.5 text-[13px] text-text-3">Todo lo que tu taller necesita</div>
             <div className="my-4">
-              {/* Debe coincidir con MP_AMOUNT del backend (lo que cobra MercadoPago). */}
-              <span className="text-[36px] font-extrabold tracking-tight">$24.900</span>
-              <span className="text-[14px] font-semibold text-text-3"> /mes</span>
+              {precioPro ? (
+                <>
+                  <div className="break-words text-[30px] font-extrabold leading-tight tracking-tight">{precioPro}</div>
+                  <div className="mt-1 text-[13px] font-semibold text-text-3">Por mes · precio de contratación</div>
+                </>
+              ) : (
+                <div className="rounded-xl border border-border bg-surface-2 p-3 text-[13px] text-text-2">
+                  <p className="font-bold">Precio y contratación no disponibles</p>
+                  <p className="mt-1">No pudimos confirmar la oferta PRO. Las funciones de tu plan se mantienen.</p>
+                  <button
+                    type="button"
+                    onClick={() => void refetch()}
+                    disabled={isFetching}
+                    className="mt-2 min-h-11 rounded-md px-1 font-bold text-primary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:opacity-60"
+                  >
+                    {isFetching ? 'Consultando…' : 'Reintentar oferta PRO'}
+                  </button>
+                </div>
+              )}
             </div>
             {proActivo ? (
               <div className="space-y-2">
@@ -279,26 +308,31 @@ export const PlanesPage = () => {
                   </button>
                 )}
               </div>
-            ) : isAdmin ? (
+            ) : puedeContratar ? (
               <button
                 type="button"
                 onClick={suscribir}
                 disabled={iniciarPago.isPending}
+                aria-busy={iniciarPago.isPending}
                 className="w-full rounded-xl bg-primary py-3 text-[14px] font-bold text-primary-fg shadow-sm transition hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] disabled:opacity-60"
               >
                 {iniciarPago.isPending
                   ? 'Redirigiendo…'
                   : proSuspendido
-                    ? 'Reactivar PRO'
+                    ? 'Contratar PRO'
                     : esTrial
                       ? 'Activar PRO ahora'
                       : 'Suscribirme a PRO'}
               </button>
-            ) : (
+            ) : !isAdmin ? (
               <div className="rounded-xl bg-surface-3 px-3 py-3 text-center text-[12.5px] font-semibold text-text-2">
-                Solo un administrador puede activar PRO.
+                La suscripción la gestiona el titular del taller.
               </div>
-            )}
+            ) : oferta ? (
+              <div className="rounded-xl bg-surface-3 px-3 py-3 text-center text-[12.5px] font-semibold text-text-2">
+                La contratación de PRO no está disponible por el momento.
+              </div>
+            ) : null}
             <div className="mt-5 flex flex-col gap-2.5">
               {features.map((f) => (
                 <FeatureRow key={f.label} value={f.pro} label={f.label} accent />
@@ -309,15 +343,20 @@ export const PlanesPage = () => {
       </div>
 
       <ConfirmDialog
-        isOpen={confirmCancel}
+        isOpen={confirmCancel && isAdmin && proActivo}
         title="Cancelar PRO"
-        message="Tu taller dejará de tener las funciones PRO y volverá a las condiciones FREE informadas por el backend. ¿Confirmás?"
+        message="Cuando se confirme la cancelación, tu taller volverá al plan FREE y dejará de tener las funciones PRO. ¿Querés continuar?"
         confirmLabel="Cancelar PRO"
         loading={cancelar.isPending}
         onClose={() => setConfirmCancel(false)}
         onConfirm={async () => {
-          await cancelar.mutateAsync();
-          setConfirmCancel(false);
+          if (!isAdmin || !proActivo || cancelar.isPending) return;
+          try {
+            await cancelar.mutateAsync();
+            setConfirmCancel(false);
+          } catch {
+            // La mutation ya informa el fallo; el diálogo queda abierto para reintentar.
+          }
         }}
       />
     </DashboardLayout>

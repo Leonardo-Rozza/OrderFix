@@ -91,6 +91,13 @@ export interface Funciones {
   empleadosMultiples: boolean;
 }
 
+/** Oferta mensual actual. La disponibilidad no sustituye permisos ni validación del checkout. */
+export interface OfertaPro {
+  precioMensual: number;
+  moneda: string;
+  contratacionDisponible: boolean;
+}
+
 export interface Suscripcion {
   plan: Plan;
   estado: EstadoSuscripcion;
@@ -100,6 +107,8 @@ export interface Suscripcion {
   reparacionesEsteMes: number;
   limiteReparacionesMes: number | null; // null = ilimitado (PRO)
   funciones: Funciones;
+  /** Opcional durante el despliegue de un backend anterior; ausencia = contratación no disponible. */
+  ofertaPro?: OfertaPro | null;
 }
 
 // Respuesta del checkout de MercadoPago (POST /api/pagos/suscripcion)

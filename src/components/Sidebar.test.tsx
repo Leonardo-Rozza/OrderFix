@@ -2,8 +2,17 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Sidebar } from './Sidebar';
+import type { Suscripcion } from '../types';
 
 const mocks = vi.hoisted(() => ({
+  isAdmin: false,
+  subscriptionError: false,
+  suscripcion: {
+    plan: 'PRO',
+    reparacionesEsteMes: 0,
+    limiteReparacionesMes: null as number | null,
+    ofertaPro: { precioMensual: 456.78, moneda: 'ARS', contratacionDisponible: true } as Suscripcion['ofertaPro'],
+  },
   funciones: {
     inventario: false,
     cobros: false,
@@ -23,17 +32,14 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../store/auth.store', () => ({
-  useAuth: () => ({ isAdmin: false }),
+  useAuth: () => ({ isAdmin: mocks.isAdmin }),
 }));
 
 vi.mock('../api/queries/suscripcion.queries', () => ({
   useFunciones: () => mocks.funciones,
   useSuscripcionQuery: () => ({
-    data: {
-      plan: 'PRO',
-      reparacionesEsteMes: 0,
-      limiteReparacionesMes: null,
-    },
+    data: mocks.suscripcion,
+    isError: mocks.subscriptionError,
   }),
 }));
 
@@ -49,6 +55,14 @@ const renderSidebar = (path = '/dashboard') => render(
 
 describe('Sidebar — identidad del taller', () => {
   beforeEach(() => {
+    mocks.isAdmin = false;
+    mocks.subscriptionError = false;
+    Object.assign(mocks.suscripcion, {
+      plan: 'PRO',
+      reparacionesEsteMes: 0,
+      limiteReparacionesMes: null,
+      ofertaPro: { precioMensual: 456.78, moneda: 'ARS', contratacionDisponible: true },
+    });
     Object.assign(mocks.funciones, {
       inventario: false,
       cobros: false,
@@ -139,5 +153,27 @@ describe('Sidebar — identidad del taller', () => {
     expect(retry).toHaveClass('min-h-11');
     fireEvent.click(retry);
     expect(mocks.identity.refetch).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    { caso: 'titular con contratación disponible', admin: true, disponible: true, error: false, oferta: true, label: 'Ver opciones PRO →' },
+    { caso: 'empleado', admin: false, disponible: true, error: false, oferta: true, label: 'Ver plan del taller →' },
+    { caso: 'contratación apagada', admin: true, disponible: false, error: false, oferta: true, label: 'Ver plan del taller →' },
+    { caso: 'oferta ausente', admin: true, disponible: true, error: false, oferta: false, label: 'Ver plan del taller →' },
+    { caso: 'error con datos anteriores', admin: true, disponible: true, error: true, oferta: true, label: 'Ver plan del taller →' },
+  ])('ajusta el acceso al plan para $caso sin perder el consumo', ({ admin, disponible, error, oferta, label }) => {
+    mocks.isAdmin = admin;
+    mocks.subscriptionError = error;
+    Object.assign(mocks.suscripcion, {
+      plan: 'FREE',
+      reparacionesEsteMes: 7,
+      limiteReparacionesMes: 25,
+      ofertaPro: oferta ? { precioMensual: 456.78, moneda: 'ARS', contratacionDisponible: disponible } : undefined,
+    });
+    renderSidebar();
+
+    expect(screen.getByText('7/25')).toBeVisible();
+    expect(screen.getByRole('link', { name: new RegExp(label) })).toHaveAttribute('href', '/planes');
+    expect(screen.queryByText('Pasar a PRO →')).not.toBeInTheDocument();
   });
 });

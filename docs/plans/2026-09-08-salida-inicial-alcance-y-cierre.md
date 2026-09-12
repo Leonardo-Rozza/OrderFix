@@ -98,9 +98,10 @@ los dominios productivos activada. Se recomienda revisar primero el preview/API 
 entorno y sus gates antes de fusionar frontend a main. Integrar código no sustituye
 la preparación del despliegue ni publica secretos locales.
 
-La ejecución local de `npm run check:public-release` continúa bloqueada por URL API
-HTTPS, contactos legal/privacidad/soporte, manifiesto de publicación no configurado y
-precio literal PRO en `PlanesPage.tsx`. Es un resultado de la configuración local,
+La ejecución local de `npm run check:public-release`, actualizada tras el corte B de
+pulido, continúa bloqueada por URL API HTTPS, contactos legal/privacidad/soporte y
+manifiesto de publicación no configurado. El precio literal PRO ya fue retirado.
+Es un resultado de la configuración local,
 no una inspección de valores privados del entorno Vercel. No se omite el guard.
 
 Se puede continuar en local: los recorridos principales cuentan con evidencia previa.
@@ -112,9 +113,9 @@ MP ya implementa suscripción PRO, firma/inbox de webhooks, duplicados/reintento
 conciliación y cancelación, con pruebas locales; su sandbox real sigue pendiente.
 El siguiente corte debe preparar aplicación/cuentas/credenciales de prueba y HTTPS
 para retorno/webhook (túnel local o staging), y acreditar alta/retorno/activación,
-rechazo, cancelación y reintentos según el runbook backend. Revisar en ese corte la
-UI de Planes que todavía ofrece checkout cuando el backend lo tiene apagado y el
-precio literal señalado por el guard. MP sigue limitado a la suscripción del taller
+rechazo, cancelación y reintentos según el runbook backend. El corte B de pulido ya
+resuelve la oferta/contratación apagada en Planes y el precio literal señalado por el
+guard, con pruebas locales. MP sigue limitado a la suscripción del taller
 al SaaS; no interviene en cobros a sus clientes. No se activaron flags de MP.
 
 ## Decisión de producto
@@ -130,7 +131,11 @@ trabajo antes del sandbox de MP descrito arriba; no lo declara terminado ni acti
 el proveedor. **A está cerrado localmente:** Excel con formato/tipos útiles y descarga
 con alcance y errores claros; 5 tests backend, 13 Vitest y 3 Playwright aprobados.
 Los límites de la revisión visual y de integración están en el acta enlazada.
-B–D siguen pendientes; el próximo es Planes y permisos.
+**B también está cerrado localmente:** precio/disponibilidad del servicio y acciones
+de Planes acordes al rol, conservando capacidades y cancelación. Pasaron 51 pruebas
+backend, 48 Vitest y 7 Playwright; capturas móvil/escritorio, typecheck y lint revisados.
+No se activó MP ni se acreditó su sandbox. **C–D siguen pendientes; el próximo es
+Inicio y Clientes en móvil.**
 
 La base funcional conserva su evidencia local previa. Fotos contra Cloudinary real,
 Email C, MP, solicitudes/cierre y despliegue/recuperación mantienen sus pendientes.

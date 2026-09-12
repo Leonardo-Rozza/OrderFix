@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { LIMITE_PLAN_EVENT } from '../api/axios';
 import { FormActions, Modal } from './Modal';
 import { btnGhost, btnPrimary } from './ui';
+import { useAuth } from '../store/auth.store';
 
 const beneficios = [
   'Reparaciones mensuales ilimitadas',
@@ -22,6 +23,7 @@ const Check = () => (
  */
 export const LimitePlanModal = () => {
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const [open, setOpen] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const descriptionId = useId();
@@ -66,7 +68,7 @@ export const LimitePlanModal = () => {
             Ahora no
           </button>
           <button type="button" onClick={verPlanes} className={btnPrimary}>
-            Ver planes PRO
+            Consultar plan
           </button>
         </FormActions>
       )}
@@ -80,7 +82,10 @@ export const LimitePlanModal = () => {
             PLAN PRO
           </div>
           <p id={descriptionId} className="mt-3 text-[14px] leading-relaxed text-text-2">
-            {mensaje ?? 'Alcanzaste el tope de reparaciones de tu plan este mes.'} Pasá a PRO para seguir cargando órdenes y habilitar las funciones avanzadas del taller.
+            {mensaje ?? 'Alcanzaste el tope de reparaciones de tu plan este mes.'}{' '}
+            {isAdmin
+              ? 'Consultá las opciones disponibles para el plan de tu taller.'
+              : 'Contactá al titular del taller para revisar el plan. La suscripción la gestiona él.'}
           </p>
         </div>
 

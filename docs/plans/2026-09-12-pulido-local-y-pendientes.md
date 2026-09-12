@@ -1,11 +1,11 @@
 # OrdenFix — pulido local y pendientes de salida
 
-Fecha: 2026-09-12. Estado: corte A implementado y verificado localmente; B–D pendientes.
+Fecha: 2026-09-12. Estado: cortes A y B implementados y verificados localmente; C–D pendientes.
 Este documento responde al pedido de mejorar la experiencia
 y el Excel, con un alcance que se pueda terminar.
 
 Base del diagnóstico: frontend `5a86605`, backend `35ecb8f`. Esa revisión inicial
-inspeccionó código, pruebas existentes y actas. La evidencia nueva del corte A se
+inspeccionó código, pruebas existentes y actas. La evidencia nueva de los cortes A y B se
 detalla al final; la evidencia funcional anterior conserva sus límites.
 
 ## Qué está resuelto y qué falta
@@ -209,5 +209,60 @@ npx playwright test e2e/export.spec.ts --project=chromium --workers=1
 El primer intento Playwright no pudo abrir el puerto local dentro del sandbox;
 la ejecución autorizada completó los tres casos. No hubo fallo de aplicación.
 Cambios y actas se guardan en un commit atómico por repositorio, sin push ni merge,
-preservando los archivos no versionados ajenos. El siguiente corte es **B — Planes**;
+preservando los archivos no versionados ajenos. Al cerrar A, el siguiente corte era **B — Planes**;
 integraciones, identidad y despliegue conservan su orden y pendientes.
+
+## Corte B cerrado localmente — 2026-09-12
+
+Baselines: backend `2cbffd1`, frontend `41b0f64`. La suscripción autenticada agrega
+`ofertaPro` con `precioMensual`, `moneda` y `contratacionDisponible`. Usa el importe
+de la configuración existente y normaliza la moneda; la disponibilidad requiere
+MP y checkout habilitados. No se eligió otro precio comercial ni se activó MP.
+La oferta describe las altas actuales, no el precio pactado de una suscripción previa.
+
+El bloque es nulo si el importe no es positivo o la moneda no tiene tres letras;
+el resto del plan sigue disponible. Frontend acepta también que un backend anterior
+omita el bloque: no muestra un precio alternativo ni permite contratar, conserva las
+capacidades y ofrece reintentar la consulta. La oferta no reemplaza los controles
+servidor de rol, estado, suscripciones pendientes e idempotencia.
+
+Planes muestra precio/moneda del servicio y sólo ofrece contratar al ADMIN cuando
+hay disponibilidad confirmada y no tiene PRO activo. USER consulta el plan y recibe
+una explicación de quién lo administra. Sidebar y el modal de límite usan acciones
+de consulta acordes al rol; CANCELADA y VENCIDA tienen rótulos distintos. El diálogo
+de cancelación explica el paso a FREE y conserva PRO, el diálogo y un único aviso
+ante un fallo, permitiendo reintentar. Apagar altas u omitir oferta no oculta esa
+cancelación permitida al titular; el servidor conserva la decisión final.
+
+Validación aprobada: **51 pruebas backend** (16 servicio, 7 HTTP/H2 de plan/permisos,
+28 contrato MP con proveedor simulado), **48 Vitest** (17 Planes, 11 Sidebar, 6 límite,
+14 validador de oferta), **7 Playwright Chromium**, typecheck y ESLint focalizado.
+Los E2E verifican precio dinámico/altas apagadas a 390 px, consulta de empleado,
+un único checkout y retorno que no concede PRO, cancelación y capacidades FREE/TRIAL.
+Se revisaron capturas de móvil y escritorio; los dos casos visuales se repitieron
+para persistir las imágenes y capturar con la animación de entrada terminada.
+La página móvil no presenta desbordamiento horizontal. API y retornos son sintéticos
+locales; no se enviaron correos ni hubo llamadas al proveedor real.
+
+`npm run check:public-release` ya no informa `PRO_PRICE_LITERAL_FOUND`. Continúa
+bloqueado en esta configuración local por API HTTPS, contactos legal/privacidad/soporte
+y manifiesto de publicación; no se modificó ni eludió el guard. Este corte no acredita
+staging, PostgreSQL ni sandbox MP. Build/cierre conjunto permanecen en D; no se repitió
+el integral. El acta backend detalla el contrato en
+`docs/plans/2026-09-12-oferta-pro-disponibilidad-implementation.md`.
+
+Comandos frontend:
+
+```sh
+npx vitest run src/pages/PlanesPage.test.tsx src/components/Sidebar.test.tsx src/components/LimitePlanModal.test.tsx
+npx vitest run src/utils/ofertaPro.test.ts
+npm run typecheck
+npx eslint src/types/index.ts src/utils/ofertaPro.ts src/utils/ofertaPro.test.ts src/pages/PlanesPage.tsx src/pages/PlanesPage.test.tsx src/components/Sidebar.tsx src/components/Sidebar.test.tsx src/components/LimitePlanModal.tsx src/components/LimitePlanModal.test.tsx e2e/planes.spec.ts
+npx playwright test e2e/planes.spec.ts e2e/gating.spec.ts --project=chromium --workers=1
+npm run check:public-release
+```
+
+Un commit por repositorio afectado, sin push ni merge. Se preservan los 77 archivos
+ajenos no versionados y las migraciones congeladas. Backend quedó en `39a0890`
+(`feat(suscripcion): informa oferta y disponibilidad`). El siguiente corte es
+**C — Inicio y Clientes legibles en móvil**; después queda D para cerrar este pulido.

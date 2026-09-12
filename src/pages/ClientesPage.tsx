@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { ClienteFormModal } from '../components/ClienteFormModal';
 import { ClienteFichaModal } from '../components/ClienteFichaModal';
@@ -37,6 +37,7 @@ export const ClientesPage = () => {
   const deleteMutation = useDeleteClienteMutation();
 
   const [ficha, setFicha] = useState<Cliente | null>(null);
+  const fichaInvoker = useRef<HTMLElement | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Cliente | null>(null);
   const [equipoFor, setEquipoFor] = useState<Cliente | null>(null);
@@ -109,22 +110,24 @@ export const ClientesPage = () => {
           </div>
         )}
 
-        <div aria-busy={refreshing} className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+        <div role="region" aria-label="Listado de clientes" aria-busy={isLoading || refreshing} className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
           <div className="flex items-center gap-3 border-b border-border px-4 py-3 text-[11.5px] font-extrabold uppercase tracking-wide text-text-3">
             <div className="min-w-0 flex-[1.6]">Cliente</div>
             <div className="hidden min-w-0 flex-[1.4] sm:block">Contacto</div>
-            <div className="w-[70px] text-center">Equipos</div>
+            <div className="hidden w-[70px] text-center sm:block">Equipos</div>
             <div className="hidden w-[70px] text-center sm:block">Repar.</div>
-            <div className="w-[90px] text-right">Última</div>
+            <div className="hidden w-[90px] text-right sm:block">Última</div>
           </div>
 
           {isLoading ? (
-            Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-0">
-                <div className="ofx-skel h-9 w-9 rounded-full" />
-                <div className="ofx-skel h-4 flex-1 rounded" />
-              </div>
-            ))
+            <div role="status" aria-label="Cargando clientes">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} aria-hidden="true" className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-0">
+                  <div className="ofx-skel h-9 w-9 rounded-full" />
+                  <div className="ofx-skel h-4 flex-1 rounded" />
+                </div>
+              ))}
+            </div>
           ) : isError ? (
             <ErrorState onRetry={() => refetch()} message="No pudimos cargar los clientes." />
           ) : clientes.length === 0 ? (
@@ -140,35 +143,51 @@ export const ClientesPage = () => {
                 tabIndex={refreshing ? -1 : 0}
                 aria-disabled={refreshing || undefined}
                 aria-label={`Ver ficha de ${c.nombre} ${c.apellido ?? ''}`.trim()}
-                onClick={() => {
-                  if (!refreshing) setFicha(c);
+                onClick={(ev) => {
+                  if (!refreshing) {
+                    fichaInvoker.current = ev.currentTarget;
+                    setFicha(c);
+                  }
                 }}
                 onKeyDown={(ev) => {
                   if (refreshing) return;
                   if (ev.key === 'Enter' || ev.key === ' ') {
                     ev.preventDefault();
+                    fichaInvoker.current = ev.currentTarget;
                     setFicha(c);
                   }
                 }}
-                className={`flex items-center gap-3 border-b border-border px-4 py-3 transition last:border-0 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] ${
+                className={`flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-4 py-3 transition last:border-0 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] sm:flex-nowrap sm:gap-3 ${
                   refreshing ? 'cursor-wait opacity-60' : 'cursor-pointer hover:bg-surface-2'
                 }`}
               >
-                <div className="flex min-w-0 flex-[1.6] items-center gap-3">
+                <div className="flex w-full min-w-0 flex-none items-start gap-3 sm:w-auto sm:flex-[1.6] sm:items-center">
                   <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary-soft text-[13px] font-extrabold text-primary-soft-fg">
                     {iniciales(c.nombre, c.apellido)}
                   </div>
-                  <div className="truncate text-[14px] font-bold">
-                    {c.nombre} {c.apellido}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[14px] font-bold [overflow-wrap:anywhere] sm:truncate" title={`${c.nombre} ${c.apellido ?? ''}`.trim()}>
+                      {c.nombre} {c.apellido}
+                    </div>
+                    <div className="mt-1 space-y-0.5 sm:hidden">
+                      <div className="font-mono text-[12.5px] text-text-2 [overflow-wrap:anywhere]">{c.telefono}</div>
+                      {c.email && <div className="truncate text-[12px] text-text-3" title={c.email}>{c.email}</div>}
+                    </div>
                   </div>
                 </div>
                 <div className="hidden min-w-0 flex-[1.4] sm:block">
                   <div className="truncate font-mono text-[13px] text-text-2">{c.telefono}</div>
                   <div className="truncate text-[12px] text-text-3">{c.email || '—'}</div>
                 </div>
-                <div className="w-[70px] text-center font-mono text-[14px] font-extrabold">{c.equiposCount ?? 0}</div>
-                <div className="hidden w-[70px] text-center font-mono text-[13px] font-bold text-text-2 sm:block">{c.reparacionesCount ?? 0}</div>
-                <div className="w-[90px] text-right font-mono text-[12.5px] text-text-3">{formatDate(c.ultimaVisita)}</div>
+                <div className="font-mono text-[13px] font-bold sm:w-[70px] sm:text-center sm:text-[14px] sm:font-extrabold">
+                  {c.equiposCount ?? 0}<span className="font-sans font-normal text-text-2 sm:hidden"> {c.equiposCount === 1 ? 'equipo' : 'equipos'}</span>
+                </div>
+                <div className="font-mono text-[13px] font-bold text-text-2 sm:w-[70px] sm:text-center">
+                  {c.reparacionesCount ?? 0}<span className="font-sans font-normal sm:hidden"> {c.reparacionesCount === 1 ? 'reparación' : 'reparaciones'}</span>
+                </div>
+                <div className="w-full text-[12.5px] text-text-3 sm:w-[90px] sm:text-right sm:font-mono">
+                  <span className="sm:hidden">Última visita: </span>{formatDate(c.ultimaVisita)}
+                </div>
               </div>
             ))
           )}
@@ -180,6 +199,7 @@ export const ClientesPage = () => {
       <ClienteFichaModal
         isOpen={!!ficha}
         cliente={ficha}
+        restoreFocusRef={fichaInvoker}
         onClose={() => setFicha(null)}
         onEdit={() => ficha && openEdit(ficha)}
         onDelete={requestDeleteFromFicha}

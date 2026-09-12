@@ -44,7 +44,8 @@ export const clientesOptionsSource = {
 
 // Listado paginado + búsqueda (server-side)
 const fetchClientes = async (params: ListParams): Promise<Page<Cliente>> => {
-  const { data } = await apiClient.get<Page<Cliente>>('/clientes', { params: toQueryParams(params) });
+  // Inicio y Clientes muestran el fallo y el reintento en la propia página.
+  const { data } = await apiClient.get<Page<Cliente>>('/clientes', { params: toQueryParams(params), errorMode: 'inline' });
   return data;
 };
 

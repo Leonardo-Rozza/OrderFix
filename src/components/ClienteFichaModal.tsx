@@ -1,3 +1,4 @@
+import type { RefObject } from 'react';
 import { Modal } from './Modal';
 import { Loader } from './Loader';
 import { ErrorState } from './ErrorState';
@@ -14,6 +15,7 @@ interface Props {
   onDelete: () => void;
   onNuevoEquipo: () => void;
   canDelete?: boolean;
+  restoreFocusRef?: RefObject<HTMLElement | null>;
 }
 
 const Stat = ({ value, label }: { value: string; label: string }) => (
@@ -31,7 +33,7 @@ const deviceIcon = (
 );
 
 /** Ficha de un cliente: stats + sus equipos + acciones. */
-export const ClienteFichaModal = ({ isOpen, cliente, onClose, onEdit, onDelete, onNuevoEquipo, canDelete = true }: Props) => {
+export const ClienteFichaModal = ({ isOpen, cliente, onClose, onEdit, onDelete, onNuevoEquipo, canDelete = true, restoreFocusRef }: Props) => {
   const {
     data: equiposData,
     isPending: equiposPending,
@@ -52,7 +54,7 @@ export const ClienteFichaModal = ({ isOpen, cliente, onClose, onEdit, onDelete, 
       : '—';
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Ficha de cliente" size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title="Ficha de cliente" size="md" restoreFocusRef={restoreFocusRef}>
       <div className="space-y-5">
         <div className="flex items-center gap-3.5">
           <div className="grid shrink-0 place-items-center rounded-full bg-primary-soft text-[18px] font-extrabold text-primary-soft-fg" style={{ width: 52, height: 52 }}>

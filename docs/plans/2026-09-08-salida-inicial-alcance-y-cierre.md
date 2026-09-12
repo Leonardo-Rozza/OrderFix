@@ -134,8 +134,12 @@ Los límites de la revisión visual y de integración están en el acta enlazada
 **B también está cerrado localmente:** precio/disponibilidad del servicio y acciones
 de Planes acordes al rol, conservando capacidades y cancelación. Pasaron 51 pruebas
 backend, 48 Vitest y 7 Playwright; capturas móvil/escritorio, typecheck y lint revisados.
-No se activó MP ni se acreditó su sandbox. **C–D siguen pendientes; el próximo es
-Inicio y Clientes en móvil.**
+No se activó MP ni se acreditó su sandbox. **C está cerrado localmente:** Inicio
+expone estados/identificación en móvil y Clientes prioriza nombre/contacto; foco de
+retorno y errores de lectura revisados. Pasaron 41 Vitest y 6 recorridos Chromium,
+typecheck/lint y capturas 320/390/1280 px. Detalles y límites en el
+[acta de C](2026-09-12-inicio-clientes-movil-implementation.md).
+**Queda D — comprobación y cierre de este pulido local.**
 
 La base funcional conserva su evidencia local previa. Fotos contra Cloudinary real,
 Email C, MP, solicitudes/cierre y despliegue/recuperación mantienen sus pendientes.

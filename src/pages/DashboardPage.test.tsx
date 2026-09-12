@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DashboardPage } from './DashboardPage';
 
@@ -73,8 +73,11 @@ vi.mock('../hooks/useSessionIdentity', () => ({
 }));
 
 const renderPage = () => render(
-  <MemoryRouter>
-    <DashboardPage />
+  <MemoryRouter initialEntries={['/dashboard']}>
+    <Routes>
+      <Route path="/dashboard" element={<DashboardPage />} />
+      <Route path="/reparaciones/7" element={<div>Detalle de la reparación 7</div>} />
+    </Routes>
   </MemoryRouter>,
 );
 
@@ -120,8 +123,12 @@ describe('DashboardPage — consistencia de indicadores', () => {
   it('muestra total y pendiente derivados aunque cobros no esté habilitado', () => {
     renderPage();
 
-    expect(screen.getByText(/34\.567/)).toBeInTheDocument();
-    expect(screen.getByText(/Pendiente de cobro.*12\.345/)).toBeInTheDocument();
+    const reciente = screen.getByRole('button', { name: 'Abrir reparación #7 — Samsung S24' });
+    expect(within(reciente).getByText('Samsung S24')).toBeInTheDocument();
+    expect(within(reciente).getByText('Ana Pérez')).toBeInTheDocument();
+    expect(within(reciente).getAllByText('En proceso')).toHaveLength(1);
+    expect(within(reciente).getByText(/34\.567/)).toBeInTheDocument();
+    expect(within(reciente).getAllByText(/Pendiente de cobro.*12\.345/)).toHaveLength(1);
     expect(screen.queryByText(/2\.000/)).not.toBeInTheDocument();
   });
 
@@ -169,5 +176,25 @@ describe('DashboardPage — consistencia de indicadores', () => {
     fireEvent.click(within(indicadores).getByRole('button', { name: 'Reintentar' }));
     expect(mocks.dashboard.refetch).toHaveBeenCalledOnce();
     expect(mocks.clientes.refetch).toHaveBeenCalledOnce();
+  });
+
+  it.each(['clic', 'Enter', ' '])('conserva la apertura de una reparación reciente mediante %s', (accion) => {
+    renderPage();
+    const reciente = screen.getByRole('button', { name: 'Abrir reparación #7 — Samsung S24' });
+
+    if (accion === 'clic') fireEvent.click(reciente);
+    else fireEvent.keyDown(reciente, { key: accion });
+
+    expect(screen.getByText('Detalle de la reparación 7')).toBeInTheDocument();
+  });
+
+  it('mantiene el estado vacío y la acción de nueva reparación sin inventar filas ni estados', () => {
+    mocks.dashboard.data = { ...dashboardData, totalReparaciones: 0, ultimasReparaciones: [] };
+    renderPage();
+
+    expect(screen.getByText('Todavía no hay reparaciones')).toBeVisible();
+    expect(screen.queryByRole('button', { name: /Abrir reparación/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Nueva reparación' })).toBeEnabled();
+    expect(screen.queryByText(/Pendiente de cobro|Cobro completo registrado|Excedente a revisar/)).not.toBeInTheDocument();
   });
 });

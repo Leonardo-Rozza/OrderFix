@@ -52,7 +52,7 @@ const KpiSkeleton = () => (
 export const DashboardPage = () => {
   const navigate = useNavigate();
   const identity = useSessionIdentity();
-  const { data: stats, isLoading, isError, refetch } = useDashboardQuery();
+  const { data: stats, isLoading, isError, refetch } = useDashboardQuery('inline');
   const {
     data: clientesPage,
     isLoading: clientesLoading,
@@ -227,7 +227,7 @@ export const DashboardPage = () => {
                       navigate(`/reparaciones/${r.id}`);
                     }
                   }}
-                  className="flex cursor-pointer items-center gap-3 border-b border-border px-[18px] py-3 transition last:border-0 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)]"
+                  className="grid cursor-pointer grid-cols-[36px_minmax(0,1fr)] items-start gap-x-3 gap-y-2 border-b border-border px-[18px] py-3 transition last:border-0 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] sm:flex sm:items-center sm:gap-3"
                 >
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-surface-3 text-text-2">
                     <svg viewBox="0 0 24 24" width={19} height={19} fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
@@ -236,12 +236,15 @@ export const DashboardPage = () => {
                     </svg>
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-[14px] font-bold">
-                      {equipoLabel(r)} <span className="font-semibold text-text-2">· {clienteLabel(r)}</span>
+                    <div className="text-[14px] font-bold [overflow-wrap:anywhere] sm:truncate sm:[overflow-wrap:normal]">
+                      <span>{equipoLabel(r)}</span>{' '}
+                      <span className="mt-0.5 block text-[12.5px] font-semibold text-text-2 sm:mt-0 sm:inline sm:text-[14px]">
+                        <span className="hidden sm:inline">· </span>{clienteLabel(r)}
+                      </span>
                     </div>
                     <div className="truncate text-[12.5px] text-text-3">{r.descripcionProblema}</div>
                   </div>
-                  <div className="hidden flex-col items-end gap-1 sm:flex">
+                  <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-1.5 sm:flex-col sm:items-end sm:gap-1">
                     <EstadoBadge estado={r.estado} />
                     <PagoChip
                       estadoPago={r.estadoPago}
@@ -250,7 +253,7 @@ export const DashboardPage = () => {
                       requiereRevision={r.requiereRevision}
                     />
                   </div>
-                  <div className="w-[84px] text-right font-mono text-[13.5px] font-bold">{formatMoney(r.total ?? r.precioFinal ?? r.precioEstimado)}</div>
+                  <div className="col-span-2 min-w-0 text-right font-mono text-[13.5px] font-bold [overflow-wrap:anywhere] sm:min-w-[84px] sm:shrink-0 sm:whitespace-nowrap">{formatMoney(r.total ?? r.precioFinal ?? r.precioEstimado)}</div>
                 </div>
               ))
             )}

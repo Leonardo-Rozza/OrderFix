@@ -1,11 +1,11 @@
 # OrdenFix — pulido local y pendientes de salida
 
-Fecha: 2026-09-12. Estado: cortes A y B implementados y verificados localmente; C–D pendientes.
+Fecha: 2026-09-12. Estado: cortes A–C implementados y verificados localmente; D pendiente.
 Este documento responde al pedido de mejorar la experiencia
 y el Excel, con un alcance que se pueda terminar.
 
 Base del diagnóstico: frontend `5a86605`, backend `35ecb8f`. Esa revisión inicial
-inspeccionó código, pruebas existentes y actas. La evidencia nueva de los cortes A y B se
+inspeccionó código, pruebas existentes y actas. La evidencia nueva de los cortes A–C se
 detalla al final; la evidencia funcional anterior conserva sus límites.
 
 ## Qué está resuelto y qué falta
@@ -266,3 +266,18 @@ Un commit por repositorio afectado, sin push ni merge. Se preservan los 77 archi
 ajenos no versionados y las migraciones congeladas. Backend quedó en `39a0890`
 (`feat(suscripcion): informa oferta y disponibilidad`). El siguiente corte es
 **C — Inicio y Clientes legibles en móvil**; después queda D para cerrar este pulido.
+
+## Corte C cerrado localmente — 2026-09-12
+
+El [acta de Inicio/Clientes](2026-09-12-inicio-clientes-movil-implementation.md)
+documenta capturas previas y finales a 320/390/1280 px, claro/oscuro y ADMIN/USER.
+Inicio ahora muestra equipo, cliente, estados de reparación/cobro e importe en móvil.
+Clientes prioriza nombre/teléfono y reubica cantidades/última visita. Se conserva
+la distribución de escritorio y se corrige el retorno de foco de la ficha.
+Los errores de lectura se comunican en página con reintento, sin toasts repetidos.
+
+Pasaron 41 Vitest distintos, 6 recorridos Chromium, typecheck y lint focalizado.
+El acta registra los fallos encontrados/corregidos y los límites de esta evidencia:
+API simulada, sin validación de proveedores ni staging. Backend sin cambios; un commit
+frontend sin push/merge, preservando los archivos ajenos. **Sólo queda D — comprobación
+y cierre de este pulido local.** Los cinco frentes de salida posteriores siguen abiertos.

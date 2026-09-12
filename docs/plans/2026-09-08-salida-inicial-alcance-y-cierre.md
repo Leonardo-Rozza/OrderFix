@@ -60,6 +60,32 @@ el rol/configuración de fotos, la retención de futuros clientes y la limpieza
 identificada de pruebas conservan sus pendientes. MP queda pospuesto; no se reabre
 el pulido local A–D ya cerrado ni se agregan frentes al alcance de salida.
 
+## Solicitudes y baja — ensayo local, 2026-09-12
+
+Se amplió el laboratorio de navegador → HTTP → PostgreSQL 16: **14 recorridos
+aprobados**, incluidos los dos de empleados en escritorio y 320 px que ahora
+comprueban baja propia USER y descarga operativa ADMIN. Contraseña incorrecta y
+rol ADMIN no ejecutan la baja; un 204 cierra el acceso del empleado, revoca dos JWT
+distintos y conserva usuario, cliente y taller. El logout persiste al recargar.
+
+Los dos Excel se descargan desde Inicio por la API real y se leen con POI: cuatro
+hojas, el cliente propio esperado y las otras tres hojas sin filas en esos talleres.
+USER y anónimo reciben 403 al intentar exportar. El control SQL de clientes ajenos
+es posterior a los recorridos; no acredita un control positivo individual de las
+cuatro hojas antes de cada descarga. No se presenta este reporte como exportación
+integral ni como entrega de una solicitud a una persona externa.
+
+Cuenta conserva mensajes claros sobre contactos faltantes y cierre integral no
+disponible. La simulación documental distingue cinco pedidos y mantiene abiertos
+los que no se pueden verificar o ejecutar. Acta y límites en backend:
+`docs/plans/2026-09-12-solicitudes-datos-baja-ensayo-local.md` y
+`docs/runbooks/solicitudes-datos-y-cierre.md`.
+
+El ensayo técnico queda cerrado localmente. Siguen pendientes la exportación
+integral, el cierre coordinado ADMIN, retenciones y la recepción/atención/entrega
+real. No se crearon expedientes reales ni se enviaron correos; MP sigue pospuesto.
+No hay cambios productivos ni migraciones, y Confianza y cuenta sigue abierto.
+
 ## Email — continuación acordada el 2026-09-12
 
 El usuario confirmó propiedad de `orden-fix.com.ar`. Vercel muestra el dominio raíz

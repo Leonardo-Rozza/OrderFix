@@ -25,7 +25,10 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run dev -- --host 127.0.0.1 --port 5175 --strictPort',
-    env: { VITE_REGISTRATION_CONSENT: 'true', VITE_API_BASE_URL: api.origin, VITE_API_URL: '', VITE_SENTRY_DSN: '' },
+    env: {
+      VITE_REGISTRATION_CONSENT: 'true', VITE_API_BASE_URL: api.origin, VITE_API_URL: '', VITE_SENTRY_DSN: '',
+      VITE_LEGAL_EMAIL: '', VITE_PRIVACY_EMAIL: '', VITE_SUPPORT_EMAIL: '',
+    },
     url: 'http://127.0.0.1:5175',
     reuseExistingServer: false,
     timeout: 60_000,

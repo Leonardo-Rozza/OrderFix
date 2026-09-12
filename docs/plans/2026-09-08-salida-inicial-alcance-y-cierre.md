@@ -40,7 +40,9 @@ runtime, sin activar servicios externos ni realizar push.
 
 El usuario confirmó propiedad de `orden-fix.com.ar`. Vercel muestra el dominio raíz
 y `www` vinculados al proyecto `order-fix`, con redirección a `www` y certificados
-administrados. Falta comprobar qué repo/rama está desplegado y el recorrido con la API.
+administrados. El repositorio conectado es `Leonardo-Rozza/OrderFix` y producción sigue `main`;
+el antiguo nombre del remoto redirige a ese mismo repositorio. Falta acreditar la
+versión nueva desplegada y el recorrido con la API.
 El dominio de envío `cuenta.orden-fix.com.ar` ya está Verified en Resend, región São
 Paulo, con los tres registros DNS publicados bajo autorización explícita del usuario.
 La API key conserva permisos de envío, sin acceso administrativo a dominios.
@@ -51,10 +53,11 @@ Se divide el trabajo restante de Email en tres cortes acotados:
   importa secretos sólo al arrancar, TLS obligatorio/timeouts y recuperación enviada
   después del commit con HTML escapado y errores sanitizados. Backend: 61 pruebas
   focalizadas aprobadas y cuatro escenarios del launcher simulado. No hubo envío real.
-- **B configurado y entrega acreditada:** dominio Verified, DKIM/SPF/MX publicados y
+- **B cerrado:** dominio Verified, DKIM/SPF/MX publicados y
   remitente `notificaciones@cuenta.orden-fix.com.ar` configurado localmente. Un único
   correo sintético autorizado, enviado por el adaptador Java real, figura Sent/Delivered
-  en Resend (2026-09-12 10:12 -03). Falta la confirmación visual de Recibidos/Spam del titular.
+  en Resend (2026-09-12 10:12 -03). El titular confirmó la recepción; no especificó
+  Recibidos/Spam. No se realizó otro envío.
 - **C pendiente de staging:** registro, verificación y recuperación de contraseña con
   frontend/backend reales, enlaces HTTPS y operación del correo.
 
@@ -65,6 +68,54 @@ La implementación quedó en backend `93860d4`; su evidencia está en
 El remitente de cuenta no se presenta como canal de soporte o privacidad. Identidad,
 alta y contactos definitivos conservan su fase al final, después de MP y Email.
 Este corte frontend es documental, se valida por revisión de diff y no repite runtime.
+
+## Integración a main y siguiente trabajo — 2026-09-12
+
+Se actualizaron las referencias con `git fetch origin` en ambos repositorios, sin
+merge ni push. Ramas a integrar:
+
+| Repositorio GitHub | Rama de trabajo | Destino |
+| --- | --- | --- |
+| `Leonardo-Rozza/OrderFix-B` | `codex/lanzamiento-publico-backend` | `main` |
+| `Leonardo-Rozza/OrderFix` | `codex/frontend-refactor-checkpoint` | `main` |
+
+Los `main` locales y remotos son ancestros de las ramas de trabajo: no hay commits
+exclusivos de main que deban incorporarse antes. Las otras ramas locales del backend
+ya están contenidas en la de lanzamiento y no requieren merges separados.
+`origin` del frontend conserva el nombre `mvgr-reparaciones-frontend`; GitHub redirige
+esa URL a `OrderFix`, el mismo repositorio conectado a Vercel. No se cambió el remoto.
+
+El usuario realizará el push y merge. Para revisión por PR, publicar cada rama desde
+su repositorio y abrir el PR contra main:
+
+```sh
+git -C /Volumes/DiscoExtern/Desktop/mvrg-backend push -u origin codex/lanzamiento-publico-backend
+git -C /Volumes/DiscoExtern/Desktop/mvgr-reparaciones-frontend push -u origin codex/frontend-refactor-checkpoint
+```
+
+Vercel `order-fix` sigue **main** para Production y tiene asignación automática de
+los dominios productivos activada. Se recomienda revisar primero el preview/API del
+entorno y sus gates antes de fusionar frontend a main. Integrar código no sustituye
+la preparación del despliegue ni publica secretos locales.
+
+La ejecución local de `npm run check:public-release` continúa bloqueada por URL API
+HTTPS, contactos legal/privacidad/soporte, manifiesto de publicación no configurado y
+precio literal PRO en `PlanesPage.tsx`. Es un resultado de la configuración local,
+no una inspección de valores privados del entorno Vercel. No se omite el guard.
+
+Se puede continuar en local: los recorridos principales cuentan con evidencia previa.
+Aún faltan Email C con enlaces reales, integración y borrado de fotos contra Cloudinary
+real, prueba MP contra el proveedor y operación de staging/backup-restauración. Identidad
+y contactos definitivos conservan su fase posterior a MP y Email.
+
+MP ya implementa suscripción PRO, firma/inbox de webhooks, duplicados/reintentos,
+conciliación y cancelación, con pruebas locales; su sandbox real sigue pendiente.
+El siguiente corte debe preparar aplicación/cuentas/credenciales de prueba y HTTPS
+para retorno/webhook (túnel local o staging), y acreditar alta/retorno/activación,
+rechazo, cancelación y reintentos según el runbook backend. Revisar en ese corte la
+UI de Planes que todavía ofrece checkout cuando el backend lo tiene apagado y el
+precio literal señalado por el guard. MP sigue limitado a la suscripción del taller
+al SaaS; no interviene en cobros a sus clientes. No se activaron flags de MP.
 
 ## Decisión de producto
 

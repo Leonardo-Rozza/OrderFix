@@ -36,7 +36,9 @@ frontend, después los opcionales (Sentry, MercadoPago). Al final, el smoke test
    `APP_PUBLIC_URL`, que forma los enlaces de cuenta. No hace falta editar `CorsConfig`.
    El panel Vercel muestra `orden-fix.com.ar` y `www.orden-fix.com.ar` vinculados al
    proyecto `order-fix`, con redirección a `www` y certificados automáticos (2026-09-12).
-   Falta comprobar repo/rama desplegados y el recorrido real con el backend.
+   Git conectado: `Leonardo-Rozza/OrderFix`, con Production siguiendo `main` y
+   asignación automática de dominios. Falta acreditar la nueva versión desplegada
+   y el recorrido con backend; un push a main crea un despliegue de producción.
 5. Verificá que responde: `curl https://TU-BACKEND.onrender.com/actuator/health`.
 
 > Ojo con el plan free de Render: el servicio "duerme" tras ~15 min sin tráfico y la
@@ -48,11 +50,12 @@ frontend, después los opcionales (Sentry, MercadoPago). Al final, el smoke test
 ## 2. Frontend en Vercel
 
 El dominio confirmado por el usuario es `orden-fix.com.ar` y ya está conectado al
-proyecto `order-fix`: no duplicar esa configuración. Antes de desplegar, verificar
-que ese proyecto corresponde al repo/rama que se quiere publicar.
+proyecto `order-fix`: no duplicar esa configuración. Está conectado a
+`Leonardo-Rozza/OrderFix` (el antiguo nombre `mvgr-reparaciones-frontend` redirige allí),
+con rama productiva `main`. Revisar preview y gates antes de fusionar a esa rama.
 `cuenta.orden-fix.com.ar` ya está Verified en Resend; DKIM y SPF/Return-Path se
 publicaron en Vercel. El remitente local es `notificaciones@cuenta.orden-fix.com.ar`
-y una prueba autorizada figura Delivered. Falta configurar el backend del entorno
+y una prueba autorizada figura Delivered, con recepción confirmada por el titular. Falta configurar el backend del entorno
 y probar los enlaces reales; la API key nunca va en el frontend ni en `VITE_*`.
 La guía y los cortes Email A–C están en
 [Email transaccional del backend](../mvrg-backend/docs/operations/email.md).

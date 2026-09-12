@@ -5,9 +5,11 @@ Fecha: 2026-09-08
 Estado: cuenta, taller/empleados, reparación/presupuesto y control opcional de cobros verificados
 localmente con navegador → HTTP → PostgreSQL. Los cortes y sus límites se documentan abajo.
 En Evidencia y documentos, resumen, fotos y confirmación contextual están verificados localmente.
-Quedan la acreditación de Cloudinary real y la limpieza identificada de los datos históricos de
-prueba, autorizada el 2026-09-12 en lugar de migrarlos. Confianza y cuenta y Operación real conservan sus pendientes;
-todavía no se acredita disponibilidad en staging.
+Cloudinary real y el adapter productivo ya cuentan con una prueba sintética aprobada
+de carga, lectura privada, denegación anónima y borrado. Quedan el recorrido completo
+en staging, su configuración/retención y la limpieza identificada de datos históricos
+de prueba, autorizada el 2026-09-12 en lugar de migrarlos. Confianza y cuenta y Operación
+real conservan sus pendientes; todavía no se acredita disponibilidad en staging.
 
 ## Ajuste de prioridades — 2026-09-12
 
@@ -35,6 +37,28 @@ MP conserva su alcance de suscripción del taller a OrdenFix. No se incorpora co
 validación de acreditaciones ni facturación fiscal del taller a sus clientes.
 Este ajuste documental se valida por revisión del diff, sin repetir suites de
 runtime, sin activar servicios externos ni realizar push.
+
+## Fotos — almacenamiento real acreditado, 2026-09-12
+
+El titular pospuso la continuación de MP dependiente del panel y pidió avanzar con
+lo que se puede completar autónomamente. Se realizó el ensayo sintético de fotos
+previsto arriba: **2 casos aprobados, PNG y JPEG**, con el adapter productivo y la
+cuenta Cloudinary real. En ambos se verificaron carga autenticada, bytes originales,
+HTTP 401 al original y al intento de transformación anónimos, y borrado confirmado
+con lectura posterior `MISSING`. Los dos archivos sintéticos quedaron eliminados.
+
+El laboratorio es opt-in, aislado de la app/DB/schedulers y excluido de las suites
+predeterminadas. No cambia flags ni archivos privados, no toca fotos históricas y
+no envía correos. Acta backend:
+`docs/plans/2026-09-12-cloudinary-almacenamiento-real-implementation.md`.
+El intento de transformación no acredita una variante preexistente, y la ausencia
+del objeto no demuestra la eliminación de backups o cachés CDN.
+
+Este resultado cierra la comprobación real del almacenamiento. No equivale a una
+corrida navegador → HTTP → PostgreSQL → Cloudinary: esa integración desplegada,
+el rol/configuración de fotos, la retención de futuros clientes y la limpieza
+identificada de pruebas conservan sus pendientes. MP queda pospuesto; no se reabre
+el pulido local A–D ya cerrado ni se agregan frentes al alcance de salida.
 
 ## Email — continuación acordada el 2026-09-12
 
@@ -105,13 +129,14 @@ Es un resultado de la configuración local,
 no una inspección de valores privados del entorno Vercel. No se omite el guard.
 
 Se puede continuar en local: los recorridos principales cuentan con evidencia previa.
-Aún faltan Email C con enlaces reales, integración y borrado de fotos contra Cloudinary
-real, prueba MP contra el proveedor y operación de staging/backup-restauración. Identidad
+Aún faltan Email C con enlaces reales, integración completa de fotos en staging
+con Cloudinary (el adapter real ya está acreditado), prueba MP contra el proveedor y
+operación de staging/backup-restauración. Identidad
 y contactos definitivos conservan su fase posterior a MP y Email.
 
 MP ya implementa suscripción PRO, firma/inbox de webhooks, duplicados/reintentos,
 conciliación y cancelación, con pruebas locales; su sandbox real sigue pendiente.
-El siguiente corte debe preparar aplicación/cuentas/credenciales de prueba y HTTPS
+Cuando se retome MP, el siguiente corte debe preparar aplicación/cuentas/credenciales de prueba y HTTPS
 para retorno/webhook (túnel local o staging), y acreditar alta/retorno/activación,
 rechazo, cancelación y reintentos según el runbook backend. El corte B de pulido ya
 resuelve la oferta/contratación apagada en Planes y el precio literal señalado por el
@@ -144,9 +169,9 @@ Chromium conjuntos aprobados. El laboratorio existente revalidó otros 14 recorr
 navegador → HTTP → PostgreSQL 16, con su fixture V29. El
 [acta final](2026-09-12-pulido-local-cierre.md) registra versiones y límites:
 no acredita fotos V30 ni proveedores/staging. **El plan de pulido A–D está terminado**;
-el siguiente bloque es MP en entorno de pruebas.
+el siguiente bloque previsto era MP en entorno de pruebas, ahora pospuesto por el titular.
 
-La base funcional conserva su evidencia local previa. Fotos contra Cloudinary real,
+La base funcional conserva su evidencia local previa. Fotos en staging y su operación,
 Email C, MP, solicitudes/cierre y despliegue/recuperación mantienen sus pendientes.
 La identidad y los contactos definitivos siguen reservados para la etapa acordada.
 

@@ -24,4 +24,10 @@ describe('getExportFilename', () => {
 
     expect(getExportFilename(undefined, localDate)).toBe('ordenfix-export-2026-07-05.xlsx');
   });
+  it('permite ZIP y descarta un nombre que intenta introducir una ruta o tipo distinto', () => {
+    expect(getExportFilename('attachment; filename="copia.zip"', new Date(), 'zip')).toBe('copia.zip');
+    expect(getExportFilename('attachment; filename="../copia.zip"', new Date(), 'zip')).toMatch(/^ordenfix-export-.*\.zip$/);
+    expect(getExportFilename('attachment; filename="pagina.html"')).toMatch(/^ordenfix-export-.*\.xlsx$/);
+  });
+
 });

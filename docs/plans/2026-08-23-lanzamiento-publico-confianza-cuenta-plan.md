@@ -1404,6 +1404,14 @@ feat(cuenta): centraliza privacidad y documentos
 
 ## Tarea 15 — Implementar reautenticación y exportación integral
 
+Actualización 2026-09-12: implementación A–D cerrada localmente; integral backend D
+aprobado (7.578 unitarias y 1.475 IT sin fallos). El contrato definitivo está en §4.14 de FRONTEND_INTEGRATION y el
+plan backend `2026-09-12-exportacion-integral-implementation.md`. Se usan funciones
+imperativas sin cache de mutations para secretos, estados ingleses del servicio
+traducidos en UI y POST de descarga que consume autorización. El diseño siguiente
+es la intención inicial; esas decisiones quedan concretadas por D. Activación ZIP,
+capacidad/operación del despliegue y cierre ADMIN siguen separados.
+
 ### Dependencia
 
 `BACKEND-HANDOFF 8` disponible.
@@ -1743,6 +1751,10 @@ El alcance contractual completo exige:
 - procedimiento operativo para revisión y derechos del cliente final.
 
 ## BACKEND-HANDOFF 8 — Reautenticación y exportación
+
+Implementado y acreditado localmente mediante A–D (2026-09-12), con integral D
+aprobado. Activación operativa pendiente. El contrato HTTP y la evidencia del plan backend reemplazan
+los nombres tentativos de rutas/estados; no habilita el handoff de cierre 9.
 
 - `/api/cuenta/reauthenticaciones` autenticado, fuera de `/api/auth/**` público;
 - token opaco, purpose-bound, session/tenant-bound, TTL corto y uso único;

@@ -9,6 +9,10 @@ Copiá este archivo al repo del frontend (o usalo como referencia para Claude Co
 
 Si venís de una versión anterior del contrato, esto es lo que cambió / se agregó:
 
+**2026-09-12 — Exportación protegida:** Cuenta incorpora ZIP integral y reporte Excel
+con contraseña actual por solicitud/descarga. El GET Excel anterior responde 410;
+ver §4.14. El ZIP exige activación explícita del worker en el backend.
+
 **2026-09-09 — Fotos privadas:** los archivos nuevos usan requisitos contextuales, intención,
 PUT binario y finalización bajo `/api/reparaciones/{id}`. El frontend guarda primero la reparación
 y conserva su ID durante los reintentos; no sube directamente a Cloudinary. La lectura y el borrado
@@ -37,8 +41,9 @@ no representa el contrato de carga nuevo. Ver el [plan y contrato de fotos priva
    ofrecé el botón "Reclamo en garantía".
 8. **Seguridad**: un usuario desactivado pierde acceso **al instante** (su token viejo deja de
    servir → `403`); manejalo igual que un 401 (logout).
-9. **Exportar datos**: `GET /api/export/excel` (solo ADMIN, todos los planes) descarga un `.xlsx`
-   con clientes, órdenes, cobros y presupuestos del taller (§4.14).
+9. **Exportar datos**: ADMIN con email verificado confirma contraseña en Cuenta para
+   solicitar un ZIP o descargar ZIP/Excel. GET Excel está retirado; el reporte operativo
+   conserva sus cuatro hojas y no incluye todos los archivos/categorías (§4.14).
 10. **Cuentas por email** (§4.1): login/register ahora devuelven **`emailVerificado`** (mostrar
     banner "Confirmá tu email" si es `false` — puede operar igual). Nuevas pantallas:
     **olvidé mi contraseña** (`/password/olvide` + `/password/reset`) y **verificación de email**
@@ -936,29 +941,61 @@ Parte canónica de ResumenDigitalOrden (se omiten aquí los campos planos de com
 
 ---
 
-### 4.14 Exportar datos — solo ADMIN  (`/api/export`)
+### 4.14 Exportar datos — ADMIN (`/cuenta/exportacion`)
 
-El dueño del taller se descarga **todos sus datos** en un Excel (disponible en todos los planes).
+Actualizado en exportación integral D, 2026-09-12. El Excel es un reporte operativo
+con **Clientes, Órdenes, Cobros y Presupuestos**, sin validez fiscal. El ZIP incluye
+las categorías/archivos declarados por su manifiesto, fotos elegibles y constancia
+legal propia. Excluye PIN/patrón, credenciales, tokens, código de seguimiento, URLs
+legacy y aceptaciones personales de empleados. No restaura archivos vencidos.
 
-| Método | Ruta | Resp |
-|--------|------|------|
-| GET | `/api/export/excel` | `200` archivo `.xlsx` (binario) |
+Todas las rutas requieren Bearer vigente; nunca se envía tallerId/userId. ADMIN,
+email verificado, estado activo y versión de revocación se comprueban al confirmar
+y consumir. USER no monta la página ni puede descargar. No depende del plan comercial.
 
-- Devuelve un `.xlsx` con 4 hojas: **Clientes**, **Órdenes** (estado, técnico, total/cobrado/saldo, estado de pago, garantía), **Cobros** y **Presupuestos**.
-- Responde con `Content-Disposition: attachment; filename="ordenfix-export-YYYY-MM-DD.xlsx"`.
-- En el front: pedirlo con `responseType: 'blob'` (Axios) y disparar la descarga:
+| Método | Ruta | Contrato |
+| --- | --- | --- |
+| POST | `/api/cuenta/reauthenticaciones` | JSON `{passwordActual, proposito}`; propósitos EXPORTAR y DESCARGAR_EXPORTACION. 200 `{reauthToken,proposito,expiresAt}`. |
+| POST | `/api/exportaciones` | Cuerpo vacío, `Idempotency-Key` UUID canónico y `X-Reauth-Token`. 202 estado + Location. |
+| GET | `/api/exportaciones/actual` | 200 `{habilitada,exportacion}`; última propia o null. |
+| GET | `/api/exportaciones/{id}` | 200 estado propio; 404 si ajeno/inexistente. |
+| POST | `/api/exportaciones/{id}/archivo` | Cuerpo vacío y X-Reauth-Token nuevo; 200 `application/zip`. |
+| POST | `/api/export/excel` | Cuerpo vacío y X-Reauth-Token nuevo; 200 XLSX. |
+| GET | `/api/export/excel` | 410 sin archivo; se retira la descarga anterior. |
 
-```ts
-const { data } = await api.get('/api/export/excel', { responseType: 'blob' });
-const url = URL.createObjectURL(data);
-const a = document.createElement('a');
-a.href = url;
-a.download = `ordenfix-export-${new Date().toISOString().slice(0, 10)}.xlsx`;
-a.click();
-URL.revokeObjectURL(url);
-```
+Estado JSON: `{id,estado,expiresAt,reused}`, con estado
+QUEUED/RUNNING/READY/FAILED/EXPIRED/REVOKED y fecha ISO UTC. El ZIP está apagado
+por defecto: `/actual` devuelve `habilitada:false`; Excel protegido sigue disponible.
+No se inicia cierre ni baja al pedir/exportar. TTL máximo del trabajo: 24 horas desde
+solicitud, acortado por retención de fotos; reintento/replay no lo renueva.
 
-- Empleado con rol USER → `403`. Botón sugerido: "Exportar mis datos" en Configuración.
+La prueba de confirmación dura hasta cinco minutos, limitada además por el JWT;
+se consume una sola vez en la transacción sensible. Cada descarga exige confirmación
+nueva, aunque se haya descargado antes. No poner contraseña/proof en queries,
+localStorage, URLs ni React Query; usar las funciones de `src/api/accountExport.ts`
+y cancelar/descartar al cambiar sesión. La solicitud incierta conserva en memoria su
+clave de idempotencia y consulta el estado antes de crear otra. La recarga recupera
+el trabajo propio sin guardar su ID. Polling sólo para pendientes/visible, cada 15 s;
+se detiene al fallar o llegar a estado terminal.
+
+Descargas: `responseType:'blob'`, timeout 60 s, validar 200/tipo/tamaño no vacío,
+comprobar que sigue la sesión y revocar object URL. `Content-Disposition` define
+filename cuando está accesible; usar nombre local seguro de respaldo. Las respuestas
+son no-store/nosniff. No abrir enlaces remotos permanentes. El cliente normaliza
+ApiError JSON incluso si Axios lo recibe como Blob, sin conservar el error Axios.
+
+Códigos: PASSWORD_ACTUAL_INVALIDA / REAUTENTICACION_INVALIDA / SOLICITUD_INVALIDA
+(400), EXPORTACION_NO_PERMITIDA (403), EXPORTACION_NO_ENCONTRADA (404),
+EXPORTACION_NO_DISPONIBLE (409/503) y EXPORTACION_LIMITE (429 con Retry-After).
+Una contraseña incorrecta no cierra la sesión. Exceso de cuerpo da 413, tipo no
+admitido 415 y método incorrecto 405. No mostrar diagnósticos o mensajes arbitrarios.
+
+Cuotas por actor/JVM: 5 confirmaciones, 3 solicitudes y 3 descargas combinadas en
+15 minutos; 30 consultas/minuto. Trabajo pesado compartido con worker: si está
+ocupado, 429/Retry-After sin gastar prueba ni cuota de descarga. Son límites locales,
+no distribuidos. Excel rechaza exceso de 50.000 filas del grafo, 16 MiB de origen o
+32 MiB de salida sin truncar datos. Alcance, cifrado, claves y capacidad de producción
+en backend `docs/operations/exports.md` y el plan de exportación A–D.
 
 ---
 

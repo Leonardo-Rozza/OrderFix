@@ -129,6 +129,30 @@ backend distingue el integral de la revalidación focalizada final aprobada.
 D queda a cargo de la API, pantalla, límites HTTP y descarga autorizada; la entrega
 al usuario continúa sin habilitarse. No se activa MP ni se hace push/merge.
 
+**D cerrado localmente:** API y pantalla ADMIN en
+`/cuenta/exportacion`, nueva confirmación de contraseña para solicitar ZIP y para
+cada descarga de ZIP/Excel. El Dashboard lleva al Excel protegido y GET anterior
+responde 410. Recuperación del trabajo al recargar, estados/vencimiento, límites y
+errores claros; no se guarda contraseña/proof en storage, URL o React Query.
+
+Validación focal backend: 84 unitarias y 69 IT aprobados. Navegador real con
+PostgreSQL/Tomcat/JWT en escritorio y 320 px: dos recorridos aprobados, archivos
+ZIP/Excel leídos y aislamiento de talleres acreditado. Frontend completo: 730 Vitest,
+42 pruebas de tooling, lint y build local aprobados; 16 Playwright focalizados más
+revisión visual en ambos temas. El gate productivo del build local queda omitido.
+El ensayo histórico de empleados pasa a verificar la entrada protegida y GET410;
+la acreditación binaria pertenece ahora al laboratorio real de exportación.
+
+El ZIP conserva activación explícita y sigue apagado por defecto. El probe
+codec/JDBC pasó cerca de 128 MiB de contenido; no acredita memoria de toda la app.
+Capacidad del despliegue, claves, retención/recuperación, proxy y operación real
+continúan como gate de activación. Excel protegido funciona sin habilitar el worker.
+Integral backend D: `clean verify` aprobado en 28:56 min, finalizado el 2026-09-12
+18:45:27 -03; 7.578 unitarias y 1.475 IT sin fallos, errores ni omisiones. Control de
+empaquetado sin secretos aprobado. A–D queda cerrado localmente, con commit atómico
+en cada repositorio, sin push/merge. No se modifican V27–V32, secretos o datos reales,
+ni se activan proveedores.
+
 El paquete excluye PIN/patrón, credenciales y tokens internos. La constancia legal
 personal se limita al solicitante; ser ADMIN no habilita descargar aceptaciones
 personales de empleados. El cierre coordinado del taller sigue como operación

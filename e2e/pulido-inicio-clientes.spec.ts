@@ -83,7 +83,7 @@ for (const variant of [
     }
     await expect(page.getByRole('button', { name: /Abrir reparación ORD-2026-0002/ }).getByText(/Excedente a revisar.*10\.000/)).toBeVisible();
     await expect(page.getByRole('button', { name: /Abrir reparación ORD-2026-0003/ })).not.toContainText(/Pendiente de cobro|Cobro completo registrado/);
-    await expect(page.getByRole('button', { name: 'Exportar a Excel' })).toHaveCount(variant.role === 'ADMIN' ? 1 : 0);
+    await expect(page.getByRole('link', { name: 'Exportar a Excel' })).toHaveCount(variant.role === 'ADMIN' ? 1 : 0);
     await expectNoOverflow(page);
     await capture(page, testInfo, 'inicio');
     await row.focus();

@@ -2,6 +2,8 @@ import { AccountContacts } from '../components/AccountContacts';
 import { AccountLegalHistory } from '../components/AccountLegalHistory';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { useAccountProfile } from '../router/accountProfile';
+import { Link } from 'react-router';
+import { btnGhost } from '../components/ui';
 
 export const AccountPage = () => {
   const { usuario, taller } = useAccountProfile();
@@ -13,7 +15,7 @@ export const AccountPage = () => {
         <div>
           <h1 className="text-[22px] font-extrabold tracking-tight">Tu cuenta</h1>
           <p className="mt-1 text-[13.5px] leading-relaxed text-text-2">
-            Consultá tu identidad, tus aceptaciones y los contactos disponibles.
+            Consultá tu identidad, tus aceptaciones y las opciones disponibles para tus datos.
           </p>
         </div>
 
@@ -36,6 +38,11 @@ export const AccountPage = () => {
         </section>
 
         <AccountLegalHistory />
+        {isAdmin && <section aria-labelledby="account-export-title" className="rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-5">
+          <h2 id="account-export-title" className="text-[16px] font-extrabold">Una copia de los datos de tu taller</h2>
+          <p className="mt-2 text-[13.5px] leading-relaxed text-text-2">Consultá tus respaldos ZIP o descargá el reporte Excel. Para solicitar o descargar un archivo, confirmá con tu contraseña actual.</p>
+          <Link to="/cuenta/exportacion" className={`${btnGhost} mt-3`}>Exportar datos</Link>
+        </section>}
         <AccountContacts isAdmin={isAdmin} tallerTelefono={taller.telefono} />
       </div>
     </DashboardLayout>

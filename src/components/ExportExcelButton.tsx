@@ -1,4 +1,4 @@
-import { useExportExcelMutation } from '../api/mutations/export.mutations';
+import { Link } from 'react-router';
 import { useAuth } from '../store/auth.store';
 import { btnGhost } from './ui';
 
@@ -9,25 +9,20 @@ const DownloadIcon = ({ size = 17 }: { size?: number }) => (
 );
 
 /**
- * Botón para exportar los datos del taller a Excel (§4.14). Solo se muestra al
- * ADMIN; en cualquier plan. Su ubicación operativa es el Dashboard.
+ * Acceso al reporte operativo. La descarga exige reautenticación en Cuenta.
  */
 export const ExportExcelButton = () => {
   const { isAdmin } = useAuth();
-  const exportar = useExportExcelMutation();
   if (!isAdmin) return null;
 
   return (
-    <button
-      type="button"
-      onClick={() => exportar.mutate()}
-      disabled={exportar.isPending}
-      aria-busy={exportar.isPending}
-      title="Descargar clientes, órdenes, cobros y presupuestos del taller"
+    <Link
+      to="/cuenta/exportacion#excel"
+      title="Ir a la descarga protegida de clientes, órdenes, cobros y presupuestos"
       className={btnGhost}
     >
       <DownloadIcon />
-      {exportar.isPending ? 'Generando…' : 'Exportar a Excel'}
-    </button>
+      Exportar a Excel
+    </Link>
   );
 };

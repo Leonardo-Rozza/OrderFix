@@ -23,9 +23,14 @@ import { ReciboCompatRedirect } from './ReciboCompatRedirect';
 import { AccountRoute } from './AccountRoute';
 import { AccountPage } from '../pages/AccountPage';
 import { AccountAccessExitPage } from '../pages/AccountAccessExitPage';
+import { AccountExportPage } from '../pages/AccountExportPage';
 
 // Configuración de rutas
 const appRoutes = [
+  {
+    path: '/cuenta/exportacion',
+    element: <AccountRoute><AccountExportPage /></AccountRoute>,
+  },
   {
     path: '/cuenta/baja-acceso',
     element: <AccountRoute><AccountAccessExitPage /></AccountRoute>,

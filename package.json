@@ -16,6 +16,7 @@
     "test:e2e": "playwright test",
     "test:e2e:registration-real": "node scripts/run-registration-real.mjs",
     "test:e2e:photos-real": "node scripts/run-photos-real.mjs",
+    "test:e2e:export-real": "node scripts/run-export-real.mjs",
     "typecheck": "tsc -b --noEmit"
   },
   "engines": {

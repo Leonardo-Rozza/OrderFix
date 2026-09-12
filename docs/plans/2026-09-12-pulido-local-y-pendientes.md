@@ -148,7 +148,7 @@ Estos cinco frentes continúan abiertos; terminar A–D no los marca como resuel
 | MP | Checkout, firma/inbox, reintentos, conciliación y cancelación con pruebas locales. | Aplicación/cuentas de prueba, retorno y webhook HTTPS; probar alta, activación/rechazo, cancelación y matriz de eventos contra el proveedor. No procesa pagos taller–cliente. |
 | Fotos | Flujo privado local; adapter productivo contra Cloudinary real acreditado con PNG/JPEG: carga, lectura exacta, HTTP 401 anónimo y borrado confirmado. | Recorrido completo en staging, configuración del rol y política de retención/backups/CDN. Identificar antes de limpiar cuentas y assets históricos de prueba autorizados. |
 | Email C | SMTP Resend y dominio verificado; correo autorizado recibido. | Registro, verificación y recuperación desde la app desplegada, enlaces HTTPS y operación del envío. La recepción de una prueba no cierra este recorrido. |
-| Datos, cierre y publicación legal | Cuenta, baja del empleado y reporte operativo ensayados localmente; bloqueo de enlaces de talleres inactivos y runbook con casos sintéticos. Exportación integral A/B/C: reautenticación, captura consistente y generación durable de ZIP cifrado con fotos permitidas, vencimiento y limpieza; secuencia A–D en el plan backend `2026-09-12-exportacion-integral-implementation.md`. | Completar D: API/pantalla, límites HTTP y descarga autorizada de exportación; después cierre coordinado ADMIN y vía real de solicitudes/entrega, retención y contactos atendidos. La baja USER y el Excel no resuelven esos pedidos. Identidad/alta y textos definitivos conservan la etapa final acordada, después de MP y Email. |
+| Datos, cierre y publicación legal | Cuenta, baja del empleado y reporte operativo ensayados localmente; bloqueo de enlaces de talleres inactivos y runbook con casos sintéticos. Exportación integral A–D implementada: reautenticación, captura consistente, ZIP cifrado con fotos permitidas, vencimiento/limpieza, API y pantalla; descarga de ZIP/Excel protegida. Integral backend D aprobado: 7.578 unitarias y 1.475 IT; secuencia A–D en el plan backend `2026-09-12-exportacion-integral-implementation.md`. | Activar con capacidad/operación del despliegue; después cierre coordinado ADMIN y vía real de solicitudes/entrega, retención y contactos atendidos. La baja USER y el Excel no resuelven esos pedidos. Identidad/alta y textos definitivos conservan la etapa final acordada, después de MP y Email. |
 | Despliegue y recuperación | Ramas identificadas y Vercel conectado a main. | Configurar y acreditar versión frontend/API en staging, gates de publicación, recorrido móvil, backup restaurado y recuperación del despliegue. El usuario hará push/merge. |
 
 Exportación integral B queda cerrado localmente con 7 unitarias y 102 de integración
@@ -314,3 +314,28 @@ validación. Esos cinco frentes siguen siendo los pendientes de salida enumerado
 arriba. Al cerrar el pulido se había previsto MP en entorno de pruebas; el titular
 lo pospuso después y se continúa con exportación integral A–D, según la tabla
 actualizada de pendientes. No hubo push ni merge.
+
+
+## Exportación integral — corte D cerrado localmente, 2026-09-12
+
+Continúa exportación A–D del plan backend; no reabre los cortes homónimos de pulido.
+Cuenta incorpora página ADMIN de exportación y el acceso Excel de Inicio lleva allí.
+Confirmación de contraseña nueva por solicitud/descarga, estados, recuperación tras
+recarga y vencimiento; formulario accesible y layout comprobado a 320 px y escritorio,
+en ambos temas. Cobros permanecen manuales y el Excel operativo sin validez fiscal.
+
+API/servicios: cuotas y permiso compartido con worker, no-store, prueba única dentro
+de la transacción, aislamiento y límites de Excel. GET legado retirado. Pruebas
+focalizadas backend 84 unitarias/69 IT aprobadas; dos recorridos reales PG/HTTP/browser
+con ZIP y XLSX propios y exclusión del otro taller. Frontend completo 730 Vitest +42
+tooling, lint y build local aprobados; 16 Playwright focalizados aprobados. El gate
+productivo del build se omite en local. Integral backend `clean verify` aprobado en
+28:56 min: 7.578 unitarias y 1.475 IT, sin fallos, errores ni omisiones; incluye control
+de empaquetado sin secretos. Acta completa en el plan backend de exportación.
+A–D cerrado localmente; commit atómico por repositorio, sin push ni merge.
+
+El probe de capacidad acredita codec/JDBC cerca del máximo de 128 MiB, no el proceso
+web completo. Worker apagado por defecto; Excel protegido independiente de ese flag.
+El runbook backend `docs/operations/exports.md` conserva límites, claves, recuperación
+y requisitos de despliegue. V27–V32 no cambian. Sin activación real de MP/email,
+secretos o datos de clientes. Cierre ADMIN y operación real continúan separados.

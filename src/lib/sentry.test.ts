@@ -40,6 +40,16 @@ describe('sanitizeSentryPayload', () => {
     expect(original.request.pinDesbloqueo).toBe('1234');
   });
 
+  it('filtra contraseña y pruebas de exportación en body, headers y breadcrumbs', () => {
+    const source = { config: {
+      url: '/cuenta/reauthenticaciones', data: JSON.stringify({ passwordActual: 'clave-exportacion' }),
+      headers: { 'X-Reauth-Token': 'prueba-exportacion' },
+    }, response: { reauthToken: 'prueba-exportacion' }, message: 'X-Reauth-Token=prueba-exportacion' };
+    const clean = sanitizeSentryPayload(source);
+    expect(JSON.stringify(clean)).not.toMatch(/clave-exportacion|prueba-exportacion/);
+    expect(clean.config.url).toBe('/cuenta/reauthenticaciones');
+  });
+
   it('preserva el resto del evento y soporta referencias repetidas', () => {
     const shared = { estado: 'EN_PROCESO', pinDesbloqueo: '0000' };
     const sanitized = sanitizeSentryPayload({ first: shared, second: shared });

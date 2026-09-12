@@ -22,7 +22,7 @@ describe('AccountContacts', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.getByText(/Las solicitudes sobre tus datos personales todavía no se gestionan/)).toBeVisible();
-    expect(screen.getByText(/El cierre del taller y la exportación integral todavía no están disponibles/)).toBeVisible();
+    expect(screen.getByText(/El cierre del taller todavía no está disponible/)).toBeVisible();
   });
 
   it('valida cada contacto aunque no sea una compilación de lanzamiento público', () => {

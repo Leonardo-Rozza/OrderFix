@@ -189,7 +189,7 @@ test('el titular administra empleados y USER opera sólo dentro de su taller', a
     await expect(page.getByRole('link', { name: 'Dar de baja mi acceso', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Confirmar baja de mi acceso', exact: true })).toHaveCount(0);
     const ownerPrivacy = page.getByRole('region', { name: 'Privacidad, datos y baja', exact: true });
-    await expect(ownerPrivacy.getByText(/El cierre del taller y la exportación integral todavía no están disponibles/)).toBeVisible();
+    await expect(ownerPrivacy.getByText(/El cierre del taller todavía no está disponible/)).toBeVisible();
     await expect(ownerPrivacy.getByText('Contacto todavía no disponible.', { exact: true })).toHaveCount(3);
     await expect(ownerPrivacy.locator('a[href^="mailto:"]')).toHaveCount(0);
     expect((await authenticated(page, ownerSession.token, '/api/cuenta/baja-acceso', 'POST', { passwordActual: password, confirmado: true })).status).toBe(403);
@@ -298,18 +298,14 @@ test('el titular administra empleados y USER opera sólo dentro de su taller', a
     expect((await authenticated(otherPage, other.token, '/api/clientes')).status).toBe(200);
     expect((await authenticated(otherPage, other.token, `/api/clientes/${client.id}`)).status).toBe(404);
 
-    // Es la descarga operativa existente. El harness verifica sus cuatro hojas
-    // contra PostgreSQL; no acredita una exportación integral de datos personales.
+    // El reporte binario con reautenticación se acredita en ExportBrowserE2E.
+    // Este recorrido conserva el acceso desde Dashboard y el retiro del GET sin prueba.
     await page.goto('/dashboard');
-    const exportPromise = page.waitForResponse((response) => matches(response.url(), '/api/export/excel') && response.request().method() === 'GET');
-    const downloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Exportar a Excel', exact: true }).click();
-    const [exportResponse, download] = await Promise.all([exportPromise, downloadPromise]);
-    expect(exportResponse.status()).toBe(200);
-    expect(exportResponse.headers()['content-type']).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    expect(download.suggestedFilename()).toMatch(/^ordenfix-export-\d{4}-\d{2}-\d{2}\.xlsx$/);
-    await download.saveAs(`${process.env.ORDENFIX_REGISTRATION_E2E_REPORT}.${info.project.name}.xlsx`);
-    expect(await download.failure()).toBeNull();
+    const exportAccess = page.getByRole('link', { name: 'Exportar a Excel', exact: true });
+    await expect(exportAccess).toHaveAttribute('href', '/cuenta/exportacion#excel');
+    await expect(page.getByRole('button', { name: 'Exportar a Excel', exact: true })).toHaveCount(0);
+    const legacyExport = await authenticated(page, ownerSession.token, '/api/export/excel');
+    expect(legacyExport.status).toBe(410);
     await noHorizontalOverflow(page);
 
     saveEvidence({

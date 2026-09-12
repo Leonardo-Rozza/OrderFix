@@ -37,7 +37,7 @@ export const AccountContacts = ({ isAdmin, tallerTelefono }: AccountContactsProp
       </p>
       {isAdmin ? (
         <p className="mt-2 text-[13.5px] leading-relaxed text-text-2">
-          El cierre del taller y la exportación integral todavía no están disponibles en esta pantalla.
+          El cierre del taller todavía no está disponible en esta pantalla.
           {privacyAvailable && ' Podés consultar por tus datos o la baja escribiendo al contacto de privacidad.'}
         </p>
       ) : (

@@ -49,6 +49,7 @@ describe('AccountPage', () => {
     expect(screen.getByRole('region', { name: 'Historial legal propio' })).toBeVisible();
     expect(mocks.layout).toHaveBeenCalledWith({ accountMode: true, title: 'Cuenta' });
     expect(screen.queryByText(/email verificado|email sin verificar|confirmá tu email/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Exportar datos' })).toHaveAttribute('href', '/cuenta/exportacion');
     expect(screen.queryByRole('button', { name: /cerrar|exportar|enviar/i })).not.toBeInTheDocument();
   });
 

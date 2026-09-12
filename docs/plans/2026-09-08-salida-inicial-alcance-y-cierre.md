@@ -139,7 +139,12 @@ expone estados/identificación en móvil y Clientes prioriza nombre/contacto; fo
 retorno y errores de lectura revisados. Pasaron 41 Vitest y 6 recorridos Chromium,
 typecheck/lint y capturas 320/390/1280 px. Detalles y límites en el
 [acta de C](2026-09-12-inicio-clientes-movil-implementation.md).
-**Queda D — comprobación y cierre de este pulido local.**
+**D también está cerrado:** typecheck, lint completo, build local y 16 recorridos
+Chromium conjuntos aprobados. El laboratorio existente revalidó otros 14 recorridos
+navegador → HTTP → PostgreSQL 16, con su fixture V29. El
+[acta final](2026-09-12-pulido-local-cierre.md) registra versiones y límites:
+no acredita fotos V30 ni proveedores/staging. **El plan de pulido A–D está terminado**;
+el siguiente bloque es MP en entorno de pruebas.
 
 La base funcional conserva su evidencia local previa. Fotos contra Cloudinary real,
 Email C, MP, solicitudes/cierre y despliegue/recuperación mantienen sus pendientes.

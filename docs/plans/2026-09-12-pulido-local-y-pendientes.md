@@ -1,11 +1,11 @@
 # OrdenFix — pulido local y pendientes de salida
 
-Fecha: 2026-09-12. Estado: cortes A–C implementados y verificados localmente; D pendiente.
+Fecha: 2026-09-12. Estado: cortes A–D completos; pulido local cerrado.
 Este documento responde al pedido de mejorar la experiencia
 y el Excel, con un alcance que se pueda terminar.
 
 Base del diagnóstico: frontend `5a86605`, backend `35ecb8f`. Esa revisión inicial
-inspeccionó código, pruebas existentes y actas. La evidencia nueva de los cortes A–C se
+inspeccionó código, pruebas existentes y actas. La evidencia nueva de los cortes A–D se
 detalla al final; la evidencia funcional anterior conserva sus límites.
 
 ## Qué está resuelto y qué falta
@@ -16,9 +16,9 @@ También existen fotos privadas, documentos y baja del acceso del empleado. Esto
 permite trabajar sobre la experiencia sin reconstruir el núcleo de reparaciones.
 No acredita todavía todas las integraciones reales ni el cierre completo del taller.
 
-El backend necesita dos cambios de producto identificados en este diagnóstico:
-mejorar la generación del Excel e informar precio/disponibilidad de contratación
-para que Planes represente lo que realmente puede hacer. Además conserva los
+El backend completó los dos cambios de producto identificados en este diagnóstico:
+mejoró la generación del Excel e informa precio/disponibilidad de contratación
+para que Planes represente lo que realmente puede hacer. Conserva los
 pendientes operativos e integraciones enumerados al final. Una auditoría acotada
 no garantiza ausencia de otros defectos; sólo se incorporarán bloqueos reproducibles.
 
@@ -279,5 +279,20 @@ Los errores de lectura se comunican en página con reintento, sin toasts repetid
 Pasaron 41 Vitest distintos, 6 recorridos Chromium, typecheck y lint focalizado.
 El acta registra los fallos encontrados/corregidos y los límites de esta evidencia:
 API simulada, sin validación de proveedores ni staging. Backend sin cambios; un commit
-frontend sin push/merge, preservando los archivos ajenos. **Sólo queda D — comprobación
-y cierre de este pulido local.** Los cinco frentes de salida posteriores siguen abiertos.
+frontend sin push/merge, preservando los archivos ajenos. Al cerrar C quedaba D para
+la comprobación conjunta. Los cinco frentes de salida posteriores siguen abiertos.
+
+## Corte D cerrado localmente — 2026-09-12
+
+El [acta final](2026-09-12-pulido-local-cierre.md) acredita typecheck, lint completo,
+build local, 16 recorridos Chromium de A–C/accesibilidad y el laboratorio de 14
+recorridos navegador → HTTP → PostgreSQL 16 sobre su fixture V29. Se verificaron
+registro, titular/empleados, presupuesto/entrega sin cobros y control manual externo.
+No se encontraron regresiones nuevas y el corte es documental; las versiones
+funcionales permanecen en frontend `affaffa` y backend `39a0890`.
+
+**El pulido local A–D está terminado.** No quedan otros cortes de pulido abiertos
+en este plan. El guard público conserva sus bloqueos de configuración y no se
+acreditan fotos V30, proveedores reales, identidad, staging o recuperación por esta
+validación. Esos cinco frentes siguen siendo los pendientes de salida enumerados
+arriba; el siguiente bloque es MP en entorno de pruebas. No hubo push ni merge.

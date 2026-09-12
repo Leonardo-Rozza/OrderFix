@@ -119,6 +119,22 @@ al SaaS; no interviene en cobros a sus clientes. No se activaron flags de MP.
 
 ## Decisión de producto
 
+### Continuación local — pulido de experiencia, 2026-09-12
+
+El titular pide priorizar claridad del frontend y utilidad/presentación del Excel
+mientras se completan las dependencias de salida. El diagnóstico y la propuesta de
+cuatro cortes locales se documentan en
+[Pulido local y pendientes](2026-09-12-pulido-local-y-pendientes.md): Excel, Planes y
+permisos, Inicio/Clientes en móvil y comprobación final. Este ajuste prioriza ese
+trabajo antes del sandbox de MP descrito arriba; no lo declara terminado ni activa
+el proveedor. Los cortes aún no están implementados.
+
+La base funcional conserva su evidencia local previa. Fotos contra Cloudinary real,
+Email C, MP, solicitudes/cierre y despliegue/recuperación mantienen sus pendientes.
+La identidad y los contactos definitivos siguen reservados para la etapa acordada.
+
+### Alcance de la primera salida
+
 La prioridad es completar una primera salida controlada con pocos talleres y recorridos utilizables.
 Este documento ordena el trabajo pendiente de los planes de lanzamiento y del bloque 15. Los planes
 anteriores conservan contratos y evidencia histórica; su lista completa de mejoras deja de representar

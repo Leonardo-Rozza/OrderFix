@@ -949,3 +949,28 @@ Esta corrección cierra el faltante de acceso público identificado. **Confianza
 cuenta permanece abierto**, junto con las comprobaciones de proveedor de fotos,
 legacy, staging y recuperación operativa ya enumeradas. Se conserva un commit por
 repositorio, sin push y con los archivos ajenos preservados.
+
+## Cierre coordinado del taller — corte A cerrado, 2026-09-12
+
+Después de exportación A–D, el usuario autorizó continuar con cierre ADMIN. Se divide
+en A (preparación consistente y reglas), B (estado durable y bloqueo coordinado),
+C (solicitud/restauración y outbox), D (eliminación y recuperación operativa) y
+E (API/pantalla y gate integral). Plan backend:
+`docs/plans/2026-09-12-cierre-taller-implementation.md`.
+
+A quedó cerrado localmente: titular verificado, resumen de empleados y trabajos,
+evidencia comercial conservadora y reglas de siete días de gracia. La preparación
+no inicia plazos, no es una autorización para cerrar, no cancela renovaciones ni
+ejecuta borrados. No agrega pantallas, endpoints o comandos de cierre. El estado
+actual de Cuenta continúa siendo correcto: el cierre todavía no está disponible.
+
+MP y Email no bloquean esta lectura local; la coordinación con proveedores y las
+políticas de retención/backups siguen siendo requisitos de sus cortes y activación.
+No se reabre el alcance de exportación ni se alteran migraciones congeladas.
+
+Validación final backend: 57 unitarias y 41 IT contra PostgreSQL 16, cero fallos,
+errores u omisiones, más empaquetado sin propiedades secretas. Se cubren aislamiento,
+captura consistente, cero DML, prueba de descarga sin consumir y evidencia comercial
+contradictoria o histórica (PRO sin respaldo no se justifica por un historial cancelado).
+Frontend sólo cambia documentación. B–E pendientes; sigue B, estado durable y
+coordinación de escrituras/sesiones. Un commit por repositorio, sin push ni merge.

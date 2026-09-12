@@ -86,6 +86,30 @@ integral, el cierre coordinado ADMIN, retenciones y la recepción/atención/entr
 real. No se crearon expedientes reales ni se enviaron correos; MP sigue pospuesto.
 No hay cambios productivos ni migraciones, y Confianza y cuenta sigue abierto.
 
+## Exportación integral — secuencia local, 2026-09-12
+
+Se continúa el pendiente de Confianza y cuenta en cuatro cortes: **A**, autorización
+interna con contraseña actual, ADMIN y email verificado; **B**, datos y formato del
+paquete; **C**, generación durable, cifrado y conservación temporal; **D**, API,
+pantalla y verificación del recorrido completo. El detalle está en backend:
+`docs/plans/2026-09-12-exportacion-integral-implementation.md`.
+
+**A cerrado localmente:** el backend aprobó `clean verify`, con 7.492 pruebas
+unitarias y 1.390 de integración, sin fallos ni omisiones. V27–V30 permanecen
+intactas y la nueva V31 conserva la compatibilidad legal. El acta backend registra
+la evidencia y sus límites. Este cambio frontend es documental, revisado por diff.
+
+El corte A incorpora una autorización de un solo uso vinculada a la sesión y al
+taller, con vencimiento máximo de cinco minutos. Su consumo debe compartir la
+transacción del trabajo que autoriza. Todavía no hay endpoint, pantalla ni descarga
+integral disponible; el Excel operativo conserva su alcance. El corte D debe
+protegerlo o retirarlo para que no evite la reautenticación prevista.
+
+El paquete excluirá PIN/patrón, credenciales y tokens internos. La constancia legal
+personal se limita al solicitante; ser ADMIN no habilita descargar aceptaciones
+personales de empleados. El cierre coordinado del taller sigue como operación
+posterior. MP conserva la pausa acordada y no se reabre el pulido A–D cerrado.
+
 ## Email — continuación acordada el 2026-09-12
 
 El usuario confirmó propiedad de `orden-fix.com.ar`. Vercel muestra el dominio raíz

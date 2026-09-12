@@ -38,10 +38,12 @@ runtime, sin activar servicios externos ni realizar push.
 
 ## Email — continuación acordada el 2026-09-12
 
-El usuario confirmó propiedad de `orden-fix.com.ar`. Su DNS público ya delega en
-Vercel; falta acreditar la asignación al proyecto, deploy HTTPS y verificación de
-remitente en Resend. La nueva API key pasó autenticación SMTP con TLS sin enviar
-correos; tiene permisos de envío, sin acceso administrativo a dominios.
+El usuario confirmó propiedad de `orden-fix.com.ar`. Vercel muestra el dominio raíz
+y `www` vinculados al proyecto `order-fix`, con redirección a `www` y certificados
+administrados. Falta comprobar qué repo/rama está desplegado y el recorrido con la API.
+El dominio de envío `cuenta.orden-fix.com.ar` ya está Verified en Resend, región São
+Paulo, con los tres registros DNS publicados bajo autorización explícita del usuario.
+La API key conserva permisos de envío, sin acceso administrativo a dominios.
 
 Se divide el trabajo restante de Email en tres cortes acotados:
 
@@ -49,13 +51,16 @@ Se divide el trabajo restante de Email en tres cortes acotados:
   importa secretos sólo al arrancar, TLS obligatorio/timeouts y recuperación enviada
   después del commit con HTML escapado y errores sanitizados. Backend: 61 pruebas
   focalizadas aprobadas y cuatro escenarios del launcher simulado. No hubo envío real.
-- **B pendiente:** dominio de envío, registros Resend en DNS Vercel, remitente y
-  recepción de un correo controlado en una casilla autorizada.
+- **B configurado y entrega acreditada:** dominio Verified, DKIM/SPF/MX publicados y
+  remitente `notificaciones@cuenta.orden-fix.com.ar` configurado localmente. Un único
+  correo sintético autorizado, enviado por el adaptador Java real, figura Sent/Delivered
+  en Resend (2026-09-12 10:12 -03). Falta la confirmación visual de Recibidos/Spam del titular.
 - **C pendiente de staging:** registro, verificación y recuperación de contraseña con
   frontend/backend reales, enlaces HTTPS y operación del correo.
 
 La implementación quedó en backend `93860d4`; su evidencia está en
-`docs/plans/2026-09-12-email-transaccional-implementation.md`; los pasos operativos en
+`docs/plans/2026-09-12-email-transaccional-implementation.md`. El corte B se registra en
+`docs/plans/2026-09-12-email-dominio-entrega-implementation.md`; los pasos operativos en
 `docs/operations/email.md`. La API key se conserva sólo en backend, nunca en `VITE_*`.
 El remitente de cuenta no se presenta como canal de soporte o privacidad. Identidad,
 alta y contactos definitivos conservan su fase al final, después de MP y Email.

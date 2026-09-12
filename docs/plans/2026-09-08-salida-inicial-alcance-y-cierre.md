@@ -127,7 +127,10 @@ cuatro cortes locales se documentan en
 [Pulido local y pendientes](2026-09-12-pulido-local-y-pendientes.md): Excel, Planes y
 permisos, Inicio/Clientes en móvil y comprobación final. Este ajuste prioriza ese
 trabajo antes del sandbox de MP descrito arriba; no lo declara terminado ni activa
-el proveedor. Los cortes aún no están implementados.
+el proveedor. **A está cerrado localmente:** Excel con formato/tipos útiles y descarga
+con alcance y errores claros; 5 tests backend, 13 Vitest y 3 Playwright aprobados.
+Los límites de la revisión visual y de integración están en el acta enlazada.
+B–D siguen pendientes; el próximo es Planes y permisos.
 
 La base funcional conserva su evidencia local previa. Fotos contra Cloudinary real,
 Email C, MP, solicitudes/cierre y despliegue/recuperación mantienen sus pendientes.

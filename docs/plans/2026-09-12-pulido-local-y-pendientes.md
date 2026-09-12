@@ -1,12 +1,12 @@
 # OrdenFix — pulido local y pendientes de salida
 
-Fecha: 2026-09-12. Estado: diagnóstico realizado; cuatro cortes locales propuestos,
-todavía sin implementar. Este documento responde al pedido de mejorar la experiencia
+Fecha: 2026-09-12. Estado: corte A implementado y verificado localmente; B–D pendientes.
+Este documento responde al pedido de mejorar la experiencia
 y el Excel, con un alcance que se pueda terminar.
 
-Base revisada: frontend `5a86605`, backend `35ecb8f`. Se inspeccionaron código, pruebas
-existentes y actas; esta revisión no ejecutó suites, abrió un Excel real ni acreditó
-la apariencia en navegador. La evidencia funcional anterior conserva sus límites.
+Base del diagnóstico: frontend `5a86605`, backend `35ecb8f`. Esa revisión inicial
+inspeccionó código, pruebas existentes y actas. La evidencia nueva del corte A se
+detalla al final; la evidencia funcional anterior conserva sus límites.
 
 ## Qué está resuelto y qué falta
 
@@ -165,5 +165,49 @@ contratos congelados no se modifican. No agregar arquitectura, reportes nuevos n
 automatizaciones de baja como requisito del pulido. Un nuevo bloqueo se registra con
 reproducción y efecto sobre la salida antes de alterar esta lista.
 
-Esta entrega es documental: se verifican el diff, las referencias y el estado Git;
-no cambia código, configuración privada, flags, migraciones ni servicios externos.
+El diagnóstico inicial fue documental (`5761b2a`). La implementación aprobada del
+corte A y su validación se registran a continuación.
+
+## Corte A cerrado localmente — 2026-09-12
+
+El titular aprobó comenzar por Excel. Backend conserva cuatro hojas/columnas/cálculos
+y acceso ADMIN por taller; agrega filtros, bandas, encabezado verde oscuro, fuente
+Arial, anchos limitados y ajuste de texto. Las fechas pasan de cadenas a valores Excel
+sin conversión de zona; se conservan horas y segundos subyacentes. Importes mantienen
+su valor numérico con formato ARS de dos decimales, y los identificadores de texto
+mantienen ceros/prefijos. No se modifica la semántica de cobros ni se agregan totales.
+
+Frontend aclara el alcance, reutiliza `btnGhost` y comunica generación con `aria-busy`.
+La descarga utiliza manejo local de errores y deja sesiones/permisos al interceptor:
+no duplica avisos. Puede leer un mensaje breve de un error JSON Blob; respuestas de
+servidor/red/inesperadas usan texto local. Conserva nombre de archivo, descarga y
+liberación de URL temporal; sólo ADMIN ve la acción en Inicio.
+
+Validación aprobada: **5 tests backend** (`ExportTests` y `ExportServiceTest`, H2/mocks),
+**13 Vitest**, **3 Playwright Chromium**, typecheck, ESLint focalizado y revisión de
+diff. Los E2E comprueban descarga/nombre, acción oculta a USER y error JSON Blob único;
+usan API simulada. No se ejecutó integral ni se acreditó PostgreSQL/staging en este corte.
+
+Se generó un XLSX sintético con el servicio y se inspeccionó el render de las cuatro
+hojas. El visor omite algunas características e interpreta mal identificadores
+numéricos almacenados como texto; POI y una lectura independiente del OOXML comprueban
+los valores completos, ceros/prefijos y ausencia de fórmulas. La apertura en Numbers
+agotó el tiempo de espera y no se acredita. No se cambió el archivo para acomodar
+esa limitación del visor. Backend quedó en `2cbffd1` (`feat(export): mejora el Excel
+operativo`). El acta backend amplía la compatibilidad de fechas y los
+límites de revisión en `docs/plans/2026-09-12-export-excel-operativo-implementation.md`.
+
+Comandos frontend ejecutados:
+
+```sh
+npx vitest run src/components/ExportExcelButton.test.tsx src/api/mutations/export.mutations.test.ts
+npx eslint src/components/ExportExcelButton.tsx src/components/ExportExcelButton.test.tsx src/api/mutations/export.mutations.ts e2e/export.spec.ts
+npm run typecheck
+npx playwright test e2e/export.spec.ts --project=chromium --workers=1
+```
+
+El primer intento Playwright no pudo abrir el puerto local dentro del sandbox;
+la ejecución autorizada completó los tres casos. No hubo fallo de aplicación.
+Cambios y actas se guardan en un commit atómico por repositorio, sin push ni merge,
+preservando los archivos no versionados ajenos. El siguiente corte es **B — Planes**;
+integraciones, identidad y despliegue conservan su orden y pendientes.

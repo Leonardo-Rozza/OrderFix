@@ -14,7 +14,9 @@ Los recorridos de cuenta, taller/empleados, reparación/presupuesto/entrega y re
 manual de cobros tienen evidencia previa con navegador, HTTP y PostgreSQL locales.
 También existen fotos privadas, documentos y baja del acceso del empleado. Esto
 permite trabajar sobre la experiencia sin reconstruir el núcleo de reparaciones.
-No acredita todavía todas las integraciones reales ni el cierre completo del taller.
+El cierre y la restauración del acceso ya tienen API y pantalla ensayadas en local
+(corte E, detrás de flags apagados). Todavía falta completar la eliminación integral
+y acreditar las integraciones y operación reales de salida; ver el acta de E al final.
 
 El backend completó los dos cambios de producto identificados en este diagnóstico:
 mejoró la generación del Excel e informa precio/disponibilidad de contratación
@@ -148,7 +150,7 @@ Estos cinco frentes continúan abiertos; terminar A–D no los marca como resuel
 | MP | Checkout, firma/inbox, reintentos, conciliación y cancelación con pruebas locales. | Aplicación/cuentas de prueba, retorno y webhook HTTPS; probar alta, activación/rechazo, cancelación y matriz de eventos contra el proveedor. No procesa pagos taller–cliente. |
 | Fotos | Flujo privado local; adapter productivo contra Cloudinary real acreditado con PNG/JPEG: carga, lectura exacta, HTTP 401 anónimo y borrado confirmado. | Recorrido completo en staging, configuración del rol y política de retención/backups/CDN. Identificar antes de limpiar cuentas y assets históricos de prueba autorizados. |
 | Email C | SMTP Resend y dominio verificado; correo autorizado recibido. | Registro, verificación y recuperación desde la app desplegada, enlaces HTTPS y operación del envío. La recepción de una prueba no cierra este recorrido. |
-| Datos, cierre y publicación legal | Cuenta, baja del empleado y reporte operativo ensayados localmente; bloqueo de enlaces de talleres inactivos y runbook con casos sintéticos. Exportación integral A–D implementada: reautenticación, captura consistente, ZIP cifrado con fotos permitidas, vencimiento/limpieza, API y pantalla; descarga de ZIP/Excel protegida. Integral backend D aprobado: 7.578 unitarias y 1.475 IT; secuencia A–D en el plan backend `2026-09-12-exportacion-integral-implementation.md`. | Activar con capacidad/operación del despliegue; después cierre coordinado ADMIN y vía real de solicitudes/entrega, retención y contactos atendidos. La baja USER y el Excel no resuelven esos pedidos. Identidad/alta y textos definitivos conservan la etapa final acordada, después de MP y Email. |
+| Datos, cierre y publicación legal | Cuenta, baja del empleado y reporte operativo ensayados localmente; bloqueo de enlaces de talleres inactivos y runbook con casos sintéticos. Exportación integral A–D implementada: reautenticación, captura consistente, ZIP cifrado con fotos permitidas, vencimiento/limpieza, API y pantalla; descarga de ZIP/Excel protegida. Integral backend D aprobado: 7.578 unitarias y 1.475 IT; secuencia A–D en el plan backend `2026-09-12-exportacion-integral-implementation.md`. Cierre E incorpora API/pantalla ADMIN, restricción/restauración y descarga previa; ensayo real local aprobado, flags apagados. | Completar D (conservación, supresión de negocio/identidad, recibos remotos y recuperación), acreditar capacidad/operación del despliegue y vía real de solicitudes/entrega con contactos atendidos. La baja USER y el Excel no resuelven esos pedidos. Identidad/alta y textos definitivos conservan la etapa final acordada, después de MP y Email. |
 | Despliegue y recuperación | Ramas identificadas y Vercel conectado a main. | Configurar y acreditar versión frontend/API en staging, gates de publicación, recorrido móvil, backup restaurado y recuperación del despliegue. El usuario hará push/merge. |
 
 Exportación integral B queda cerrado localmente con 7 unitarias y 102 de integración
@@ -483,3 +485,18 @@ puede ser **E: API y pantalla de solicitud, restricción y restauración**, apag
 para producción y sin prometer eliminación completa o efectos externos confirmados.
 No se amplía la gracia de siete días. Frontend sólo documenta este corte, sin build
 ni navegador; sus 77 archivos ajenos no versionados se preservan. Sin push ni merge.
+
+
+## 2026-09-13 — cierre del taller E
+
+Backend `2d73e39`; E cerrado en local con integral backend y recorrido real aprobados.
+E incorpora API, pantalla ADMIN y navegación restringida, detrás de flags apagados.
+El circuito permite confirmar con contraseña/frase, volver a ingresar, consultar
+la constancia, descargar un ZIP previo vigente y restaurar durante los siete días
+originales. El perfil remoto se valida antes de mostrar datos operativos.
+
+El [acta de E](2026-09-13-cierre-taller-e.md) concentra diseño, contrato, evidencias,
+comandos y commits de este corte. Sustituye la indicación histórica anterior de
+API/pantalla pendientes. No habilita cierre productivo ni declara borrado completo:
+D conserva sus pendientes de retención, supresión, recibos remotos y recuperación.
+Sin push ni merge; se preservan cambios ajenos y configuración real.

@@ -482,6 +482,10 @@ export const validatePublicApiEnvironment = (environment) => {
 
 export const validatePublicEnvironment = (environment) => {
   const issues = validatePublicApiEnvironment(environment);
+  // E remains a local capability until retention, provider receipts and recovery are accredited.
+  if (environment.VITE_WORKSHOP_CLOSURE_ENABLED === 'true') {
+    issues.push(issue('WORKSHOP_CLOSURE_NOT_RELEASED', 'VITE_WORKSHOP_CLOSURE_ENABLED'));
+  }
 
   for (const variable of PUBLIC_CONTACT_VARIABLES) {
     const value = environment[variable]?.trim();

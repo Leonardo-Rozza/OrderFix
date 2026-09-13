@@ -6,13 +6,15 @@ import { useSessionIdentity } from '../hooks/useSessionIdentity';
 
 interface NavbarProps {
   title?: string;
+  restricted?: boolean;
 }
 
 /** Barra superior. En desktop muestra el título de la sección; en mobile, la marca. */
-export const Navbar = ({ title }: NavbarProps) => {
+export const Navbar = ({ title, restricted = false }: NavbarProps) => {
   const { logout } = useAuth();
   const identity = useSessionIdentity();
   const navigate = useNavigate();
+  const homeLabel = restricted ? 'Ir a Cuenta' : 'Ir al inicio';
 
   const handleLogout = () => {
     logout();
@@ -24,11 +26,11 @@ export const Navbar = ({ title }: NavbarProps) => {
       <div className="flex h-full items-center justify-between gap-2 px-4 lg:gap-3 lg:px-6">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <Link
-            to="/dashboard"
+            to={restricted ? '/cuenta' : '/dashboard'}
             className="flex min-w-0 flex-1 items-center gap-2 rounded-lg lg:hidden"
             aria-label={identity.isLoading
-              ? 'OrdenFix — Cargando taller — Ir al inicio'
-              : `OrdenFix — Taller ${identity.taller} — Ir al inicio`}
+              ? `OrdenFix — Cargando taller — ${homeLabel}`
+              : `OrdenFix — Taller ${identity.taller} — ${homeLabel}`}
           >
             <Logo size={32} withText={false} className="shrink-0" />
             <span className="min-w-0 leading-tight">

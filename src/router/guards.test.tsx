@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -7,6 +7,9 @@ import { MemoryRouter, Routes, Route } from 'react-router';
 import { ProtectedRoute, PublicRoute } from './guards';
 import { authStore } from '../store/auth.store';
 import { server, API } from '../test/server';
+
+const flags = vi.hoisted(() => ({ enabled: false }));
+vi.mock('../config/workshopClosure', () => ({ get workshopClosureEnabled() { return flags.enabled; } }));
 
 // JWT de mentira con el exp dado (segundos).
 const b64url = (o: object) => btoa(JSON.stringify(o)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
@@ -42,6 +45,8 @@ const renderProtegida = () => {
           <Routes>
             <Route path="/priv" element={<ProtectedRoute><div>PRIVADO</div></ProtectedRoute>} />
             <Route path="/login" element={<div>LOGIN</div>} />
+            <Route path="/cuenta" element={<div>CUENTA</div>} />
+            <Route path="/cuenta/cierre" element={<div>CIERRE</div>} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>
@@ -50,12 +55,41 @@ const renderProtegida = () => {
 };
 
 beforeEach(() => {
+  flags.enabled = false;
   authStore.getState().logout();
   window.history.pushState({}, '', '/login');
   server.use(http.get(`${API}/perfil`, () => HttpResponse.json(perfil)));
 });
 
 describe('ProtectedRoute', () => {
+  it.each([false, true])('el perfil restringido evita operación y suscripción (flag %s)', async (enabled) => {
+    flags.enabled = enabled;
+    let subscriptions = 0;
+    server.use(
+      http.get(`${API}/perfil`, () => HttpResponse.json({ ...perfil, accesoTaller: 'RESTRICTED' })),
+      http.get(`${API}/suscripcion`, () => { subscriptions++; return new HttpResponse(null, { status: 423 }); }),
+    );
+    authStore.getState().login(tokenVigente(), 'a@a.com');
+    const { client } = renderProtegida();
+    client.setQueryData(['perfil'], { ...perfil, accesoTaller: 'OPERATIVE' });
+    expect(await screen.findByText(enabled ? 'CIERRE' : 'CUENTA')).toBeInTheDocument();
+    expect(screen.queryByText('PRIVADO')).not.toBeInTheDocument();
+    expect(subscriptions).toBe(0);
+    expect(authStore.getState().isAuthenticated).toBe(true);
+  });
+
+  it('no permite operar con un enum remoto desconocido aunque el plan esté cacheado', async () => {
+    let subscriptions = 0;
+    server.use(
+      http.get(`${API}/perfil`, () => HttpResponse.json({ ...perfil, accesoTaller: 'ELIMINADO' })),
+      http.get(`${API}/suscripcion`, () => { subscriptions++; return HttpResponse.json(suscripcion); }),
+    );
+    authStore.getState().login(tokenVigente(), 'a@a.com');
+    renderProtegida();
+    expect(await screen.findByText('No pudimos validar tu sesión')).toBeInTheDocument();
+    expect(screen.queryByText('PRIVADO')).not.toBeInTheDocument();
+    expect(subscriptions).toBe(0);
+  });
   it('redirige a /login sin sesión', () => {
     renderProtegida();
     expect(screen.getByText('LOGIN')).toBeInTheDocument();
@@ -130,14 +164,15 @@ describe('ProtectedRoute', () => {
     expect(intentos).toBe(2);
   });
 
-  it('inicia perfil y suscripción en paralelo sin bloquear por el perfil', async () => {
+  it('espera el perfil fresco antes de consultar el plan y mostrar la operación', async () => {
     let perfilSolicitado = false;
+    let subscriptions = 0;
     let responderPerfil: (() => void) | undefined;
     const perfilPendiente = new Promise<void>((resolve) => {
       responderPerfil = resolve;
     });
     server.use(
-      http.get(`${API}/suscripcion`, () => HttpResponse.json(suscripcion)),
+      http.get(`${API}/suscripcion`, () => { subscriptions++; return HttpResponse.json(suscripcion); }),
       http.get(`${API}/perfil`, async () => {
         perfilSolicitado = true;
         await perfilPendiente;
@@ -149,11 +184,13 @@ describe('ProtectedRoute', () => {
     renderProtegida();
 
     await waitFor(() => expect(perfilSolicitado).toBe(true));
-    expect(await screen.findByText('PRIVADO')).toBeInTheDocument();
+    expect(screen.queryByText('PRIVADO')).not.toBeInTheDocument();
+    expect(subscriptions).toBe(0);
     responderPerfil?.();
+    expect(await screen.findByText('PRIVADO')).toBeInTheDocument();
   });
 
-  it('mantiene visible la aplicación si el perfil falla de forma recuperable', async () => {
+  it('un fallo recuperable del perfil conserva sesión y oculta la operación', async () => {
     server.use(
       http.get(`${API}/suscripcion`, () => HttpResponse.json(suscripcion)),
       http.get(`${API}/perfil`, () => new HttpResponse(null, { status: 500 })),
@@ -162,7 +199,8 @@ describe('ProtectedRoute', () => {
 
     renderProtegida();
 
-    expect(await screen.findByText('PRIVADO')).toBeInTheDocument();
+    expect(await screen.findByText('No pudimos validar tu sesión')).toBeInTheDocument();
+    expect(screen.queryByText('PRIVADO')).not.toBeInTheDocument();
     expect(authStore.getState().isAuthenticated).toBe(true);
   });
 
@@ -186,17 +224,38 @@ describe('ProtectedRoute', () => {
 });
 
 describe('PublicRoute', () => {
-  it('redirige al dashboard si hay sesión válida', () => {
+  it.each([false, true])('una sesión vigente restringida vuelve a Cuenta (flag %s) sin plan', async (enabled) => {
+    flags.enabled = enabled;
+    let subscriptions = 0;
+    server.use(
+      http.get(`${API}/perfil`, () => HttpResponse.json({ ...perfil, accesoTaller: 'RESTRICTED' })),
+      http.get(`${API}/suscripcion`, () => { subscriptions++; return new HttpResponse(null, { status: 423 }); }),
+    );
+    authStore.getState().login(tokenVigente(), 'a@a.com');
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter initialEntries={['/login']}><Routes>
+        <Route path="/login" element={<PublicRoute><div>FORM LOGIN</div></PublicRoute>} />
+        <Route path="/dashboard" element={<div>DASHBOARD</div>} />
+        <Route path="/cuenta" element={<div>CUENTA</div>} />
+        <Route path="/cuenta/cierre" element={<div>CIERRE</div>} />
+      </Routes></MemoryRouter>
+    </QueryClientProvider>);
+    expect(screen.queryByText('FORM LOGIN')).not.toBeInTheDocument();
+    expect(await screen.findByText(enabled ? 'CIERRE' : 'CUENTA')).toBeInTheDocument();
+    expect(subscriptions).toBe(0);
+  });
+  it('redirige al dashboard después de confirmar el perfil remoto', async () => {
     authStore.getState().login(tokenVigente(), 'a@a.com');
     render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <MemoryRouter initialEntries={['/login']}>
         <Routes>
           <Route path="/login" element={<PublicRoute><div>FORM LOGIN</div></PublicRoute>} />
           <Route path="/dashboard" element={<div>DASHBOARD</div>} />
         </Routes>
-      </MemoryRouter>
+      </MemoryRouter></QueryClientProvider>
     );
-    expect(screen.getByText('DASHBOARD')).toBeInTheDocument();
+    expect(await screen.findByText('DASHBOARD')).toBeInTheDocument();
   });
 
   it('muestra el login si no hay sesión', () => {

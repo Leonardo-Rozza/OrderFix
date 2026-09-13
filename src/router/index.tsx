@@ -24,9 +24,14 @@ import { AccountRoute } from './AccountRoute';
 import { AccountPage } from '../pages/AccountPage';
 import { AccountAccessExitPage } from '../pages/AccountAccessExitPage';
 import { AccountExportPage } from '../pages/AccountExportPage';
+import AccountClosurePage from '../pages/AccountClosurePage';
 
 // Configuración de rutas
 const appRoutes = [
+  {
+    path: '/cuenta/cierre',
+    element: <AccountRoute><AccountClosurePage /></AccountRoute>,
+  },
   {
     path: '/cuenta/exportacion',
     element: <AccountRoute><AccountExportPage /></AccountRoute>,

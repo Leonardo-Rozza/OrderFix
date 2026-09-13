@@ -12,6 +12,7 @@ export const fetchPerfil = async (signal?: AbortSignal, timeout?: number): Promi
   const { data } = await apiClient.get<Perfil>('/perfil', {
     signal,
     errorMode: 'inline',
+    sessionValidation: 'profile',
     ...(timeout === undefined ? {} : { timeout }),
   });
   return data;

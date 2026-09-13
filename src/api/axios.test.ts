@@ -29,6 +29,30 @@ afterEach(() => {
 });
 
 describe('axios interceptor de errores', () => {
+  it.each([401, 403, 423, 429, 503])('cierre %s queda a cargo de la página sin perder el aviso o abrir validaciones', async (status) => {
+    authStore.getState().login('sesion-cierre', 'titular@taller.invalid');
+    let validations = 0;
+    server.use(
+      http.post(`${API}/cuenta/cierre/operaciones`, ({ request }) => {
+        expect(request.headers.get('authorization')).toBe('Bearer sesion-cierre');
+        return HttpResponse.json({ code: 'CIERRE_CONFLICTO', message: 'diagnóstico privado' }, { status });
+      }),
+      http.get(`${API}/perfil`, () => { validations++; return HttpResponse.json({}); }),
+      http.get(`${API}/suscripcion`, () => { validations++; return HttpResponse.json({}); }),
+    );
+    const released = vi.fn();
+    const unsubscribe = subscribeUnsavedChangesRelease(released);
+    try {
+      await expect(apiClient.post('/cuenta/cierre/operaciones', {}, {
+        sessionValidation: 'closure', errorMode: 'inline',
+      })).rejects.toMatchObject({ response: { status } });
+      expect(authStore.getState().token).toBe('sesion-cierre');
+      expect(validations).toBe(0);
+      expect(released).not.toHaveBeenCalled();
+      expect(showError).not.toHaveBeenCalled();
+      expect(captureError).not.toHaveBeenCalled();
+    } finally { unsubscribe(); }
+  });
   it.each([
     { path: '/perfil', method: 'GET', status: 401 },
     { path: '/perfil', method: 'GET', status: 403 },

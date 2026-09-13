@@ -11,7 +11,7 @@ declare module 'axios' {
     /** La superficie que hace el GET muestra su propio error y acción de reintento. */
     errorMode?: 'inline';
     /** Las consultas de Cuenta comprueban el 403 sin depender de la suscripción. */
-    sessionValidation?: 'profile';
+    sessionValidation?: 'profile' | 'closure';
   }
 }
 
@@ -122,6 +122,11 @@ apiClient.interceptors.response.use(
     if (axios.isCancel(error) || error.code === 'ERR_CANCELED') {
       throw error;
     }
+
+    // Cerrar/restaurar puede revocar la sesión antes de que llegue el ACK.
+    // La pantalla compara la sesión y resuelve el resultado incierto sin que
+    // una navegación global borre su aviso. Tampoco reporta el error sensible.
+    if (error.config?.sessionValidation === 'closure') throw error;
 
     const accountRead = error.config?.sessionValidation === 'profile';
     if (accountRead) {

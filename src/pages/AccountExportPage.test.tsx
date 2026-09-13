@@ -9,8 +9,9 @@ import { authStore } from '../store/auth.store';
 import { queryClient } from '../api/queryClient';
 import { AccountExportPage } from './AccountExportPage';
 
-const mocks = vi.hoisted(() => ({ role: 'ADMIN' }));
+const mocks = vi.hoisted(() => ({ role: 'ADMIN', accesoTaller: 'OPERATIVE' }));
 vi.mock('../router/accountProfile', () => ({ useAccountProfile: () => ({
+  accesoTaller: mocks.accesoTaller,
   usuario: { id: 1, role: mocks.role, username: 'Ana', email: 'ana@taller.test' },
   taller: { id: 1, nombre: 'Taller del Centro', telefono: null },
 }) }));
@@ -31,7 +32,7 @@ const fillConfirmation = async () => {
 };
 
 beforeEach(() => {
-  vi.restoreAllMocks(); mocks.role = 'ADMIN'; login(); queryClient.clear();
+  vi.restoreAllMocks(); mocks.role = 'ADMIN'; mocks.accesoTaller = 'OPERATIVE'; login(); queryClient.clear();
   Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:export-test') });
   Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
   vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
@@ -46,6 +47,32 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); queryClient.clear(); });
 
 describe('AccountExportPage', () => {
+  it.each(['QUEUED', 'RUNNING', 'FAILED', 'EXPIRED', 'REVOKED', null])('acceso restringido y estado %s no ofrecen ZIP ni Excel nuevos', async (estado) => {
+    mocks.accesoTaller = 'RESTRICTED';
+    let writes = 0;
+    server.use(
+      http.get(`${API}/exportaciones/actual`, () => HttpResponse.json({ habilitada: true, exportacion: estado ? { ...status, estado } : null })),
+      http.post(`${API}/exportaciones`, () => { writes++; return HttpResponse.json({}); }),
+      http.post(`${API}/export/excel`, () => { writes++; return HttpResponse.json({}); }),
+    );
+    setup();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Consultar estado' })).toBeEnabled());
+    expect(screen.getByText(/el cierre no amplía su vencimiento/)).toBeVisible();
+    expect(screen.queryByRole('button', { name: /Solicitar.*respaldo|Descargar reporte Excel|Descargar respaldo ZIP/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Solicitá uno nuevo|Podés solicitar otro archivo/)).not.toBeInTheDocument();
+    expect(writes).toBe(0);
+  });
+
+  it('acceso restringido no permite descargar un READY que alcanzó su vencimiento', async () => {
+    mocks.accesoTaller = 'RESTRICTED';
+    server.use(http.get(`${API}/exportaciones/actual`, () => HttpResponse.json({
+      habilitada: true, exportacion: { ...status, expiresAt: '2000-01-01T00:00:00Z' },
+    })));
+    setup();
+    expect(await screen.findByText('El respaldo venció')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Descargar respaldo ZIP' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Solicitar/ })).not.toBeInTheDocument();
+  });
   it('no monta ni consulta exportaciones para un empleado', async () => {
     mocks.role = 'USER'; let reads = 0;
     server.use(http.get(`${API}/exportaciones/actual`, () => { reads++; return HttpResponse.json({}); }));
@@ -89,7 +116,8 @@ describe('AccountExportPage', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     } finally { finish(); }
   });
-  it('recupera READY del servidor y exige una nueva contraseña y proof en cada descarga', async () => {
+  it.each(['OPERATIVE', 'RESTRICTED'])('%s recupera READY y exige una nueva contraseña y proof en cada descarga', async (accesoTaller) => {
+    mocks.accesoTaller = accesoTaller;
     server.use(http.get(`${API}/exportaciones/actual`, () => HttpResponse.json({ habilitada: true, exportacion: status })));
     let grants = 0, downloads = 0;
     const tokens = ['b'.repeat(43), 'c'.repeat(43)];

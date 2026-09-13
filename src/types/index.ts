@@ -32,6 +32,8 @@ export interface TokenClaims {
 
 /** Identidad visible de la sesión autenticada (GET /api/perfil). */
 export interface Perfil {
+  /** Ausente sólo en backends anteriores al cierre de taller. Valores desconocidos se rechazan. */
+  accesoTaller?: 'OPERATIVE' | 'RESTRICTED';
   usuario: {
     id: number;
     username: string;

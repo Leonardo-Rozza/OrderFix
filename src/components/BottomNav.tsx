@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router';
-import { isNavItemActive, isNavItemVisible, mobileMoreItems, mobileNavItems } from '../config/nav';
+import { isNavItemActive, isNavItemVisible, mobileMoreItems, mobileNavItems, navItems } from '../config/nav';
 import { useFunciones } from '../api/queries/suscripcion.queries';
 import { useAuth } from '../store/auth.store';
 import { MobileMoreMenu } from './MobileMoreMenu';
 
 /** Barra de navegación inferior (solo mobile). */
-export const BottomNav = ({ accountMode = false }: { accountMode?: boolean }) => {
+export const BottomNav = ({ accountMode = false, restricted = false }: { accountMode?: boolean; restricted?: boolean }) => {
   const [moreOpen, setMoreOpen] = useState(false);
   const { pathname } = useLocation();
   const { isAdmin } = useAuth();
-  const funciones = useFunciones(!accountMode);
+  const funciones = useFunciones(!accountMode && !restricted);
+  const items = restricted ? navItems.filter((item) => item.key === 'cuenta') : mobileNavItems;
   const visibleMoreItems = mobileMoreItems.filter((item) =>
     isNavItemVisible(item, { isAdmin, funciones })
   );
@@ -19,7 +20,7 @@ export const BottomNav = ({ accountMode = false }: { accountMode?: boolean }) =>
   return (
     <>
       <nav aria-label="Principal" className="sticky bottom-0 z-30 flex border-t border-border bg-surface px-1 pb-[max(0.375rem,env(safe-area-inset-bottom))] pt-1.5 lg:hidden">
-        {mobileNavItems.map((item) => (
+        {items.map((item) => (
           <NavLink
             key={item.key}
             to={item.path}
@@ -33,7 +34,7 @@ export const BottomNav = ({ accountMode = false }: { accountMode?: boolean }) =>
             {item.mobileLabel ?? item.label}
           </NavLink>
         ))}
-        <button
+        {!restricted && <button
           type="button"
           aria-haspopup="dialog"
           aria-expanded={moreOpen}
@@ -50,14 +51,14 @@ export const BottomNav = ({ accountMode = false }: { accountMode?: boolean }) =>
             <rect x="14" y="14" width="6" height="6" rx="1.5" />
           </svg>
           Más
-        </button>
+        </button>}
       </nav>
 
-      <MobileMoreMenu
+      {!restricted && <MobileMoreMenu
         isOpen={moreOpen}
         onClose={() => setMoreOpen(false)}
         items={visibleMoreItems}
-      />
+      />}
     </>
   );
 };

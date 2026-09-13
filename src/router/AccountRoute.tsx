@@ -11,6 +11,7 @@ import { Loader } from '../components/Loader';
 import { AccountProfileContext } from './accountProfile';
 
 const profileSchema = z.object({
+  accesoTaller: z.enum(['OPERATIVE', 'RESTRICTED']).optional(),
   usuario: z.object({
     id: z.number().int().positive(),
     username: z.string().min(1),
@@ -24,7 +25,7 @@ const profileSchema = z.object({
   }),
 });
 
-const AccountSession = ({ token, children }: { token: string; children: ReactNode }) => {
+const AccountSession = ({ token, children, purpose }: { token: string; children: ReactNode; purpose: 'account' | 'session' }) => {
   // Una entrada a Cuenta siempre exige una observación nueva. No guarda tokens
   // en query keys ni reutiliza el perfil visual que puede seguir fresco en caché.
   const [scope] = useState(() => crypto.randomUUID());
@@ -55,12 +56,12 @@ const AccountSession = ({ token, children }: { token: string; children: ReactNod
   if (profile.isPending) return (
     <div className="flex min-h-[50vh] items-center justify-center" role="status" aria-live="polite">
       <Loader size="lg" />
-      <span className="sr-only">Validando acceso a Cuenta…</span>
+      <span className="sr-only">{purpose === 'account' ? 'Validando acceso a Cuenta…' : 'Validando sesión…'}</span>
     </div>
   );
   if (profile.isError) return (
     <div className="mx-auto max-w-lg px-4 text-center">
-      <ErrorState title="No pudimos validar tu cuenta"
+      <ErrorState title={purpose === 'account' ? 'No pudimos validar tu cuenta' : 'No pudimos validar tu sesión'}
         message="Revisá tu conexión e intentá de nuevo. Tu sesión sigue abierta."
         onRetry={() => void profile.refetch()} />
       <button type="button" onClick={() => authStore.getState().logout()}
@@ -73,9 +74,9 @@ const AccountSession = ({ token, children }: { token: string; children: ReactNod
 };
 
 /** Cuenta requiere sesión remota vigente, sin depender de funciones comerciales. */
-export const AccountRoute = ({ children }: { children: ReactNode }) => {
+export const AccountRoute = ({ children, purpose = 'account' }: { children: ReactNode; purpose?: 'account' | 'session' }) => {
   const { token, isAuthenticated } = useAuth();
   if (!isAuthenticated || !token || isTokenExpired(token)) return <Navigate to="/login" replace />;
   // También descarta lectores/historial pendientes al cambiar el token.
-  return <AccountSession key={token} token={token}>{children}</AccountSession>;
+  return <AccountSession key={token} token={token} purpose={purpose}>{children}</AccountSession>;
 };

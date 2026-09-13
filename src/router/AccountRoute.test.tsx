@@ -23,7 +23,10 @@ const profile: Perfil = {
   usuario: { id: 1, username: 'Ana', email: 'ana@taller.test', role: 'ADMIN' },
   taller: { id: 1, nombre: 'Taller Uno', telefono: null },
 };
-const Identity = () => <p>Perfil privado: {useAccountProfile().usuario.email}</p>;
+const Identity = () => {
+  const profile = useAccountProfile();
+  return <><p>Perfil privado: {profile.usuario.email}</p><p>Acceso: {profile.accesoTaller ?? 'anterior'}</p></>;
+};
 const mount = (layout = false, client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) => ({
   client,
   ...render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/cuenta']}><Routes>
@@ -39,6 +42,29 @@ beforeEach(() => {
 });
 
 describe('acceso independiente a Cuenta', () => {
+  it('conserva el estado restringido y limita la navegación sin consultar suscripción', async () => {
+    let subscriptions = 0;
+    server.use(
+      http.get(`${API}/perfil`, () => HttpResponse.json({ ...profile, accesoTaller: 'RESTRICTED' })),
+      http.get(`${API}/suscripcion`, () => { subscriptions++; return new HttpResponse(null, { status: 423 }); }),
+    );
+    authStore.getState().login(token(), profile.usuario.email);
+    mount(true);
+    expect(await screen.findByText('Acceso: RESTRICTED')).toBeVisible();
+    expect(screen.getAllByRole('link').every((link) => ['#contenido', '/cuenta'].includes(link.getAttribute('href')!))).toBe(true);
+    expect(screen.queryByRole('link', { name: 'Reparaciones' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Más' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
+    expect(subscriptions).toBe(0);
+  });
+
+  it.each(['UNKNOWN', null, 1])('un estado de acceso desconocido %s falla cerrado', async (accesoTaller) => {
+    server.use(http.get(`${API}/perfil`, () => HttpResponse.json({ ...profile, accesoTaller })));
+    authStore.getState().login(token(), profile.usuario.email);
+    mount();
+    expect(await screen.findByText('No pudimos validar tu cuenta')).toBeInTheDocument();
+    expect(screen.queryByText(/Perfil privado:/)).not.toBeInTheDocument();
+  });
   it.each([false, true])('redirige sin sesión válida (vencida: %s) sin pedir perfil', (expired) => {
     if (expired) authStore.getState().login(token(undefined, true), profile.usuario.email);
     mount();

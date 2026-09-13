@@ -1064,3 +1064,13 @@ test('el build de producción falla en el guard antes de ejecutar Vite', () => {
   assert.match(output, /PUBLIC_RELEASE_BLOCKED/);
   assert.doesNotMatch(output, /vite v\d/i);
 });
+
+
+test('el cierre local E no se puede habilitar en un build público', () => {
+  assert.equal(validatePublicEnvironment({ ...validEnvironment, VITE_WORKSHOP_CLOSURE_ENABLED: 'true' })
+    .some((entry) => entry.code === 'WORKSHOP_CLOSURE_NOT_RELEASED'), true);
+  for (const value of [undefined, 'false']) {
+    assert.equal(validatePublicEnvironment({ ...validEnvironment, VITE_WORKSHOP_CLOSURE_ENABLED: value })
+      .some((entry) => entry.code === 'WORKSHOP_CLOSURE_NOT_RELEASED'), false);
+  }
+});

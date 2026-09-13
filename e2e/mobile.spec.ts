@@ -323,23 +323,46 @@ test('identidad móvil: conserva el taller accesible, no desborda y usa objetivo
   }
 });
 
-test('identidad móvil: un perfil fallido degrada a un email largo sin provocar overflow', async ({ page, context }) => {
+test('identidad móvil: el perfil remoto falla cerrado y se recupera con texto largo sin overflow', async ({ page, context }) => {
   const emailPrefix = 'administracioncentralreparacionesordenfixsucursaleszonanorte2026';
   const fallbackEmail = `${emailPrefix}@ordenfix.com`;
   let perfilRequests = 0;
+  let profileAvailable = false;
+  let operationalRequests = 0;
 
   await seedAuth(context, futureToken('ROLE_USER'), fallbackEmail);
   await mockApi(page);
+  page.on('request', (request) => {
+    const path = new URL(request.url()).pathname;
+    if (path === '/api/dashboard' || path === '/api/suscripcion') operationalRequests++;
+  });
   await page.route('http://localhost:8080/api/perfil', async (route) => {
     perfilRequests += 1;
-    await route.fulfill({ status: 500, json: { message: 'Perfil temporalmente no disponible' } });
+    if (!profileAvailable) return route.fulfill({ status: 500, json: { message: 'Perfil temporalmente no disponible' } });
+    return route.fulfill({ json: {
+      accesoTaller: 'OPERATIVE',
+      usuario: { id: 1, username: emailPrefix, email: fallbackEmail, role: 'USER' },
+      taller: { id: 1, nombre: 'Taller recuperado', telefono: null },
+    } });
   });
 
   await page.goto('/dashboard');
 
+  await expect(page.getByText('No pudimos validar tu sesión')).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^Hola,/ })).toHaveCount(0);
+  expect(operationalRequests).toBe(0);
+  await expectNoHorizontalOverflow(page);
+  const retry = page.getByRole('button', { name: 'Reintentar', exact: true });
+  await expect(retry).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
+  const requestsBeforeRetry = perfilRequests;
+  profileAvailable = true;
+  await retry.click();
+  await expect.poll(() => perfilRequests).toBeGreaterThan(requestsBeforeRetry);
+
   const heading = page.getByRole('heading', { name: `Hola, ${emailPrefix} 👋` });
   await expect(heading).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByText('Esto es lo que pasa hoy en Mi taller.')).toBeVisible();
+  await expect(page.getByText('Esto es lo que pasa hoy en Taller recuperado.')).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
   const headingMetrics = await heading.evaluate((element) => ({
@@ -348,11 +371,7 @@ test('identidad móvil: un perfil fallido degrada a un email largo sin provocar 
   }));
   expect(headingMetrics.scrollWidth).toBeLessThanOrEqual(headingMetrics.clientWidth);
 
-  const retry = page.getByRole('button', { name: 'Reintentar perfil' });
-  await expect(retry).toBeVisible();
-  const requestsBeforeRetry = perfilRequests;
-  await retry.click();
-  await expect.poll(() => perfilRequests).toBeGreaterThan(requestsBeforeRetry);
+  await expect(page.getByText('No pudimos validar tu sesión')).toHaveCount(0);
 });
 
 test('smoke móvil: todos los formularios críticos respetan viewport, controles y CTA', async ({ page, context }) => {

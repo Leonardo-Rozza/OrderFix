@@ -1093,3 +1093,18 @@ puede ser **E: API y pantalla de solicitud, restricción y restauración**, apag
 para producción y sin prometer eliminación completa o efectos externos confirmados.
 No se amplía la gracia de siete días. Frontend sólo documenta este corte, sin build
 ni navegador; sus 77 archivos ajenos no versionados se preservan. Sin push ni merge.
+
+
+## 2026-09-13 — cierre del taller E
+
+Backend `2d73e39`; E cerrado en local con integral backend y recorrido real aprobados.
+E incorpora API, pantalla ADMIN y navegación restringida, detrás de flags apagados.
+El circuito permite confirmar con contraseña/frase, volver a ingresar, consultar
+la constancia, descargar un ZIP previo vigente y restaurar durante los siete días
+originales. El perfil remoto se valida antes de mostrar datos operativos.
+
+El [acta de E](2026-09-13-cierre-taller-e.md) concentra diseño, contrato, evidencias,
+comandos y commits de este corte. Sustituye la indicación histórica anterior de
+API/pantalla pendientes. No habilita cierre productivo ni declara borrado completo:
+D conserva sus pendientes de retención, supresión, recibos remotos y recuperación.
+Sin push ni merge; se preservan cambios ajenos y configuración real.

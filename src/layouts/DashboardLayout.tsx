@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useContext, type ReactNode } from 'react';
+import { AccountProfileContext } from '../router/accountProfile';
 import { Sidebar } from '../components/Sidebar';
 import { Navbar } from '../components/Navbar';
 import { BottomNav } from '../components/BottomNav';
@@ -13,7 +14,11 @@ interface DashboardLayoutProps {
   accountMode?: boolean;
 }
 
-export const DashboardLayout = ({ children, title, accountMode = false }: DashboardLayoutProps) => (
+export const DashboardLayout = ({ children, title, accountMode = false }: DashboardLayoutProps) => {
+  const profile = useContext(AccountProfileContext);
+  const restricted = profile?.accesoTaller === 'RESTRICTED';
+  const accountOnly = accountMode || restricted;
+  return (
   <div className="min-h-dvh bg-bg text-text">
     <a
       href="#contenido"
@@ -21,15 +26,16 @@ export const DashboardLayout = ({ children, title, accountMode = false }: Dashbo
     >
       Saltar al contenido
     </a>
-    <Sidebar accountMode={accountMode} />
+    <Sidebar accountMode={accountOnly} restricted={restricted} />
     <div className="flex min-h-dvh flex-col lg:pl-64">
-      {!accountMode && <EmailVerificacionBanner />}
-      <Navbar title={title} />
+      {!accountOnly && <EmailVerificacionBanner />}
+      <Navbar title={title} restricted={restricted} />
       <main id="contenido" tabIndex={-1} className="flex-1 px-4 py-5 outline-none lg:px-6 lg:py-6">
         <div className="mx-auto max-w-6xl">{children}</div>
       </main>
-      <BottomNav accountMode={accountMode} />
+      <BottomNav accountMode={accountOnly} restricted={restricted} />
     </div>
-    {!accountMode && <LimitePlanModal />}
+    {!accountOnly && <LimitePlanModal />}
   </div>
 );
+};

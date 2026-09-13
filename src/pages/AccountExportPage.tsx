@@ -40,7 +40,8 @@ const dateTime = (value: string) => new Intl.DateTimeFormat('es-AR', {
 }).format(new Date(value));
 
 const AdminExportPage = () => {
-  const { taller } = useAccountProfile();
+  const { taller, accesoTaller } = useAccountProfile();
+  const restricted = accesoTaller === 'RESTRICTED';
   const [session] = useState(() => authStore.getState().token);
   const [current, setCurrent] = useState<CurrentAccountExport | null>(null);
   const [reading, setReading] = useState(true);
@@ -116,7 +117,7 @@ const AdminExportPage = () => {
   const status = current?.exportacion;
   const state = status && Date.parse(status.expiresAt) <= now
     && ['QUEUED', 'RUNNING', 'READY'].includes(status.estado) ? 'EXPIRED' : status?.estado;
-  const waiting = state === 'QUEUED' || state === 'RUNNING';
+  const waiting = !restricted && (state === 'QUEUED' || state === 'RUNNING');
   useEffect(() => {
     if (!status || !waiting || !visible || busy || readMessage || retry.isCoolingDown) return;
     const timer = window.setInterval(() => void refresh(status.id), 15_000);
@@ -131,11 +132,11 @@ const AdminExportPage = () => {
   }, [status]);
 
   const openConfirmation = (next: Action) => {
-    if (operation.current || retry.isCoolingDown || forbidden) return;
+    if (operation.current || retry.isCoolingDown || forbidden || (restricted && next !== 'zip')) return;
     setMessage(''); setNotice(''); setAction(next);
   };
   const confirm = async (password: string) => {
-    if (!action || operation.current || retry.isCoolingDown || forbidden) return;
+    if (!action || operation.current || retry.isCoolingDown || forbidden || (restricted && action !== 'zip')) return;
     const selected = action;
     if (selected === 'zip' && (!status || status.estado !== 'READY' || Date.parse(status.expiresAt) <= Date.now())) {
       setMessage('El respaldo venció. Cerrá esta confirmación y consultá su estado.'); return;
@@ -187,17 +188,25 @@ const AdminExportPage = () => {
   };
 
   const blocked = busy || retry.isCoolingDown || forbidden;
-  const canRequest = current?.habilitada && !uncertain && !readMessage && !reading
+  const canRequest = !restricted && current?.habilitada && !uncertain && !readMessage && !reading
     && (!state || ['FAILED', 'EXPIRED', 'REVOKED'].includes(state));
   const canDownload = current?.habilitada && state === 'READY' && !readMessage;
-  const copy = state ? statusCopy[state] : null;
+  const copy = state ? restricted && state !== 'READY'
+    ? { title: statusCopy[state].title, detail: 'Durante el cierre sólo podés descargar un respaldo que ya estuviera listo y siga vigente. No se preparan archivos nuevos.' }
+    : statusCopy[state] : null;
   return <DashboardLayout accountMode title="Exportar datos">
     <div className="ofx-in mx-auto max-w-[900px] space-y-4">
       <div>
         <Link to="/cuenta" className="inline-flex min-h-11 items-center rounded-md text-sm font-bold text-primary underline focus-visible:outline focus-visible:outline-primary">← Volver a Cuenta</Link>
         <h1 className="text-[22px] font-extrabold tracking-tight">Exportar datos</h1>
-        <p className="mt-2 text-sm leading-6 text-text-2 [overflow-wrap:anywhere]">Guardá una copia de los datos de {taller.nombre}. Cada solicitud y descarga requiere tu contraseña actual.</p>
+        <p className="mt-2 text-sm leading-6 text-text-2 [overflow-wrap:anywhere]">{restricted
+          ? `Consultá el respaldo previo de ${taller.nombre}. Cada descarga requiere tu contraseña actual.`
+          : `Guardá una copia de los datos de ${taller.nombre}. Cada solicitud y descarga requiere tu contraseña actual.`}</p>
       </div>
+
+      {restricted && <p role="status" className="rounded-xl border border-border bg-surface-2 p-4 text-sm leading-6 text-text-2">
+        El taller tiene acceso restringido. Podés descargar un respaldo previo que siga disponible; el cierre no amplía su vencimiento. No se pueden solicitar nuevos respaldos ni reportes Excel.
+      </p>}
 
       <section aria-labelledby="export-zip-title" className={`${card} space-y-4 p-4 sm:p-5`}>
         <div>
@@ -225,7 +234,9 @@ const AdminExportPage = () => {
             {status && <p className="mt-2 text-[12.5px] text-text-3">Vencimiento: {dateTime(status.expiresAt)} · hora local</p>}
           </> : reading && !current ? <p role="status" className="text-sm text-text-2">Consultando exportaciones…</p>
             : current && <p className="text-sm text-text-2">Todavía no hay un respaldo para esta cuenta.</p>}
-          {current?.habilitada === false && <p className="mt-2 text-sm leading-6 text-text-2">La preparación de respaldos ZIP todavía no está habilitada. El reporte Excel se gestiona por separado más abajo.</p>}
+          {current?.habilitada === false && <p className="mt-2 text-sm leading-6 text-text-2">{restricted
+            ? 'La descarga de respaldos no está disponible en este momento.'
+            : 'La preparación de respaldos ZIP todavía no está habilitada. El reporte Excel se gestiona por separado más abajo.'}</p>}
           {readMessage && <p role="alert" className="mt-2 text-sm leading-6 text-danger-fg">{readMessage}</p>}
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             {canRequest && <button type="button" className={btnPrimary} disabled={blocked} onClick={() => openConfirmation('request')}>
@@ -239,14 +250,14 @@ const AdminExportPage = () => {
         </div>
       </section>
 
-      <section id="excel" aria-labelledby="export-excel-title" className={`${card} space-y-3 p-4 sm:p-5 scroll-mt-20`}>
+      {!restricted && <section id="excel" aria-labelledby="export-excel-title" className={`${card} space-y-3 p-4 sm:p-5 scroll-mt-20`}>
         <div>
           <span className="text-[12px] font-bold uppercase tracking-wide text-text-3">Reporte operativo · Excel</span>
           <h2 id="export-excel-title" className="mt-1 text-[18px] font-extrabold">Un resumen para trabajar</h2>
           <p className="mt-2 text-sm leading-6 text-text-2">Clientes, órdenes, cobros manuales y presupuestos en un archivo con filtros y formato de lectura. Este reporte no reemplaza al respaldo integral.</p>
         </div>
         <button type="button" className={btnGhost} disabled={blocked} onClick={() => openConfirmation('excel')}>Descargar reporte Excel</button>
-      </section>
+      </section>}
       <p className="text-[12.5px] leading-6 text-text-3">Los cobros reflejan lo registrado por el taller. OrdenFix no procesa pagos de tus clientes ni emite comprobantes fiscales.</p>
       {notice && <p role="status" className="rounded-xl border border-success/30 bg-success-soft p-4 text-sm font-semibold text-success">{notice}</p>}
     </div>

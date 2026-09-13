@@ -53,7 +53,7 @@ describe('perfil query', () => {
     const signal = new AbortController().signal;
     const get = vi.spyOn(apiClient, 'get').mockResolvedValueOnce({ data: perfil });
     await expect(fetchPerfil(signal, 20_000)).resolves.toEqual(perfil);
-    expect(get).toHaveBeenCalledWith('/perfil', { signal, errorMode: 'inline', timeout: 20_000 });
+    expect(get).toHaveBeenCalledWith('/perfil', { signal, errorMode: 'inline', sessionValidation: 'profile', timeout: 20_000 });
   });
   it('envía la señal de cancelación y delega el error a la superficie inline', async () => {
     const controller = new AbortController();
@@ -64,6 +64,7 @@ describe('perfil query', () => {
     expect(get).toHaveBeenCalledWith('/perfil', {
       signal: controller.signal,
       errorMode: 'inline',
+      sessionValidation: 'profile',
     });
   });
 

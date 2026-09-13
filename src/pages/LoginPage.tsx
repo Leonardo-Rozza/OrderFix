@@ -1,4 +1,5 @@
 import { useForm } from 'react-hook-form';
+import { useEffect, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useLocation, useNavigate } from 'react-router';
@@ -19,12 +20,30 @@ type LoginFormData = z.infer<typeof loginSchema>;
 const fieldClass =
   'min-h-11 w-full rounded-md border border-border-strong bg-surface px-3.5 py-3 pl-11 text-base text-text outline-none transition placeholder:text-text-3 focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)] sm:text-[14.5px]';
 
+const closureNotices = {
+  CLOSED: 'El cierre fue confirmado. Iniciá sesión otra vez para consultar el estado actual del taller y las opciones disponibles.',
+  RESTORED: 'La restauración fue confirmada. Iniciá sesión otra vez para consultar el estado actual del taller.',
+  UNKNOWN: 'No pudimos confirmar el resultado de la operación. Iniciá sesión de nuevo para consultar el estado actual antes de volver a intentarlo.',
+} as const;
+const closureNotice = (value: unknown): string | null =>
+  value === 'CLOSED' || value === 'RESTORED' || value === 'UNKNOWN' ? closureNotices[value] : null;
+
 export const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
   const loginMutation = useLoginMutation();
   const retryAfter = useRetryAfter();
+  const [notice] = useState(() => closureNotice(location.state?.workshopClosureNotice));
+  const returnToClosure = location.state?.from?.pathname === '/cuenta/cierre';
+
+  useEffect(() => {
+    if (location.state?.workshopClosureNotice === undefined) return;
+    // El aviso vive en esta pantalla una vez; el historial sólo conserva la ruta
+    // fija de regreso, nunca contraseñas, confirmaciones o un resultado supuesto.
+    navigate(location.pathname, { replace: true,
+      state: returnToClosure ? { from: { pathname: '/cuenta/cierre' } } : null });
+  }, [location.pathname, location.state?.workshopClosureNotice, navigate, returnToClosure]);
 
   const {
     register,
@@ -36,7 +55,7 @@ export const LoginPage = () => {
     try {
       const res = await loginMutation.mutateAsync(data);
       login(res.token, res.email, res.emailVerificado);
-      navigate('/dashboard', { replace: true });
+      navigate(returnToClosure ? '/cuenta/cierre' : '/dashboard', { replace: true });
     } catch (error) {
       retryAfter.startRetryAfter(error);
     }
@@ -52,6 +71,8 @@ export const LoginPage = () => {
 
           <h1 className="mb-1.5 mt-[18px] text-[26px] font-extrabold tracking-tight">Iniciá sesión</h1>
           <p className="mb-6 text-[14.5px] text-text-2">Ingresá con tu cuenta del taller.</p>
+
+          {notice && <p role="status" className="mb-5 rounded-lg bg-surface-2 p-3 text-sm leading-6 text-text-2">{notice}</p>}
 
           {location.state?.accessDeactivated === true && <p role="status" className="mb-5 rounded-lg bg-surface-2 p-3 text-sm leading-6 text-text-2">
             Tu acceso fue desactivado. Tus sesiones anteriores ya no permiten ingresar.

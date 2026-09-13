@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { workshopClosureEnabled } from '../config/workshopClosure';
 import {
   readLegalContactConfig,
   validateLegalContactConfig,
@@ -8,6 +9,7 @@ import {
 interface AccountContactsProps {
   isAdmin: boolean;
   tallerTelefono: string | null;
+  workshopClosureAvailable?: boolean;
 }
 
 const contactFields = [
@@ -19,7 +21,7 @@ const contactFields = [
 /** Codifica el destinatario para que ?/#/% en un email válido no agreguen cabeceras. */
 const emailHref = (email: string) => `mailto:${encodeURIComponent(email)}`;
 
-export const AccountContacts = ({ isAdmin, tallerTelefono }: AccountContactsProps) => {
+export const AccountContacts = ({ isAdmin, tallerTelefono, workshopClosureAvailable = workshopClosureEnabled }: AccountContactsProps) => {
   const environment: LegalContactEnvironment = {
     VITE_PRIVACY_EMAIL: import.meta.env.VITE_PRIVACY_EMAIL,
     VITE_LEGAL_EMAIL: import.meta.env.VITE_LEGAL_EMAIL,
@@ -36,7 +38,10 @@ export const AccountContacts = ({ isAdmin, tallerTelefono }: AccountContactsProp
         Las solicitudes sobre tus datos personales todavía no se gestionan desde la app.
       </p>
       {isAdmin ? (
-        <p className="mt-2 text-[13.5px] leading-relaxed text-text-2">
+        workshopClosureAvailable ? <div className="mt-2 space-y-2 text-[13.5px] leading-relaxed text-text-2">
+          <p>Podés consultar el cierre y la restauración del acceso al taller. Cerrar restringe el acceso de todos los usuarios; no elimina de inmediato tus datos ni confirma la cancelación de una suscripción.</p>
+          <Link to="/cuenta/cierre" className="inline-flex min-h-11 items-center rounded-md font-bold text-primary underline focus-visible:outline focus-visible:outline-primary">Cierre y restauración del taller</Link>
+        </div> : <p className="mt-2 text-[13.5px] leading-relaxed text-text-2">
           El cierre del taller todavía no está disponible en esta pantalla.
           {privacyAvailable && ' Podés consultar por tus datos o la baja escribiendo al contacto de privacidad.'}
         </p>

@@ -7,12 +7,13 @@ import { useSessionIdentity } from '../hooks/useSessionIdentity';
 import { getOfertaPro } from '../utils/ofertaPro';
 
 /** Sidebar de escritorio (oculto en mobile; en mobile se usa BottomNav). */
-export const Sidebar = ({ accountMode = false }: { accountMode?: boolean }) => {
+export const Sidebar = ({ accountMode = false, restricted = false }: { accountMode?: boolean; restricted?: boolean }) => {
   const { isAdmin } = useAuth();
   const identity = useSessionIdentity();
-  const funciones = useFunciones(!accountMode);
-  const { data: sus, isError } = useSuscripcionQuery(!accountMode);
-  const items = navItems.filter((item) => isNavItemVisible(item, { isAdmin, funciones }));
+  const funciones = useFunciones(!accountMode && !restricted);
+  const { data: sus, isError } = useSuscripcionQuery(!accountMode && !restricted);
+  const items = navItems.filter((item) => restricted ? item.key === 'cuenta' : isNavItemVisible(item, { isAdmin, funciones }));
+  const homeLabel = restricted ? 'Ir a Cuenta' : 'Ir al inicio';
 
   // Consumo del plan FREE (nudge a PRO)
   const limite = sus?.plan === 'FREE' ? sus.limiteReparacionesMes : null;
@@ -24,11 +25,11 @@ export const Sidebar = ({ accountMode = false }: { accountMode?: boolean }) => {
     <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-border bg-surface lg:flex">
       <div className="flex h-16 items-center border-b border-border px-5">
         <Link
-          to="/dashboard"
+          to={restricted ? '/cuenta' : '/dashboard'}
           className="flex min-w-0 flex-1 items-center gap-3 rounded-lg transition hover:opacity-80 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)]"
           aria-label={identity.isLoading
-            ? 'OrdenFix — Cargando taller — Ir al inicio'
-            : `OrdenFix — Taller ${identity.taller} — Ir al inicio`}
+            ? `OrdenFix — Cargando taller — ${homeLabel}`
+            : `OrdenFix — Taller ${identity.taller} — ${homeLabel}`}
         >
           <Logo size={34} withText={false} className="shrink-0" />
           <span className="min-w-0 leading-tight">
@@ -86,7 +87,7 @@ export const Sidebar = ({ accountMode = false }: { accountMode?: boolean }) => {
       </nav>
 
       <div className="border-t border-border p-3">
-        {!accountMode && limite != null && (
+        {!accountMode && !restricted && limite != null && (
           <Link to="/planes" className="mb-2 block rounded-lg bg-surface-2 px-3 py-2.5 transition hover:bg-surface-3">
             <div className="mb-1.5 flex items-center justify-between text-[12px]">
               <span className="font-bold text-text-2">Plan FREE</span>

@@ -429,3 +429,28 @@ pantalla y gate integral**. El cierre todavía no está disponible en Cuenta.
 Las integraciones/ensayos reales y decisiones legales/retención conservan su
 etapa pendiente; este corte no habilita borrado ni operaciones de proveedores.
 Se preservan las 77 rutas ajenas no versionadas. Sin push ni merge.
+
+
+## 2026-09-12 — avance D de mantenimiento y recuperación
+
+El backend local se detuvo a pedido del usuario. Continúa apagado mientras se
+verifica este avance con bases PostgreSQL 16 descartables.
+
+Se agregan tres servicios internos: limpieza de temporales vencidos por taller en
+lotes, inventario por categorías y comparación de estados de una copia restaurada
+contra evidencia aportada. Conservan historial y confirmaciones usadas; no llaman
+proveedores ni exponen endpoints. El comparador siempre indica NO_AUTORIZA_REAPERTURA.
+
+D sigue parcial: la eliminación de negocio/identidad, política real de conservación,
+recibos de archivos remotos y recuperación productiva requieren trabajo posterior.
+V27–V34 continúan congeladas. El acta del backend explica por qué un ledger nuevo o
+una limpieza sin pendientes no acreditan eliminación integral. No se publica el
+cierre ni se lo presenta como completado. E mantiene API/pantalla y gate integral
+pendientes. Este repositorio sólo documenta el avance, sin cambios funcionales.
+
+Backend: `3f907b3` — `feat(cuenta): prepara limpieza y recuperacion operativa`.
+Gate consolidado: **125 pruebas aprobadas** (34 unitarias y 91 IT en PostgreSQL16),
+con corrección del límite SQL de lotes y dos ajustes de fixtures; el acta del backend
+conserva los resultados intermedios y la repetición final. Empaquetado sin secretos
+aprobado. Integral reservado para E. Las 77 rutas ajenas no versionadas se preservan;
+frontend sólo cambia documentación, sin necesidad de build o navegador. Sin push.

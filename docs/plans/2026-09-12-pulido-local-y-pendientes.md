@@ -398,3 +398,34 @@ realizan push ni merge.
 Backend consolidado en `1fa29e0` (`feat(cuenta): coordina estado y acceso del cierre`),
 sobre `codex/lanzamiento-publico-backend`. Próximo corte C: confirmación específica,
 propósitos de reautenticación e intención durable/outbox; sin adelantar la UI de E.
+
+## Cierre coordinado del taller — corte C cerrado
+
+C quedó cerrado localmente el 2026-09-12 a las 21:44:11 -03. Backend
+`f4ab0d2` (`feat(cuenta): confirma cierre y restauracion del taller`), en
+`codex/lanzamiento-publico-backend`. El acta está en
+`docs/plans/2026-09-12-cierre-taller-implementation.md` del backend.
+
+Implementa confirmaciones propias CERRAR/RESTAURAR, contraseña/prueba temporal,
+frase escrita y constancia inmutable. El reintento con sesión vigente devuelve
+REUSED sin DML, revocaciones duplicadas ni ampliación de fechas. La transición y
+las intenciones de notificación/cancelación se confirman juntas o se revierten.
+V34 mantiene V27–V33 congeladas y queda congelada al cerrar este corte.
+
+Los vínculos anteriores de MP conservan su marca tras restaurar: no conceden
+nuevos beneficios ni se reutiliza su checkout. Restaurar conserva el plan
+registrado; una cancelación remota validada conserva su tratamiento anterior.
+Avisos ambiguos, objetivos sin ID y coordinación incierta siguen pendientes de
+conciliación. No hay scheduler ni adaptadores reales del nuevo worker.
+
+Gate consolidado: **397 pruebas focales aprobadas** (79 unitarias/servicio y 318 IT
+PostgreSQL16), más diagnóstico de catálogo y empaquetado sin secretos. Las fallas
+intermedias de fixtures se corrigieron y las clases afectadas se repitieron; el
+acta conserva el detalle sin presentar esas corridas como exitosas. El integral
+final queda reservado para E. Frontend sólo documenta C, sin build ni navegador.
+
+Quedan **D, eliminación por categorías y recuperación operativa**, y **E, API,
+pantalla y gate integral**. El cierre todavía no está disponible en Cuenta.
+Las integraciones/ensayos reales y decisiones legales/retención conservan su
+etapa pendiente; este corte no habilita borrado ni operaciones de proveedores.
+Se preservan las 77 rutas ajenas no versionadas. Sin push ni merge.

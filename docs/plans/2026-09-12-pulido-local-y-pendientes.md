@@ -362,5 +362,39 @@ Validación final backend: 57 unitarias y 41 IT contra PostgreSQL 16, cero fallo
 errores u omisiones, más empaquetado sin propiedades secretas. Se cubren aislamiento,
 captura consistente, cero DML, prueba de descarga sin consumir y evidencia comercial
 contradictoria o histórica (PRO sin respaldo no se justifica por un historial cancelado).
-Frontend sólo cambia documentación. B–E pendientes; sigue B, estado durable y
-coordinación de escrituras/sesiones. Un commit por repositorio, sin push ni merge.
+Frontend sólo cambió documentación. Al cerrar A quedaron B–E pendientes, con B como
+siguiente paso. Se mantiene un commit por repositorio, sin push ni merge.
+
+## Cierre coordinado del taller — corte B cerrado
+
+El trabajo se pausó ante el rechazo de la revisión automática al alcance de V33.
+Tras la autorización explícita del usuario («Sí, vamos»), se retomó la nueva
+migración, la adaptación de verificadores y las pruebas en PostgreSQL descartable.
+V27–V32 permanecen congeladas.
+
+B incorpora estado e historial durables y coordinación entre cierre, escrituras
+en vuelo y admisión operativa. V33 protege **28 tablas**; el inventario incluye
+`legal_idempotencia_sin_actos_referencias`. Además agrega y completa `taller_id`
+en `reparacion_fotos`, `presupuesto_items` y `auth_tokens`, con claves foráneas para
+conservar la pertenencia al taller durante las cascadas. Los accesos preventivos
+privados y públicos acompañan la protección SQL; la consulta de cuenta conserva
+su acceso separado del uso operativo.
+
+Se implementaron la compatibilidad exacta de esquema, el control de roles y las
+pruebas de alteraciones del esquema, cascadas y concurrencia. El gate B quedó
+cerrado el 2026-09-12 a las 21:10:19 -03: la corrida integral ejecutó 7.754 unitarias
+y 1.586 IT; sus fallas de fixtures se corrigieron y las 12 clases afectadas se
+repitieron completas (215 IT + 3 unitarias, BUILD SUCCESS). Los informes consolidados
+quedaron sin fallos, errores ni omisiones; el código productivo y las migraciones
+no cambiaron entre ambas corridas. No se presenta el primer clean verify fallido
+como una ejecución exitosa. El acta técnica detallada está en el plan backend
+`docs/plans/2026-09-12-cierre-taller-implementation.md`.
+
+C–E continúan pendientes: todavía no hay API ni pantalla para solicitar o restaurar el cierre,
+y este corte no habilita eliminación de datos ni operaciones reales de proveedores.
+Frontend sólo actualiza estos planes; se preservan los archivos ajenos y no se
+realizan push ni merge.
+
+Backend consolidado en `1fa29e0` (`feat(cuenta): coordina estado y acceso del cierre`),
+sobre `codex/lanzamiento-publico-backend`. Próximo corte C: confirmación específica,
+propósitos de reautenticación e intención durable/outbox; sin adelantar la UI de E.

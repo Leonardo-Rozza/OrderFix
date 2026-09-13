@@ -1064,3 +1064,32 @@ con corrección del límite SQL de lotes y dos ajustes de fixtures; el acta del 
 conserva los resultados intermedios y la repetición final. Empaquetado sin secretos
 aprobado. Integral reservado para E. Las 77 rutas ajenas no versionadas se preservan;
 frontend sólo cambia documentación, sin necesidad de build o navegador. Sin push.
+
+
+## 2026-09-12 — mantenimiento legal vencido 15O
+
+Backend `4754f5f` — `feat(legal): mantiene retencion de evidencia tecnica`, en
+`codex/lanzamiento-publico-backend`. Completa el servicio interno previsto en 15O:
+limpia metadata y resultados de reintentos cuyos plazos ya vencieron, conservando
+aceptaciones, documentos y reservas de nonce. Usa un rol separado, transacciones
+acotadas, lotes finitos y coordinación con replay/cierre. No necesita nuevas
+claves ni decide retención de negocio o identidad.
+
+La configuración y el scheduler opcional quedan apagados. No se importa desde la
+aplicación ni expone endpoints. No ejecutó limpieza sobre datos reales ni llamó
+proveedores; el backend local sigue detenido. V27–V34 permanecen congeladas.
+Acta y runbook en backend: `docs/plans/2026-09-06-legal-account-consent-implementation.md`
+(apartado 15O) y `docs/runbooks/legal-account-consent-postgresql.md`.
+
+Gate consolidado: **351 pruebas aprobadas**, 272 unitarias y 79 IT PostgreSQL 16,
+trece clases, sin fallos/errores/omisiones finales. Incluye la corrección de tipos
+de tests y de un fixture que duplicaba una aceptación. Los resultados intermedios
+y repeticiones quedan documentados; empaquetado sin secretos y revisión
+independiente aprobados. Clean verify final reservado para E.
+
+**D permanece parcial** por conservación real, supresión de negocio/identidad,
+recibos remotos y recuperación/conciliación externa. El siguiente avance local
+puede ser **E: API y pantalla de solicitud, restricción y restauración**, apagadas
+para producción y sin prometer eliminación completa o efectos externos confirmados.
+No se amplía la gracia de siete días. Frontend sólo documenta este corte, sin build
+ni navegador; sus 77 archivos ajenos no versionados se preservan. Sin push ni merge.

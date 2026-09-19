@@ -5,6 +5,16 @@ import { fileURLToPath } from 'node:url';
 
 const frontend = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const backend = resolve(process.env.ORDENFIX_BACKEND_DIR ?? resolve(frontend, '../mvrg-backend'));
+const cloudinary = process.env.ORDENFIX_PHOTOS_BROWSER_CLOUDINARY;
+if (cloudinary !== undefined && cloudinary !== 'synthetic-only') {
+  throw new Error('Cloudinary requiere ORDENFIX_PHOTOS_BROWSER_CLOUDINARY=synthetic-only.');
+}
+if (cloudinary && !process.env.ORDENFIX_CLOUDINARY_CREDENTIALS_FILE?.trim()) {
+  throw new Error('Indicá ORDENFIX_CLOUDINARY_CREDENTIALS_FILE sin copiar sus valores al frontend.');
+}
+console.info(cloudinary
+  ? 'Fotos: PostgreSQL temporal y Cloudinary real; hasta cuatro imágenes sintéticas con limpieza propia.'
+  : 'Fotos: PostgreSQL temporal y almacenamiento local de prueba.');
 await access(resolve(backend, 'mvnw'));
 await access(resolve(backend, 'src/test/java/com/leonardorozza/mvgrreparacionesbackend/legal/manifest/persistence/PrivatePhotoBrowserE2E.java'));
 const run = (args) => new Promise((resolveRun, reject) => {

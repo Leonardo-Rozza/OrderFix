@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Request } from '@playwright/test';
+import { expect, test, type Locator, type Page, type Request } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
@@ -14,12 +14,17 @@ const accounts = JSON.parse(process.env.ORDENFIX_PHOTOS_E2E_ACCOUNTS_JSON!) as R
 const password = 'Clave-sintetica-E2E-123';
 const matches = (url: string, path: string) => url === `${api}${path}`;
 const fits = async (page: Page) => expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+const decoded = async (image: Locator) => {
+  await expect(image).toBeVisible();
+  await expect.poll(() => image.evaluate((element) => element instanceof HTMLImageElement
+    && element.complete && element.naturalWidth > 0 && element.naturalHeight > 0)).toBe(true);
+};
 const save = (entry: object) => {
   const entries = existsSync(report) ? JSON.parse(readFileSync(report, 'utf8')) as unknown[] : [];
   writeFileSync(report, JSON.stringify([...entries, { runId, ...entry }]));
 };
 
-// A generated 8x8 RGB PNG: synthetic bytes, no user image or external fixture.
+// A generated 64x48 RGB gradient: synthetic bytes, no user image or external fixture.
 const crc32 = (bytes: Buffer) => {
   let value = 0xffffffff;
   for (const byte of bytes) {
@@ -34,8 +39,17 @@ const chunk = (type: string, data: Buffer) => {
   const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(body));
   return Buffer.concat([length, body, crc]);
 };
-const header = Buffer.alloc(13); header.writeUInt32BE(8); header.writeUInt32BE(8, 4); header[8] = 8; header[9] = 2;
-const pixels = Buffer.concat(Array.from({ length: 8 }, () => Buffer.concat([Buffer.from([0]), Buffer.alloc(24, 127)])));
+const width = 64; const height = 48;
+const header = Buffer.alloc(13); header.writeUInt32BE(width); header.writeUInt32BE(height, 4); header[8] = 8; header[9] = 2;
+const pixels = Buffer.concat(Array.from({ length: height }, (_, y) => {
+  const row = Buffer.alloc(1 + width * 3); // PNG filter 0 followed by RGB pixels.
+  for (let x = 0; x < width; x++) {
+    row[1 + x * 3] = 30 + Math.round(200 * x / (width - 1));
+    row[2 + x * 3] = 40 + Math.round(180 * y / (height - 1));
+    row[3 + x * 3] = 180;
+  }
+  return row;
+}));
 const image = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', header), chunk('IDAT', deflateSync(pixels)), chunk('IEND', Buffer.alloc(0))]);
 const sha256 = createHash('sha256').update(image).digest('hex');
 
@@ -95,9 +109,12 @@ for (const mode of ['nuevo', 'existente'] as const) {
       await modal.getByLabel(/^Problema reportado\s*\*?$/).fill('Evidencia sintética de ingreso');
       await modal.getByText('Detalles de ingreso (opcional)', { exact: true }).click();
       await modal.getByLabel('Fotos del ingreso', { exact: true }).setInputFiles({ name: 'foto-sintetica.png', mimeType: 'image/png', buffer: image });
-      await expect(modal.getByAltText('Foto local 1', { exact: true })).toBeVisible();
+      const preview = modal.getByAltText('Foto local 1', { exact: true });
+      await decoded(preview);
+      await preview.scrollIntoViewIfNeeded();
       expect(requests.filter((request) => /(?:cargas-foto|requisitos-fotos|cloudinary)/.test(request.path + request.origin))).toEqual([]);
       await fits(page);
+      await page.screenshot({ path: info.outputPath('fotos-seleccion-local.png'), fullPage: true });
 
       const creationPath = mode === 'nuevo' ? '/api/reparaciones/ingreso-rapido' : '/api/reparaciones';
       const creationPromise = page.waitForResponse((response) => matches(response.url(), creationPath) && response.request().method() === 'POST');
@@ -120,6 +137,7 @@ for (const mode of ['nuevo', 'existente'] as const) {
       expect(requests.filter((request) => request.path.includes('/cargas-foto'))).toEqual([]);
       for (const checkbox of await panel.getByRole('checkbox').all()) await checkbox.check();
       await fits(page);
+      await page.screenshot({ path: info.outputPath('fotos-confirmacion.png'), fullPage: true });
       const intentionPath = `/api/reparaciones/${repairId}/cargas-foto`;
       const intentPromise = page.waitForResponse((response) => matches(response.url(), intentionPath) && response.request().method() === 'POST');
       const failurePromise = page.waitForResponse((response) => response.url().startsWith(`${api}${intentionPath}/`)
@@ -155,8 +173,11 @@ for (const mode of ['nuevo', 'existente'] as const) {
       const photoRegion = page.getByRole('region', { name: 'Fotos privadas', exact: true });
       await photoRegion.getByRole('button', { name: 'Ver fotos privadas', exact: true }).click();
       await photoRegion.getByRole('button', { name: 'Ver foto', exact: true }).click();
-      await expect(photoRegion.getByAltText('Foto privada del ingreso')).toBeVisible();
-      expect(await photoRegion.getByAltText('Foto privada del ingreso').getAttribute('src')).toMatch(/^blob:/);
+      const visiblePhoto = photoRegion.getByAltText('Foto privada del ingreso');
+      await decoded(visiblePhoto);
+      expect(await visiblePhoto.getAttribute('src')).toMatch(/^blob:/);
+      await visiblePhoto.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: info.outputPath('fotos-galeria-cargada.png'), fullPage: true });
 
       const peerPage = await peer.newPage();
       const peerActor = await login(peerPage, mode === 'nuevo' ? account.employeeEmail : account.ownerEmail);
@@ -175,7 +196,7 @@ for (const mode of ['nuevo', 'existente'] as const) {
       const peerPhotos = peerPage.getByRole('region', { name: 'Fotos privadas', exact: true });
       await peerPhotos.getByRole('button', { name: 'Ver fotos privadas', exact: true }).click();
       await peerPhotos.getByRole('button', { name: 'Ver foto', exact: true }).click();
-      await expect(peerPhotos.getByAltText('Foto privada del ingreso')).toBeVisible();
+      await decoded(peerPhotos.getByAltText('Foto privada del ingreso'));
       await fits(peerPage);
       await peerPhotos.getByRole('button', { name: 'Eliminar foto', exact: true }).click();
       const deletePromise = peerPage.waitForResponse((response) => matches(response.url(), `/api/reparaciones/${repairId}/fotos/${photo.id}`)

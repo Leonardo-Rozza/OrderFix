@@ -5,7 +5,7 @@ import { http, HttpResponse } from 'msw';
 import { server, API } from '../test/server';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { EquipoFormModal } from './EquipoFormModal';
-import type { Cliente } from '../types';
+import type { Cliente, Equipo, TipoEquipo } from '../types';
 
 const clientes: Cliente[] = [
   { id: 1, nombre: 'Ana', apellido: 'Gómez', telefono: '111', email: null, direccion: null },
@@ -47,7 +47,8 @@ describe('EquipoFormModal', () => {
     await user.click(screen.getByRole('button', { name: /crear equipo/i }));
 
     await waitFor(() => expect(body).toBeDefined());
-    expect(body).toMatchObject({ marca: 'Samsung', modelo: 'A52', clienteId: 1 });
+    expect(body).toMatchObject({ marca: 'Samsung', modelo: 'A52', clienteId: 1, tipo: 'OTRO' });
+    expect(body).not.toHaveProperty('imei');
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(screen.queryByRole('dialog', { name: /¿descartar los cambios\?/i })).not.toBeInTheDocument();
   });
@@ -96,6 +97,7 @@ describe('EquipoFormModal', () => {
     const user = userEvent.setup();
     let body: Record<string, unknown> | undefined;
     const editing = {
+      tipo: 'CELULAR' as const,
       id: 9,
       marca: 'Samsung',
       modelo: 'A52',
@@ -122,5 +124,44 @@ describe('EquipoFormModal', () => {
 
     await waitFor(() => expect(body).toBeDefined());
     expect(body).toMatchObject({ clienteId: 2, marca: 'Samsung', modelo: 'A52' });
+    expect(body).not.toHaveProperty('tipo');
+  });
+
+  it.each<TipoEquipo>(['CELULAR', 'NOTEBOOK', 'CONSOLA', 'PC_ESCRITORIO', 'MONITOR', 'TV', 'OTRO'])(
+    'crea %s sin exigir serie ni credenciales', async (tipo) => {
+      const user = userEvent.setup();
+      let body: Record<string, unknown> | undefined;
+      server.use(http.post(`${API}/equipos`, async ({ request }) => {
+        body = await request.json() as Record<string, unknown>;
+        return HttpResponse.json({ id: 20, ...body }, { status: 201 });
+      }));
+      renderUI(<EquipoFormModal isOpen onClose={vi.fn()} editing={null} defaultCliente={clientes[0]} />);
+      await user.selectOptions(screen.getByLabelText('Tipo de equipo'), tipo);
+      await user.type(screen.getByLabelText(/^marca/i), 'Marca');
+      await user.type(screen.getByLabelText(/^modelo/i), 'Modelo');
+      expect(screen.getByLabelText('Serie / IMEI')).toHaveAttribute('maxlength', '30');
+      await user.click(screen.getByRole('button', { name: 'Crear equipo' }));
+      await waitFor(() => expect(body?.tipo).toBe(tipo));
+      expect(body).not.toHaveProperty('imei');
+      expect(body).not.toHaveProperty('pinDesbloqueo');
+    },
+  );
+
+  it('reclasifica un equipo sin borrar su serie ni el resto de datos', async () => {
+    const user = userEvent.setup();
+    const editing: Equipo = {
+      id: 9, tipo: 'OTRO', marca: 'Lenovo', modelo: 'T14', imei: 'NB-000001',
+      color: 'Negro', descripcion: 'Con cargador', clienteId: 1, clienteNombre: 'Ana',
+    };
+    let body: Record<string, unknown> | undefined;
+    server.use(http.put(`${API}/equipos/9`, async ({ request }) => {
+      body = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({ ...editing, ...body });
+    }));
+    renderUI(<EquipoFormModal isOpen onClose={vi.fn()} editing={editing} />);
+    expect(screen.getByLabelText('Tipo de equipo')).toHaveValue('OTRO');
+    await user.selectOptions(screen.getByLabelText('Tipo de equipo'), 'NOTEBOOK');
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(body).toMatchObject({ tipo: 'NOTEBOOK', imei: 'NB-000001', color: 'Negro', descripcion: 'Con cargador' }));
   });
 });

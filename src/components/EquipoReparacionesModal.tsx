@@ -7,6 +7,7 @@ import { formatMoney, formatDate } from '../utils/format';
 import { ordenLabel } from '../utils/reparacion';
 import { useReparacionesPorEquipoQuery } from '../api/queries/reparaciones.queries';
 import type { Equipo } from '../types';
+import { tipoEquipoLabel } from '../config/equipos';
 
 interface Props {
   equipo: Equipo | null;
@@ -30,6 +31,9 @@ export const EquipoReparacionesModal = ({ equipo, onClose }: Props) => {
 
   return (
     <Modal isOpen onClose={onClose} title={`Reparaciones · ${equipo.marca} ${equipo.modelo}`} size="md">
+      <p className="mb-4 break-words text-[13px] text-text-3">
+        {tipoEquipoLabel(equipo.tipo)} · {equipo.imei ? `Serie / IMEI ${equipo.imei}` : 'Sin serie / IMEI'}
+      </p>
       <div aria-busy={isPending}>
         {isPending ? (
           <div role="status" aria-live="polite" className="flex min-h-28 flex-col items-center justify-center gap-3 text-[13px] text-text-3">

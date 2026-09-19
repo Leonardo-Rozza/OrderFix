@@ -6,6 +6,7 @@ import { btnGhost, btnPrimary, btnDanger } from './ui';
 import { iniciales, formatDate, whatsappLink } from '../utils/format';
 import { useEquiposPorClienteQuery } from '../api/queries/equipos.queries';
 import type { Cliente } from '../types';
+import { tipoEquipoLabel } from '../config/equipos';
 
 interface Props {
   isOpen: boolean;
@@ -110,7 +111,8 @@ export const ClienteFichaModal = ({ isOpen, cliente, onClose, onEdit, onDelete, 
                     <div className="truncate text-[14px] font-bold">
                       {e.marca} {e.modelo}
                     </div>
-                    <div className="font-mono text-[12px] text-text-3">{e.imei ? `IMEI ${e.imei}` : 'Sin IMEI'}</div>
+                    <div className="text-[12px] text-text-2">{tipoEquipoLabel(e.tipo)}</div>
+                    <div className="break-words font-mono text-[12px] text-text-3">{e.imei ? `Serie / IMEI ${e.imei}` : 'Sin serie / IMEI'}</div>
                   </div>
                 </div>
               ))}

@@ -31,6 +31,7 @@ const cliente: Cliente = {
 };
 
 const equipo: Equipo = {
+  tipo: 'CELULAR',
   id: 11,
   marca: 'Apple',
   modelo: 'iPhone 15',
@@ -132,7 +133,8 @@ describe('fuentes remotas de opciones', () => {
     expect(result.options).toEqual([{
       value: equipo.id,
       label: 'Apple iPhone 15',
-      sublabel: 'Ada Lovelace · IMEI 351234',
+      sublabel: 'Celular · Ada Lovelace · Serie / IMEI 351234',
+      meta: { tipo: 'CELULAR' },
     }]);
     expect(result.page).toBe(response.page);
   });

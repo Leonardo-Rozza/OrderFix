@@ -4,6 +4,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { FormActions, Modal } from './Modal';
 import { FormField } from './FormField';
+import { Select } from './Select';
+import { TIPOS_EQUIPO, TIPO_EQUIPO_LABEL } from '../config/equipos';
 import { AsyncCombobox, type AsyncComboboxOption } from './AsyncCombobox';
 import { UnsavedChangesGuard } from './UnsavedChangesGuard';
 import { inputClass, btnGhost, btnPrimary } from './ui';
@@ -15,6 +17,7 @@ import { clientesOptionsSource } from '../api/queries/clientes.queries';
 import type { Cliente, Equipo, EquipoCreate, EquipoUpdate } from '../types';
 
 const schema = z.object({
+  tipo: z.enum(TIPOS_EQUIPO),
   marca: z.string().trim().min(1, 'La marca es requerida').max(60, 'Máximo 60 caracteres'),
   modelo: z.string().trim().min(1, 'El modelo es requerido').max(60, 'Máximo 60 caracteres'),
   clienteId: z.number({ message: 'Seleccioná un cliente' }).min(1, 'Seleccioná un cliente'),
@@ -58,6 +61,7 @@ export const EquipoFormModal = ({
   useEffect(() => {
     if (!isOpen) return;
     reset({
+      tipo: editing?.tipo ?? 'OTRO',
       marca: editing?.marca ?? '',
       modelo: editing?.modelo ?? '',
       clienteId: editing?.clienteId ?? defaultClienteId ?? undefined,
@@ -87,6 +91,7 @@ export const EquipoFormModal = ({
 
   const onSubmit = async (data: FormData, commitAndClose: () => void) => {
     const base: EquipoCreate = {
+      tipo: editing && data.tipo === (editing.tipo ?? 'OTRO') ? undefined : data.tipo,
       marca: data.marca.trim(),
       modelo: data.modelo.trim(),
       clienteId: data.clienteId,
@@ -147,12 +152,17 @@ export const EquipoFormModal = ({
             aria-busy={saving}
           >
         <fieldset disabled={saving} className="m-0 min-w-0 space-y-4 border-0 p-0">
+        <FormField label="Tipo de equipo" error={errors.tipo?.message} htmlFor="tipo">
+          <Select id="tipo" {...register('tipo')} hasError={!!errors.tipo}>
+            {TIPOS_EQUIPO.map((tipo) => <option key={tipo} value={tipo}>{TIPO_EQUIPO_LABEL[tipo]}</option>)}
+          </Select>
+        </FormField>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField label="Marca" required error={errors.marca?.message} htmlFor="marca">
             <input id="marca" type="text" maxLength={60} {...register('marca')} className={inputClass(!!errors.marca)} placeholder="Ej: Apple" />
           </FormField>
           <FormField label="Modelo" required error={errors.modelo?.message} htmlFor="modelo">
-            <input id="modelo" type="text" maxLength={60} {...register('modelo')} className={inputClass(!!errors.modelo)} placeholder="Ej: iPhone 11" />
+            <input id="modelo" type="text" maxLength={60} {...register('modelo')} className={inputClass(!!errors.modelo)} placeholder="Modelo del equipo" />
           </FormField>
         </div>
 
@@ -192,7 +202,7 @@ export const EquipoFormModal = ({
         </FormField>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormField label="IMEI / Serie" error={errors.imei?.message} htmlFor="imei">
+          <FormField label="Serie / IMEI" error={errors.imei?.message} htmlFor="imei">
             <input id="imei" type="text" maxLength={30} {...register('imei')} className={inputClass(!!errors.imei)} />
           </FormField>
           <FormField label="Color" error={errors.color?.message} htmlFor="color">

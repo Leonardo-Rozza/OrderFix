@@ -1,8 +1,12 @@
-import type { EstadoReparacion } from '../types';
+import type { EstadoReparacion, TipoEquipo } from '../types';
 import type { ListParams } from './pagination';
 
 export interface ReparacionesQueryParams extends ListParams {
   estado?: EstadoReparacion;
+}
+
+export interface EquiposQueryParams extends ListParams {
+  tipo?: TipoEquipo;
 }
 
 /** Valores estables que identifican una sesión paginada del Kanban. */
@@ -55,7 +59,7 @@ export const queryKeys = {
   },
   equipos: {
     all: ['equipos'] as const,
-    list: (params: ListParams) => ['equipos', params] as const,
+    list: (params: EquiposQueryParams) => ['equipos', params] as const,
     options: ['equipos', 'options'] as const,
     optionSearch: (params: OptionSearchParams) => ['equipos', 'options', params] as const,
     byCliente: (clienteId: number | undefined) => ['equipos', 'cliente', clienteId] as const,

@@ -24,6 +24,7 @@ const cliente: Cliente = {
 };
 
 const equipo: Equipo = {
+  tipo: 'CELULAR',
   id: 9,
   marca: 'Samsung',
   modelo: 'S24',

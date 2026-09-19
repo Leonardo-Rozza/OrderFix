@@ -4,17 +4,17 @@ import {
   requirePageMeta,
   toQueryParams,
   type Page,
-  type ListParams,
 } from '../pagination';
-import { queryKeys } from '../queryKeys';
-import type { Equipo } from '../../types';
+import { queryKeys, type EquiposQueryParams } from '../queryKeys';
+import type { Equipo, TipoEquipo } from '../../types';
+import { tipoEquipoLabel } from '../../config/equipos';
 import type { AsyncComboboxSource } from '../../components/AsyncCombobox';
 
 const EQUIPOS_OPTIONS_SORT = 'id,desc';
 
 const equipoSublabel = (equipo: Equipo): string | undefined => {
   const cliente = `${equipo.clienteNombre ?? ''} ${equipo.clienteApellido ?? ''}`.trim();
-  return [cliente || undefined, equipo.imei ? `IMEI ${equipo.imei}` : undefined]
+  return [tipoEquipoLabel(equipo.tipo), cliente || undefined, equipo.imei ? `Serie / IMEI ${equipo.imei}` : undefined]
     .filter(Boolean)
     .join(' · ') || undefined;
 };
@@ -43,19 +43,22 @@ export const equiposOptionsSource = {
         value: equipo.id,
         label: `${equipo.marca} ${equipo.modelo}`.trim(),
         sublabel: equipoSublabel(equipo),
+        meta: { tipo: equipo.tipo ?? 'OTRO' },
       })),
       page: requirePageMeta(data),
     };
   },
-} satisfies AsyncComboboxSource;
+} satisfies AsyncComboboxSource<number, { tipo: TipoEquipo }>;
 
 // Listado paginado + búsqueda (server-side)
-const fetchEquipos = async (params: ListParams): Promise<Page<Equipo>> => {
-  const { data } = await apiClient.get<Page<Equipo>>('/equipos', { params: toQueryParams(params) });
+const fetchEquipos = async (params: EquiposQueryParams): Promise<Page<Equipo>> => {
+  const { data } = await apiClient.get<Page<Equipo>>('/equipos', {
+    params: { ...toQueryParams(params), ...(params.tipo ? { tipo: params.tipo } : {}) },
+  });
   return data;
 };
 
-export const useEquiposQuery = (params: ListParams) => {
+export const useEquiposQuery = (params: EquiposQueryParams) => {
   return useQuery({
     queryKey: queryKeys.equipos.list(params),
     queryFn: () => fetchEquipos(params),

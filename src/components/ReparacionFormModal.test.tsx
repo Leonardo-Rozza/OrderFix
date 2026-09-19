@@ -20,7 +20,7 @@ import { getPhotoRequirements, preparePhotoAttempt, uploadPhotoAttempt, type Pho
 import { ReparacionFormModal } from './ReparacionFormModal';
 import { authStore } from '../store/auth.store';
 import { showError, showSuccess } from '../utils/toast';
-import type { Equipo, Reparacion, ReparacionCredenciales } from '../types';
+import type { Equipo, Reparacion, ReparacionCredenciales, TipoEquipo } from '../types';
 
 const renderUI = (ui: ReactElement) => renderWithProviders(ui);
 
@@ -46,6 +46,60 @@ const completarMinimos = async (
 };
 
 describe('ReparacionFormModal — alta rápida (modo nuevo)', () => {
+  it.each<TipoEquipo>(['CELULAR', 'NOTEBOOK', 'CONSOLA', 'TV'])(
+    'envía el tipo %s en ingreso rápido sin requerir datos de acceso', async (tipo) => {
+      const user = userEvent.setup();
+      let body: Record<string, unknown> | undefined;
+      let updates = 0;
+      server.use(
+        http.post(`${API}/reparaciones/ingreso-rapido`, async ({ request }) => {
+          body = await request.json() as Record<string, unknown>;
+          return HttpResponse.json({ clienteId: 1, equipoId: 2, clienteNuevo: true, reparacion: { id: 9 } }, { status: 201 });
+        }),
+        http.put(`${API}/reparaciones/9`, () => { updates += 1; return HttpResponse.json({ id: 9 }); }),
+      );
+      renderUI(<ReparacionFormModal isOpen onClose={vi.fn()} editing={null} />);
+      await completarMinimos(user);
+      await user.selectOptions(screen.getByLabelText('Tipo de equipo'), tipo);
+      await user.click(screen.getByRole('button', { name: 'Crear reparación' }));
+      await waitFor(() => expect(body?.equipoTipo).toBe(tipo));
+      expect(body).not.toHaveProperty('pinDesbloqueo');
+      expect(body).not.toHaveProperty('patronDesbloqueo');
+      expect(updates).toBe(0);
+    },
+  );
+
+  it('cambiar de tipo conserva acceso cargado y su ayuda se adapta sin duplicar el alta', async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | undefined;
+    let detalles: Record<string, unknown> | undefined;
+    server.use(
+      http.post(`${API}/reparaciones/ingreso-rapido`, async ({ request }) => {
+        body = await request.json() as Record<string, unknown>;
+        return HttpResponse.json({ clienteId: 1, equipoId: 2, clienteNuevo: true, reparacion: { id: 9 } }, { status: 201 });
+      }),
+      http.put(`${API}/reparaciones/9`, async ({ request }) => {
+        detalles = await request.json() as Record<string, unknown>;
+        return HttpResponse.json({ id: 9, ...detalles });
+      }),
+    );
+    renderUI(<ReparacionFormModal isOpen onClose={vi.fn()} editing={null} />);
+    await completarMinimos(user);
+    await user.selectOptions(screen.getByLabelText('Tipo de equipo'), 'NOTEBOOK');
+    await user.click(screen.getByText('Detalles de ingreso (opcional)', { exact: true }));
+    expect(screen.getByText(/podés anotar la contraseña o el PIN de acceso/)).toBeVisible();
+    await user.type(screen.getByLabelText('PIN / contraseña'), '1234');
+    await user.type(screen.getByLabelText('Patrón de desbloqueo'), 'L');
+    await user.selectOptions(screen.getByLabelText('Tipo de equipo'), 'MONITOR');
+    expect(screen.getByText(/Habitualmente no necesita datos de acceso/)).toBeVisible();
+    expect(screen.getByLabelText('PIN / contraseña')).toHaveValue('1234');
+    expect(screen.getByLabelText('Patrón de desbloqueo')).toHaveValue('L');
+    await user.click(screen.getByText('Detalles de ingreso (opcional)', { exact: true }));
+    await user.click(screen.getByRole('button', { name: 'Crear reparación' }));
+    await waitFor(() => expect(detalles).toMatchObject({ pinDesbloqueo: '1234', patronDesbloqueo: 'L' }));
+    expect(body?.equipoTipo).toBe('MONITOR');
+  });
+
   it('permanece limpio para un ADMIN cuando el técnico y la garantía están vacíos', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
@@ -98,6 +152,7 @@ describe('ReparacionFormModal — alta rápida (modo nuevo)', () => {
       clienteTelefono: '1155551234',
       equipoMarca: 'Apple',
       equipoModelo: 'iPhone 12',
+      equipoTipo: 'OTRO',
       descripcionProblema: 'Pantalla rota',
     });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
@@ -326,6 +381,7 @@ describe('ReparacionFormModal — equipo existente', () => {
     const requestedPages: number[] = [];
 
     const equipo: Equipo = {
+      tipo: 'CELULAR',
       id: 5,
       marca: 'Samsung',
       modelo: 'A52',
@@ -429,6 +485,28 @@ describe('ReparacionFormModal — fechas de calendario', () => {
 });
 
 describe('ReparacionFormModal — edición segura de credenciales', () => {
+  it.each<TipoEquipo>(['NOTEBOOK', 'CONSOLA', 'MONITOR', 'TV'])(
+    'mantiene visibles y conserva las credenciales existentes en %s', async (equipoTipo) => {
+      const user = userEvent.setup();
+      let body: Record<string, unknown> | undefined;
+      server.use(http.put(`${API}/reparaciones/15`, async ({ request }) => {
+        body = await request.json() as Record<string, unknown>;
+        return HttpResponse.json({ ...reparacionEnEdicion, equipoTipo, ...body });
+      }));
+      renderUI(<ReparacionFormModal isOpen onClose={vi.fn()} editing={{ ...reparacionEnEdicion, equipoTipo }} credenciales={credencialesGuardadas} />);
+      await user.click(screen.getByText('Detalles de ingreso (opcional)', { exact: true }));
+      expect(screen.getByLabelText('Patrón de desbloqueo')).toBeVisible();
+      expect(screen.getByLabelText('Patrón de desbloqueo')).toHaveValue('L invertida');
+      expect(screen.getByLabelText('PIN / contraseña')).toBeVisible();
+      expect(screen.getByLabelText('PIN / contraseña')).toHaveValue('1234');
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+      await waitFor(() => expect(body).toBeDefined());
+      expect(body).not.toHaveProperty('patronDesbloqueo');
+      expect(body).not.toHaveProperty('pinDesbloqueo');
+      expect(body).not.toHaveProperty('equipoTipo');
+    },
+  );
+
   it('normaliza credenciales conocidas a false cuando la cuenta pasa a NINGUNA', async () => {
     const user = userEvent.setup();
     let body: Record<string, unknown> | undefined;

@@ -16,6 +16,7 @@ vi.mock('../api/queries/reparaciones.queries', () => ({
 import { EquipoReparacionesModal } from './EquipoReparacionesModal';
 
 const equipo: Equipo = {
+  tipo: 'CELULAR',
   id: 3,
   marca: 'Apple',
   modelo: 'iPhone 13',

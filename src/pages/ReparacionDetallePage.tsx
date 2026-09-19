@@ -31,6 +31,7 @@ import {
 } from '../api/mutations/presupuestos.mutations';
 import { calidadLabel } from '../config/presupuestos';
 import { cuentaLabel, RIESGO_CUENTA_MSG } from '../config/ingreso';
+import { tipoEquipoLabel } from '../config/equipos';
 import { useCobrosQuery } from '../api/queries/cobros.queries';
 import { useFunciones } from '../api/queries/suscripcion.queries';
 import {
@@ -270,7 +271,7 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
                     )}
                   </div>
                   <div className="mt-0.5 text-[14px] text-text-2">
-                    Ingresó el {formatDate(rep.fechaIngreso)}
+                    {tipoEquipoLabel(rep.equipoTipo)} · Ingresó el {formatDate(rep.fechaIngreso)}
                     {rep.esGarantia && rep.reparacionOrigenId && (
                       <>
                         {' · '}

@@ -23,6 +23,7 @@ import { useUsuariosQuery } from '../api/queries/usuarios.queries';
 import { equiposOptionsSource } from '../api/queries/equipos.queries';
 import { useAuth } from '../store/auth.store';
 import { CUENTA_LABEL, RIESGO_CUENTA_MSG } from '../config/ingreso';
+import { AYUDA_ACCESO_EQUIPO, TIPOS_EQUIPO, TIPO_EQUIPO_LABEL, tipoEquipoLabel } from '../config/equipos';
 import { clienteLabel } from '../utils/reparacion';
 import { toLocalDateInputValue } from '../utils/date';
 import { dateInputError } from '../utils/dateInput';
@@ -36,12 +37,14 @@ import type {
   ReparacionCreate,
   ReparacionCredenciales,
   ReparacionUpdate,
+  TipoEquipo,
 } from '../types';
 
 const schema = z
   .object({
     modo: z.enum(['nuevo', 'existente']),
     equipoId: z.union([z.number(), z.nan()]).optional(),
+    equipoTipo: z.enum(TIPOS_EQUIPO),
     // Cliente nuevo (datos mínimos)
     clienteNombre: z.string().optional(),
     clienteApellido: z.string().optional(),
@@ -171,6 +174,7 @@ export const ReparacionFormModal = ({
     resolver: zodResolver(schema),
     defaultValues: {
       modo: 'nuevo',
+      equipoTipo: 'OTRO',
       estado: 'INGRESADO',
       mojado: false,
       trabajoEnPlaca: false,
@@ -185,6 +189,9 @@ export const ReparacionFormModal = ({
 
   const modo = watch('modo');
   const esRapido = !editing && modo === 'nuevo';
+  const tipoNuevo = watch('equipoTipo');
+  const [tipoSeleccionado, setTipoSeleccionado] = useState<TipoEquipo>('OTRO');
+  const tipoActual = esRapido ? tipoNuevo : editing?.equipoTipo ?? tipoSeleccionado;
   const submitBlocked = blocking;
   const editingEquipoNombre = editing
     ? `${editing.equipoMarca ?? ''} ${editing.equipoModelo ?? ''}`.trim()
@@ -193,7 +200,8 @@ export const ReparacionFormModal = ({
     ? {
       value: editing.equipoId,
       label: editingEquipoNombre,
-      sublabel: editing.clienteNombre ? clienteLabel(editing) : undefined,
+      sublabel: [tipoEquipoLabel(editing.equipoTipo), editing.clienteNombre ? clienteLabel(editing) : undefined].filter(Boolean).join(' · '),
+      meta: { tipo: editing.equipoTipo ?? 'OTRO' },
     }
     : undefined;
   const cuentaVinculada = watch('tieneCuentaVinculada');
@@ -228,6 +236,7 @@ export const ReparacionFormModal = ({
     if (editing) {
       reset({
         modo: 'existente',
+        equipoTipo: editing.equipoTipo ?? 'OTRO',
         equipoId: editing.equipoId,
         descripcionProblema: editing.descripcionProblema,
         estado: editing.estado,
@@ -255,10 +264,12 @@ export const ReparacionFormModal = ({
       });
     } else {
       const fechaIngresoLocal = toLocalDateInputValue();
+      setTipoSeleccionado('OTRO');
       fechaIngresoInicial.current = fechaIngresoLocal;
       reset({
         // Flujo rápido por defecto: cargar cliente + equipo en el acto.
         modo: 'nuevo',
+        equipoTipo: 'OTRO',
         equipoId: undefined,
         clienteNombre: '',
         clienteApellido: '',
@@ -437,6 +448,7 @@ export const ReparacionFormModal = ({
         clienteTelefono: data.clienteTelefono!.trim(),
         equipoMarca: data.marca!.trim(),
         equipoModelo: data.modelo!.trim(),
+        equipoTipo: data.equipoTipo,
         descripcionProblema: data.descripcionProblema,
         precioEstimado: num(data.precioEstimado),
       };
@@ -607,18 +619,23 @@ export const ReparacionFormModal = ({
             </FormField>
 
             <div className="pt-1 text-[12px] font-extrabold uppercase tracking-wide text-text-3">Equipo</div>
+            <FormField label="Tipo de equipo" error={errors.equipoTipo?.message} htmlFor="equipoTipo">
+              <Select id="equipoTipo" {...register('equipoTipo')} hasError={!!errors.equipoTipo} disabled={blocking || !!ingresoRapidoPendiente}>
+                {TIPOS_EQUIPO.map((tipo) => <option key={tipo} value={tipo}>{TIPO_EQUIPO_LABEL[tipo]}</option>)}
+              </Select>
+            </FormField>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField label="Marca" required error={errors.marca?.message} htmlFor="marca">
                 <input id="marca" type="text" maxLength={60} {...register('marca')} readOnly={!!ingresoRapidoPendiente} className={inputClass(!!errors.marca)} placeholder="Ej: Apple" />
               </FormField>
               <FormField label="Modelo" required error={errors.modelo?.message} htmlFor="modelo">
-                <input id="modelo" type="text" maxLength={60} {...register('modelo')} readOnly={!!ingresoRapidoPendiente} className={inputClass(!!errors.modelo)} placeholder="Ej: iPhone 11" />
+                <input id="modelo" type="text" maxLength={60} {...register('modelo')} readOnly={!!ingresoRapidoPendiente} className={inputClass(!!errors.modelo)} placeholder="Modelo del equipo" />
               </FormField>
             </div>
 
             <p className="text-[12px] text-text-3">
               Con esto alcanza para abrir la orden. Si el teléfono ya existe, se reutiliza ese cliente. El resto
-              (email, dirección, IMEI, color…) lo completás después desde Clientes y Equipos.
+              (email, dirección, serie / IMEI, color…) lo completás después desde Clientes y Equipos.
             </p>
           </div>
         )}
@@ -639,7 +656,10 @@ export const ReparacionFormModal = ({
                     enabled={isOpen && !editing && modo === 'existente'}
                     value={field.value}
                     selectedOption={editingEquipoOption}
-                    onChange={(value) => field.onChange(value)}
+                    onChange={(value, option) => {
+                      field.onChange(value);
+                      setTipoSeleccionado(option?.meta?.tipo ?? 'OTRO');
+                    }}
                     onBlur={field.onBlur}
                     hasError={!!errors.equipoId}
                     aria-invalid={accessibility['aria-invalid']}
@@ -647,7 +667,7 @@ export const ReparacionFormModal = ({
                     aria-required={accessibility['aria-required']}
                     disabled={!!editing || blocking}
                     placeholder="Seleccioná un equipo"
-                    searchPlaceholder="Buscar por equipo, cliente o IMEI…"
+                    searchPlaceholder="Buscar por equipo, cliente o serie / IMEI…"
                     searchAriaLabel="Buscar equipo"
                     entityName="equipo"
                     entityNamePlural="equipos"
@@ -783,6 +803,10 @@ export const ReparacionFormModal = ({
                 Detalles de ingreso (opcional)
               </summary>
               <div className="mt-4 space-y-4">
+                <p id="ayuda-acceso-equipo" className="text-[12.5px] text-text-3">
+                  <span className="font-semibold">Datos de acceso opcionales. </span>
+                  {AYUDA_ACCESO_EQUIPO[tipoActual]} Cambiar el tipo no borra los datos cargados.
+                </p>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <FormField label="Patrón de desbloqueo" htmlFor="patronDesbloqueo">
                     <input id="patronDesbloqueo" type="text" maxLength={60} autoComplete="off" spellCheck={false} {...register('patronDesbloqueo')} className={inputClass()} placeholder="Ej: L invertida" />

@@ -6,12 +6,14 @@ import { http, HttpResponse } from 'msw';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { API, server } from '../test/server';
 import type { Equipo } from '../types';
+import { queryKeys } from '../api/queryKeys';
 
 const mocks = vi.hoisted(() => ({
   deleteEquipo: vi.fn(),
 }));
 
 const equipo: Equipo = {
+  tipo: 'CELULAR',
   id: 8,
   marca: 'Apple',
   modelo: 'iPhone 13',
@@ -95,6 +97,44 @@ vi.mock('../components/ConfirmDialog', () => ({
 import { EquiposPage } from './EquiposPage';
 
 describe('EquiposPage — estado navegable del listado', () => {
+  it('combina tipo exacto, búsqueda y página; cambia el filtro y restaura todo al volver atrás', async () => {
+    const user = userEvent.setup();
+    const requests: URLSearchParams[] = [];
+    server.use(http.get(`${API}/equipos`, ({ request }) => {
+      requests.push(new URL(request.url).searchParams);
+      return HttpResponse.json({ content: [{ ...equipo, tipo: requests.at(-1)?.get('tipo') }],
+        page: { size: 20, number: Number(requests.at(-1)?.get('page')), totalElements: 100, totalPages: 5 } });
+    }));
+    const { router, queryClient } = renderWithProviders(<EquiposPage />, {
+      initialEntries: ['/equipos?q=modelo&page=2&sort=marca%2Casc&tipo=NOTEBOOK'],
+    });
+    const filtro = screen.getByRole('combobox', { name: 'Filtrar por tipo de equipo' });
+    expect(filtro).toHaveValue('NOTEBOOK');
+    await waitFor(() => expect(requests.some((p) => p.get('tipo') === 'NOTEBOOK' && p.get('page') === '2')).toBe(true));
+    await user.selectOptions(filtro, 'CONSOLA');
+    await waitFor(() => expect(requests.some((p) => p.get('tipo') === 'CONSOLA' && p.get('page') === '0' && p.get('q') === 'modelo' && p.get('sort') === 'marca,asc')).toBe(true));
+    expect(queryClient.getQueryData(queryKeys.equipos.list({ q: 'modelo', page: 0, size: 20, sort: 'marca,asc', tipo: 'CONSOLA' }))).toBeDefined();
+    expect(queryClient.getQueryData(queryKeys.equipos.list({ q: 'modelo', page: 2, size: 20, sort: 'marca,asc', tipo: 'NOTEBOOK' }))).toBeDefined();
+    await act(async () => { await router.navigate(-1); });
+    expect(filtro).toHaveValue('NOTEBOOK');
+    expect(new URLSearchParams(router.state.location.search).get('page')).toBe('2');
+    await user.selectOptions(filtro, '');
+    await waitFor(() => expect(requests.at(-1)?.has('tipo')).toBe(false));
+    expect(new URLSearchParams(router.state.location.search).has('tipo')).toBe(false);
+  });
+
+  it.each(['notebook', 'TABLET', ' NOTEBOOK '])('elimina el tipo inválido %s de URL y API', async (tipo) => {
+    const requests: string[] = [];
+    server.use(http.get(`${API}/equipos`, ({ request }) => {
+      requests.push(request.url);
+      return HttpResponse.json({ content: [], page: { number: 0, size: 20, totalElements: 0, totalPages: 0 } });
+    }));
+    const { router } = renderWithProviders(<EquiposPage />, { initialEntries: [`/equipos?tipo=${encodeURIComponent(tipo)}`] });
+    await waitFor(() => expect(requests.length).toBeGreaterThan(0));
+    expect(requests.every((url) => !new URL(url).searchParams.has('tipo'))).toBe(true);
+    expect(router.state.location.search).toBe('');
+  });
+
   it('hidrata q, página y orden desde un deep link y consulta esos valores', async () => {
     const requests: ListRequest[] = [];
     mockEquipos(requests);

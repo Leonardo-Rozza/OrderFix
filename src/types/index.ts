@@ -160,8 +160,11 @@ export interface ClienteUpdate extends ClienteCreate {
 }
 
 // ========== EQUIPO ==========
+export type TipoEquipo = 'CELULAR' | 'NOTEBOOK' | 'CONSOLA' | 'PC_ESCRITORIO' | 'MONITOR' | 'TV' | 'OTRO';
+
 export interface Equipo {
   id: number;
+  tipo: TipoEquipo;
   marca: string;
   modelo: string;
   imei: string | null;
@@ -176,6 +179,8 @@ export interface Equipo {
 }
 
 export interface EquipoCreate {
+  /** Omitir crea OTRO; en una actualización, omitir conserva el tipo actual. */
+  tipo?: TipoEquipo;
   marca: string;
   modelo: string;
   imei?: string;
@@ -270,6 +275,7 @@ export interface Reparacion {
   esGarantia?: boolean;
   reparacionOrigenId?: number | null;
   // Denormalizado por el backend (equipo + cliente del equipo)
+  equipoTipo?: TipoEquipo;
   equipoMarca?: string;
   equipoModelo?: string;
   clienteId?: number;
@@ -399,6 +405,7 @@ export interface ReparacionUpdate extends ReparacionCreate {
 // Carga rápida: crea cliente + equipo + reparación en un solo paso
 // (POST /api/reparaciones/ingreso-rapido)
 export interface IngresoRapidoRequest {
+  equipoTipo?: TipoEquipo;
   clienteNombre: string;
   clienteApellido?: string;
   clienteTelefono: string;

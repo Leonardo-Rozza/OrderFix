@@ -27,6 +27,7 @@ const cliente: Cliente = {
 };
 
 const equipo: Equipo = {
+  tipo: 'CELULAR',
   id: 11,
   marca: 'Apple',
   modelo: 'iPhone',

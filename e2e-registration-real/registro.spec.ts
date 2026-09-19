@@ -1,22 +1,43 @@
 import { test, expect } from '@playwright/test';
-import { api, emailFor, fill, matches, observeAttempt, openAndConfirm, saveEvidence,
-  verifyAttempt, verifyNoAttemptStorage, verifySession, type Attempt } from './helpers';
+import type { AuthResponse } from '../src/types';
+import type { AccountLegalHistoryPage } from '../src/api/accountLegal';
+import { api, emailFor, fill, matches, observeAttempt, openAndConfirm, openOwnLegalHistory, saveEvidence, storedTokenMatches,
+  verifyAttempt, verifyNoAttemptStorage, verifyRegistrationHistory, verifySession, type Attempt } from './helpers';
 
 test('crea una cuenta con las condiciones leídas e ingresa con una sesión real', async ({ page }, info) => {
   const email = emailFor('created', info);
   const snapshot = await openAndConfirm(page, email);
-  const session = verifySession(page, email);
+  let token = '';
+  let pendingHistory: AccountLegalHistoryPage | undefined;
+  let ownerId: number | undefined;
+  let legalHistoryAcceptanceIds: string[] = [];
+  const session = verifySession(page, email, async () => {
+    const account = await openOwnLegalHistory(page, token, { email, role: 'ADMIN', emailVerificado: false });
+    await expect(page.getByRole('button', { name: 'Ya lo confirmé', exact: true })).toBeVisible();
+    pendingHistory = account.history;
+    ownerId = account.profile.usuario.id;
+    legalHistoryAcceptanceIds = await verifyRegistrationHistory(page, account.history, snapshot);
+    expect(await storedTokenMatches(page, token)).toBe(true);
+  });
   const registration = page.waitForResponse((response) => matches(response.url(), '/api/auth/register') && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'Crear taller', exact: true }).click();
   const response = await registration;
   expect(response.status()).toBe(201);
   expect(response.headers()['cache-control']).toBe('no-store');
+  token = (await response.json() as AuthResponse).token;
+  expect(typeof token === 'string' && token.length > 0).toBe(true);
   const attempt = observeAttempt(response.request());
   verifyAttempt(attempt, snapshot);
   await session();
+  const verifiedAccount = await openOwnLegalHistory(page, token, { id: ownerId, email, role: 'ADMIN', emailVerificado: true });
+  await expect(page.getByRole('button', { name: 'Ya lo confirmé', exact: true })).toHaveCount(0);
+  expect(pendingHistory).toBeDefined();
+  expect(verifiedAccount.history).toEqual(pendingHistory);
+  expect(await verifyRegistrationHistory(page, verifiedAccount.history, snapshot)).toEqual(legalHistoryAcceptanceIds);
+  expect(await storedTokenMatches(page, token)).toBe(true);
   await verifyNoAttemptStorage(page, attempt.key);
   saveEvidence({ case: 'created', project: info.project.name, email, requiredSetRevision: snapshot.requiredSetRevision,
-    acceptances: attempt.body.aceptacionesLegales, idempotencyKey: attempt.key });
+    acceptances: attempt.body.aceptacionesLegales, idempotencyKey: attempt.key, legalHistoryAcceptanceIds });
 });
 
 test('recupera el alta después de perder una respuesta real 201', async ({ page }, info) => {

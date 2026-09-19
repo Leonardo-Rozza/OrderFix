@@ -18,6 +18,11 @@ Luego se completó el [corte de integración UI y email](2026-09-19-ui-email-int
 validación conjunta, corrección de Hoy/Atrás en Cobros y consolidación local del
 código de las mejoras previas. El acta distingue navegador simulado y PostgreSQL real.
 
+La continuación focal conecta el [historial legal de Cuenta con el laboratorio
+real de registro](2026-09-19-historial-cuenta-integracion-local.md), incluyendo
+la consulta antes/después de verificar email y la separación entre titular y
+empleado. Conserva el alcance local y los pendientes externos de la tabla final.
+
 Base del diagnóstico: frontend `5a86605`, backend `35ecb8f`. Esa revisión inicial
 inspeccionó código, pruebas existentes y actas. La evidencia nueva de los cortes A–D se
 detalla al final; la evidencia funcional anterior conserva sus límites.

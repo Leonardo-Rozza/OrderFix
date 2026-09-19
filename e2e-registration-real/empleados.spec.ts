@@ -1,8 +1,8 @@
 import { expect, test, type BrowserContext, type Request } from '@playwright/test';
 import type { AuthResponse, Cliente, Perfil, Usuario } from '../src/types';
 import {
-  api, authenticated, emailFor, login, matches, noHorizontalOverflow, observeAttempt, openAndConfirm, password, saveEvidence, storedTokenMatches,
-  verifyAttempt, verifyNoAttemptStorage, verifySession,
+  api, authenticated, emailFor, login, matches, noHorizontalOverflow, observeAttempt, openAndConfirm, openOwnLegalHistory, password, saveEvidence, storedTokenMatches,
+  verifyAttempt, verifyNoAttemptStorage, verifyRegistrationHistory, verifySession,
 } from './helpers';
 
 test('el titular administra empleados y USER opera sólo dentro de su taller', async ({ page, browser }, info) => {
@@ -162,7 +162,18 @@ test('el titular administra empleados y USER opera sólo dentro de su taller', a
     await expect(page.getByTitle('Desactivar', { exact: true })).toBeVisible();
 
     const exitPage = await isolatedPage();
-    const exitSession = await login(exitPage, employeeEmail);
+    // El mismo navegador primero lee actos del titular y luego cambia de usuario;
+    // el empleado nunca debe heredar esa evidencia, aunque comparta el taller.
+    const ownerHistorySession = await login(exitPage, email);
+    const ownerHistory = await openOwnLegalHistory(exitPage, ownerHistorySession.token, {
+      id: ownerId, email, role: 'ADMIN', emailVerificado: true,
+    });
+    await verifyRegistrationHistory(exitPage, ownerHistory.history, snapshot);
+    await exitPage.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
+    await expect(exitPage).toHaveURL(/\/login$/);
+    await expect(exitPage.getByRole('region', { name: 'Tu historial legal', exact: true })).toHaveCount(0);
+    expect(await storedTokenMatches(exitPage, ownerHistorySession.token)).toBe(false);
+    const exitSession = await login(exitPage, employeeEmail, password, { reuseLoginPage: true });
     const secondEmployeePage = await isolatedPage();
     const secondEmployeeSession = await login(secondEmployeePage, employeeEmail);
     expect(exitSession.token !== secondEmployeeSession.token).toBe(true);
@@ -173,8 +184,16 @@ test('el titular administra empleados y USER opera sólo dentro de su taller', a
     // La guardia específica de exportaciones distingue sesión ausente (401) de rol USER (403).
     expect(anonymousExport).toBe(401);
 
-    await exitPage.goto('/cuenta');
-    await expect(exitPage.getByRole('heading', { name: 'Tu cuenta', exact: true })).toBeVisible();
+    const employeeHistory = await openOwnLegalHistory(exitPage, exitSession.token, {
+      id: employee.id, email: employeeEmail, role: 'USER', emailVerificado: true,
+    }, { navigateInApp: true });
+    expect(employeeHistory.history).toEqual({
+      content: [], page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
+    });
+    const legalSection = exitPage.getByRole('region', { name: 'Tu historial legal', exact: true });
+    await expect(legalSection.getByText('No hay registros legales para tu usuario.', { exact: true })).toBeVisible();
+    await expect(legalSection.locator('article')).toHaveCount(0);
+    await expect(legalSection.getByRole('button', { name: /^Leer / })).toHaveCount(0);
     const employeePrivacy = exitPage.getByRole('region', { name: 'Privacidad, datos y baja', exact: true });
     await expect(employeePrivacy.getByText('Las solicitudes sobre tus datos personales todavía no se gestionan desde la app.', { exact: true })).toBeVisible();
     await expect(employeePrivacy.getByText('Contacto todavía no disponible.', { exact: true })).toHaveCount(3);
@@ -247,7 +266,8 @@ test('el titular administra empleados y USER opera sólo dentro de su taller', a
     expect(Object.keys(exitBody).sort()).toEqual(['confirmado', 'passwordActual']);
     expect(exitBody.confirmado).toBe(true);
     await expect(exitPage).toHaveURL(/\/login$/);
-    await expect(exitPage.getByRole('status')).toHaveText('Tu acceso fue desactivado. Tus sesiones anteriores ya no permiten ingresar.');
+    await expect(exitPage.getByRole('status').filter({ hasText: 'Tu acceso fue desactivado.' }))
+      .toHaveText('Tu acceso fue desactivado. Tus sesiones anteriores ya no permiten ingresar.');
     await expect(exitPage.getByLabel('Contraseña', { exact: true })).toHaveValue('');
     expect(await storedTokenMatches(exitPage, exitSession.token)).toBe(false);
     await noCredentialsStored();
@@ -314,6 +334,7 @@ test('el titular administra empleados y USER opera sólo dentro de su taller', a
       requiredSetRevision: attempt.body.requiredSetRevision,
       acceptances: attempt.body.aceptacionesLegales, idempotencyKey: attempt.key,
       employee: { id: employee.id, email: employeeEmail }, client: { id: client.id }, ownerId, otherOwnerId,
+      employeeLegalHistoryTotal: 0,
     });
   } finally {
     await Promise.all(contexts.map((context) => context.close()));

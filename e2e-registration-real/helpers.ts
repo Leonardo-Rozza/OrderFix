@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, type Page, type Request, type TestInfo } from '@playwright/test';
 import type { RegistrationAcceptance, RegistrationRequirements } from '../src/api/registrationConsent';
+import type { AccountLegalHistoryPage } from '../src/api/accountLegal';
 import type { AuthResponse, Perfil } from '../src/types';
 
 export const api = new URL(process.env.ORDENFIX_REGISTRATION_E2E_API_URL!).origin;
@@ -16,6 +17,7 @@ type Evidence = {
   case: 'created' | 'replayed' | 'blocked' | 'employees'; project: string; email: string;
   employee?: { id: number; email: string }; client?: { id: number }; ownerId?: number; otherOwnerId?: number;
   requiredSetRevision?: string; acceptances?: RegistrationAcceptance[]; idempotencyKey?: string;
+  legalHistoryAcceptanceIds?: string[]; employeeLegalHistoryTotal?: 0;
 } | {
   case: 'repair-approved' | 'repair-rejected'; project: string; email: string;
   ownerId: number; clientId: number; equipmentId: number; repairId: number; budgetId: number; trackingCode: string;
@@ -75,7 +77,7 @@ export const openAndConfirm = async (page: Page, email: string): Promise<Registr
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   return snapshot;
 };
-export const verifySession = (page: Page, email: string) => {
+export const verifySession = (page: Page, email: string, beforeEmailConfirmation?: () => Promise<void>) => {
   // Estos GET nacen del frontend y atraviesan JWT, tenant, CORS y servicios reales.
   const profile = page.waitForResponse((response) => matches(response.url(), '/api/perfil'));
   const operationalRequests: string[] = [];
@@ -95,6 +97,12 @@ export const verifySession = (page: Page, email: string) => {
       });
       await expect(page.getByText('Vista previa', { exact: true })).toBeVisible();
       expect(operationalRequests).toEqual([]);
+      if (beforeEmailConfirmation) {
+        await beforeEmailConfirmation();
+        await page.goto('/dashboard');
+        await expect(page.getByText('Vista previa', { exact: true })).toBeVisible();
+        expect(operationalRequests).toEqual([]);
+      }
       const subscription = page.waitForResponse((response) => matches(response.url(), '/api/suscripcion'));
       const dashboard = page.waitForResponse((response) => matches(response.url(), '/api/dashboard'));
       await confirmMailboxEmail(page, email);
@@ -107,6 +115,103 @@ export const verifySession = (page: Page, email: string) => {
       page.off('request', observe);
     }
   };
+};
+
+/** Cuenta usa el JWT real y consulta exclusivamente el historial del principal. */
+export const openOwnLegalHistory = async (
+  page: Page, token: string,
+  expectedUser: Pick<Perfil['usuario'], 'email' | 'role' | 'emailVerificado'> & { id?: number },
+  options: { navigateInApp?: boolean } = {},
+) => {
+  const observed: string[] = [];
+  const observe = (request: Request) => {
+    const url = new URL(request.url());
+    if (url.origin === api) observed.push(`${request.method()} ${url.pathname}`);
+  };
+  page.on('request', observe);
+  try {
+    const profilePromise = page.waitForResponse((response) => matches(response.url(), '/api/perfil') && response.request().method() === 'GET');
+    const historyPromise = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.origin === api && url.pathname === '/api/aceptaciones-legales' && response.request().method() === 'GET';
+    });
+    if (options.navigateInApp) {
+      if ((page.viewportSize()?.width ?? 1280) >= 1024) {
+        await page.locator('aside').getByRole('link', { name: 'Cuenta', exact: true }).click();
+      } else {
+        await page.getByRole('button', { name: 'Más', exact: true }).click();
+        await page.getByRole('dialog', { name: 'Más herramientas', exact: true })
+          .getByRole('link', { name: 'Cuenta', exact: true }).click();
+      }
+    } else await page.goto('/cuenta');
+    const [profileResponse, historyResponse] = await Promise.all([profilePromise, historyPromise]);
+    expect(profileResponse.status()).toBe(200);
+    const profile = await profileResponse.json() as Perfil;
+    expect(profile.usuario).toMatchObject(expectedUser);
+    expect(Number.isSafeInteger(profile.usuario.id) && profile.usuario.id > 0).toBe(true);
+    expect(historyResponse.status()).toBe(200);
+    expect(historyResponse.headers()['cache-control']).toBe('private, no-store');
+    expect(historyResponse.headers().etag).toBeUndefined();
+    expect(historyResponse.request().headers().authorization === `Bearer ${token}`).toBe(true);
+    expect(Object.fromEntries(new URL(historyResponse.url()).searchParams)).toEqual({ page: '0', size: '20' });
+    const history = await historyResponse.json() as AccountLegalHistoryPage;
+    await expect(page.getByRole('heading', { name: 'Tu cuenta', exact: true })).toBeVisible();
+    const section = page.getByRole('region', { name: 'Tu historial legal', exact: true });
+    await expect(section.getByText('Cargando tu historial legal…', { exact: true })).toHaveCount(0);
+    await expect(section.getByRole('alert')).toHaveCount(0);
+    expect(observed.every((request) => ['GET /api/perfil', 'GET /api/aceptaciones-legales'].includes(request))).toBe(true);
+    expect(await storedTokenMatches(page, token)).toBe(true);
+    await noHorizontalOverflow(page);
+    return { profile, history };
+  } finally {
+    page.off('request', observe);
+  }
+};
+
+/** Coteja todos los actos/documentos leídos con el snapshot realmente enviado al registrar. */
+export const verifyRegistrationHistory = async (
+  page: Page, history: AccountLegalHistoryPage, snapshot: RegistrationRequirements,
+): Promise<string[]> => {
+  const required = snapshot.requisitos.filter((requirement) => requirement.requerido);
+  expect(required.length).toBeLessThanOrEqual(20);
+  expect(history.page).toEqual({ size: 20, number: 0, totalElements: required.length, totalPages: 1 });
+  expect(history.content.map((act) => act.requisitoVersionId).sort()).toEqual(required.map((requirement) => requirement.id).sort());
+  const section = page.getByRole('region', { name: 'Tu historial legal', exact: true });
+  await expect(section.locator('article')).toHaveCount(required.length);
+  const labels = { ACEPTACION: 'Aceptación', LECTURA: 'Lectura', DECLARACION: 'Declaración' };
+  for (const requirement of required) {
+    const act = history.content.find((item) => item.requisitoVersionId === requirement.id)!;
+    const expectedReferences = requirement.documentos.map((document) => ({
+      documentoVersionId: document.id, tipo: document.tipo, version: document.version, titulo: document.titulo, sha256: document.sha256,
+    })).sort((left, right) => left.documentoVersionId.localeCompare(right.documentoVersionId));
+    expect({ ...act, documentos: [...act.documentos].sort((left, right) => left.documentoVersionId.localeCompare(right.documentoVersionId)) }).toEqual({
+      id: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/),
+      requisitoVersionId: requirement.id, contexto: 'REGISTRO', tipoActo: requirement.tipoActo,
+      afirmacion: requirement.afirmacion, afirmacionSha256: requirement.afirmacionSha256,
+      documentos: expectedReferences, aceptadoEn: expect.any(String),
+    });
+    expect(Number.isFinite(Date.parse(act.aceptadoEn))).toBe(true);
+    const article = section.locator('article').filter({ has: page.getByText(requirement.afirmacion, { exact: true }) });
+    await expect(article.getByRole('heading', { name: `${labels[requirement.tipoActo]} · Registro de cuenta`, exact: true })).toBeVisible();
+    await expect(article.locator('time')).toHaveAttribute('datetime', act.aceptadoEn);
+    for (const document of requirement.documentos) {
+      const responsePromise = page.waitForResponse((response) => matches(response.url(), `/api/public/documentos-legales/${document.id}`) && response.request().method() === 'GET');
+      await article.getByRole('button', { name: `Leer ${document.titulo} · versión ${document.version}`, exact: true }).click();
+      const response = await responsePromise;
+      expect(response.status()).toBe(200);
+      expect(response.request().headers().authorization).toBeUndefined();
+      expect(await response.json()).toEqual(document);
+      const reader = article.getByRole('region', { name: `${document.titulo} · versión ${document.version}`, exact: true });
+      await expect(reader).toBeVisible();
+      expect(await reader.textContent()).toBe(document.contenidoMarkdown);
+      await noHorizontalOverflow(page);
+      await article.getByRole('button', { name: `Cerrar ${document.titulo} · versión ${document.version}`, exact: true }).click();
+      await expect(reader).toHaveCount(0);
+    }
+  }
+  const ids = history.content.map((act) => act.id).sort();
+  expect(new Set(ids).size).toBe(ids.length);
+  return ids;
 };
 
 const confirmMailboxEmail = async (page: Page, email: string) => {
@@ -169,8 +274,9 @@ export const authenticated = async <T = unknown>(page: Page, token: string, path
   }, { url: `${api}${path}`, token, method, body });
 };
 
-export const login = async (page: Page, email: string, credentials = password) => {
-  await page.goto('/login');
+export const login = async (page: Page, email: string, credentials = password, options: { reuseLoginPage?: boolean } = {}) => {
+  if (options.reuseLoginPage) await expect(page).toHaveURL(/\/login$/);
+  else await page.goto('/login');
   await page.getByLabel('Email', { exact: true }).fill(email);
   await page.getByLabel('Contraseña', { exact: true }).fill(credentials);
   const responsePromise = page.waitForResponse((response) => matches(response.url(), '/api/auth/login') && response.request().method() === 'POST');

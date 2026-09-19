@@ -4,6 +4,16 @@ Fecha: 2026-09-12. Estado: cortes A–D completos; pulido local cerrado.
 Este documento responde al pedido de mejorar la experiencia
 y el Excel, con un alcance que se pueda terminar.
 
+Continuación del 2026-09-19: el titular pospuso la clasificación y adaptación de
+campos para notebooks, consolas, PC, monitores, TV y otros equipos. Se conserva como
+[pendiente antes del lanzamiento](2026-09-19-equipos-multidispositivo-pendiente.md).
+El ensayo local de recuperación de backups del corte D quedó aprobado: 27 casos
+focalizados, con `pg_dump`/`pg_restore` reales en PostgreSQL 16 descartables. Acta
+backend: `docs/plans/2026-09-19-recuperacion-backup-local-design.md`. Esto cierra el
+ensayo local; conservación, supresión integral y recuperación del despliegue siguen
+pendientes. Las mejoras de UI y verificación de email en curso se preservaron sin
+modificarlas; este corte documental no acredita su validación.
+
 Base del diagnóstico: frontend `5a86605`, backend `35ecb8f`. Esa revisión inicial
 inspeccionó código, pruebas existentes y actas. La evidencia nueva de los cortes A–D se
 detalla al final; la evidencia funcional anterior conserva sus límites.

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { AuthResponse } from '../src/types';
 import type { AccountLegalHistoryPage } from '../src/api/accountLegal';
 import { api, emailFor, fill, matches, observeAttempt, openAndConfirm, openOwnLegalHistory, saveEvidence, storedTokenMatches,
-  verifyAttempt, verifyNoAttemptStorage, verifyRegistrationHistory, verifySession, type Attempt } from './helpers';
+  verifyAttempt, verifyNoAttemptStorage, verifyPasswordRecovery, verifyRegistrationHistory, verifySession, type Attempt } from './helpers';
 
 test('crea una cuenta con las condiciones leídas e ingresa con una sesión real', async ({ page }, info) => {
   const email = emailFor('created', info);
@@ -36,8 +36,9 @@ test('crea una cuenta con las condiciones leídas e ingresa con una sesión real
   expect(await verifyRegistrationHistory(page, verifiedAccount.history, snapshot)).toEqual(legalHistoryAcceptanceIds);
   expect(await storedTokenMatches(page, token)).toBe(true);
   await verifyNoAttemptStorage(page, attempt.key);
+  const recovery = await verifyPasswordRecovery(page, email, token, emailFor('reset-missing', info));
   saveEvidence({ case: 'created', project: info.project.name, email, requiredSetRevision: snapshot.requiredSetRevision,
-    acceptances: attempt.body.aceptacionesLegales, idempotencyKey: attempt.key, legalHistoryAcceptanceIds });
+    acceptances: attempt.body.aceptacionesLegales, idempotencyKey: attempt.key, legalHistoryAcceptanceIds, recovery });
 });
 
 test('recupera el alta después de perder una respuesta real 201', async ({ page }, info) => {

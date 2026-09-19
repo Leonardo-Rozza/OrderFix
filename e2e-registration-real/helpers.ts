@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import { expect, type Page, type Request, type TestInfo } from '@playwright/test';
 import type { RegistrationAcceptance, RegistrationRequirements } from '../src/api/registrationConsent';
 import type { AccountLegalHistoryPage } from '../src/api/accountLegal';
@@ -18,6 +19,7 @@ type Evidence = {
   employee?: { id: number; email: string }; client?: { id: number }; ownerId?: number; otherOwnerId?: number;
   requiredSetRevision?: string; acceptances?: RegistrationAcceptance[]; idempotencyKey?: string;
   legalHistoryAcceptanceIds?: string[]; employeeLegalHistoryTotal?: 0;
+  recovery?: { resetTokenHash: string; replacedTokenHash: string };
 } | {
   case: 'repair-approved' | 'repair-rejected'; project: string; email: string;
   ownerId: number; clientId: number; equipmentId: number; repairId: number; budgetId: number; trackingCode: string;
@@ -301,4 +303,119 @@ export const login = async (page: Page, email: string, credentials = password, o
   expect(await storedTokenMatches(page, session.token)).toBe(true);
   await noHorizontalOverflow(page);
   return { token: session.token, profile: identity };
+};
+
+/** Recuperación por UI y correo HTML real: sólo los hashes llegan al reporte. */
+export const verifyPasswordRecovery = async (page: Page, email: string, previousToken: string, missingEmail: string) => {
+  const directory = process.env.ORDENFIX_REGISTRATION_E2E_RESET_MAILBOX;
+  if (!directory) throw new Error('Falta el buzón efímero de recuperación del harness.');
+  const mailbox = (recipient: string) => join(directory, `${Buffer.from(recipient).toString('base64url')}.html`);
+  const newPassword = 'Clave-renovada-E2E-456';
+  const frontendOrigin = new URL(page.url()).origin;
+  const openedPages: Page[] = [];
+  const genericResponse = { message: 'Si el email está registrado, te enviamos un link para restablecer la contraseña.' };
+  const genericNotice = 'Si <email> está registrado, te mandamos un link para crear una contraseña nueva. Vence en 1 hora — si no llega, revisá spam.';
+
+  const requestReset = async (recipient: string) => {
+    await page.goto('/olvide-password');
+    await page.getByLabel('Email', { exact: true }).fill(recipient);
+    const responsePromise = page.waitForResponse((response) => matches(response.url(), '/api/auth/password/olvide') && response.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Enviarme el link', exact: true }).click();
+    const response = await responsePromise;
+    expect(response.status()).toBe(200);
+    expect(response.request().headers().authorization).toBeUndefined();
+    expect(response.request().postDataJSON()).toEqual({ email: recipient });
+    expect(await response.json()).toEqual(genericResponse);
+    await expect(page.getByRole('heading', { name: 'Revisá tu casilla 📬', exact: true })).toBeVisible();
+    await expect(page.getByText(genericNotice.replace('<email>', recipient), { exact: true })).toBeVisible();
+    await noHorizontalOverflow(page);
+  };
+  const readEmail = async (previousHtml?: string) => {
+    await expect.poll(() => {
+      if (!existsSync(mailbox(email))) return false;
+      const html = readFileSync(mailbox(email), 'utf8');
+      return html.includes('</html>') && html !== previousHtml;
+    }, { message: 'El nuevo correo HTML debe llegar al buzón efímero.' }).toBe(true);
+    return readFileSync(mailbox(email), 'utf8');
+  };
+  const openEmail = async (html: string) => {
+    const emailPage = await page.context().newPage();
+    openedPages.push(emailPage);
+    await emailPage.setContent(html);
+    await expect(emailPage.getByRole('heading', { name: 'Creá una nueva contraseña', exact: true })).toBeVisible();
+    await expect(emailPage.getByText('Este enlace vence en 1 hora y se puede usar una sola vez.', { exact: true })).toBeVisible();
+    await noHorizontalOverflow(emailPage);
+    const action = emailPage.getByRole('link', { name: 'Crear nueva contraseña', exact: true });
+    const href = await action.getAttribute('href');
+    expect(typeof href === 'string' && href.length > 0).toBe(true);
+    const link = new URL(href!);
+    expect(link.origin).toBe(frontendOrigin);
+    expect(link.pathname).toBe('/reset-password');
+    expect([...link.searchParams.keys()]).toEqual(['token']);
+    const token = link.searchParams.get('token')!;
+    expect(token.length > 0).toBe(true);
+    const links = await emailPage.getByRole('link').evaluateAll((elements) => elements.map((element) => element.getAttribute('href')));
+    expect(links.length === 2 && links.every((value) => value === href)).toBe(true);
+    await action.click();
+    await expect(emailPage.getByRole('heading', { name: 'Creá tu nueva contraseña', exact: true })).toBeVisible();
+    expect(new URL(emailPage.url()).searchParams.get('token') === token).toBe(true);
+    return { page: emailPage, hash: createHash('sha256').update(token).digest('hex') };
+  };
+  const submitReset = async (resetPage: Page, expectedStatus: 200 | 400) => {
+    const token = new URL(resetPage.url()).searchParams.get('token');
+    await resetPage.getByLabel('Nueva contraseña', { exact: true }).fill(newPassword);
+    await resetPage.getByLabel('Repetila', { exact: true }).fill(newPassword);
+    const responsePromise = resetPage.waitForResponse((response) => matches(response.url(), '/api/auth/password/reset') && response.request().method() === 'POST');
+    await resetPage.getByRole('button', { name: 'Cambiar contraseña', exact: true }).click();
+    const response = await responsePromise;
+    expect(response.status()).toBe(expectedStatus);
+    expect(response.request().headers().authorization).toBeUndefined();
+    const body = response.request().postDataJSON();
+    expect(Object.keys(body).sort()).toEqual(['nuevaPassword', 'token']);
+    expect(body.token === token && body.nuevaPassword === newPassword).toBe(true);
+    if (expectedStatus === 400) {
+      await expect(resetPage.getByText('El link no es válido o ya venció. Pedí uno nuevo.', { exact: true })).toBeVisible();
+      await expect(resetPage.getByRole('heading', { name: 'Creá tu nueva contraseña', exact: true })).toBeVisible();
+    } else {
+      await expect(resetPage).toHaveURL(/\/login$/);
+      await expect(resetPage.getByText('Contraseña actualizada. Ya podés iniciar sesión.', { exact: true })).toBeVisible();
+    }
+    await noHorizontalOverflow(resetPage);
+  };
+
+  try {
+    await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
+    await expect(page).toHaveURL(/\/login$/);
+    await requestReset(missingEmail);
+    expect(existsSync(mailbox(missingEmail))).toBe(false);
+    await requestReset(email);
+    const firstHtml = await readEmail();
+    await requestReset(email);
+    const secondHtml = await readEmail(firstHtml);
+    const replaced = await openEmail(firstHtml);
+    await submitReset(replaced.page, 400);
+    const current = await openEmail(secondHtml);
+    expect(current.hash).not.toBe(replaced.hash);
+    await submitReset(current.page, 200);
+    expect([401, 403]).toContain((await authenticated(current.page, previousToken, '/api/perfil')).status);
+
+    await current.page.getByLabel('Email', { exact: true }).fill(email);
+    await current.page.getByLabel('Contraseña', { exact: true }).fill(password);
+    const rejectedLogin = current.page.waitForResponse((response) => matches(response.url(), '/api/auth/login') && response.request().method() === 'POST');
+    await current.page.getByRole('button', { name: 'Ingresar', exact: true }).click();
+    expect((await rejectedLogin).status()).toBe(401);
+    await expect(current.page).toHaveURL(/\/login$/);
+    const session = await login(current.page, email, newPassword, { reuseLoginPage: true });
+    const reused = await openEmail(secondHtml);
+    expect(reused.hash).toBe(current.hash);
+    await submitReset(reused.page, 400);
+    expect(await storedTokenMatches(reused.page, session.token)).toBe(true);
+    expect((await authenticated(reused.page, session.token, '/api/perfil')).status).toBe(200);
+    expect(existsSync(mailbox(missingEmail))).toBe(false);
+    const storage = await reused.page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } }));
+    expect(storage.includes(newPassword) || storage.includes(password)).toBe(false);
+    return { resetTokenHash: current.hash, replacedTokenHash: replaced.hash };
+  } finally {
+    for (const openedPage of openedPages) await openedPage.close();
+  }
 };

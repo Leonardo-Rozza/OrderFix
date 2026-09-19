@@ -27,6 +27,10 @@ A pedido del titular se completa también el [formato de los correos de cuenta](
 verificación/alta y recuperación con identidad OrdenFix, botón, vencimiento y
 alternativa de texto. Los flujos ya existían; su prueba desplegada sigue en Email C.
 
+La [integración local de recuperación de contraseña](2026-09-19-recuperacion-password-integracion-local.md)
+conecta ese HTML con el navegador, el cambio de clave y PostgreSQL descartable.
+El acta registra el resultado focal y conserva Email C desplegado como pendiente.
+
 Base del diagnóstico: frontend `5a86605`, backend `35ecb8f`. Esa revisión inicial
 inspeccionó código, pruebas existentes y actas. La evidencia nueva de los cortes A–D se
 detalla al final; la evidencia funcional anterior conserva sus límites.

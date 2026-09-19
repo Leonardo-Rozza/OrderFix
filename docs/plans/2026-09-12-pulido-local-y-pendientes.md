@@ -31,6 +31,12 @@ La [integración local de recuperación de contraseña](2026-09-19-recuperacion-
 conecta ese HTML con el navegador, el cambio de clave y PostgreSQL descartable.
 El acta registra el resultado focal y conserva Email C desplegado como pendiente.
 
+La [prueba local con entrega real](2026-09-19-email-entrega-recorridos-local.md)
+completó alta/verificación y recuperación usando los enlaces recibidos en Gmail.
+Los dos correos autorizados llegaron a Recibidos, con SPF/DKIM aprobados; sus
+plantillas se revisaron dentro de Gmail web. Falta repetir el circuito desplegado
+con HTTPS y otro dispositivo para cerrar Email C.
+
 Base del diagnóstico: frontend `5a86605`, backend `35ecb8f`. Esa revisión inicial
 inspeccionó código, pruebas existentes y actas. La evidencia nueva de los cortes A–D se
 detalla al final; la evidencia funcional anterior conserva sus límites.
@@ -176,7 +182,7 @@ Estos cinco frentes continúan abiertos; terminar A–D no los marca como resuel
 | --- | --- | --- |
 | MP | Checkout, firma/inbox, reintentos, conciliación y cancelación con pruebas locales. | Aplicación/cuentas de prueba, retorno y webhook HTTPS; probar alta, activación/rechazo, cancelación y matriz de eventos contra el proveedor. No procesa pagos taller–cliente. |
 | Fotos | Flujo privado local; adapter productivo contra Cloudinary real acreditado con PNG/JPEG: carga, lectura exacta, HTTP 401 anónimo y borrado confirmado. | Recorrido completo en staging, configuración del rol y política de retención/backups/CDN. Identificar antes de limpiar cuentas y assets históricos de prueba autorizados. |
-| Email C | SMTP Resend y dominio verificado; correo autorizado recibido. | Registro, verificación y recuperación desde la app desplegada, enlaces HTTPS y operación del envío. La recepción de una prueba no cierra este recorrido. |
+| Email C | SMTP y dominio verificados; alta/verificación y recuperación locales completas con dos mensajes reales recibidos en Gmail, SPF/DKIM y revisión visual aprobados. | Repetir el circuito desde la app desplegada, con enlaces HTTPS, otro dispositivo y operación del envío. La prueba local no cierra el despliegue. |
 | Datos, cierre y publicación legal | Cuenta, baja del empleado y reporte operativo ensayados localmente; bloqueo de enlaces de talleres inactivos y runbook con casos sintéticos. Exportación integral A–D implementada: reautenticación, captura consistente, ZIP cifrado con fotos permitidas, vencimiento/limpieza, API y pantalla; descarga de ZIP/Excel protegida. Integral backend D aprobado: 7.578 unitarias y 1.475 IT; secuencia A–D en el plan backend `2026-09-12-exportacion-integral-implementation.md`. Cierre E incorpora API/pantalla ADMIN, restricción/restauración y descarga previa; ensayo real local aprobado, flags apagados. | Completar D (conservación, supresión de negocio/identidad, recibos remotos y recuperación), acreditar capacidad/operación del despliegue y vía real de solicitudes/entrega con contactos atendidos. La baja USER y el Excel no resuelven esos pedidos. Identidad/alta y textos definitivos conservan la etapa final acordada, después de MP y Email. |
 | Despliegue y recuperación | Ramas identificadas y Vercel conectado a main. | Configurar y acreditar versión frontend/API en staging, gates de publicación, recorrido móvil, backup restaurado y recuperación del despliegue. El usuario hará push/merge. |
 

@@ -98,29 +98,39 @@ test('Reparaciones vuelve desde el detalle al recorte exacto del listado', async
   await expect(page.getByRole('button', { name: /^Ingresado/ })).toHaveClass(/bg-primary/);
   await expect(page.getByRole('combobox', { name: 'Ordenar' })).toHaveValue('fechaIngreso,desc');
 
-  await page.getByRole('button', { name: 'Tablero' }).click();
+  await page.getByRole('button', { name: 'Etapas', exact: true }).click();
   await expect.poll(() => paramsOf(page)).toMatchObject({
     estado: 'INGRESADO',
     page: '1',
     sort: 'fechaIngreso,desc',
+    vista: 'board',
   });
-  expect(await paramsOf(page)).not.toHaveProperty('vista');
+  const phases = page.getByRole('group', { name: 'Etapas de reparación', exact: true });
+  await phases.getByRole('button', { name: /^En trabajo\b/ }).click();
+  await expect.poll(() => paramsOf(page)).toMatchObject({ etapa: 'EN_TRABAJO', vista: 'board', estado: 'INGRESADO' });
+  await expect(page.getByTestId('col-INGRESADO')).toHaveCount(0);
+  await expect(page.getByTestId('col-EN_PROCESO')).toBeVisible();
+  await page.reload();
+  await expect(phases.getByRole('button', { name: /^En trabajo\b/ })).toHaveAttribute('aria-pressed', 'true');
+
+  await page.goBack();
+  await expect(phases.getByRole('button', { name: /^Ingreso\b/ })).toHaveAttribute('aria-pressed', 'true');
 
   await page.goBack();
   await expect(page.getByRole('button', { name: 'Lista' })).toHaveClass(/bg-surface/);
 });
 
 test('parámetros inválidos se limpian sin borrar parámetros ajenos', async ({ page }) => {
-  await page.goto('/reparaciones?vista=grid&estado=DESCONOCIDO&page=-1&sort=DROP&nuevo=0&externo=1');
+  await page.goto('/reparaciones?vista=grid&etapa=DESCONOCIDA&estado=DESCONOCIDO&page=-1&sort=DROP&nuevo=0&externo=1');
 
   await expect.poll(() => paramsOf(page)).toEqual({ externo: '1' });
-  await expect(page.getByRole('button', { name: 'Tablero' })).toHaveClass(/bg-surface/);
+  await expect(page.getByRole('button', { name: 'Etapas', exact: true })).toHaveClass(/bg-surface/);
   await expect(page.getByRole('dialog', { name: 'Nueva reparación' })).toHaveCount(0);
 
   await page.goto('/caja?desde=2026-02-30&hasta=fecha&externo=1');
   await expect.poll(() => paramsOf(page)).toEqual({ externo: '1' });
-  await expect(page.getByLabel('Desde')).toHaveValue('');
-  await expect(page.getByLabel('Hasta')).toHaveValue('');
+  await expect(page.getByRole('textbox', { name: 'Desde', exact: true })).toHaveValue('');
+  await expect(page.getByRole('textbox', { name: 'Hasta', exact: true })).toHaveValue('');
 });
 
 test('Cobros recorre el rango con Back/Forward y Hoy sin cambiar /caja', async ({ page }) => {
@@ -128,9 +138,9 @@ test('Cobros recorre el rango con Back/Forward y Hoy sin cambiar /caja', async (
 
   await expect(page.getByRole('heading', { name: 'Cobros', exact: true })).toBeVisible();
 
-  await page.getByLabel('Desde').fill('2026-08-01');
+  await page.getByRole('textbox', { name: 'Desde', exact: true }).fill('01/08/2026');
   await expect.poll(() => paramsOf(page)).toMatchObject({ externo: '1', desde: '2026-08-01' });
-  await page.getByLabel('Hasta').fill('2026-08-15');
+  await page.getByRole('textbox', { name: 'Hasta', exact: true }).fill('15/08/2026');
   await expect.poll(() => paramsOf(page)).toEqual({
     externo: '1',
     desde: '2026-08-01',
@@ -138,17 +148,17 @@ test('Cobros recorre el rango con Back/Forward y Hoy sin cambiar /caja', async (
   });
 
   await page.goBack();
-  await expect(page.getByLabel('Desde')).toHaveValue('2026-08-01');
-  await expect(page.getByLabel('Hasta')).toHaveValue('');
+  await expect(page.getByRole('textbox', { name: 'Desde', exact: true })).toHaveValue('01/08/2026');
+  await expect(page.getByRole('textbox', { name: 'Hasta', exact: true })).toHaveValue('');
   await page.goForward();
-  await expect(page.getByLabel('Hasta')).toHaveValue('2026-08-15');
+  await expect(page.getByRole('textbox', { name: 'Hasta', exact: true })).toHaveValue('15/08/2026');
 
   await page.getByRole('button', { name: 'Hoy' }).click();
   await expect.poll(() => paramsOf(page)).toEqual({ externo: '1' });
 
   await page.goBack();
-  await expect(page.getByLabel('Desde')).toHaveValue('2026-08-01');
-  await expect(page.getByLabel('Hasta')).toHaveValue('2026-08-15');
+  await expect(page.getByRole('textbox', { name: 'Desde', exact: true })).toHaveValue('01/08/2026');
+  await expect(page.getByRole('textbox', { name: 'Hasta', exact: true })).toHaveValue('15/08/2026');
 });
 
 test('alta por nuevo=1 reemplaza la entrada y Atrás no reabre el formulario', async ({ page }) => {

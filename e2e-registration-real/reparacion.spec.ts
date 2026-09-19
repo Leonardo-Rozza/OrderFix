@@ -171,12 +171,41 @@ for (const action of ['aprobar', 'rechazar'] as const) {
       await noCollectionsUi(page);
       const transitions: EstadoReparacion[] = approved ? ['COMPLETADO', 'ENTREGADO'] : ['ENTREGADO'];
       for (const state of transitions) {
+        const fromStages = state === transitions[0];
+        if (fromStages) {
+          const phase = approved ? 'EN_TRABAJO' : 'LISTO';
+          await page.goto(`/reparaciones?vista=board&etapa=${phase}&q=${phone}`);
+          const card = page.getByTestId(`col-${expectedRepairState}`).getByTestId(`card-${repairId}`);
+          await expect(card).toBeVisible();
+          await expect(page.getByRole('searchbox', { name: 'Buscar reparaciones', exact: true })).toHaveValue(phone);
+          await noHorizontalOverflow(page);
+          await card.getByRole('button', { name: /^Cambiar estado de / }).click();
+          await page.getByRole('dialog', { name: 'Cambiar estado', exact: true })
+            .getByRole('combobox', { name: 'Nuevo estado', exact: true }).selectOption(state);
+        }
         const statePromise = page.waitForResponse((response) => matches(response.url(), `${repairPath}/estado`) && response.request().method() === 'PATCH');
-        await page.getByLabel('Cambiar estado', { exact: true }).selectOption(state);
+        if (fromStages) {
+          await page.getByRole('dialog', { name: 'Cambiar estado', exact: true })
+            .getByRole('button', { name: 'Guardar estado', exact: true }).click();
+        } else {
+          await page.getByLabel('Cambiar estado', { exact: true }).selectOption(state);
+        }
         const changed = await statePromise;
         expect(changed.status()).toBe(200);
         expect(changed.request().postDataJSON()).toEqual({ estado: state });
         expect(await changed.json()).toMatchObject({ id: repairId, estado: state, ...unpaid });
+        if (fromStages) {
+          await expect(page.getByRole('dialog', { name: 'Cambiar estado', exact: true })).toBeHidden();
+          const phases = page.getByRole('group', { name: 'Etapas de reparación', exact: true });
+          await expect(phases.getByRole('button', { name: approved ? /^En trabajo:/ : /^Listo:/ }))
+            .toHaveAttribute('aria-pressed', 'true');
+          await page.getByRole('status').getByRole('button', {
+            name: state === 'COMPLETADO' ? 'Ver Listo' : 'Ver Cerradas', exact: true,
+          }).click();
+          await page.getByTestId(`col-${state}`).getByTestId(`card-${repairId}`)
+            .getByRole('button', { name: /^Abrir reparación / }).click();
+          await expect(page).toHaveURL(new RegExp(`/reparaciones/${repairId}$`));
+        }
         await expect(page.getByLabel('Cambiar estado', { exact: true })).toHaveValue(state);
         await expect(page.getByLabel('Cambiar estado', { exact: true })).toBeEnabled();
         await noCollectionsUi(page);

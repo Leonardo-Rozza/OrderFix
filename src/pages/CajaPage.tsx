@@ -1,4 +1,7 @@
+import { startTransition, useState } from 'react';
+import { useLocation } from 'react-router';
 import { DashboardLayout } from '../layouts/DashboardLayout';
+import { DateInput } from '../components/DateInput';
 import { FeatureLocked } from '../components/FeatureLocked';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
@@ -9,6 +12,7 @@ import { useFunciones } from '../api/queries/suscripcion.queries';
 import { useUrlSearchParams } from '../hooks/useUrlSearchParams';
 import { composeSearchParamsNormalizers, normalizeIsoDateParam } from '../lib/urlSearchParams';
 import { DatosCobroCard } from '../components/DatosCobroCard';
+import { dateInputError } from '../utils/dateInput';
 
 const normalizeCajaSearchParams = composeSearchParamsNormalizers(
   (params) => { normalizeIsoDateParam(params, 'desde'); },
@@ -18,13 +22,41 @@ const normalizeCajaSearchParams = composeSearchParamsNormalizers(
 export const CajaPage = () => {
   const { cobros: cobrosHabilitado } = useFunciones();
   const { searchParams, updateSearchParams } = useUrlSearchParams(normalizeCajaSearchParams);
+  const location = useLocation();
   const desde = searchParams.get('desde') ?? '';
   const hasta = searchParams.get('hasta') ?? '';
-  const rangoInvalido = Boolean(desde && hasta && desde > hasta);
-  const { data, isLoading, isError, refetch } = useCajaQuery(
-    { desde: desde || undefined, hasta: hasta || undefined },
-    cobrosHabilitado && !rangoInvalido,
+  const [drafts, setDrafts] = useState({ locationKey: location.key, desde, hasta });
+  // Una navegación externa, incluso volver a una URL ya visitada, restaura el
+  // rango confirmado y descarta los borradores de la entrada anterior.
+  const currentDrafts = drafts.locationKey === location.key
+    ? drafts
+    : { locationKey: location.key, desde, hasta };
+  if (drafts.locationKey !== location.key) setDrafts(currentDrafts);
+  const fechasInvalidas = Boolean(dateInputError(currentDrafts.desde) || dateInputError(currentDrafts.hasta));
+  const rangoInvalido = !fechasInvalidas && Boolean(
+    currentDrafts.desde && currentDrafts.hasta && currentDrafts.desde > currentDrafts.hasta,
   );
+  const filtroInvalido = fechasInvalidas || rangoInvalido;
+  const { data, isLoading, isError, refetch } = useCajaQuery(
+    {
+      desde: (filtroInvalido ? desde : currentDrafts.desde) || undefined,
+      hasta: (filtroInvalido ? hasta : currentDrafts.hasta) || undefined,
+    },
+    cobrosHabilitado && !filtroInvalido,
+  );
+
+  const changeDate = (field: 'desde' | 'hasta', value: string) => {
+    const nextDrafts = { ...currentDrafts, [field]: value };
+    setDrafts(nextDrafts);
+    if (dateInputError(nextDrafts.desde) || dateInputError(nextDrafts.hasta)) return;
+    if (nextDrafts.desde && nextDrafts.hasta && nextDrafts.desde > nextDrafts.hasta) return;
+    updateSearchParams((next) => {
+      for (const key of ['desde', 'hasta'] as const) {
+        if (nextDrafts[key]) next.set(key, nextDrafts[key]);
+        else next.delete(key);
+      }
+    });
+  };
 
   if (!cobrosHabilitado) {
     return (
@@ -59,53 +91,43 @@ export const CajaPage = () => {
 
         {/* Filtro de período */}
         <div className="flex flex-col items-stretch gap-3 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-end">
-          <div className="min-w-0 sm:w-auto">
+          <div className="min-w-0 sm:w-[210px]">
             <label className="mb-1 block text-[12px] font-bold text-text-2" htmlFor="desde">Desde</label>
-            <input
+            <DateInput
               id="desde"
-              type="date"
-              value={desde}
-              max={hasta || undefined}
+              label="Desde"
+              value={currentDrafts.desde}
+              max={!dateInputError(currentDrafts.hasta) ? currentDrafts.hasta || undefined : undefined}
+              hasError={rangoInvalido}
               aria-invalid={rangoInvalido || undefined}
               aria-describedby={rangoInvalido ? 'rango-caja-error' : undefined}
-              onChange={(e) => {
-                const value = e.target.value;
-                updateSearchParams((next) => {
-                  if (value) next.set('desde', value);
-                  else next.delete('desde');
-                });
-              }}
-              className="min-h-11 w-full min-w-0 rounded-lg border border-border-strong bg-surface px-3 py-2 text-base text-text outline-none focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] sm:min-h-0 sm:w-auto sm:text-[13.5px]"
+              onChange={(value) => changeDate('desde', value)}
             />
           </div>
-          <div className="min-w-0 sm:w-auto">
+          <div className="min-w-0 sm:w-[210px]">
             <label className="mb-1 block text-[12px] font-bold text-text-2" htmlFor="hasta">Hasta</label>
-            <input
+            <DateInput
               id="hasta"
-              type="date"
-              value={hasta}
-              min={desde || undefined}
+              label="Hasta"
+              value={currentDrafts.hasta}
+              min={!dateInputError(currentDrafts.desde) ? currentDrafts.desde || undefined : undefined}
+              hasError={rangoInvalido}
               aria-invalid={rangoInvalido || undefined}
               aria-describedby={rangoInvalido ? 'rango-caja-error' : undefined}
-              onChange={(e) => {
-                const value = e.target.value;
-                updateSearchParams((next) => {
-                  if (value) next.set('hasta', value);
-                  else next.delete('hasta');
-                });
-              }}
-              className="min-h-11 w-full min-w-0 rounded-lg border border-border-strong bg-surface px-3 py-2 text-base text-text outline-none focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] sm:min-h-0 sm:w-auto sm:text-[13.5px]"
+              onChange={(value) => changeDate('hasta', value)}
             />
           </div>
-          {(desde || hasta) && (
+          {(currentDrafts.desde || currentDrafts.hasta || desde || hasta) && (
             <button
               type="button"
-              onClick={() => {
+              onClick={() => startTransition(() => {
+                setDrafts({ locationKey: location.key, desde, hasta });
+                if (!desde && !hasta) return;
                 updateSearchParams((next) => {
                   next.delete('desde');
                   next.delete('hasta');
                 });
-              }}
+              })}
               className="min-h-11 w-full touch-manipulation rounded-lg border border-border-strong bg-surface px-4 py-2 text-[13px] font-bold text-text-2 transition hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)] sm:ml-auto sm:min-h-0 sm:w-auto sm:border-0 sm:bg-transparent sm:px-0 sm:text-text-3 sm:hover:bg-transparent sm:hover:text-text"
             >
               Hoy
@@ -113,7 +135,11 @@ export const CajaPage = () => {
           )}
         </div>
 
-        {rangoInvalido ? (
+        {fechasInvalidas ? (
+          <p role="status" className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-[13px] text-text-2">
+            Completá o corregí las fechas para consultar los cobros.
+          </p>
+        ) : rangoInvalido ? (
           <p
             id="rango-caja-error"
             role="alert"

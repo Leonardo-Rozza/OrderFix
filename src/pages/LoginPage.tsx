@@ -18,7 +18,7 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 const fieldClass =
-  'min-h-11 w-full rounded-md border border-border-strong bg-surface px-3.5 py-3 pl-11 text-base text-text outline-none transition placeholder:text-text-3 focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)] sm:text-[14.5px]';
+  'min-h-11 w-full rounded-md border border-border-strong bg-surface px-3.5 py-3 text-base text-text outline-none transition placeholder:text-text-3 focus:border-primary focus:ring-[3px] focus:ring-[var(--ring)] sm:text-[14.5px]';
 
 const closureNotices = {
   CLOSED: 'El cierre fue confirmado. Iniciá sesión otra vez para consultar el estado actual del taller y las opciones disponibles.',
@@ -91,7 +91,7 @@ export const LoginPage = () => {
                 autoComplete="email"
                 placeholder="tecnico@mitaller.com"
                 {...register('email')}
-                className={fieldClass}
+                className={`${fieldClass} pl-11`}
                 aria-invalid={!!errors.email}
                 aria-describedby={errors.email ? 'login-email-error' : undefined}
               />
@@ -100,10 +100,6 @@ export const LoginPage = () => {
 
             <label htmlFor="login-password" className="mb-1.5 block text-[13px] font-bold">Contraseña</label>
             <div className="relative mb-5">
-              <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="absolute left-3.5 top-3.5">
-                <rect x="3" y="11" width="18" height="10" rx="2" />
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-              </svg>
               <PasswordInput
                 id="login-password"
                 autoComplete="current-password"

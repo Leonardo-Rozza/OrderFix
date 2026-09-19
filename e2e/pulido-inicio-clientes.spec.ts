@@ -56,7 +56,7 @@ for (const variant of [
     await mockApi(page, {
       clientes,
       perfil: {
-        usuario: { id: 1, username: 'Alex', email: 'alex@synthetic.invalid', role: variant.role },
+        usuario: { id: 1, username: 'Alex', email: 'alex@synthetic.invalid', role: variant.role, emailVerificado: true },
         taller: { id: 1, nombre: 'Taller de prueba', telefono: '1155550000' },
       },
       suscripcion: {

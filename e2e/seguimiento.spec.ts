@@ -8,7 +8,8 @@ test('seguimiento público: se ve sin estar logueado', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name: /apple iphone 13/i })).toBeVisible();
   await expect(page.getByText('MVGR Reparaciones')).toBeVisible();
-  await expect(page.getByText('ABC123')).toBeVisible();
+  const trackingCode = page.getByRole('term').filter({ hasText: 'Código de seguimiento' }).locator('..');
+  await expect(trackingCode.getByRole('definition')).toHaveText('ABC123');
   // Muestra el presupuesto pendiente con opción de aprobar
   await expect(page.getByRole('button', { name: /aprobar presupuesto/i })).toBeVisible();
   // No debe redirigir al login

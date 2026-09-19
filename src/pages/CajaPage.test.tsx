@@ -86,8 +86,8 @@ describe('CajaPage — rango de fechas', () => {
 
     const { router } = renderUI(['/caja?desde=2026-08-01&hasta=2026-08-15&externo=1']);
 
-    expect(screen.getByLabelText('Desde')).toHaveValue('2026-08-01');
-    expect(screen.getByLabelText('Hasta')).toHaveValue('2026-08-15');
+    expect(screen.getByLabelText('Desde')).toHaveValue('01/08/2026');
+    expect(screen.getByLabelText('Hasta')).toHaveValue('15/08/2026');
     expect(screen.getByLabelText('Desde')).toHaveClass('min-h-11', 'w-full', 'text-base');
     expect(screen.getByLabelText('Hasta')).toHaveClass('min-h-11', 'w-full', 'text-base');
     await waitFor(() => expect(requests).toHaveLength(1));
@@ -129,14 +129,14 @@ describe('CajaPage — rango de fechas', () => {
 
     const { router } = renderUI(['/caja?desde=2026-08-20&hasta=2026-08-10&externo=1']);
 
-    expect(screen.getByLabelText('Desde')).toHaveValue('2026-08-20');
-    expect(screen.getByLabelText('Hasta')).toHaveValue('2026-08-10');
+    expect(screen.getByLabelText('Desde')).toHaveValue('20/08/2026');
+    expect(screen.getByLabelText('Hasta')).toHaveValue('10/08/2026');
     expect(await screen.findByRole('alert')).toHaveTextContent(/no puede ser posterior/i);
     expect(requests).toHaveLength(0);
     expect(router.state.location.search).toContain('desde=2026-08-20');
     expect(router.state.location.search).toContain('hasta=2026-08-10');
 
-    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-08-25' } });
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '25/08/2026' } });
 
     await waitFor(() => expect(requests.some((url) => {
       const params = new URL(url).searchParams;
@@ -158,24 +158,24 @@ describe('CajaPage — rango de fechas', () => {
     expect(screen.getByLabelText('Hasta')).toHaveValue('');
 
     await act(async () => { await router.navigate(-1); });
-    expect(screen.getByLabelText('Desde')).toHaveValue('2026-08-01');
-    expect(screen.getByLabelText('Hasta')).toHaveValue('2026-08-15');
+    expect(screen.getByLabelText('Desde')).toHaveValue('01/08/2026');
+    expect(screen.getByLabelText('Hasta')).toHaveValue('15/08/2026');
   });
 
   it('crea una entrada PUSH por cambio y restaura el rango con back/forward', async () => {
     server.use(http.get(`${API}/caja`, () => HttpResponse.json(cajaVacia)));
     const { router } = renderUI(['/caja?externo=1']);
 
-    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-08-01' } });
-    await waitFor(() => expect(screen.getByLabelText('Desde')).toHaveValue('2026-08-01'));
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '01/08/2026' } });
+    await waitFor(() => expect(screen.getByLabelText('Desde')).toHaveValue('01/08/2026'));
     expect(router.state.historyAction).toBe('PUSH');
 
-    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-08-15' } });
-    await waitFor(() => expect(screen.getByLabelText('Hasta')).toHaveValue('2026-08-15'));
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '15/08/2026' } });
+    await waitFor(() => expect(screen.getByLabelText('Hasta')).toHaveValue('15/08/2026'));
     expect(router.state.historyAction).toBe('PUSH');
 
     await act(async () => { await router.navigate(-1); });
-    expect(screen.getByLabelText('Desde')).toHaveValue('2026-08-01');
+    expect(screen.getByLabelText('Desde')).toHaveValue('01/08/2026');
     expect(screen.getByLabelText('Hasta')).toHaveValue('');
 
     await act(async () => { await router.navigate(-1); });
@@ -185,8 +185,99 @@ describe('CajaPage — rango de fechas', () => {
 
     await act(async () => { await router.navigate(1); });
     await act(async () => { await router.navigate(1); });
-    expect(screen.getByLabelText('Desde')).toHaveValue('2026-08-01');
-    expect(screen.getByLabelText('Hasta')).toHaveValue('2026-08-15');
+    expect(screen.getByLabelText('Desde')).toHaveValue('01/08/2026');
+    expect(screen.getByLabelText('Hasta')).toHaveValue('15/08/2026');
+  });
+
+  it('conserva borradores inválidos fuera de la URL y oculta resultados hasta confirmar el rango completo', async () => {
+    const requests: string[] = [];
+    server.use(http.get(`${API}/caja`, ({ request }) => {
+      requests.push(request.url);
+      return HttpResponse.json(cajaVacia);
+    }));
+    const { router, queryClient } = renderUI(['/caja?desde=2028-02-01&hasta=2028-02-28&externo=1']);
+    await screen.findByText('Sin cobros en el período');
+    expect(requests).toHaveLength(1);
+
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '31/02/2028' } });
+    fireEvent.blur(screen.getByLabelText('Desde'));
+    expect(screen.getByLabelText('Desde')).toHaveValue('31/02/2028');
+    expect(screen.getByLabelText('Desde')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByRole('region', { name: 'Resumen de cobros' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Cobros registrados' })).not.toBeInTheDocument();
+    expect(router.state.location.search).toBe('?desde=2028-02-01&hasta=2028-02-28&externo=1');
+
+    // Tampoco confirmar el otro extremo puede descartar el borrador ni consultar
+    // resultados de un rango diferente al que la persona está viendo.
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '15/03/2028' } });
+    expect(screen.getByLabelText('Desde')).toHaveValue('31/02/2028');
+    expect(screen.getByLabelText('Hasta')).toHaveValue('15/03/2028');
+    await act(async () => { await queryClient.invalidateQueries(); });
+    expect(requests).toHaveLength(1);
+    expect(router.state.location.search).toBe('?desde=2028-02-01&hasta=2028-02-28&externo=1');
+
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '29/02/2028' } });
+    await waitFor(() => expect(requests).toHaveLength(2));
+    const params = new URL(requests[1]).searchParams;
+    expect(params.get('desde')).toBe('2028-02-29');
+    expect(params.get('hasta')).toBe('2028-03-15');
+    expect(router.state.location.search).toBe('?desde=2028-02-29&hasta=2028-03-15&externo=1');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(await screen.findByText('Sin cobros en el período')).toBeVisible();
+
+    await act(async () => { await router.navigate(-1); });
+    expect(screen.getByLabelText('Desde')).toHaveValue('01/02/2028');
+    expect(screen.getByLabelText('Hasta')).toHaveValue('28/02/2028');
+    await act(async () => { await router.navigate(1); });
+    expect(screen.getByLabelText('Desde')).toHaveValue('29/02/2028');
+    expect(screen.getByLabelText('Hasta')).toHaveValue('15/03/2028');
+  });
+
+  it('no confirma un rango escrito invertido y Hoy limpia los borradores en una sola navegación', async () => {
+    const requests: string[] = [];
+    server.use(http.get(`${API}/caja`, ({ request }) => {
+      requests.push(request.url);
+      return HttpResponse.json(cajaVacia);
+    }));
+    const { router } = renderUI(['/caja?desde=2026-08-01&hasta=2026-08-15&externo=1']);
+    await screen.findByText('Sin cobros en el período');
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '20/08/2026' } });
+    fireEvent.blur(screen.getByLabelText('Desde'));
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    expect(screen.getByRole('alert')).toHaveTextContent(/no puede ser posterior/i);
+    expect(requests).toHaveLength(1);
+    expect(router.state.location.search).toBe('?desde=2026-08-01&hasta=2026-08-15&externo=1');
+
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '25/08' } });
+    expect(screen.queryByRole('region', { name: 'Resumen de cobros' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Hoy' }));
+    await waitFor(() => expect(router.state.location.search).toBe('?externo=1'));
+    expect(screen.getByLabelText('Desde')).toHaveValue('');
+    expect(screen.getByLabelText('Hasta')).toHaveValue('');
+    await waitFor(() => expect(requests).toHaveLength(2));
+    const params = new URL(requests[1]).searchParams;
+    expect(params.has('desde')).toBe(false);
+    expect(params.has('hasta')).toBe(false);
+    await act(async () => { await router.navigate(-1); });
+    expect(screen.getByLabelText('Desde')).toHaveValue('01/08/2026');
+    expect(screen.getByLabelText('Hasta')).toHaveValue('15/08/2026');
+  });
+
+  it('descarta un borrador parcial al recorrer atrás y adelante', async () => {
+    server.use(http.get(`${API}/caja`, () => HttpResponse.json(cajaVacia)));
+    const { router } = renderUI(['/caja?desde=2026-08-01']);
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '15/08/2026' } });
+    await waitFor(() => expect(router.state.location.search).toContain('hasta=2026-08-15'));
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '12/' } });
+    expect(screen.getByLabelText('Desde')).toHaveValue('12/');
+
+    await act(async () => { await router.navigate(-1); });
+    expect(screen.getByLabelText('Desde')).toHaveValue('01/08/2026');
+    expect(screen.getByLabelText('Hasta')).toHaveValue('');
+    await act(async () => { await router.navigate(1); });
+    expect(screen.getByLabelText('Desde')).toHaveValue('01/08/2026');
+    expect(screen.getByLabelText('Hasta')).toHaveValue('15/08/2026');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('no presenta importes ni vacíos mientras el resumen sigue cargando', async () => {

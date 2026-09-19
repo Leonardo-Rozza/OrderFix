@@ -1,15 +1,18 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import { MemoryRouter, Routes, Route } from 'react-router';
-import { ProtectedRoute, PublicRoute } from './guards';
+import { ProtectedRoute, PublicRoute, VerifiedEmailRoute } from './guards';
+import { AccountRoute } from './AccountRoute';
+import { apiClient, EMAIL_VERIFICATION_REQUIRED_EVENT } from '../api/axios';
 import { authStore } from '../store/auth.store';
 import { server, API } from '../test/server';
 
 const flags = vi.hoisted(() => ({ enabled: false }));
 vi.mock('../config/workshopClosure', () => ({ get workshopClosureEnabled() { return flags.enabled; } }));
+vi.mock('../components/ThemeToggle', () => ({ ThemeToggle: () => null }));
 
 // JWT de mentira con el exp dado (segundos).
 const b64url = (o: object) => btoa(JSON.stringify(o)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
@@ -29,7 +32,7 @@ const suscripcion = {
 };
 
 const perfil = {
-  usuario: { id: 1, username: 'Ada Lovelace', email: 'a@a.com', role: 'ADMIN' },
+  usuario: { id: 1, username: 'Ada Lovelace', email: 'a@a.com', role: 'ADMIN', emailVerificado: true },
   taller: { id: 1, nombre: 'Taller A', telefono: null },
 };
 
@@ -62,6 +65,93 @@ beforeEach(() => {
 });
 
 describe('ProtectedRoute', () => {
+  it.each([true, false, undefined])('el perfil pendiente bloquea operación y plan aunque el store diga %s', async (persisted) => {
+    let subscriptions = 0;
+    server.use(
+      http.get(`${API}/perfil`, () => HttpResponse.json({ ...perfil, usuario: { ...perfil.usuario, emailVerificado: false } })),
+      http.get(`${API}/suscripcion`, () => { subscriptions++; return HttpResponse.json(suscripcion); }),
+    );
+    authStore.getState().login(tokenVigente(), 'a@a.com', persisted);
+    const { client } = renderProtegida();
+    client.setQueryData(['clientes'], { contenido: 'privado' });
+    expect(await screen.findByText('Vista previa')).toBeInTheDocument();
+    expect(screen.queryByText('PRIVADO')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Nueva reparación' })).toBeDisabled();
+    expect(client.getQueryData(['clientes'])).toBeUndefined();
+    expect(subscriptions).toBe(0);
+    expect(authStore.getState().isAuthenticated).toBe(true);
+  });
+
+  it('un perfil sin estado de verificación falla cerrado aunque el store diga true', async () => {
+    server.use(http.get(`${API}/perfil`, () => HttpResponse.json({ ...perfil, usuario: { ...perfil.usuario, emailVerificado: undefined } })));
+    authStore.getState().login(tokenVigente(), 'a@a.com', true);
+    renderProtegida();
+    expect(await screen.findByText('No pudimos validar tu sesión')).toBeVisible();
+    expect(screen.queryByText('PRIVADO')).not.toBeInTheDocument();
+  });
+
+  it.each(['manual', 'otra pestaña'])('consulta el perfil fresco para habilitar operación (%s)', async (source) => {
+    let verified = false;
+    server.use(
+      http.get(`${API}/perfil`, () => HttpResponse.json({ ...perfil, usuario: { ...perfil.usuario, emailVerificado: verified } })),
+      http.get(`${API}/suscripcion`, () => HttpResponse.json(suscripcion)),
+    );
+    authStore.getState().login(tokenVigente(), 'a@a.com', false);
+    renderProtegida();
+    expect(await screen.findByText('Vista previa')).toBeVisible();
+    verified = true;
+    if (source === 'manual') await userEvent.click(screen.getByRole('button', { name: 'Ya lo confirmé' }));
+    else act(() => { focusManager.setFocused(false); focusManager.setFocused(true); });
+    expect(await screen.findByText('PRIVADO')).toBeVisible();
+    expect(screen.queryByText('Vista previa')).not.toBeInTheDocument();
+    expect(authStore.getState().emailVerificado).toBe(false);
+  });
+
+  it('un 403 específico oculta inmediatamente la operación y refresca sin cerrar sesión', async () => {
+    let verified = true;
+    let hold = false;
+    let release!: () => void;
+    const held = new Promise<void>(resolve => { release = resolve; });
+    server.use(
+      http.get(`${API}/perfil`, async () => { if (hold) await held; return HttpResponse.json({ ...perfil, usuario: { ...perfil.usuario, emailVerificado: verified } }); }),
+      http.get(`${API}/suscripcion`, () => HttpResponse.json(suscripcion)),
+      http.get(`${API}/clientes`, () => HttpResponse.json({ code: 'EMAIL_NO_VERIFICADO' }, { status: 403 })),
+    );
+    authStore.getState().login(tokenVigente(), 'a@a.com', true);
+    const { client } = renderProtegida();
+    expect(await screen.findByText('PRIVADO')).toBeVisible();
+    client.setQueryData(['clientes'], { contenido: 'privado' });
+    verified = false;
+    hold = true;
+    await act(async () => { await expect(apiClient.get('/clientes')).rejects.toMatchObject({ response: { status: 403 } }); });
+    expect(await screen.findByText('Vista previa')).toBeVisible();
+    expect(screen.queryByText('PRIVADO')).not.toBeInTheDocument();
+    expect(client.getQueryData(['clientes'])).toBeUndefined();
+    expect(authStore.getState().isAuthenticated).toBe(true);
+    release();
+    expect(await screen.findByRole('button', { name: 'Ya lo confirmé' })).toBeVisible();
+  });
+
+  it('ignora avisos de una sesión anterior', async () => {
+    server.use(http.get(`${API}/suscripcion`, () => HttpResponse.json(suscripcion)));
+    authStore.getState().login(tokenVigente(), 'a@a.com', true);
+    renderProtegida();
+    expect(await screen.findByText('PRIVADO')).toBeVisible();
+    act(() => window.dispatchEvent(new CustomEvent(EMAIL_VERIFICATION_REQUIRED_EVENT, { detail: { token: 'anterior' } })));
+    expect(screen.getByText('PRIVADO')).toBeVisible();
+    expect(screen.queryByText('Vista previa')).not.toBeInTheDocument();
+  });
+
+  it('la URL de exportación no monta la exportación cuando el email está pendiente', async () => {
+    server.use(http.get(`${API}/perfil`, () => HttpResponse.json({ ...perfil, usuario: { ...perfil.usuario, emailVerificado: false } })));
+    authStore.getState().login(tokenVigente(), 'a@a.com');
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter initialEntries={['/cuenta/exportacion']}><AccountRoute><VerifiedEmailRoute><div>EXPORTAR PRIVADO</div></VerifiedEmailRoute></AccountRoute></MemoryRouter>
+    </QueryClientProvider>);
+    expect(await screen.findByText('Vista previa')).toBeVisible();
+    expect(screen.queryByText('EXPORTAR PRIVADO')).not.toBeInTheDocument();
+  });
+
   it.each([false, true])('el perfil restringido evita operación y suscripción (flag %s)', async (enabled) => {
     flags.enabled = enabled;
     let subscriptions = 0;

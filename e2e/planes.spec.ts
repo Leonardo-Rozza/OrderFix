@@ -37,7 +37,7 @@ test('planes: el empleado consulta el precio y no inicia ni cancela suscripcione
   await mockApi(page, {
     suscripcion: { ...free, ofertaPro: { ...oferta, contratacionDisponible: true } },
     perfil: {
-      usuario: { id: 2, username: 'Empleado de prueba', email: 'empleado@synthetic.invalid', role: 'USER' },
+      usuario: { id: 2, username: 'Empleado de prueba', email: 'empleado@synthetic.invalid', role: 'USER', emailVerificado: true },
       taller: { id: 1, nombre: 'Taller de prueba', telefono: '1100000000' },
     },
   });

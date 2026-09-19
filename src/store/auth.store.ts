@@ -6,7 +6,7 @@ import { queryClient } from '../api/queryClient';
 interface AuthState {
   token: string | null;
   email: string | null;
-  /** null = desconocido (sesiones viejas); false = mostrar banner de verificación. */
+  /** Dato histórico del login. Banner y permisos usan exclusivamente el perfil remoto. */
   emailVerificado: boolean | null;
   isAuthenticated: boolean;
   login: (token: string, email: string, emailVerificado?: boolean) => void;

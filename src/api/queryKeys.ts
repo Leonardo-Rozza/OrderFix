@@ -69,6 +69,9 @@ export const queryKeys = {
     boardState: (estado: EstadoReparacion) => ['reparaciones', 'board', estado] as const,
     board: (estado: EstadoReparacion, params: ReparacionesBoardQueryParams) =>
       ['reparaciones', 'board', estado, params] as const,
+    counts: ['reparaciones', 'counts'] as const,
+    stateCount: (estado: EstadoReparacion, q: string) =>
+      ['reparaciones', 'counts', estado, { q }] as const,
     options: ['reparaciones', 'options'] as const,
     optionSearch: (params: OptionSearchParams) => ['reparaciones', 'options', params] as const,
     byEquipo: (equipoId: number | undefined) => ['reparaciones', 'equipo', equipoId] as const,

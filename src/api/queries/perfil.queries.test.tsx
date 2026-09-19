@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 import { apiClient } from '../axios';
 import { authStore } from '../../store/auth.store';
 import { server, API } from '../../test/server';
-import { fetchPerfil, usePerfilQuery } from './perfil.queries';
+import { fetchPerfil, PERFIL_KEY, refreshCurrentSessionProfile, usePerfilQuery } from './perfil.queries';
 import type { Perfil } from '../../types';
 
 const b64url = (value: object) => btoa(JSON.stringify(value))
@@ -27,6 +27,7 @@ const perfil: Perfil = {
     username: 'Juan Pérez',
     email: 'juan@celexpress.com',
     role: 'ADMIN',
+    emailVerificado: true,
   },
   taller: {
     id: 7,
@@ -103,5 +104,54 @@ describe('perfil query', () => {
     expect(result.current.fetchStatus).toBe('idle');
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(requests).toBe(0);
+  });
+
+  it.each([undefined, null, 'true'])('rechaza verificación ausente o inválida: %s', async (emailVerificado) => {
+    server.use(http.get(`${API}/perfil`, () => HttpResponse.json({
+      ...perfil, usuario: { ...perfil.usuario, emailVerificado },
+    })));
+    await expect(fetchPerfil()).rejects.toThrow();
+  });
+
+  it('refresca desde el servidor sin convertir el boolean persistido en permiso', async () => {
+    const client = new QueryClient();
+    const remoto = { ...perfil, usuario: { ...perfil.usuario, emailVerificado: false } };
+    server.use(http.get(`${API}/perfil`, () => HttpResponse.json(remoto)));
+    authStore.getState().login(tokenVigente(), perfil.usuario.email, true);
+    client.setQueryData(PERFIL_KEY, perfil);
+    client.setQueryData(['account-session', 'prueba'], perfil);
+
+    await expect(refreshCurrentSessionProfile(client)).resolves.toEqual(remoto);
+
+    expect(client.getQueryData(PERFIL_KEY)).toEqual(remoto);
+    expect(client.getQueryState(PERFIL_KEY)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(['account-session', 'prueba'])?.isInvalidated).toBe(true);
+    expect(authStore.getState().emailVerificado).toBe(true);
+  });
+
+  it('no publica un refresco pendiente si cambió la sesión', async () => {
+    const client = new QueryClient();
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    let requested = false;
+    server.use(http.get(`${API}/perfil`, async () => {
+      requested = true;
+      await pending;
+      return HttpResponse.json(perfil);
+    }));
+    authStore.getState().login(tokenVigente(), perfil.usuario.email, false);
+    const refresh = refreshCurrentSessionProfile(client);
+    await waitFor(() => expect(requested).toBe(true));
+    authStore.getState().logout();
+    release();
+
+    await expect(refresh).resolves.toBeNull();
+    expect(client.getQueryData(PERFIL_KEY)).toBeUndefined();
+  });
+
+  it('no pide perfil para una visita anónima', async () => {
+    const get = vi.spyOn(apiClient, 'get');
+    await expect(refreshCurrentSessionProfile(new QueryClient())).resolves.toBeNull();
+    expect(get).not.toHaveBeenCalled();
   });
 });

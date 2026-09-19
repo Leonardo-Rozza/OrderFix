@@ -140,8 +140,8 @@ describe('ReparacionFormModal — alta rápida (modo nuevo)', () => {
     );
 
     await completarMinimos(user);
-    fireEvent.change(screen.getByLabelText(/entrega estimada/i), {
-      target: { value: '2026-08-20' },
+    fireEvent.change(screen.getByRole('textbox', { name: 'Entrega estimada' }), {
+      target: { value: '20/08/2026' },
     });
     await user.click(screen.getByRole('button', { name: /crear reparación/i }));
 
@@ -191,13 +191,50 @@ describe('ReparacionFormModal — alta rápida (modo nuevo)', () => {
 
     renderUI(<ReparacionFormModal isOpen onClose={vi.fn()} editing={null} />);
     await completarMinimos(user);
-    fireEvent.change(screen.getByLabelText(/fecha de ingreso/i), {
-      target: { value: '2026-01-15' },
+    fireEvent.change(screen.getByRole('textbox', { name: 'Fecha de ingreso' }), {
+      target: { value: '15/01/2026' },
     });
     await user.click(screen.getByRole('button', { name: /crear reparación/i }));
 
     await waitFor(() => expect(putBody).toBeDefined());
     expect(putBody).toMatchObject({ fechaIngreso: '2026-01-15' });
+  });
+
+  it.each([
+    { label: 'Fecha de ingreso', field: 'fechaIngreso', invalid: '31/02/2028' },
+    { label: 'Entrega estimada', field: 'fechaEstimadaEntrega', invalid: '15/0' },
+  ])('impide crear con $label inválida y envía ISO al corregirla', async ({ label, field, invalid }) => {
+    const user = userEvent.setup();
+    let postCount = 0;
+    let putBody: Record<string, unknown> | undefined;
+    server.use(
+      http.post(`${API}/reparaciones/ingreso-rapido`, () => {
+        postCount++;
+        return HttpResponse.json({ clienteId: 1, equipoId: 2, clienteNuevo: true, reparacion: { id: 9, equipoId: 2 } }, { status: 201 });
+      }),
+      http.put(`${API}/reparaciones/9`, async ({ request }) => {
+        putBody = await request.json() as Record<string, unknown>;
+        return HttpResponse.json({ id: 9, ...putBody });
+      }),
+    );
+    renderUI(<ReparacionFormModal isOpen onClose={vi.fn()} editing={null} />);
+    await completarMinimos(user);
+    const input = screen.getByRole('textbox', { name: label });
+    fireEvent.change(input, { target: { value: invalid } });
+    fireEvent.blur(input);
+    await user.click(screen.getByRole('button', { name: /crear reparación/i }));
+
+    await waitFor(() => expect(input).toHaveAttribute('aria-invalid', 'true'));
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    expect(postCount).toBe(0);
+    expect(putBody).toBeUndefined();
+    expect(input).toHaveValue(invalid);
+    fireEvent.change(input, { target: { value: '29/02/2028' } });
+    await user.click(screen.getByRole('button', { name: /crear reparación/i }));
+
+    await waitFor(() => expect(putBody).toBeDefined());
+    expect(postCount).toBe(1);
+    expect(putBody).toMatchObject({ [field]: '2028-02-29' });
   });
 
   it('valida los campos mínimos antes de enviar', async () => {
@@ -353,6 +390,43 @@ const credencialesGuardadas: ReparacionCredenciales = {
   patronDesbloqueo: 'L invertida',
   pinDesbloqueo: '1234',
 };
+
+describe('ReparacionFormModal — fechas de calendario', () => {
+  it('presenta ISO en formato local y conserva fechas independientes al editar', async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | undefined;
+    server.use(http.put(`${API}/reparaciones/15`, async ({ request }) => {
+      body = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({ ...reparacionEnEdicion, ...body });
+    }));
+    renderUI(<ReparacionFormModal isOpen onClose={vi.fn()} editing={reparacionEnEdicion} />);
+    const ingreso = screen.getByRole('textbox', { name: 'Fecha de ingreso' });
+    const estimada = screen.getByRole('textbox', { name: 'Entrega estimada' });
+    expect(ingreso).toHaveValue('20/08/2026');
+    expect(estimada).toHaveValue('');
+    fireEvent.change(estimada, { target: { value: '18/08/2026' } });
+    await user.click(screen.getByRole('button', { name: /guardar cambios/i }));
+
+    await waitFor(() => expect(body).toBeDefined());
+    expect(body).toMatchObject({ fechaIngreso: '2026-08-20', fechaEstimadaEntrega: '2026-08-18' });
+  });
+
+  it('mantiene opcionales las fechas vacías sin enviar textos locales', async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | undefined;
+    server.use(http.put(`${API}/reparaciones/15`, async ({ request }) => {
+      body = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({ ...reparacionEnEdicion, ...body });
+    }));
+    renderUI(<ReparacionFormModal isOpen onClose={vi.fn()} editing={reparacionEnEdicion} />);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Fecha de ingreso' }), { target: { value: '' } });
+    await user.click(screen.getByRole('button', { name: /guardar cambios/i }));
+
+    await waitFor(() => expect(body).toBeDefined());
+    expect(body).not.toHaveProperty('fechaIngreso');
+    expect(body).not.toHaveProperty('fechaEstimadaEntrega');
+  });
+});
 
 describe('ReparacionFormModal — edición segura de credenciales', () => {
   it('normaliza credenciales conocidas a false cuando la cuenta pasa a NINGUNA', async () => {

@@ -2,28 +2,19 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Navigate } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
-import { z } from 'zod';
+import { EMAIL_VERIFICATION_REQUIRED_EVENT } from '../api/axios';
+import { queryKeys } from '../api/queryKeys';
 import { fetchPerfil, PERFIL_KEY } from '../api/queries/perfil.queries';
 import { authStore, useAuth } from '../store/auth.store';
 import { isTokenExpired } from '../utils/jwt';
 import { ErrorState } from '../components/ErrorState';
 import { Loader } from '../components/Loader';
-import { AccountProfileContext } from './accountProfile';
+import { AccountProfileContext, AccountSessionStatusContext } from './accountProfile';
+import type { Perfil } from '../types';
 
-const profileSchema = z.object({
-  accesoTaller: z.enum(['OPERATIVE', 'RESTRICTED']).optional(),
-  usuario: z.object({
-    id: z.number().int().positive(),
-    username: z.string().min(1),
-    email: z.string().min(1),
-    role: z.enum(['ADMIN', 'USER']),
-  }),
-  taller: z.object({
-    id: z.number().int().positive(),
-    nombre: z.string().min(1),
-    telefono: z.string().nullable(),
-  }),
-});
+const operationalRoots = new Set<string>(Object.entries(queryKeys)
+  .filter(([name]) => name !== 'perfil' && name !== 'seguimiento' && name !== 'suscripcion')
+  .flatMap(([, keys]) => [keys.all[0], ...('details' in keys ? [keys.details[0]] : [])]));
 
 const AccountSession = ({ token, children, purpose }: { token: string; children: ReactNode; purpose: 'account' | 'session' }) => {
   // Una entrada a Cuenta siempre exige una observación nueva. No guarda tokens
@@ -33,7 +24,7 @@ const AccountSession = ({ token, children, purpose }: { token: string; children:
   const profile = useQuery({
     queryKey: ['account-session', scope],
     queryFn: async ({ signal }) => {
-      const data = profileSchema.parse(await fetchPerfil(signal, 20_000));
+      const data = await fetchPerfil(signal, 20_000);
       if (!signal.aborted && authStore.getState().token === token) {
         client.setQueryData(PERFIL_KEY, data);
       }
@@ -42,8 +33,8 @@ const AccountSession = ({ token, children, purpose }: { token: string; children:
     staleTime: 0,
     gcTime: 0,
     retry: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
   const status = isAxiosError(profile.error) ? profile.error.response?.status : undefined;
   const invalid = status === 401 || status === 403;
@@ -51,6 +42,28 @@ const AccountSession = ({ token, children, purpose }: { token: string; children:
   useEffect(() => {
     if (invalid && authStore.getState().token === token) authStore.getState().logout();
   }, [invalid, token]);
+
+  useEffect(() => {
+    const onVerificationRequired = (event: Event) => {
+      if ((event as CustomEvent<{ token: string }>).detail?.token !== token || authStore.getState().token !== token) return;
+      const key = ['account-session', scope];
+      void client.cancelQueries({ queryKey: key });
+      const pending = (previous: Perfil | undefined) => previous
+        ? { ...previous, usuario: { ...previous.usuario, emailVerificado: false } } : previous;
+      client.setQueryData<Perfil>(key, pending);
+      client.setQueryData<Perfil>(PERFIL_KEY, pending);
+      void client.invalidateQueries({ queryKey: key });
+    };
+    window.addEventListener(EMAIL_VERIFICATION_REQUIRED_EVENT, onVerificationRequired);
+    return () => window.removeEventListener(EMAIL_VERIFICATION_REQUIRED_EVENT, onVerificationRequired);
+  }, [client, scope, token]);
+
+  useEffect(() => {
+    if (profile.data?.usuario.emailVerificado !== false) return;
+    const filter = { predicate: (query: { queryKey: readonly unknown[] }) => operationalRoots.has(String(query.queryKey[0])) };
+    void client.cancelQueries(filter);
+    client.removeQueries(filter);
+  }, [client, profile.data?.usuario.emailVerificado]);
 
   if (invalid) return <Navigate to="/login" replace />;
   if (profile.isPending) return (
@@ -70,7 +83,11 @@ const AccountSession = ({ token, children, purpose }: { token: string; children:
       </button>
     </div>
   );
-  return <AccountProfileContext value={profile.data}>{children}</AccountProfileContext>;
+  return <AccountProfileContext value={profile.data}>
+    <AccountSessionStatusContext value={{ isFetching: profile.isFetching, error: profile.error, refetch: profile.refetch }}>
+      {children}
+    </AccountSessionStatusContext>
+  </AccountProfileContext>;
 };
 
 /** Cuenta requiere sesión remota vigente, sin depender de funciones comerciales. */

@@ -1,10 +1,10 @@
 import { useNavigate } from 'react-router';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { EstadoBadge } from '../components/EstadoBadge';
-import { EmptyState } from '../components/EmptyState';
+import { DashboardRepairSummary } from '../components/DashboardRepairSummary';
 import { ErrorState } from '../components/ErrorState';
 import { btnPrimary } from '../components/ui';
-import { ESTADOS_LIST, ESTADOS_CERRADOS } from '../config/estados';
+import { ESTADOS_CERRADOS } from '../config/estados';
 import { formatMoney } from '../utils/format';
 import { equipoLabel, clienteLabel, ordenLabel } from '../utils/reparacion';
 import { PagoChip } from '../components/PagoChip';
@@ -61,7 +61,8 @@ export const DashboardPage = () => {
   } = useClientesQuery({ page: 0, size: 1 });
   const { inventario } = useFunciones();
   const clientesTotal = clientesPage?.page?.totalElements;
-  const dashboardReady = !isLoading && !isError && stats !== undefined;
+  const dashboardReady = !isLoading && !isError && stats !== undefined
+    && stats.reparacionesPorEstado != null && stats.totalReparaciones !== undefined;
   const clientesReady = !clientesLoading
     && !clientesError
     && clientesTotal !== undefined;
@@ -197,7 +198,7 @@ export const DashboardPage = () => {
             <div className="flex items-center justify-between border-b border-border px-[18px] py-4">
               <div className="text-[15px] font-extrabold">Ingresos recientes</div>
               <button type="button" onClick={() => navigate('/reparaciones')} className="text-[13px] font-bold text-primary hover:underline">
-                Ver tablero →
+                Ver reparaciones →
               </button>
             </div>
             {isLoading ? (
@@ -212,7 +213,10 @@ export const DashboardPage = () => {
             ) : !dashboardReady ? (
               <ErrorState onRetry={retryDashboard} message="No pudimos cargar los ingresos recientes." />
             ) : recientes.length === 0 ? (
-              <EmptyState title="Todavía no hay reparaciones" hint="Cargá la primera para verla acá." />
+              <div className="px-[18px] py-7 text-center">
+                <p className="text-[15px] font-extrabold">Todavía no hay reparaciones</p>
+                <p className="mt-1 text-[13px] text-text-3">Cargá la primera para verla acá.</p>
+              </div>
             ) : (
               recientes.map((r) => (
                 <div
@@ -259,52 +263,13 @@ export const DashboardPage = () => {
             )}
           </div>
 
-          {/* Reparaciones por estado */}
-          <div className="rounded-2xl border border-border bg-surface p-[18px] shadow-sm" aria-busy={isLoading}>
-            <div className="mb-3.5 text-[15px] font-extrabold">Reparaciones por estado</div>
-            {isLoading ? (
-              <div aria-label="Cargando reparaciones por estado" className="space-y-3.5">
-                {ESTADOS_LIST.map((meta) => (
-                  <div key={meta.key} aria-hidden="true">
-                    <div className="mb-1.5 flex items-center justify-between">
-                      <div className="ofx-skel h-4 w-32 rounded" />
-                      <div className="ofx-skel h-4 w-6 rounded" />
-                    </div>
-                    <div className="ofx-skel h-2 w-full rounded-full" />
-                  </div>
-                ))}
-              </div>
-            ) : isError || !counts || total === undefined ? (
-              <div className="-mx-[18px] -mb-[18px]">
-                <ErrorState onRetry={retryDashboard} message="No pudimos cargar la distribución por estado." />
-              </div>
-            ) : (
-              <>
-                {ESTADOS_LIST.map((meta) => {
-                  const count = counts[meta.key] ?? 0;
-                  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-                  return (
-                    <div key={meta.key} className="mb-3.5 last:mb-0">
-                      <div className="mb-1.5 flex items-center justify-between text-[13px]">
-                        <span className="inline-flex items-center gap-2 font-bold">
-                          <span className="h-2.5 w-2.5 rounded" style={{ background: meta.cssVar }} />
-                          {meta.label}
-                        </span>
-                        <span className="font-mono font-extrabold">{count}</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-surface-3">
-                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: meta.cssVar }} />
-                      </div>
-                    </div>
-                  );
-                })}
-                <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-                  <div className="text-[12.5px] font-semibold text-text-2">Total reparaciones</div>
-                  <div className="font-mono text-[20px] font-extrabold tracking-tight">{total}</div>
-                </div>
-              </>
-            )}
-          </div>
+          <DashboardRepairSummary
+            counts={counts}
+            total={total}
+            isLoading={isLoading}
+            isError={isError}
+            onRetry={retryDashboard}
+          />
         </div>
       </div>
     </DashboardLayout>

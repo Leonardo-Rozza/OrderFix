@@ -12,7 +12,7 @@ import { AccountExportPage } from './AccountExportPage';
 const mocks = vi.hoisted(() => ({ role: 'ADMIN', accesoTaller: 'OPERATIVE' }));
 vi.mock('../router/accountProfile', () => ({ useAccountProfile: () => ({
   accesoTaller: mocks.accesoTaller,
-  usuario: { id: 1, role: mocks.role, username: 'Ana', email: 'ana@taller.test' },
+  usuario: { id: 1, role: mocks.role, username: 'Ana', email: 'ana@taller.test', emailVerificado: true },
   taller: { id: 1, nombre: 'Taller del Centro', telefono: null },
 }) }));
 vi.mock('../layouts/DashboardLayout', () => ({ DashboardLayout: ({ children }: { children: ReactNode }) => <>{children}</> }));

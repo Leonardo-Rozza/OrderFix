@@ -25,9 +25,9 @@ test('el titular administra empleados y USER opera sólo dentro de su taller', a
     expect(registration.headers()['cache-control']).toContain('no-store');
     const attempt = observeAttempt(registration.request());
     verifyAttempt(attempt, snapshot);
+    const ownerSession = await registration.json() as AuthResponse;
     await verifyOwnerSession();
     await verifyNoAttemptStorage(page, attempt.key);
-    const ownerSession = await registration.json() as AuthResponse;
     expect(typeof ownerSession.token === 'string' && ownerSession.token.length > 0).toBe(true);
     expect(await storedTokenMatches(page, ownerSession.token)).toBe(true);
     const ownerProfile = await authenticated<Perfil>(page, ownerSession.token, '/api/perfil');
@@ -170,7 +170,8 @@ test('el titular administra empleados y USER opera sólo dentro de su taller', a
     expect(secondEmployeeSession.profile).toEqual(exitSession.profile);
     expect((await authenticated(exitPage, exitSession.token, '/api/export/excel')).status).toBe(403);
     const anonymousExport = await exitPage.evaluate(async (url) => (await fetch(url)).status, `${api}/api/export/excel`);
-    expect(anonymousExport).toBe(403);
+    // La guardia específica de exportaciones distingue sesión ausente (401) de rol USER (403).
+    expect(anonymousExport).toBe(401);
 
     await exitPage.goto('/cuenta');
     await expect(exitPage.getByRole('heading', { name: 'Tu cuenta', exact: true })).toBeVisible();

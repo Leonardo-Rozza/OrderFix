@@ -24,28 +24,27 @@ const reparacionesIngresadas = Array.from({ length: 42 }, (_, index) => {
   };
 });
 
-test('kanban incremental: cabe, pagina y conserva acciones alternativas al drag en móvil', async ({
+test('etapas en móvil: vista explícita, sin scroll horizontal, carga incremental y acciones de estado', async ({
   page,
   context,
 }) => {
   await seedAuth(context);
   await mockApi(page, { reparaciones: reparacionesIngresadas });
 
-  await page.goto('/reparaciones');
+  await page.goto('/reparaciones?vista=board');
 
-  const board = page.getByRole('region', { name: 'Tablero de reparaciones', exact: true });
+  const board = page.getByRole('region', { name: 'Reparaciones por etapas', exact: true });
   const ingresado = page.getByTestId('col-INGRESADO');
-  const ingresoHeading = board.getByRole('heading', { name: 'Ingreso', exact: true });
-  const firstPhase = ingresoHeading.locator(
-    'xpath=ancestor::*[.//*[@data-testid="col-INGRESADO"]][1]',
-  );
+  const phases = page.getByRole('group', { name: 'Etapas de reparación', exact: true });
   const loadMore = ingresado.getByRole('button', {
     name: 'Cargar 20 reparaciones más en Ingresado',
     exact: true,
   });
 
   await expect(board).toBeVisible();
-  await expect(ingresoHeading).toBeVisible();
+  await expect(phases.getByRole('button')).toHaveCount(6);
+  await expect(phases.getByRole('button', { name: /^Ingreso\b/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page).toHaveURL(/\/reparaciones\?vista=board$/);
   await expect(ingresado.getByText('20 de 42 visibles', { exact: true })).toBeVisible();
   await loadMore.scrollIntoViewIfNeeded();
   await expect(loadMore).toBeInViewport();
@@ -60,7 +59,7 @@ test('kanban incremental: cabe, pagina y conserva acciones alternativas al drag 
     geometry.documentClientWidth + 1,
   );
 
-  const phaseGeometry = await firstPhase.evaluate((element) => {
+  const phaseGeometry = await ingresado.evaluate((element) => {
     const rect = element.getBoundingClientRect();
     return { left: rect.left, right: rect.right, width: rect.width };
   });
@@ -90,8 +89,8 @@ test('kanban incremental: cabe, pagina y conserva acciones alternativas al drag 
     clientWidth: element.clientWidth,
     scrollWidth: element.scrollWidth,
   }));
-  expect(boardGeometry.scrollWidth, 'el tablero debe conservar su scroll horizontal interno').toBeGreaterThan(
-    boardGeometry.clientWidth,
+  expect(boardGeometry.scrollWidth, 'las etapas no necesitan scroll horizontal interno').toBeLessThanOrEqual(
+    boardGeometry.clientWidth + 1,
   );
 
   await loadMore.click();
@@ -102,6 +101,7 @@ test('kanban incremental: cabe, pagina y conserva acciones alternativas al drag 
   const loadedCard = ingresado.getByTestId('card-22');
   await expect(loadedCard.getByRole('button', { name: /Abrir reparación ORD-2026-0022/ })).toBeVisible();
   await expect(loadedCard.getByRole('button', { name: 'Avanzar', exact: true })).toBeVisible();
+  await expect(loadedCard.getByRole('button', { name: 'Cambiar estado de ORD-2026-0022', exact: true })).toBeVisible();
 
   const finalDocumentWidth = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,

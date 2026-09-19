@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { FormActions, Modal } from './Modal';
 import { MoneyInput } from './MoneyInput';
 import { FormField } from './FormField';
+import { Select } from './Select';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import { METODOS } from '../config/cobros';
 import { formatMoney } from '../utils/format';
@@ -206,13 +207,13 @@ export const CobroFormModal = ({
               )}
             </FormField>
             <FormField label="Método" error={errors.metodo?.message} htmlFor="metodo">
-              <select id="metodo" {...register('metodo')} className={inputClass(!!errors.metodo)}>
+              <Select id="metodo" {...register('metodo')} hasError={!!errors.metodo}>
                 {METODOS.map((m) => (
                   <option key={m.key} value={m.key}>
                     {m.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </FormField>
             <FormField label="Referencia (opcional)" error={errors.referencia?.message} htmlFor="referencia">
               <input

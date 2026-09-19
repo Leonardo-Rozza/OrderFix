@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockApi, futureToken } from './helpers';
+import { defaultPerfil, mockApi, futureToken } from './helpers';
 
 test('reset password: cambia la contraseña desde el link del email y vuelve al login', async ({ page }) => {
   let body: unknown;
@@ -47,12 +47,14 @@ test('verificar email: token vencido ofrece reenviar', async ({ page }) => {
   await expect(page.getByText(/no es válido o venció/i)).toBeVisible();
   await page.getByLabel('Email').fill('juan@taller.com');
   await page.getByRole('button', { name: /reenviar email/i }).click();
-  await expect(page.getByText(/te reenviamos el email/i)).toBeVisible();
+  await expect(page.getByText('Si tu cuenta lo necesita, te reenviamos el email.', { exact: true })).toBeVisible();
   expect(reenviado).toEqual({ email: 'juan@taller.com' });
 });
 
 test('banner de email sin verificar: aparece tras login y permite reenviar', async ({ page }) => {
-  await mockApi(page);
+  await mockApi(page, {
+    perfil: { ...defaultPerfil, usuario: { ...defaultPerfil.usuario, emailVerificado: false } },
+  });
   // Pisar el login del mock: este test necesita emailVerificado en false
   await page.route('**/api/auth/login', (route) =>
     route.fulfill({
@@ -66,11 +68,11 @@ test('banner de email sin verificar: aparece tras login y permite reenviar', asy
   await page.getByRole('button', { name: /ingresar/i }).click();
 
   await expect(page).toHaveURL(/\/dashboard/);
-  await expect(page.getByText(/confirmá tu email/i)).toBeVisible();
+  await expect(page.getByText('Confirmá tu email: admin@mvgr.com', { exact: true })).toBeVisible();
 
   await page.route('**/api/auth/verificar-email/reenviar', (route) => route.fulfill({ status: 200, json: {} }));
   await page.getByRole('button', { name: /^reenviar$/i }).click();
-  await expect(page.getByText(/te reenviamos el email/i)).toBeVisible();
+  await expect(page.getByText('Si tu cuenta lo necesita, te reenviamos el email.', { exact: true })).toBeVisible();
 });
 
 test('login: tiene el link de olvidé mi contraseña y la pantalla responde', async ({ page }) => {

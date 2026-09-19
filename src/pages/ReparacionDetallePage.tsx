@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { EstadoBadge } from '../components/EstadoBadge';
+import { Select } from '../components/Select';
 import { ReparacionFormModal } from '../components/ReparacionFormModal';
 import { RepairPhotos } from '../components/RepairPhotos';
 import { RepuestoFormModal } from '../components/RepuestoFormModal';
@@ -799,12 +800,13 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
 
             <div className={`${card} p-5`}>
               <label htmlFor="estado-reparacion" className="mb-2 block text-[12px] font-extrabold uppercase tracking-wide text-text-3">Cambiar estado</label>
-              <select
+              <Select
                 id="estado-reparacion"
                 value={rep.estado}
                 onChange={(e) => handleEstadoSelect(e.target.value as EstadoReparacion)}
                 disabled={estadoTransitionInFlight || cambiarEstado.isPending}
-                className={`${inputClass()} mb-2.5 cursor-pointer`}
+                className={`${inputClass()} cursor-pointer`}
+                containerClassName="mb-2.5"
               >
                 {/* Solo el estado actual + las transiciones legales (un salto ilegal daría 409). */}
                 {[rep.estado, ...transicionesDesde(rep.estado)].map((k) => {
@@ -815,7 +817,7 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
                     </option>
                   );
                 })}
-              </select>
+              </Select>
               {next && (
                 <button
                   onClick={() => cambiarEstadoSeguro(next)}

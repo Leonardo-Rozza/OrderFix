@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { expect, type Page, type Request, type TestInfo } from '@playwright/test';
 import type { RegistrationAcceptance, RegistrationRequirements } from '../src/api/registrationConsent';
 import type { AuthResponse, Perfil } from '../src/types';
@@ -77,18 +78,57 @@ export const openAndConfirm = async (page: Page, email: string): Promise<Registr
 export const verifySession = (page: Page, email: string) => {
   // Estos GET nacen del frontend y atraviesan JWT, tenant, CORS y servicios reales.
   const profile = page.waitForResponse((response) => matches(response.url(), '/api/perfil'));
-  const subscription = page.waitForResponse((response) => matches(response.url(), '/api/suscripcion'));
-  const dashboard = page.waitForResponse((response) => matches(response.url(), '/api/dashboard'));
-  return async () => {
-    await expect(page).toHaveURL(/\/dashboard$/);
-    const responses = await Promise.all([profile, subscription, dashboard]);
-    for (const response of responses) {
-      expect(response.status()).toBe(200);
-      expect(response.request().headers().authorization).toMatch(/^Bearer /);
+  const operationalRequests: string[] = [];
+  const observe = (request: Request) => {
+    if (matches(request.url(), '/api/suscripcion') || matches(request.url(), '/api/dashboard')) {
+      operationalRequests.push(new URL(request.url()).pathname);
     }
-    expect(await responses[0].json()).toMatchObject({ usuario: { email, role: 'ADMIN' }, taller: { nombre: 'Laboratorio OrdenFix' } });
-    await expect(page.getByRole('heading', { name: /Hola, Prueba local/ })).toBeVisible();
   };
+  page.on('request', observe);
+  return async () => {
+    try {
+      await expect(page).toHaveURL(/\/dashboard$/);
+      const pendingProfile = await profile;
+      expect(pendingProfile.status()).toBe(200);
+      expect(await pendingProfile.json()).toMatchObject({
+        usuario: { email, role: 'ADMIN', emailVerificado: false }, taller: { nombre: 'Laboratorio OrdenFix' },
+      });
+      await expect(page.getByText('Vista previa', { exact: true })).toBeVisible();
+      expect(operationalRequests).toEqual([]);
+      const subscription = page.waitForResponse((response) => matches(response.url(), '/api/suscripcion'));
+      const dashboard = page.waitForResponse((response) => matches(response.url(), '/api/dashboard'));
+      await confirmMailboxEmail(page, email);
+      for (const response of await Promise.all([subscription, dashboard])) {
+        expect(response.status()).toBe(200);
+        expect(response.request().headers().authorization).toMatch(/^Bearer /);
+      }
+      await expect(page.getByRole('heading', { name: /Hola, Prueba local/ })).toBeVisible();
+    } finally {
+      page.off('request', observe);
+    }
+  };
+};
+
+const confirmMailboxEmail = async (page: Page, email: string) => {
+  const directory = process.env.ORDENFIX_REGISTRATION_E2E_MAILBOX;
+  if (!directory) throw new Error('Falta el buzón efímero de verificación del harness.');
+  const mailbox = join(directory, `${Buffer.from(email).toString('base64url')}.txt`);
+  await expect.poll(() => existsSync(mailbox), { message: 'El correo de verificación debe llegar al buzón efímero.' }).toBe(true);
+  const verificationToken = readFileSync(mailbox, 'utf8').trim();
+  expect(verificationToken.length > 0).toBe(true);
+  await page.goto(`/verificar-email?token=${encodeURIComponent(verificationToken)}`);
+  const verified = page.waitForResponse((response) => matches(response.url(), '/api/auth/verificar-email') && response.request().method() === 'POST');
+  await page.getByRole('button', { name: 'Confirmar mi email', exact: true }).click();
+  expect((await verified).status()).toBe(200);
+  await expect(page.getByRole('heading', { name: /Email verificado/ })).toBeVisible();
+  const profile = page.waitForResponse((response) => matches(response.url(), '/api/perfil') && response.request().method() === 'GET');
+  await page.getByRole('link', { name: 'Ir a OrdenFix', exact: true }).click();
+  const response = await profile;
+  expect(response.status()).toBe(200);
+  const identity = await response.json() as Perfil;
+  expect(identity.usuario).toMatchObject({ email, emailVerificado: true });
+  await expect(page).toHaveURL(/\/dashboard$/);
+  return identity;
 };
 export const verifyAttempt = (attempt: Attempt, snapshot: RegistrationRequirements) => {
   expect(attempt.body.requiredSetRevision).toBe(snapshot.requiredSetRevision);
@@ -137,16 +177,22 @@ export const login = async (page: Page, email: string, credentials = password) =
   const profilePromise = page.waitForResponse((response) => matches(response.url(), '/api/perfil') && response.request().method() === 'GET');
   const subscriptionPromise = page.waitForResponse((response) => matches(response.url(), '/api/suscripcion') && response.request().method() === 'GET');
   await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
-  const [response, profile, subscription] = await Promise.all([responsePromise, profilePromise, subscriptionPromise]);
+  const [response, profile] = await Promise.all([responsePromise, profilePromise]);
   expect(response.status()).toBe(200);
   expect(profile.status()).toBe(200);
-  expect(subscription.status()).toBe(200);
   const session = await response.json() as AuthResponse;
   expect(typeof session.token === 'string' && session.token.length > 0).toBe(true);
   await expect(page).toHaveURL(/\/dashboard$/);
   expect(await storedTokenMatches(page, session.token)).toBe(true);
-  const identity = await profile.json() as Perfil;
+  let identity = await profile.json() as Perfil;
   expect(identity.usuario.email).toBe(email);
+  if (!identity.usuario.emailVerificado) {
+    await expect(page.getByText('Vista previa', { exact: true })).toBeVisible();
+    identity = await confirmMailboxEmail(page, email);
+  }
+  expect(identity.usuario.emailVerificado).toBe(true);
+  expect((await subscriptionPromise).status()).toBe(200);
+  expect(await storedTokenMatches(page, session.token)).toBe(true);
   await noHorizontalOverflow(page);
   return { token: session.token, profile: identity };
 };

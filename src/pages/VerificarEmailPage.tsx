@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router';
 import { Logo } from '../components/Logo';
 import { inputClass, btnPrimary } from '../components/ui';
@@ -6,7 +7,9 @@ import {
   useVerificarEmailMutation,
   useReenviarVerificacionMutation,
 } from '../api/mutations/auth.mutations';
-import { authStore } from '../store/auth.store';
+import { refreshCurrentSessionProfile } from '../api/queries/perfil.queries';
+import { useRetryAfter } from '../hooks/useRetryAfter';
+import { getHttpStatus } from '../utils/retryAfter';
 
 /**
  * Pantalla del link del email de bienvenida ({front}/verificar-email?token=...).
@@ -19,16 +22,29 @@ export const VerificarEmailPage = () => {
   const verificar = useVerificarEmailMutation();
   const reenviar = useReenviarVerificacionMutation();
   const [emailReenvio, setEmailReenvio] = useState('');
+  const client = useQueryClient();
+  const retryAfter = useRetryAfter();
+  const [refreshState, setRefreshState] = useState<'idle' | 'pending' | 'error' | 'unverified' | 'done'>('idle');
+
+  const refreshSession = async () => {
+    setRefreshState('pending');
+    try {
+      const profile = await refreshCurrentSessionProfile(client);
+      setRefreshState(profile?.usuario.emailVerificado === false ? 'unverified' : 'done');
+    } catch {
+      setRefreshState('error');
+    }
+  };
 
   const confirmar = () =>
     verificar.mutate(token, {
-      onSuccess: () => {
-        // Si además hay sesión abierta, apagar el banner de "confirmá tu email".
-        if (authStore.getState().isAuthenticated) authStore.getState().marcarEmailVerificado();
-      },
+      onSuccess: () => void refreshSession(),
+      onError: retryAfter.startRetryAfter,
     });
 
-  const estado = !token ? 'sin-token' : verificar.isSuccess ? 'ok' : verificar.isError ? 'error' : 'confirmar';
+  const status = getHttpStatus(verificar.error);
+  const invalidToken = verificar.isError && (status === 400 || status === 404 || status === 410);
+  const estado = !token ? 'sin-token' : verificar.isSuccess ? 'ok' : invalidToken ? 'error' : 'confirmar';
 
   return (
     <div className="grid min-h-dvh place-items-center bg-bg px-4 py-6 text-text sm:px-6 sm:py-10">
@@ -42,11 +58,14 @@ export const VerificarEmailPage = () => {
             <button
               type="button"
               onClick={confirmar}
-              disabled={verificar.isPending}
+              disabled={verificar.isPending || retryAfter.isCoolingDown}
               className={`${btnPrimary} mt-6 w-full py-3`}
             >
-              {verificar.isPending ? 'Verificando…' : 'Confirmar mi email'}
+              {retryAfter.isCoolingDown ? `Reintentá en ${retryAfter.secondsRemaining} s` : verificar.isPending ? 'Verificando…' : 'Confirmar mi email'}
             </button>
+            {verificar.isError && <p role="alert" className="mt-3 text-[13px] text-text-2">
+              {retryAfter.isCoolingDown ? 'Demasiadas solicitudes. Esperá antes de volver a intentar.' : 'No pudimos verificar el email. Intentá de nuevo.'}
+            </p>}
           </>
         )}
 
@@ -58,7 +77,13 @@ export const VerificarEmailPage = () => {
               </svg>
             </span>
             <h1 className="mt-4 text-[20px] font-extrabold tracking-tight">¡Email verificado! ✅</h1>
-            <p className="mt-2 text-[14px] text-text-2">Tu cuenta quedó confirmada.</p>
+            <p className="mt-2 text-[14px] text-text-2">El email de este enlace quedó confirmado.</p>
+            {refreshState === 'pending' && <p role="status" className="mt-3 text-[13px] text-text-2">Actualizando la sesión abierta…</p>}
+            {refreshState === 'unverified' && <p role="status" className="mt-3 text-[13px] text-text-2">La sesión abierta todavía necesita confirmar su propio email.</p>}
+            {refreshState === 'error' && <div className="mt-3 text-[13px] text-text-2">
+              <p role="alert">El email se confirmó, pero no pudimos actualizar la sesión abierta.</p>
+              <button type="button" onClick={() => void refreshSession()} className="min-h-11 px-3 font-bold text-primary underline">Reintentar actualización</button>
+            </div>}
             <Link to="/dashboard" className={`${btnPrimary} mt-6 w-full py-3`}>
               Ir a OrdenFix
             </Link>
@@ -81,7 +106,9 @@ export const VerificarEmailPage = () => {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (emailReenvio.trim()) reenviar.mutate(emailReenvio.trim());
+                if (emailReenvio.trim() && !reenviar.isPending && !retryAfter.isCoolingDown) {
+                  reenviar.mutate(emailReenvio.trim(), { onError: retryAfter.startRetryAfter });
+                }
               }}
               className="mt-5 space-y-3"
             >
@@ -96,9 +123,11 @@ export const VerificarEmailPage = () => {
                 onChange={(e) => setEmailReenvio(e.target.value)}
                 className={inputClass()}
               />
-              <button type="submit" className={`${btnPrimary} w-full py-3`} disabled={reenviar.isPending}>
-                {reenviar.isPending ? 'Enviando…' : 'Reenviar email de verificación'}
+              <button type="submit" className={`${btnPrimary} w-full py-3`} disabled={reenviar.isPending || retryAfter.isCoolingDown}>
+                {retryAfter.isCoolingDown ? `Reintentá en ${retryAfter.secondsRemaining} s` : reenviar.isPending ? 'Enviando…' : 'Reenviar email de verificación'}
               </button>
+              {reenviar.isSuccess && <p role="status" className="text-[13px] text-text-2">Si tu cuenta lo necesita, te reenviamos el email.</p>}
+              {reenviar.isError && <p role="alert" className="text-[13px] text-text-2">{retryAfter.isCoolingDown ? 'Esperá antes de pedir otro enlace.' : 'No pudimos reenviar el email. Intentá de nuevo.'}</p>}
             </form>
             <Link to="/login" className="mt-5 block text-[13px] font-bold text-text-2 hover:text-primary">
               ← Ir a iniciar sesión

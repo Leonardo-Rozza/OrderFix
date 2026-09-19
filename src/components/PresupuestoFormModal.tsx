@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { FormActions, Modal } from './Modal';
 import { FormField } from './FormField';
+import { Select } from './Select';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import { MoneyInput } from './MoneyInput';
 import { formatMoney } from '../utils/format';
@@ -144,10 +145,10 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
             >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField label="Tipo" error={errors.tipo?.message} htmlFor="tipo">
-            <select id="tipo" {...register('tipo')} className={inputClass(!!errors.tipo)}>
+            <Select id="tipo" {...register('tipo')} hasError={!!errors.tipo}>
               <option value="ORIGINAL">Original (primer presupuesto)</option>
               <option value="ADICIONAL">Adicional (trabajo extra)</option>
-            </select>
+            </Select>
           </FormField>
           <FormField label="Validez (días)" error={errors.validezDias?.message} htmlFor="validezDias">
             <input
@@ -259,7 +260,7 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
                   </div>
                 </div>
                 <div className={`grid grid-cols-1 gap-2 ${esRepuesto ? 'sm:grid-cols-2' : ''}`}>
-                  <select
+                  <Select
                     aria-label="Tipo de ítem"
                     {...register(`items.${i}.tipoItem`, {
                       onChange: (event) => handleTipoItemChange(i, event),
@@ -268,9 +269,9 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
                   >
                     <option value="MANO_DE_OBRA">Mano de obra</option>
                     <option value="REPUESTO">Repuesto</option>
-                  </select>
+                  </Select>
                   {esRepuesto && (
-                    <select
+                    <Select
                       aria-label="Calidad del repuesto"
                       {...register(`items.${i}.calidad`)}
                       className={`${inputClass()} text-base sm:!py-1.5 sm:text-[13px]`}
@@ -279,7 +280,7 @@ export const PresupuestoFormModal = ({ isOpen, onClose, reparacionId }: Props) =
                       <option value="ORIGINAL">Original</option>
                       <option value="ALTERNATIVO">Alternativo</option>
                       <option value="USADO_REACONDICIONADO">Usado reacondicionado</option>
-                    </select>
+                    </Select>
                   )}
                 </div>
               </div>

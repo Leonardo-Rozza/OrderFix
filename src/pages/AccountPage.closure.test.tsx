@@ -9,7 +9,7 @@ vi.mock('../config/workshopClosure', () => ({ get workshopClosureEnabled() { ret
 vi.mock('../layouts/DashboardLayout', () => ({ DashboardLayout: ({ children }: { children: ReactNode }) => <>{children}</> }));
 vi.mock('../components/AccountLegalHistory', () => ({ AccountLegalHistory: () => <p>Historial propio</p> }));
 import { AccountPage } from './AccountPage';
-const profile: Perfil = { accesoTaller: 'RESTRICTED', usuario: { id: 1, username: 'Titular', email: 'titular@ordenfix.test', role: 'ADMIN' },
+const profile: Perfil = { accesoTaller: 'RESTRICTED', usuario: { id: 1, username: 'Titular', email: 'titular@ordenfix.test', role: 'ADMIN', emailVerificado: true },
   taller: { id: 2, nombre: 'Taller Centro', telefono: null } };
 const mount = () => render(<MemoryRouter><AccountProfileContext value={profile}><AccountPage /></AccountProfileContext></MemoryRouter>);
 beforeEach(() => { flags.enabled = true; });

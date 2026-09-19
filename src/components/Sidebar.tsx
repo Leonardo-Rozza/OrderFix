@@ -7,12 +7,12 @@ import { useSessionIdentity } from '../hooks/useSessionIdentity';
 import { getOfertaPro } from '../utils/ofertaPro';
 
 /** Sidebar de escritorio (oculto en mobile; en mobile se usa BottomNav). */
-export const Sidebar = ({ accountMode = false, restricted = false }: { accountMode?: boolean; restricted?: boolean }) => {
+export const Sidebar = ({ accountMode = false, restricted = false, previewMode = false }: { accountMode?: boolean; restricted?: boolean; previewMode?: boolean }) => {
   const { isAdmin } = useAuth();
   const identity = useSessionIdentity();
   const funciones = useFunciones(!accountMode && !restricted);
   const { data: sus, isError } = useSuscripcionQuery(!accountMode && !restricted);
-  const items = navItems.filter((item) => restricted ? item.key === 'cuenta' : isNavItemVisible(item, { isAdmin, funciones }));
+  const items = navItems.filter((item) => restricted ? item.key === 'cuenta' : previewMode ? !item.adminOnly || isAdmin : isNavItemVisible(item, { isAdmin, funciones }));
   const homeLabel = restricted ? 'Ir a Cuenta' : 'Ir al inicio';
 
   // Consumo del plan FREE (nudge a PRO)

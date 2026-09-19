@@ -12,12 +12,15 @@ interface DashboardLayoutProps {
   title?: string;
   /** Cuenta se valida por perfil y no consulta ni exige el estado comercial. */
   accountMode?: boolean;
+  /** Las vistas operativas pueden aprovechar todo el ancho disponible. */
+  wide?: boolean;
 }
 
-export const DashboardLayout = ({ children, title, accountMode = false }: DashboardLayoutProps) => {
+export const DashboardLayout = ({ children, title, accountMode = false, wide = false }: DashboardLayoutProps) => {
   const profile = useContext(AccountProfileContext);
   const restricted = profile?.accesoTaller === 'RESTRICTED';
-  const accountOnly = accountMode || restricted;
+  const previewMode = profile?.usuario.emailVerificado === false;
+  const accountOnly = accountMode || restricted || previewMode;
   return (
   <div className="min-h-dvh bg-bg text-text">
     <a
@@ -26,14 +29,14 @@ export const DashboardLayout = ({ children, title, accountMode = false }: Dashbo
     >
       Saltar al contenido
     </a>
-    <Sidebar accountMode={accountOnly} restricted={restricted} />
+    <Sidebar accountMode={accountOnly} restricted={restricted} previewMode={previewMode} />
     <div className="flex min-h-dvh flex-col lg:pl-64">
-      {!accountOnly && <EmailVerificacionBanner />}
+      <EmailVerificacionBanner />
       <Navbar title={title} restricted={restricted} />
       <main id="contenido" tabIndex={-1} className="flex-1 px-4 py-5 outline-none lg:px-6 lg:py-6">
-        <div className="mx-auto max-w-6xl">{children}</div>
+        <div className={`mx-auto min-w-0 ${wide ? 'max-w-[1800px]' : 'max-w-6xl'}`}>{children}</div>
       </main>
-      <BottomNav accountMode={accountOnly} restricted={restricted} />
+      <BottomNav accountMode={accountOnly} restricted={restricted} previewMode={previewMode} />
     </div>
     {!accountOnly && <LimitePlanModal />}
   </div>

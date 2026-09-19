@@ -6,14 +6,14 @@ import { useAuth } from '../store/auth.store';
 import { MobileMoreMenu } from './MobileMoreMenu';
 
 /** Barra de navegación inferior (solo mobile). */
-export const BottomNav = ({ accountMode = false, restricted = false }: { accountMode?: boolean; restricted?: boolean }) => {
+export const BottomNav = ({ accountMode = false, restricted = false, previewMode = false }: { accountMode?: boolean; restricted?: boolean; previewMode?: boolean }) => {
   const [moreOpen, setMoreOpen] = useState(false);
   const { pathname } = useLocation();
   const { isAdmin } = useAuth();
   const funciones = useFunciones(!accountMode && !restricted);
   const items = restricted ? navItems.filter((item) => item.key === 'cuenta') : mobileNavItems;
   const visibleMoreItems = mobileMoreItems.filter((item) =>
-    isNavItemVisible(item, { isAdmin, funciones })
+    previewMode ? !item.adminOnly || isAdmin : isNavItemVisible(item, { isAdmin, funciones })
   );
   const moreActive = mobileMoreItems.some((item) => isNavItemActive(item, pathname));
 

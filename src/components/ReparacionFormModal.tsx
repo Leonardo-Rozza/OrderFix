@@ -5,10 +5,12 @@ import { z } from 'zod';
 import { FormActions, Modal } from './Modal';
 import { UnsavedChangesGuard } from './UnsavedChangesGuard';
 import { FormField } from './FormField';
+import { Select } from './Select';
 import { AsyncCombobox } from './AsyncCombobox';
 import { FotoUploader } from './FotoUploader';
 import { PhotoUploadPanel } from './PhotoUploadPanel';
 import { MoneyInput } from './MoneyInput';
+import { DateInput } from './DateInput';
 import { inputClass, btnGhost, btnPrimary } from './ui';
 import { ESTADOS, ESTADOS_LIST, transicionesDesde } from '../config/estados';
 import {
@@ -23,6 +25,7 @@ import { useAuth } from '../store/auth.store';
 import { CUENTA_LABEL, RIESGO_CUENTA_MSG } from '../config/ingreso';
 import { clienteLabel } from '../utils/reparacion';
 import { toLocalDateInputValue } from '../utils/date';
+import { dateInputError } from '../utils/dateInput';
 import { showSuccess } from '../utils/toast';
 import type {
   CuentaVinculada,
@@ -52,8 +55,8 @@ const schema = z
     estado: z.enum(Object.keys(ESTADOS) as [EstadoReparacion, ...EstadoReparacion[]]),
     precioEstimado: z.union([z.number().min(0), z.nan(), z.literal('')]).optional(),
     precioFinal: z.union([z.number().min(0), z.nan(), z.literal('')]).optional(),
-    fechaIngreso: z.string().optional().or(z.literal('')),
-    fechaEstimadaEntrega: z.string().optional().or(z.literal('')),
+    fechaIngreso: z.string().optional().refine((value) => !value || !dateInputError(value), 'Ingresá una fecha válida en formato dd/mm/aaaa.'),
+    fechaEstimadaEntrega: z.string().optional().refine((value) => !value || !dateInputError(value), 'Ingresá una fecha válida en formato dd/mm/aaaa.'),
     // Orden de trabajo ampliada (opcional)
     patronDesbloqueo: z.string().optional(),
     pinDesbloqueo: z.string().optional(),
@@ -672,16 +675,36 @@ export const ReparacionFormModal = ({
         <div className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField label="Estado" error={errors.estado?.message} htmlFor="estado">
-                <select id="estado" {...register('estado')} className={inputClass(!!errors.estado)}>
+                <Select id="estado" {...register('estado')} hasError={!!errors.estado}>
                   {estadosDisponibles.map((e) => (
                     <option key={e.key} value={e.key}>
                       {e.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </FormField>
               <FormField label="Fecha de ingreso" error={errors.fechaIngreso?.message} htmlFor="fechaIngreso">
-                <input id="fechaIngreso" type="date" {...register('fechaIngreso')} className={inputClass(!!errors.fechaIngreso)} />
+                {(accessibility) => (
+                  <Controller
+                    control={control}
+                    name="fechaIngreso"
+                    render={({ field }) => (
+                      <DateInput
+                        ref={field.ref}
+                        id="fechaIngreso"
+                        label="Fecha de ingreso"
+                        disabled={blocking}
+                        name={field.name}
+                        value={field.value ?? ''}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        hasError={!!errors.fechaIngreso}
+                        aria-invalid={accessibility['aria-invalid']}
+                        aria-describedby={accessibility['aria-describedby']}
+                      />
+                    )}
+                  />
+                )}
               </FormField>
             </div>
 
@@ -731,7 +754,27 @@ export const ReparacionFormModal = ({
             </div>
 
             <FormField label="Entrega estimada" error={errors.fechaEstimadaEntrega?.message} htmlFor="fechaEstimadaEntrega">
-              <input id="fechaEstimadaEntrega" type="date" {...register('fechaEstimadaEntrega')} className={inputClass(!!errors.fechaEstimadaEntrega)} />
+              {(accessibility) => (
+                <Controller
+                  control={control}
+                  name="fechaEstimadaEntrega"
+                  render={({ field }) => (
+                    <DateInput
+                      ref={field.ref}
+                      id="fechaEstimadaEntrega"
+                      label="Entrega estimada"
+                      disabled={blocking}
+                      name={field.name}
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      hasError={!!errors.fechaEstimadaEntrega}
+                      aria-invalid={accessibility['aria-invalid']}
+                      aria-describedby={accessibility['aria-describedby']}
+                    />
+                  )}
+                />
+              )}
             </FormField>
 
             {/* Orden de trabajo (opcional, colapsable) */}
@@ -778,18 +821,17 @@ export const ReparacionFormModal = ({
                   </div>
                   <div className="grid grid-cols-1 items-end gap-4 sm:grid-cols-2">
                     <FormField label="Cuenta vinculada" htmlFor="tieneCuentaVinculada">
-                      <select
+                      <Select
                         id="tieneCuentaVinculada"
                         {...register('tieneCuentaVinculada')}
                         onChange={handleCuentaVinculadaChange}
-                        className={inputClass()}
                       >
                         {(Object.keys(CUENTA_LABEL) as CuentaVinculada[]).map((k) => (
                           <option key={k} value={k}>
                             {CUENTA_LABEL[k]}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </FormField>
                     {cuentaVinculada !== 'NINGUNA' && (
                       <label className="flex min-h-11 touch-manipulation items-center gap-2 text-[13.5px] font-semibold text-text-2 sm:mb-2 sm:min-h-0">
@@ -809,14 +851,14 @@ export const ReparacionFormModal = ({
                 </FormField>
                 {isAdmin && (
                   <FormField label="Técnico asignado" htmlFor="tecnicoId">
-                    <select id="tecnicoId" {...register('tecnicoId', { valueAsNumber: true })} className={inputClass()}>
+                    <Select id="tecnicoId" {...register('tecnicoId', { valueAsNumber: true })}>
                       <option value="">Sin asignar</option>
                       {tecnicos.map((t) => (
                         <option key={t.id} value={t.id}>
                           {t.username}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </FormField>
                 )}
                 <div className="grid grid-cols-1 gap-4 border-t border-border pt-3.5 sm:grid-cols-2">

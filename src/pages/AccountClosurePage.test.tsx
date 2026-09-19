@@ -22,7 +22,7 @@ const reference = '12345678-1234-4234-8234-123456789abc';
 const newId = '98765432-1234-4234-8234-123456789abc';
 const proof = 'p'.repeat(43);
 const password = ' contraseña exacta ';
-const profile = { usuario: { id: 8, role: 'ADMIN', username: 'Titular', email: 'titular@ordenfix.test' },
+const profile = { usuario: { id: 8, role: 'ADMIN', username: 'Titular', email: 'titular@ordenfix.test', emailVerificado: true },
   taller: { id: 2, nombre: 'Taller del Centro', telefono: null } };
 const open: WorkshopClosureStatus = { estado: 'ABIERTO', tallerNombre: 'Taller del Centro', observadoEn: '2026-09-12T12:00:00Z',
   referencia: null, confirmadoEn: null, reversibleHasta: null, puedeSolicitar: true, puedeRestaurar: false, ultimaOperacion: null };

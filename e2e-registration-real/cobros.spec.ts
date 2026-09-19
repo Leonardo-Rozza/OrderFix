@@ -52,9 +52,9 @@ test('empleado registra cobros externos y titular anula y corrige con historial'
     expect(registration.status()).toBe(201);
     const attempt = observeAttempt(registration.request());
     verifyAttempt(attempt, snapshot);
+    const owner = await registration.json() as AuthResponse;
     await verifyOwnerSession();
     await verifyNoAttemptStorage(page, attempt.key);
-    const owner = await registration.json() as AuthResponse;
     const profile = await authenticated<Perfil>(page, owner.token, '/api/perfil');
     expect(profile.status).toBe(200);
     expect(profile.body.usuario).toMatchObject({ email, role: 'ADMIN' });
@@ -259,8 +259,8 @@ test('empleado registra cobros externos y titular anula y corrige con historial'
     expect(caja).toMatchObject({ desde, hasta, totalCobrado: 30000, cantidad: 1, porMetodo: { TRANSFERENCIA: 30000 } });
     expect(caja.cobros).toHaveLength(1);
     expect(caja.cobros[0]).toMatchObject({ id: correctedCobroId, reparacionId: repairId, monto: 30000, referencia: 'EXTERNO-30000', estado: 'ACTIVO' });
-    await expect(page.getByLabel('Desde', { exact: true })).toHaveValue(desde);
-    await expect(page.getByLabel('Hasta', { exact: true })).toHaveValue(hasta);
+    await expect(page.getByRole('textbox', { name: 'Desde', exact: true })).toHaveValue(desde.split('-').reverse().join('/'));
+    await expect(page.getByRole('textbox', { name: 'Hasta', exact: true })).toHaveValue(hasta.split('-').reverse().join('/'));
     const cajaRegion = page.getByRole('region', { name: 'Cobros registrados', exact: true });
     await expect(cajaRegion.getByText('EXTERNO-30000', { exact: true })).toBeVisible();
     await expect(cajaRegion.getByText('EXTERNO-50000', { exact: true })).toHaveCount(0);

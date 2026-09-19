@@ -79,6 +79,7 @@ export const defaultPerfil = {
     username: 'Administrador OrdenFix',
     email: 'admin@mvgr.com',
     role: 'ADMIN',
+    emailVerificado: true,
   },
   taller: {
     id: 1,

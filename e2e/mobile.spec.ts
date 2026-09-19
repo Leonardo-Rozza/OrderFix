@@ -289,6 +289,7 @@ test('identidad móvil: conserva el taller accesible, no desborda y usa objetivo
         username: 'Juan Pérez',
         email: 'cuenta.distinta@ordenfix.com',
         role: 'USER',
+        emailVerificado: true,
       },
       taller: {
         id: 4,
@@ -341,7 +342,7 @@ test('identidad móvil: el perfil remoto falla cerrado y se recupera con texto l
     if (!profileAvailable) return route.fulfill({ status: 500, json: { message: 'Perfil temporalmente no disponible' } });
     return route.fulfill({ json: {
       accesoTaller: 'OPERATIVE',
-      usuario: { id: 1, username: emailPrefix, email: fallbackEmail, role: 'USER' },
+      usuario: { id: 1, username: emailPrefix, email: fallbackEmail, role: 'USER', emailVerificado: true },
       taller: { id: 1, nombre: 'Taller recuperado', telefono: null },
     } });
   });

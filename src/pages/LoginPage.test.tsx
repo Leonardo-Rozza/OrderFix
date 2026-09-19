@@ -17,7 +17,7 @@ vi.mock('../utils/toast', async (original) => ({
 
 const profile = {
   accesoTaller: 'RESTRICTED',
-  usuario: { id: 1, username: 'Titular', email: 'titular@taller.invalid', role: 'ADMIN' },
+  usuario: { id: 1, username: 'Titular', email: 'titular@taller.invalid', role: 'ADMIN', emailVerificado: true },
   taller: { id: 1, nombre: 'Taller de prueba', telefono: null },
 };
 const FreshClosure = () => <h1>Estado observado: {useAccountProfile().accesoTaller}</h1>;

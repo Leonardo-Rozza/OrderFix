@@ -23,7 +23,7 @@ vi.mock('../layouts/DashboardLayout', () => ({
 import { AccountAccessExitPage } from './AccountAccessExitPage';
 
 const profile: Perfil = {
-  usuario: { id: 8, username: 'Ana Técnica', email: 'ana@taller.com', role: 'USER' },
+  usuario: { id: 8, username: 'Ana Técnica', email: 'ana@taller.com', role: 'USER', emailVerificado: true },
   taller: { id: 2, nombre: 'Taller del Centro', telefono: null },
 };
 const password = '  contraseña personal exacta  ';

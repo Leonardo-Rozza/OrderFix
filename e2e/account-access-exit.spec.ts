@@ -35,7 +35,7 @@ const mockAccount = async (
     expect(request.method()).toBe('GET');
     if (path === '/api/perfil') return route.fulfill({ json: {
       usuario: { id: role === 'USER' ? 2 : 1, username: role === 'USER' ? 'Beatriz Técnica' : 'Ana Titular',
-        email: role === 'USER' ? 'tecnica@taller.test' : 'titular@taller.test', role },
+        email: role === 'USER' ? 'tecnica@taller.test' : 'titular@taller.test', role, emailVerificado: true },
       taller: { id: 1, nombre: 'Taller de celulares del barrio', telefono: null },
     } });
     if (path === '/api/aceptaciones-legales') return route.fulfill({ json: {

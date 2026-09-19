@@ -10,7 +10,7 @@ vi.mock('../utils/toast', async (orig) => {
 
 vi.mock('../lib/sentry', () => ({ captureError: vi.fn() }));
 
-import { apiClient, LIMITE_PLAN_EVENT } from './axios';
+import { apiClient, LIMITE_PLAN_EVENT, EMAIL_VERIFICATION_REQUIRED_EVENT } from './axios';
 import { queryClient } from './queryClient';
 import { showError } from '../utils/toast';
 import { captureError } from '../lib/sentry';
@@ -29,6 +29,50 @@ afterEach(() => {
 });
 
 describe('axios interceptor de errores', () => {
+  it.each(['/suscripcion', '/clientes'])('email no verificado en %s conserva la sesión y solicita revalidación sin toast', async (path) => {
+    authStore.getState().login('token-email', 'cuenta@taller.test');
+    const listener = vi.fn();
+    window.addEventListener(EMAIL_VERIFICATION_REQUIRED_EVENT, listener);
+    server.use(http.get(`${API}${path}`, () => HttpResponse.json({ code: 'EMAIL_NO_VERIFICADO' }, { status: 403 })));
+    try {
+      await expect(apiClient.get(path)).rejects.toMatchObject({ response: { status: 403 } });
+      expect(authStore.getState().token).toBe('token-email');
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener.mock.calls[0][0].detail.token).toBe('token-email');
+      expect(showError).not.toHaveBeenCalled();
+      expect(captureError).not.toHaveBeenCalled();
+    } finally { window.removeEventListener(EMAIL_VERIFICATION_REQUIRED_EVENT, listener); }
+  });
+
+  it('la validación de un 403 de rol no confunde email pendiente con sesión revocada', async () => {
+    authStore.getState().login('token-email', 'cuenta@taller.test');
+    server.use(
+      http.delete(`${API}/clientes/1`, () => new HttpResponse(null, { status: 403 })),
+      http.get(`${API}/suscripcion`, () => HttpResponse.json({ code: 'EMAIL_NO_VERIFICADO' }, { status: 403 })),
+    );
+    await expect(apiClient.delete('/clientes/1')).rejects.toBeTruthy();
+    expect(authStore.getState().isAuthenticated).toBe(true);
+  });
+
+  it('un 403 por email de otra sesión no publica un bloqueo para la cuenta nueva', async () => {
+    authStore.getState().login('token-anterior', 'anterior@taller.test');
+    let started!: () => void;
+    let release!: () => void;
+    const sent = new Promise<void>(resolve => { started = resolve; });
+    const held = new Promise<void>(resolve => { release = resolve; });
+    const listener = vi.fn();
+    window.addEventListener(EMAIL_VERIFICATION_REQUIRED_EVENT, listener);
+    server.use(http.get(`${API}/clientes`, async () => { started(); await held; return HttpResponse.json({ code: 'EMAIL_NO_VERIFICADO' }, { status: 403 }); }));
+    const result = expect(apiClient.get('/clientes')).rejects.toBeTruthy();
+    try {
+      await sent;
+      authStore.getState().login('token-nuevo', 'nuevo@taller.test');
+      release();
+      await result;
+      expect(listener).not.toHaveBeenCalled();
+      expect(authStore.getState().token).toBe('token-nuevo');
+    } finally { release(); window.removeEventListener(EMAIL_VERIFICATION_REQUIRED_EVENT, listener); }
+  });
   it.each([401, 403, 423, 429, 503])('cierre %s queda a cargo de la página sin perder el aviso o abrir validaciones', async (status) => {
     authStore.getState().login('sesion-cierre', 'titular@taller.invalid');
     let validations = 0;

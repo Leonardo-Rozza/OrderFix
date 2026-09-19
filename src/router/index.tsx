@@ -1,5 +1,5 @@
 import { createBrowserRouter, Navigate, Outlet } from 'react-router';
-import { ProtectedRoute, PublicRoute } from './guards';
+import { ProtectedRoute, PublicRoute, VerifiedEmailRoute } from './guards';
 import { RouteError } from '../components/RouteError';
 import { LoginPage } from '../pages/LoginPage';
 import { RegisterPage } from '../pages/RegisterPage';
@@ -30,11 +30,11 @@ import AccountClosurePage from '../pages/AccountClosurePage';
 const appRoutes = [
   {
     path: '/cuenta/cierre',
-    element: <AccountRoute><AccountClosurePage /></AccountRoute>,
+    element: <AccountRoute><VerifiedEmailRoute><AccountClosurePage /></VerifiedEmailRoute></AccountRoute>,
   },
   {
     path: '/cuenta/exportacion',
-    element: <AccountRoute><AccountExportPage /></AccountRoute>,
+    element: <AccountRoute><VerifiedEmailRoute><AccountExportPage /></VerifiedEmailRoute></AccountRoute>,
   },
   {
     path: '/cuenta/baja-acceso',

@@ -112,14 +112,13 @@ export const SeguimientoPage = () => {
     <Shell>
       <div className="ofx-in space-y-4">
         <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
-          <div className="text-[12.5px] font-semibold text-text-3">{data.taller}</div>
+          <div className="text-[12.5px] font-semibold text-text-3 [overflow-wrap:anywhere]">{data.taller}</div>
           <h1 className="mt-1 text-[22px] font-extrabold tracking-tight">
             {data.marca} {data.modelo}
           </h1>
           <div className="mt-3">
             <EstadoBadge estado={data.estado} size="md" />
           </div>
-          <div className="mt-2 font-mono text-[12px] text-text-3">Código {data.codigo}</div>
         </div>
 
         {/* Progreso */}
@@ -161,6 +160,10 @@ export const SeguimientoPage = () => {
             <div className="flex justify-between">
               <dt className="text-text-2">Entrega estimada</dt>
               <dd className="font-semibold">{formatDate(data.fechaEstimadaEntrega)}</dd>
+            </div>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-[12px] text-text-2">
+              <dt>Código de seguimiento</dt>
+              <dd className="max-w-full break-all font-mono select-all">{data.codigo}</dd>
             </div>
           </dl>
         </div>

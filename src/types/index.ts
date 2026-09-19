@@ -18,7 +18,7 @@ export interface AuthResponse {
   token: string;
   type: string; // "Bearer"
   email: string;
-  /** false = mostrar banner "Confirmá tu email" (verificación suave: puede operar igual). */
+  /** Dato inicial; los permisos se resuelven con el perfil remoto de la sesión actual. */
   emailVerificado: boolean;
 }
 
@@ -39,6 +39,7 @@ export interface Perfil {
     username: string;
     email: string;
     role: Rol;
+    emailVerificado: boolean;
   };
   taller: {
     id: number;

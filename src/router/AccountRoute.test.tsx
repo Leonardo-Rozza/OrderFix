@@ -20,7 +20,7 @@ const token = (email = 'ana@taller.test', expired = false) => {
     exp: Math.floor(Date.now() / 1000) + (expired ? -60 : 3600) })}.firma`;
 };
 const profile: Perfil = {
-  usuario: { id: 1, username: 'Ana', email: 'ana@taller.test', role: 'ADMIN' },
+  usuario: { id: 1, username: 'Ana', email: 'ana@taller.test', role: 'ADMIN', emailVerificado: true },
   taller: { id: 1, nombre: 'Taller Uno', telefono: null },
 };
 const Identity = () => {

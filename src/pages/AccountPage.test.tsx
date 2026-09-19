@@ -22,7 +22,7 @@ import { AccountPage } from './AccountPage';
 const render = (content: ReactNode) => renderUi(<MemoryRouter>{content}</MemoryRouter>);
 
 const profile: Perfil = {
-  usuario: { id: 8, username: 'Ana Técnica', email: 'ana@taller.com', role: 'ADMIN' },
+  usuario: { id: 8, username: 'Ana Técnica', email: 'ana@taller.com', role: 'ADMIN', emailVerificado: true },
   taller: { id: 2, nombre: 'Taller del Centro', telefono: '+54 11 4567-8900' },
 };
 

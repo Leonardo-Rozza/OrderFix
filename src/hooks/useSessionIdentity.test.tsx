@@ -25,6 +25,7 @@ const perfil = {
     username: 'Juan Pérez',
     email: 'juan@celexpress.com',
     role: 'ADMIN',
+    emailVerificado: true,
   },
   taller: {
     id: 7,

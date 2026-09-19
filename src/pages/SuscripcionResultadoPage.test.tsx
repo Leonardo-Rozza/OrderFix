@@ -31,7 +31,7 @@ const pro = {
   funciones: { inventario: true, cobros: true, empleadosMultiples: true },
 };
 const perfil = {
-  usuario: { id: 1, username: 'Titular sintético', email: 'mp-probe@taller.invalid', role: 'ADMIN' },
+  usuario: { id: 1, username: 'Titular sintético', email: 'mp-probe@taller.invalid', role: 'ADMIN', emailVerificado: true },
   taller: { id: 1, nombre: 'Taller sintético', telefono: null },
 };
 

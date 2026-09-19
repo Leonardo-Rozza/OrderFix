@@ -9,6 +9,8 @@ import { useAccountProfile } from './accountProfile';
 import { workshopClosureEnabled } from '../config/workshopClosure';
 import { Loader } from '../components/Loader';
 import { ErrorState } from '../components/ErrorState';
+import { isEmailVerificationRequired } from '../api/axios';
+import { EmailVerificationPreview, UnverifiedSubscriptionPage } from '../pages/EmailVerificationPreview';
 
 interface GuardProps {
   children: ReactNode;
@@ -23,7 +25,7 @@ const sesionValida = (token: string | null, isAuthenticated: boolean) => {
 const SessionGate = ({ children }: GuardProps) => {
   const { isPending, isError, error, refetch } = useSuscripcionQuery();
   const status = isAxiosError(error) ? error.response?.status : undefined;
-  const sesionInvalida = status === 401 || status === 403;
+  const sesionInvalida = status === 401 || (status === 403 && !isEmailVerificationRequired(error));
 
   useEffect(() => {
     // El interceptor normalmente ya hizo este logout. Lo repetimos de forma
@@ -76,11 +78,20 @@ export const ProtectedRoute = ({ children }: GuardProps) => {
 /** El estado remoto precede al plan: un taller restringido no consulta /suscripcion. */
 const OperationalAccess = ({ children }: GuardProps) => {
   const profile = useAccountProfile();
+  const { pathname } = useLocation();
   if (profile.accesoTaller === 'RESTRICTED') {
     return <Navigate to={workshopClosureEnabled && profile.usuario.role === 'ADMIN' ? '/cuenta/cierre' : '/cuenta'} replace />;
   }
+  if (!profile.usuario.emailVerificado) {
+    if (pathname === '/planes' && profile.usuario.role === 'ADMIN') return <UnverifiedSubscriptionPage />;
+    return <EmailVerificationPreview />;
+  }
   return <SessionGate>{children}</SessionGate>;
 };
+
+/** Exportar/cerrar tampoco puede saltarse el gate entrando por Cuenta. */
+export const VerifiedEmailRoute = ({ children }: GuardProps) =>
+  useAccountProfile().usuario.emailVerificado ? <>{children}</> : <EmailVerificationPreview />;
 
 const PublicSessionRedirect = () => {
   const profile = useAccountProfile();

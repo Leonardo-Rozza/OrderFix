@@ -35,7 +35,7 @@ for (const role of ['ADMIN', 'USER'] as const) {
           expect(request.headers().authorization).toBe(`Bearer ${token}`);
           return route.fulfill({ json: {
             usuario: { id: role === 'ADMIN' ? 1 : 2, username: role === 'ADMIN' ? 'Ana Titular' : 'Beatriz Técnica',
-              email: 'cuenta.personal.con.un.nombre.largo@taller-prueba.test', role },
+              email: 'cuenta.personal.con.un.nombre.largo@taller-prueba.test', role, emailVerificado: true },
             taller: { id: 1, nombre: 'Taller de reparación de celulares del barrio', telefono: '+54 11 5555 0000' },
           } });
         }
@@ -108,7 +108,7 @@ test('un fallo comercial deja un acceso a Cuenta que valida el perfil', async ({
   await page.route((url) => url.pathname.startsWith('/api/'), async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path === '/api/perfil') return route.fulfill({ json: {
-      usuario: { id: 1, username: 'Ana', email: 'ana@taller.test', role: 'ADMIN' },
+      usuario: { id: 1, username: 'Ana', email: 'ana@taller.test', role: 'ADMIN', emailVerificado: true },
       taller: { id: 1, nombre: 'Taller Uno', telefono: null },
     } });
     if (path === '/api/aceptaciones-legales') return route.fulfill({ json: {

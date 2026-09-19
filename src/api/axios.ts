@@ -24,6 +24,17 @@ const API_BASE_URL = resolveApiBaseUrl({
 
 /** Evento global para el límite de plan (402). El modal "Pasá a PRO" lo escucha. */
 export const LIMITE_PLAN_EVENT = 'ofx:limite-plan';
+export const EMAIL_VERIFICATION_REQUIRED_EVENT = 'ofx:email-verification-required';
+
+export const isEmailVerificationRequired = (error: unknown) =>
+  axios.isAxiosError(error) && error.response?.status === 403 &&
+  error.response.data?.code === 'EMAIL_NO_VERIFICADO';
+
+const notifyEmailVerificationRequired = (token: string) => {
+  if (authStore.getState().token === token) {
+    window.dispatchEvent(new CustomEvent(EMAIL_VERIFICATION_REQUIRED_EVENT, { detail: { token } }));
+  }
+};
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -89,6 +100,10 @@ const validateBaseSession = (token: string | null, resource: '/perfil' | '/suscr
     .get(resource, { headers: { Authorization: `Bearer ${token}` }, ...(resource === '/perfil' ? { timeout: 20_000 } : {}) })
     .then<SessionValidationResult>(() => 'valida')
     .catch((validationError: unknown): SessionValidationResult => {
+      if (isEmailVerificationRequired(validationError)) {
+        notifyEmailVerificationRequired(token);
+        return 'valida';
+      }
       const validationStatus = axios.isAxiosError(validationError)
         ? validationError.response?.status
         : undefined;
@@ -120,6 +135,15 @@ apiClient.interceptors.response.use(
     // el usuario ni para telemetría. React Query igualmente recibe el rechazo y
     // resuelve el estado de concurrencia de esa request.
     if (axios.isCancel(error) || error.code === 'ERR_CANCELED') {
+      throw error;
+    }
+
+    // Es una sesión vigente con acceso pendiente, no un token revocado. Una
+    // respuesta tardía de otra identidad tampoco puede bloquear la sesión nueva.
+    if (isEmailVerificationRequired(error)) {
+      const token = authStore.getState().token;
+      const sent = AxiosHeaders.from(error.config?.headers).get('Authorization');
+      if (token && sent === `Bearer ${token}`) notifyEmailVerificationRequired(token);
       throw error;
     }
 

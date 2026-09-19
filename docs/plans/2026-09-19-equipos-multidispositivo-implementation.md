@@ -70,7 +70,8 @@ catálogos históricos sin cambios y 97 casos focales únicos aprobados. Incluye
 con taller restringido sin reescribir los equipos históricos.
 
 B implementado y verificado localmente. Revisión independiente A/B sin hallazgos.
-C queda preparado para exportaciones, recorrido con PostgreSQL y gate integral.
+C entregado en backend `ad9194f`: exportaciones, recorrido con PostgreSQL y validación
+global con correcciones focales documentadas abajo.
 
 ### Evidencia B — 2026-09-19
 
@@ -84,5 +85,50 @@ C queda preparado para exportaciones, recorrido con PostgreSQL y gate integral.
   `/private/tmp/ordenfix-multidevice-front-build.log` y
   `/private/tmp/ordenfix-multidevice-front-focused.log`.
 
-No hubo push ni cambios a archivos ajenos. Resultados de A/C y commits se completan
-al cerrar cada corte.
+No hubo push ni cambios a archivos ajenos. Resultados de A/C registrados en este plan.
+
+
+### Evidencia C — cierre local
+
+Backend A `e3f43bc`, frontend B `86e5138`. Las exportaciones agregan categoría en
+Excel/JSON, conservando importes, identificadores de texto y artefactos ZIP ya creados.
+78 casos focales de exportaciones/fotos aprobados. Cuatro recorridos reales con
+PostgreSQL 16 y una comprobación JUnit aprobados para celular, notebook, consola y TV.
+Se verifica filtro exacto y edición de color que conserva categoría/serie, sin enviar
+`tipo` en el PUT. Fotos y pertenencia por taller conservan sus comprobaciones.
+
+La repetición final aprobó cuatro escenarios y una comprobación JUnit. Se conservaron
+20 capturas; listado a 320 px y edición de notebook/TV revisados visualmente, sin
+desbordamiento horizontal. Las dos capturas nuevas por escenario desactivan la
+animación durante la toma. No cambió la UI por este ajuste de evidencia.
+
+
+### Despliegue posterior
+
+Backend con V36 primero; frontend B/C después. El backend admite formularios antiguos
+sin tipo, pero el frontend nuevo necesita el contrato actualizado para guardar y
+filtrar categorías. Acreditar los permisos V35 de fotos según la guía backend.
+Estos cortes no despliegan ni migran la base de uso habitual; sólo usan laboratorio.
+
+
+### Resultado de la validación global
+
+Backend `ad9194f`. La integral `clean verify` ejecutó 8.010 unitarias y 1.838 IT:
+unitarias aprobadas; dos fixtures IT antiguas fallaron. Se corrigieron la expectativa
+de historia V27–V36 (11 filas incluyendo sentinel) y el ADMIN sin email verificado
+del ensayo de reactivación. Se conservó al empleado con email pendiente y sus pruebas
+de revocación. Sólo cambiaron pruebas después de la integral.
+
+Repeticiones aprobadas: 41 casos de esquema/compatibilidad y 15 de baja/reactivación.
+Todas las clases de la integral tienen resultado aprobado al combinar esas
+repeticiones; no se afirma un segundo `clean verify` verde. Evidencia completa y
+comandos en el plan homónimo del backend, con logs originales conservados.
+
+Frontend: 996 pruebas, TypeScript, ESLint focal y build aprobados. Navegador: cuatro
+recorridos finales + una validación JUnit, con almacenamiento sintético y PostgreSQL
+16. Logs/capturas en `/private/tmp/ordenfix-multidispositivo-backend-20260919/`.
+A/B/C quedan cerrados localmente; no hay fallos pendientes de este alcance.
+
+Cierres/datos mantiene un pendiente distinto: supresión definitiva por categorías,
+política real de conservación y recuperación del despliegue. Este avance acredita
+los recibos de fotos, sin declarar eliminación completa de cuentas.

@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page, type Request } from '@playwright
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
-import type { AuthResponse, IngresoRapidoResponse, Perfil, Reparacion } from '../src/types';
+import type { AuthResponse, Equipo, IngresoRapidoResponse, Perfil, Reparacion, TipoEquipo } from '../src/types';
 import type { PhotoIntent, PhotoRequirements, PrivatePhoto } from '../src/api/repairPhotos';
 
 const api = new URL(process.env.ORDENFIX_PHOTOS_E2E_API_URL!).origin;
@@ -82,6 +82,10 @@ const read = async (page: Page, path: string, token?: string) => page.evaluate(a
 for (const mode of ['nuevo', 'existente'] as const) {
   test(`fotos privadas en alta ${mode}: consentimiento, reintento y borrado`, async ({ page, browser }, info) => {
     const account = accounts[info.project.name];
+    const desktop = info.project.name === 'desktop';
+    const equipmentType: TipoEquipo = mode === 'nuevo' ? (desktop ? 'CELULAR' : 'TV') : (desktop ? 'NOTEBOOK' : 'CONSOLA');
+    const equipmentSerial = mode === 'existente' && desktop ? 'NB-000001' : null;
+    const equipmentTypeLabel = { CELULAR: 'Celular', TV: 'TV', NOTEBOOK: 'Notebook', CONSOLA: 'Consola' }[equipmentType];
     const actor = await login(page, mode === 'nuevo' ? account.ownerEmail : account.employeeEmail);
     expect(actor.profile.usuario.role).toBe(mode === 'nuevo' ? 'ADMIN' : 'USER');
     const requests: { origin: string; path: string; method: string }[] = [];
@@ -98,8 +102,9 @@ for (const mode of ['nuevo', 'existente'] as const) {
       if (mode === 'nuevo') {
         await modal.getByLabel(/^Nombre\s*\*?$/).fill('Cliente fotos');
         await modal.getByLabel(/^Teléfono\s*\*?$/).fill(info.project.name === 'desktop' ? '1155000801' : '1155000802');
-        await modal.getByLabel(/^Marca\s*\*?$/).fill('Motorola');
-        await modal.getByLabel(/^Modelo\s*\*?$/).fill('G31');
+        await modal.getByLabel('Tipo de equipo', { exact: true }).selectOption(equipmentType);
+        await modal.getByLabel(/^Marca\s*\*?$/).fill(desktop ? 'Motorola' : 'Samsung');
+        await modal.getByLabel(/^Modelo\s*\*?$/).fill(desktop ? 'G31' : 'TV local');
       } else {
         await modal.getByRole('button', { name: 'Elegir equipo existente', exact: true }).click();
         await modal.getByRole('button', { name: 'Equipo', exact: true }).click();
@@ -126,7 +131,9 @@ for (const mode of ['nuevo', 'existente'] as const) {
       const created = await creation.json() as IngresoRapidoResponse | Reparacion;
       const repair = 'reparacion' in created ? created.reparacion : created;
       const repairId = repair.id;
+      expect(repair.equipoTipo).toBe(equipmentType);
       if (mode === 'existente') expect(repair.equipoId).toBe(account.equipmentId);
+      else expect(creation.request().postDataJSON()).toMatchObject({ equipoTipo: equipmentType });
       const requirementsResponse = await requirementsPromise;
       expect(requirementsResponse.status()).toBe(200);
       const requirements = await requirementsResponse.json() as PhotoRequirements;
@@ -205,8 +212,51 @@ for (const mode of ['nuevo', 'existente'] as const) {
       expect((await deletePromise).status()).toBe(204);
       await expect(peerPhotos.getByAltText('Foto privada del ingreso')).toHaveCount(0);
       expect((await read(page, contentPath, actor.token)).status).toBe(404);
+
+      // The same real equipment survives photo deletion, filtering and an unrelated edit.
+      const filteredPromise = page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return url.origin === api && url.pathname === '/api/equipos' && url.searchParams.get('tipo') === equipmentType
+          && response.request().method() === 'GET';
+      });
+      await page.goto(`/equipos?tipo=${equipmentType}`);
+      const filteredResponse = await filteredPromise;
+      expect(filteredResponse.status()).toBe(200);
+      const filtered = await filteredResponse.json() as { content: Equipo[] };
+      expect(filtered.content).toHaveLength(1);
+      expect(filtered.content.every((item) => item.tipo === equipmentType)).toBe(true);
+      const equipment = filtered.content[0];
+      expect(equipment).toMatchObject({ id: repair.equipoId, tipo: equipmentType, imei: equipmentSerial });
+      await expect(page.getByLabel('Filtrar por tipo de equipo', { exact: true })).toHaveValue(equipmentType);
+      const card = page.getByRole('article').filter({ hasText: `${equipment.marca} ${equipment.modelo}` });
+      await expect(card).toHaveCount(1);
+      await expect(card).toContainText(equipmentTypeLabel);
+      await expect(card).toContainText(equipmentSerial ? `Serie / IMEI ${equipmentSerial}` : 'Sin serie / IMEI');
+      await fits(page);
+      await page.screenshot({ path: info.outputPath('equipos-lista-filtrada.png'), fullPage: true, animations: 'disabled' });
+      await card.getByRole('button', { name: 'Editar', exact: true }).click();
+      const edit = page.getByRole('dialog', { name: 'Editar equipo', exact: true });
+      await expect(edit.getByLabel('Tipo de equipo', { exact: true })).toHaveValue(equipmentType);
+      await expect(edit.getByLabel('Serie / IMEI', { exact: true })).toHaveValue(equipmentSerial ?? '');
+      await edit.getByLabel('Color', { exact: true }).fill('Azul E2E');
+      await fits(page);
+      await page.screenshot({ path: info.outputPath('equipos-edicion-preserva-tipo-serie.png'), fullPage: true, animations: 'disabled' });
+      const updatePromise = page.waitForResponse((response) => matches(response.url(), `/api/equipos/${repair.equipoId}`)
+        && response.request().method() === 'PUT');
+      await edit.getByRole('button', { name: 'Guardar cambios', exact: true }).click();
+      const updatedResponse = await updatePromise;
+      expect(updatedResponse.status()).toBe(200);
+      expect(updatedResponse.request().postDataJSON()).toMatchObject({ color: 'Azul E2E' });
+      expect(updatedResponse.request().postDataJSON()).not.toHaveProperty('tipo');
+      const updated = await updatedResponse.json() as Equipo;
+      expect(updated).toMatchObject({ id: equipment.id, tipo: equipmentType, imei: equipmentSerial, color: 'Azul E2E',
+        marca: equipment.marca, modelo: equipment.modelo, clienteId: equipment.clienteId });
+      await expect(edit).toHaveCount(0);
+      await expect(card).toContainText('Azul E2E');
+      await fits(page);
       expect(requests.filter((request) => /cloudinary|mercadopago|stripe/i.test(request.origin))).toEqual([]);
       save({ project: info.project.name, scenario: mode, repairId, equipmentId: repair.equipoId,
+        equipmentType: updated.tipo, equipmentSerial: updated.imei, filteredRead: filteredResponse.status(), equipmentUpdated: updatedResponse.status(),
         actorId: actor.profile.usuario.id, actorRole: actor.profile.usuario.role, workshopId: actor.profile.taller.id,
         peerId: peerActor.profile.usuario.id, foreignId: other.profile.usuario.id, photoId: photo.id,
         bytes: image.length, sha256, uploadFailure: 503, finalized: 201, deleted: 204,

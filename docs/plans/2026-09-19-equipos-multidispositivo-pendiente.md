@@ -1,7 +1,11 @@
-# Equipos de distintos tipos — pendiente antes del lanzamiento
+# Equipos de distintos tipos — seguimiento antes del lanzamiento
 
-Fecha: 2026-09-19. Estado: **guardado para después**, por decisión del titular.
-No se implementa en el corte actual de recuperación de backups.
+Fecha: 2026-09-19. Retomado por autorización del titular después de cierres/datos.
+A (backend `e3f43bc`), B (frontend `86e5138`) y C (backend `ad9194f` + E2E frontend)
+implementados y validados localmente, sin push.
+Plan y evidencia: [implementación por cortes](2026-09-19-equipos-multidispositivo-implementation.md).
+
+## Contexto al guardar este pendiente
 
 OrdenFix permite registrar marca, modelo, cliente y un identificador opcional de
 equipo. El recorrido de ingreso, diagnóstico, presupuesto, reparación y entrega
@@ -27,5 +31,5 @@ serie, sin campos inaplicables obligatorios. Comprobar búsquedas, edición, doc
 y exportación conservando los equipos existentes. Aplicar los permisos y aislamiento
 por taller vigentes. Se dividirá en cortes pequeños al retomarlo.
 
-Las mejoras de UI y verificación de email que ya están en el working tree son trabajo
-independiente; este documento no las modifica ni acredita su validación.
+Las mejoras previas de UI y email se preservan. Los resultados de la adaptación se
+registran en el plan de implementación; esta nota conserva el alcance solicitado.

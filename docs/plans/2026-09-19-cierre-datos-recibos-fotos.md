@@ -30,7 +30,11 @@ privada`). V35 conserva objetivos/resultados durables; no cambia el contrato HTT
   detectar 18 aserciones desactualizadas en tres suites. No se acredita como aprobada.
 - Se corrigieron fixtures de email verificado/routing y expectativa de historia
   Flyway, sin cambiar autenticación. Repetición focal: 104 casos aprobados.
-- La integral completa se concentra en el gate final de equipos, que incluye V35.
+- La validación consolidada de equipos (`ad9194f` backend) incluye V35: 8.010
+  unitarias y 1.838 IT ejecutadas; dos fixtures antiguas corregidas y sus suites
+  revalidadas en 41+15 casos. Se conserva el resultado original fallido, sin afirmar
+  una segunda integral verde. Todas las clases tienen aprobación combinada.
+- Navegador final: cuatro recorridos y una validación JUnit nuevamente aprobados.
   No hubo llamadas reales a proveedores, eliminación de cuentas ni push.
 
 Migraciones V27–V34 y archivos ajenos preservados; V35 queda congelada.
@@ -41,4 +45,5 @@ Se conserva el [alcance acordado para otros equipos](2026-09-19-equipos-multidis
 clasificación, serie/IMEI, campos de acceso opcionales y el mismo circuito de reparación.
 La revisión identificó ambas altas (Equipo e ingreso rápido) y las dos exportaciones
 (Excel y ZIP); deberán conservar los datos actuales y no inferir categorías históricas
-por marca o IMEI. Su implementación tendrá su propio corte y commit.
+por marca o IMEI. Su implementación se completó en A/B/C, con commits separados; ver el
+[plan y resultados](2026-09-19-equipos-multidispositivo-implementation.md).

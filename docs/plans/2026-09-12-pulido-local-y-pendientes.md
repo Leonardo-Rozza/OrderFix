@@ -23,6 +23,10 @@ real de registro](2026-09-19-historial-cuenta-integracion-local.md), incluyendo
 la consulta antes/después de verificar email y la separación entre titular y
 empleado. Conserva el alcance local y los pendientes externos de la tabla final.
 
+A pedido del titular se completa también el [formato de los correos de cuenta](2026-09-19-emails-cuenta-formato.md):
+verificación/alta y recuperación con identidad OrdenFix, botón, vencimiento y
+alternativa de texto. Los flujos ya existían; su prueba desplegada sigue en Email C.
+
 Base del diagnóstico: frontend `5a86605`, backend `35ecb8f`. Esa revisión inicial
 inspeccionó código, pruebas existentes y actas. La evidencia nueva de los cortes A–D se
 detalla al final; la evidencia funcional anterior conserva sus límites.

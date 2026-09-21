@@ -1,0 +1,39 @@
+{
+  "ambiente": "Vite local 127.0.0.1:5173 con API interceptada y datos ficticios",
+  "combinacionesCompletadas": [
+    { "browser": "chromium", "ancho": 1280, "temas": ["light", "dark"] },
+    { "browser": "chromium", "ancho": 320, "temas": ["light", "dark"] },
+    { "browser": "chromium", "ancho": 390, "temas": ["light", "dark"] },
+    { "browser": "webkit", "ancho": 390, "temas": ["light", "dark"] }
+  ],
+  "password": {
+    "paddingIzquierdoPx": 14,
+    "paddingDerechoPx": 48,
+    "anchoBotonOjoPx": 44,
+    "separacionOjoBordeDerechoPx": 0,
+    "autocomplete": "current-password",
+    "toggleConservaValor": true,
+    "tecladoChromium": "Tab desde input al ojo y Space alterna visibilidad",
+    "tecladoWebKit": "Option+Tab desde input al ojo y Space alterna visibilidad"
+  },
+  "select": {
+    "superficies": ["Ordenar", "Estado en formulario", "Técnico asignado con texto largo", "Técnico dentro de fieldset deshabilitado", "Cambiar estado en detalle"],
+    "paddingDerechoPx": 44,
+    "separacionFlechaBordeDerechoPx": 14,
+    "desviacionVerticalMaximaChromiumPx": 0,
+    "desviacionVerticalMaximaWebKitPx": 0.02,
+    "appearance": "none",
+    "pointerEventsFlecha": "none",
+    "opacidadFlechaDeshabilitada": 0.5,
+    "deshabilitadoHeredadoDeFieldset": true,
+    "focoVisibleInspeccionado": true,
+    "textoLargoInvadeFlecha": false,
+    "opcionLargaSeleccionadaCon": "Playwright selectOption, cambio nativo del control"
+  },
+  "overflowHorizontal": false,
+  "limites": [
+    "El fieldset se deshabilitó sólo en el DOM de la sesión sintética para comprobar la herencia nativa; no se guardaron formularios.",
+    "Un intento adicional de seleccionar técnico mediante ArrowDown y Enter conservó Sin asignar en ambos motores. Esa secuencia no acredita selección mediante el popup nativo de macOS y no se incluyó como prueba aprobada. No se repitió por indicación de cerrar QA.",
+    "La comprobación de foco y del ojo por teclado sí terminó correctamente; la inspección visual no sustituye las pruebas de formulario y accesibilidad ejecutadas por el coordinador."
+  ]
+}

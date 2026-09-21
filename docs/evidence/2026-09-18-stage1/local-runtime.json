@@ -1,0 +1,9 @@
+{
+  "writes": [{ "method": "POST", "path": "/api/auth/login" }],
+  "profileStatus": 200,
+  "emailVerificado": true,
+  "dashboard": true,
+  "repairs": true,
+  "preview": false,
+  "overflow": false
+}

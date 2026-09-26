@@ -304,4 +304,71 @@ describe('RepuestoFormModal', () => {
     await waitFor(() => expect(body).toBeDefined());
     expect(body).toMatchObject({ reparacionId: 42 });
   });
+  describe.each([undefined, 42])('linked inventory edit with repair context %s', (lockedReparacionId) => {
+    const linked: Repuesto = {
+      id: 18, nombre: 'Pantalla', descripcion: 'Original', precio: 9000,
+      reparacionId: 42, reparacionEquipo: 'Samsung A52', articuloId: 17, cantidad: 2,
+    };
+    const expectPreservedIntent = (body: Record<string, unknown>) => {
+      expect(body).toHaveProperty('reparacionId', 42);
+      expect(body).not.toHaveProperty('articuloId');
+      expect(body).not.toHaveProperty('cantidad');
+    };
+
+    it.each([
+      ['nombre', /^nombre/i, 'Pantalla revisada', 'Pantalla revisada'],
+      ['descripcion', /^descripción/i, 'Detalle actualizado', 'Detalle actualizado'],
+      ['precio', /^precio/i, '12000', 12000],
+    ] as const)('editing %s does not resend stale inventory or quantity', async (field, label, value, expected) => {
+      const user = userEvent.setup();
+      const onClose = vi.fn();
+      const requests: Record<string, unknown>[] = [];
+      server.use(http.put(`${API}/repuestos/18`, async ({ request }) => {
+        const body = await request.json() as Record<string, unknown>;
+        requests.push(body);
+        return HttpResponse.json({ ...linked, ...body });
+      }));
+      renderUI(<RepuestoFormModal isOpen onClose={onClose} editing={linked} lockedReparacionId={lockedReparacionId} />);
+      expect(screen.queryByLabelText(/artículo del inventario/i)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/cantidad/i)).not.toBeInTheDocument();
+      const input = screen.getByLabelText(label);
+      await user.clear(input);
+      await user.type(input, value);
+      await user.click(screen.getByRole('button', { name: /guardar cambios/i }));
+      await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+      expect(requests).toHaveLength(1);
+      expect(requests[0]).toHaveProperty(field, expected);
+      expectPreservedIntent(requests[0]);
+    });
+
+    it('preserves omission and written fields after a failed request and retry', async () => {
+      const user = userEvent.setup();
+      const onClose = vi.fn();
+      const requests: Record<string, unknown>[] = [];
+      server.use(http.put(`${API}/repuestos/18`, async ({ request }) => {
+        const body = await request.json() as Record<string, unknown>;
+        requests.push(body);
+        return requests.length === 1
+          ? HttpResponse.json({ message: 'Temporary failure' }, { status: 503 })
+          : HttpResponse.json({ ...linked, ...body });
+      }));
+      renderUI(<RepuestoFormModal isOpen onClose={onClose} editing={linked} lockedReparacionId={lockedReparacionId} />);
+      const name = screen.getByLabelText(/^nombre/i);
+      await user.clear(name);
+      await user.type(name, 'Pantalla revisada');
+      const submit = screen.getByRole('button', { name: /guardar cambios/i });
+      await user.click(submit);
+      await waitFor(() => expect(requests).toHaveLength(1));
+      await waitFor(() => expect(submit).toBeEnabled());
+      expect(onClose).not.toHaveBeenCalled();
+      expect(name).toHaveValue('Pantalla revisada');
+      expectPreservedIntent(requests[0]);
+      await user.click(submit);
+      await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+      expect(requests).toHaveLength(2);
+      expect(requests[1]).toEqual(requests[0]);
+      expectPreservedIntent(requests[1]);
+    });
+  });
+
 });

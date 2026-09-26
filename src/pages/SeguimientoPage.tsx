@@ -1,5 +1,6 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router';
+import { hasApiErrorCode } from '../api/errors';
 import { Logo } from '../components/Logo';
 import { Loader } from '../components/Loader';
 import { EstadoBadge } from '../components/EstadoBadge';
@@ -27,6 +28,12 @@ const Shell = ({ children }: { children: ReactNode }) => (
 
 export const SeguimientoPage = () => {
   const { codigo } = useParams();
+  return <SeguimientoContent key={codigo} codigo={codigo} />;
+};
+
+const SeguimientoContent = ({ codigo }: { codigo: string | undefined }) => {
+  const [budgetRefresh, setBudgetRefresh] = useState<'idle' | 'refreshing' | 'failed' | 'ready'>('idle');
+  const decisionsBlocked = budgetRefresh === 'refreshing' || budgetRefresh === 'failed';
   const { data, error, isLoading, isError, isFetching, refetch } = useSeguimientoQuery(codigo);
   const responder = useResponderPresupuestoMutation(codigo ?? '');
   const { isCoolingDown, secondsRemaining, startRetryAfter } = useRetryAfter();
@@ -35,11 +42,21 @@ export const SeguimientoPage = () => {
     startRetryAfter(error);
   }, [error, startRetryAfter]);
 
+  const refreshBudget = async () => {
+    setBudgetRefresh('refreshing');
+    const result = await refetch({ throwOnError: false });
+    setBudgetRefresh(result.isSuccess ? 'ready' : 'failed');
+  };
+
   const responderPresupuesto = async (accion: 'aprobar' | 'rechazar') => {
+    if (!data?.presupuesto || decisionsBlocked || responder.isPending || isCoolingDown) return;
     try {
-      await responder.mutateAsync({ accion });
+      await responder.mutateAsync({ accion, presupuestoId: data.presupuesto.id });
     } catch (mutationError) {
       startRetryAfter(mutationError);
+      if (hasApiErrorCode(mutationError, 'PRESUPUESTO_DESACTUALIZADO')) {
+        await refreshBudget();
+      }
     }
   };
 
@@ -53,7 +70,7 @@ export const SeguimientoPage = () => {
     );
   }
 
-  if (isError || !data) {
+  if ((isError && !decisionsBlocked) || !data) {
     const status = getHttpStatus(error);
 
     if (status === 429) {
@@ -168,6 +185,26 @@ export const SeguimientoPage = () => {
           </dl>
         </div>
 
+        {budgetRefresh !== 'idle' && (
+          <div role="status" className="rounded-2xl border border-border bg-surface p-6 text-[14px] text-text-2">
+            <p>El taller cambió el presupuesto. Revisa la propuesta actualizada antes de aprobarla o rechazarla.</p>
+            {budgetRefresh === 'refreshing' && <p className="mt-2">Actualizando presupuesto…</p>}
+            {budgetRefresh === 'failed' && (
+              <>
+                <p className="mt-2">No se pudo actualizar el presupuesto. Las respuestas permanecen bloqueadas hasta que se actualice.</p>
+                <button
+                  type="button"
+                  className={`${btnPrimary} mt-3`}
+                  disabled={isFetching || isCoolingDown}
+                  onClick={() => void refreshBudget()}
+                >
+                  {isCoolingDown ? `Volver a intentar en ${secondsRemaining} s` : 'Actualizar presupuesto'}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Presupuesto */}
         {data.presupuesto && (
           <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
@@ -211,7 +248,7 @@ export const SeguimientoPage = () => {
                 <button
                   type="button"
                   className={`${btnPrimary} flex-1`}
-                  disabled={responder.isPending || isCoolingDown}
+                  disabled={responder.isPending || isCoolingDown || decisionsBlocked}
                   onClick={() => void responderPresupuesto('aprobar')}
                 >
                   Aprobar presupuesto
@@ -219,7 +256,7 @@ export const SeguimientoPage = () => {
                 <button
                   type="button"
                   className={`${btnGhost} flex-1`}
-                  disabled={responder.isPending || isCoolingDown}
+                  disabled={responder.isPending || isCoolingDown || decisionsBlocked}
                   onClick={() => void responderPresupuesto('rechazar')}
                 >
                   Rechazar

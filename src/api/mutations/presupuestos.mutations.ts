@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, publicClient } from '../axios';
+import { hasApiErrorCode } from '../errors';
 import type { Presupuesto, PresupuestoCreate } from '../../types';
 import { getErrorMessage, showError, showSuccess } from '../../utils/toast';
 import { reconcilePresupuestoChanged } from '../cacheConsistency';
@@ -83,19 +84,24 @@ export const useRepresupuestarMutation = (reparacionId: number) => {
 const responderPresupuesto = async (
   codigo: string,
   accion: 'aprobar' | 'rechazar',
+  presupuestoId: number,
 ): Promise<void> => {
-  await publicClient.post(`/seguimiento/${codigo}/presupuesto/${accion}`);
+  await publicClient.post(`/seguimiento/${codigo}/presupuesto/${accion}`, { presupuestoId });
 };
 
 export const useResponderPresupuestoMutation = (codigo: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ accion }: { accion: 'aprobar' | 'rechazar' }) =>
-      responderPresupuesto(codigo, accion),
+    mutationFn: ({ accion, presupuestoId }: { accion: 'aprobar' | 'rechazar'; presupuestoId: number }) =>
+      responderPresupuesto(codigo, accion, presupuestoId),
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: queryKeys.seguimiento.byCodigo(codigo) });
       showSuccess(vars.accion === 'aprobar' ? '¡Presupuesto aprobado!' : 'Presupuesto rechazado');
     },
-    onError: (e) => showError(getErrorMessage(e, 'No se pudo registrar la respuesta')),
+    onError: (e) => {
+      if (!hasApiErrorCode(e, 'PRESUPUESTO_DESACTUALIZADO')) {
+        showError(getErrorMessage(e, 'No se pudo registrar la respuesta'));
+      }
+    },
   });
 };

@@ -25,6 +25,7 @@ import type { Equipo, Reparacion, ReparacionCredenciales, TipoEquipo } from '../
 const renderUI = (ui: ReactElement) => renderWithProviders(ui);
 
 beforeEach(() => {
+  authStore.getState().logout();
   vi.mocked(showError).mockClear();
   vi.mocked(showSuccess).mockClear();
 });
@@ -374,9 +375,10 @@ describe('ReparacionFormModal — alta rápida (modo nuevo)', () => {
 });
 
 describe('ReparacionFormModal — equipo existente', () => {
-  it('consulta bajo demanda, pagina y crea la reparación contra el equipo elegido', async () => {
+  it.each([false, true])('crea la reparación con equipo existente y asignación activa: %s', async (assign) => {
     const user = userEvent.setup();
     const onClose = vi.fn();
+    if (assign) authStore.getState().login(adminToken, 'admin@ordenfix.test');
     let body: Record<string, unknown> | undefined;
     const requestedPages: number[] = [];
 
@@ -394,6 +396,9 @@ describe('ReparacionFormModal — equipo existente', () => {
     };
 
     server.use(
+      http.get(`${API}/usuarios`, () => HttpResponse.json([
+        { id: 8, username: 'Active technician', email: 'active@test.com', role: 'USER', active: true },
+      ])),
       http.get(`${API}/equipos`, ({ request }) => {
         const url = new URL(request.url);
         const page = Number(url.searchParams.get('page'));
@@ -419,11 +424,17 @@ describe('ReparacionFormModal — equipo existente', () => {
     await user.click(await screen.findByRole('button', { name: /cargar más/i }));
     await user.click(await screen.findByRole('option', { name: /samsung a52/i }));
     await user.type(screen.getByLabelText(/problema/i), 'No enciende');
+    if (assign) {
+      await screen.findByRole('option', { name: 'Active technician', hidden: true });
+      await user.selectOptions(screen.getByLabelText('Técnico asignado'), '8');
+    }
     await user.click(screen.getByRole('button', { name: /crear reparación/i }));
 
     await waitFor(() => expect(body).toBeDefined());
     expect(requestedPages).toEqual([0, 1]);
     expect(body).toMatchObject({ equipoId: 5, descripcionProblema: 'No enciende' });
+    if (assign) expect(body).toHaveProperty('tecnicoId', 8);
+    else expect(body).not.toHaveProperty('tecnicoId');
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 });
@@ -441,6 +452,110 @@ const reparacionEnEdicion: Reparacion = {
   fechaEstimadaEntrega: null,
   fechaEntrega: null,
 };
+
+describe('ReparacionFormModal — technician assignment policy', () => {
+  const assigned = { ...reparacionEnEdicion, tecnicoId: 7, tecnicoNombre: 'Previous technician' };
+  const users = [
+    { id: 7, username: 'Previous technician', email: 'previous@test.com', role: 'USER', active: false },
+    { id: 8, username: 'Active technician', email: 'active@test.com', role: 'USER', active: true },
+    { id: 9, username: 'Inactive technician', email: 'inactive@test.com', role: 'USER', active: false },
+  ];
+
+  const setupUpdate = () => {
+    const requests: Record<string, unknown>[] = [];
+    server.use(http.put(`${API}/reparaciones/15`, async ({ request }) => {
+      const body = await request.json() as Record<string, unknown>;
+      requests.push(body);
+      return HttpResponse.json({ ...assigned, ...body });
+    }));
+    return requests;
+  };
+
+  beforeEach(() => {
+    server.use(http.get(`${API}/usuarios`, () => HttpResponse.json(users)));
+  });
+
+  it('never resubmits a hidden assignment for USER', async () => {
+    const user = userEvent.setup();
+    const requests = setupUpdate();
+    const userToken = `header.${btoa(JSON.stringify({ role: 'ROLE_USER', exp: Math.floor(Date.now() / 1000) + 3600 }))}.firma`;
+    authStore.getState().login(userToken, 'employee@ordenfix.test');
+    renderUI(<ReparacionFormModal isOpen onClose={vi.fn()} editing={assigned} />);
+    expect(screen.queryByLabelText('Técnico asignado')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(requests).toHaveLength(1));
+    expect(requests[0]).not.toHaveProperty('tecnicoId');
+  });
+
+  it.each(['unchanged', 'replace', 'remove'] as const)('ADMIN sends only the intended %s assignment change', async (action) => {
+    const user = userEvent.setup();
+    const requests = setupUpdate();
+    authStore.getState().login(adminToken, 'admin@ordenfix.test');
+    renderUI(<ReparacionFormModal isOpen onClose={vi.fn()} editing={assigned} />);
+    const selector = screen.getByLabelText('Técnico asignado');
+    await screen.findByRole('option', { name: 'Active technician', hidden: true });
+    expect(selector).toHaveValue('7');
+    expect(screen.getByRole('option', { name: /Previous technician.*inactivo/i, hidden: true })).toBeDisabled();
+    expect(screen.queryByRole('option', { name: 'Inactive technician', hidden: true })).not.toBeInTheDocument();
+    if (action !== 'unchanged') await user.selectOptions(selector, action === 'replace' ? '8' : '');
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(requests).toHaveLength(1));
+    if (action === 'unchanged') expect(requests[0]).not.toHaveProperty('tecnicoId');
+    else expect(requests[0]).toHaveProperty('tecnicoId', action === 'replace' ? 8 : null);
+  });
+
+  it.each(['loading', 'error'] as const)('preserves historical assignment while users are %s', async (state) => {
+    const user = userEvent.setup();
+    const requests = setupUpdate();
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    server.use(http.get(`${API}/usuarios`, async () => {
+      if (state === 'loading') await pending;
+      return HttpResponse.json({}, { status: 503 });
+    }));
+    authStore.getState().login(adminToken, 'admin@ordenfix.test');
+    const { unmount } = renderUI(<ReparacionFormModal isOpen onClose={vi.fn()} editing={assigned} />);
+    try {
+      const selector = screen.getByLabelText('Técnico asignado');
+      if (state === 'error') await screen.findByText('No se pudo cargar la lista de técnicos. La asignación actual se conserva.');
+      expect(selector).toBeDisabled();
+      expect(selector).toHaveValue('7');
+      expect(screen.getByRole('option', { name: /Previous technician/, hidden: true })).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+      await waitFor(() => expect(requests).toHaveLength(1));
+      expect(requests[0]).not.toHaveProperty('tecnicoId');
+    } finally {
+      unmount();
+      release();
+    }
+  });
+
+  it.each([true, false])('quick creation uses the details update only when assigned: %s', async (assign) => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    let body: Record<string, unknown> | undefined;
+    server.use(
+      http.post(`${API}/reparaciones/ingreso-rapido`, () => HttpResponse.json({
+        clienteId: 1, equipoId: 2, clienteNuevo: true, reparacion: { id: 9, equipoId: 2 },
+      }, { status: 201 })),
+      http.put(`${API}/reparaciones/9`, async ({ request }) => {
+        body = await request.json() as Record<string, unknown>;
+        return HttpResponse.json({ id: 9, ...body });
+      }),
+    );
+    authStore.getState().login(adminToken, 'admin@ordenfix.test');
+    renderUI(<ReparacionFormModal isOpen onClose={onClose} editing={null} />);
+    await completarMinimos(user);
+    const selector = screen.getByLabelText('Técnico asignado');
+    await screen.findByRole('option', { name: 'Active technician', hidden: true });
+    expect(within(selector).queryByRole('option', { name: /Previous|Inactive/, hidden: true })).not.toBeInTheDocument();
+    if (assign) await user.selectOptions(selector, '8');
+    await user.click(screen.getByRole('button', { name: 'Crear reparación' }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    if (assign) expect(body).toHaveProperty('tecnicoId', 8);
+    else expect(body).toBeUndefined();
+  });
+});
 
 const credencialesGuardadas: ReparacionCredenciales = {
   patronDesbloqueo: 'L invertida',

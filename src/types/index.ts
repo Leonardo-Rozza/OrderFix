@@ -383,7 +383,7 @@ export interface ReparacionCreate {
   accesorios?: string;
   condicionesIngreso?: string;
   observaciones?: string;
-  tecnicoId?: number;
+  tecnicoId?: number | null;
   fotos?: Foto[];
   // Flags de riesgo del ingreso (default backend: false / NINGUNA)
   mojado?: boolean;

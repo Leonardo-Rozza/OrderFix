@@ -154,7 +154,16 @@ export const ReparacionFormModal = ({
   const detallesRef = useRef<HTMLDetailsElement>(null);
   const formKeyRef = useRef<string | null>(null);
   const { isAdmin, token } = useAuth();
-  const { data: tecnicos = [] } = useUsuariosQuery(isAdmin);
+  const { data: tecnicos = [], isPending: tecnicosPending, isError: tecnicosError } = useUsuariosQuery(isAdmin);
+  const tecnicosActivos = tecnicos.filter((tecnico) => tecnico.active);
+  const tecnicoHistorico = editing?.tecnicoId && !tecnicosActivos.some((tecnico) => tecnico.id === editing.tecnicoId)
+    ? {
+        id: editing.tecnicoId,
+        nombre: tecnicos.find((tecnico) => tecnico.id === editing.tecnicoId)?.username
+          ?? editing.tecnicoNombre ?? `Técnico #${editing.tecnicoId}`,
+        inactivo: tecnicos.some((tecnico) => tecnico.id === editing.tecnicoId && !tecnico.active),
+      }
+    : undefined;
 
   const saving = createMutation.isPending
     || updateMutation.isPending
@@ -300,6 +309,13 @@ export const ReparacionFormModal = ({
     }
   }, [isOpen, editing, credenciales, reset, setValue, token]);
 
+  const cambioTecnico = (data: FormData): number | null | undefined => {
+    if (!isAdmin || tecnicosPending || tecnicosError) return undefined;
+    const seleccionado = numId(data.tecnicoId);
+    if (seleccionado === (editing?.tecnicoId ?? undefined)) return undefined;
+    return seleccionado ?? null;
+  };
+
   const ordenTrabajo = (data: FormData, omitirCredenciales = false) => ({
     patronDesbloqueo: omitirCredenciales
       ? undefined
@@ -314,7 +330,7 @@ export const ReparacionFormModal = ({
     accesorios: str(data.accesorios),
     condicionesIngreso: str(data.condicionesIngreso),
     observaciones: str(data.observaciones),
-    tecnicoId: numId(data.tecnicoId),
+    tecnicoId: cambioTecnico(data),
     mojado: data.mojado,
     trabajoEnPlaca: data.trabajoEnPlaca,
     noTesteableAlIngreso: data.noTesteableAlIngreso,
@@ -875,14 +891,20 @@ export const ReparacionFormModal = ({
                 </FormField>
                 {isAdmin && (
                   <FormField label="Técnico asignado" htmlFor="tecnicoId">
-                    <Select id="tecnicoId" {...register('tecnicoId', { valueAsNumber: true })}>
+                    <Select id="tecnicoId" disabled={tecnicosPending || tecnicosError} {...register('tecnicoId', { valueAsNumber: true })}>
                       <option value="">Sin asignar</option>
-                      {tecnicos.map((t) => (
+                      {tecnicoHistorico && (
+                        <option value={tecnicoHistorico.id} disabled>
+                          {tecnicoHistorico.nombre} ({tecnicoHistorico.inactivo ? 'inactivo' : 'asignación actual'})
+                        </option>
+                      )}
+                      {tecnicosActivos.map((t) => (
                         <option key={t.id} value={t.id}>
                           {t.username}
                         </option>
                       ))}
                     </Select>
+                    {tecnicosError && <p className="mt-1 text-sm text-text-2">No se pudo cargar la lista de técnicos. La asignación actual se conserva.</p>}
                   </FormField>
                 )}
                 <div className="grid grid-cols-1 gap-4 border-t border-border pt-3.5 sm:grid-cols-2">

@@ -85,6 +85,13 @@ export const UsuariosPage = () => {
                         {esYo && <span className="ml-2 text-[11px] font-bold text-text-3">(vos)</span>}
                       </div>
                       <div className="truncate text-[12.5px] text-text-3">{u.email}</div>
+                      <div className="mt-1 break-words text-[12px] leading-5 text-text-2">
+                        {u.emailVerificado === true
+                          ? 'Email verificado'
+                          : u.emailVerificado === false
+                            ? 'Email pendiente de verificación'
+                            : 'Verificación de email no disponible'}
+                      </div>
                     </div>
                   </div>
 

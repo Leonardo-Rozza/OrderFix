@@ -57,6 +57,8 @@ export interface Usuario {
   email: string;
   role: Rol;
   active: boolean;
+  /** Older backend responses may omit verification; absence is not pending. */
+  emailVerificado?: boolean;
 }
 
 export interface UsuarioCreate {

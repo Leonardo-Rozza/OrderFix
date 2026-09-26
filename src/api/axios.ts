@@ -1,6 +1,7 @@
+import type { ChargeSession } from '../utils/pendingCharge';
 import axios, { AxiosError, AxiosHeaders } from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
-import { authStore } from '../store/auth.store';
+import { authStore, isChargeSessionCurrent } from '../store/auth.store';
 import { getErrorMessage, showError } from '../utils/toast';
 import { captureError } from '../lib/sentry';
 import { releaseUnsavedChangesGuards } from '../lib/unsavedChangesLifecycle';
@@ -8,6 +9,8 @@ import { resolveApiBaseUrl } from '../config/apiBaseUrl';
 
 declare module 'axios' {
   interface AxiosRequestConfig {
+    /** Prevent a late recoverable charge from affecting a replacement session. */
+    chargeSession?: ChargeSession;
     /** La superficie que hace el GET muestra su propio error y acción de reintento. */
     errorMode?: 'inline';
     /** Las consultas de Cuenta comprueban el 403 sin depender de la suscripción. */
@@ -119,6 +122,9 @@ const validateBaseSession = (token: string | null, resource: '/perfil' | '/suscr
 
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    if (config.chargeSession && !isChargeSessionCurrent(config.chargeSession)) {
+      throw new axios.CanceledError('Charge session changed before dispatch');
+    }
     const token = authStore.getState().token;
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -131,6 +137,7 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
+    if (error.config?.chargeSession && !isChargeSessionCurrent(error.config.chargeSession)) throw error;
     // Una búsqueda reemplazada o una query sin observadores no es un fallo para
     // el usuario ni para telemetría. React Query igualmente recibe el rechazo y
     // resuelve el estado de concurrencia de esa request.
@@ -180,7 +187,8 @@ apiClient.interceptors.response.use(
         const validation = await validateBaseSession(token, accountRead ? '/perfil' : '/suscripcion');
 
         // Si la identidad cambió mientras validábamos, no afectamos la nueva sesión.
-        if (authStore.getState().token === token) {
+        if (authStore.getState().token === token
+          && (!error.config?.chargeSession || isChargeSessionCurrent(error.config.chargeSession))) {
           if (validation === 'valida') {
             if (!accountRead) showError(getErrorMessage(error, 'No tenés permisos para esta acción.'));
           } else if (validation === 'invalida') {

@@ -1,3 +1,5 @@
+import { isChargeSessionCurrent } from '../../store/auth.store';
+import type { PendingCharge, ChargeSession } from '../../utils/pendingCharge';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../axios';
 import type { Cobro, CobroAnulacionRequest, CobroCreate } from '../../types';
@@ -8,8 +10,9 @@ import { hasApiErrorCode } from '../errors';
 const crearCobro = async (
   reparacionId: number,
   body: CobroCreate,
+  session: ChargeSession,
 ): Promise<Cobro> => {
-  const { data } = await apiClient.post<Cobro>(`/reparaciones/${reparacionId}/cobros`, body);
+  const { data } = await apiClient.post<Cobro>(`/reparaciones/${reparacionId}/cobros`, body, { chargeSession: session });
   return data;
 };
 
@@ -28,12 +31,22 @@ const anularCobro = async (
 export const useCrearCobroMutation = (reparacionId: number) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: CobroCreate) => crearCobro(reparacionId, body),
-    onSuccess: async () => {
-      await reconcileCobroChanged(qc, reparacionId);
-      showSuccess('Cobro registrado');
+    mutationFn: ({ attempt, session }: { attempt: PendingCharge; session: ChargeSession }) => {
+      if (!isChargeSessionCurrent(session) || attempt.account !== session.account || attempt.reparacionId !== reparacionId) {
+        throw new Error('La sesión del intento de cobro cambió.');
+      }
+      return crearCobro(reparacionId, attempt.payload, session);
     },
-    onError: async (e) => {
+    onSuccess: async (cobro, { session }) => {
+      if (!isChargeSessionCurrent(session)) return;
+      await reconcileCobroChanged(qc, reparacionId);
+      if (!isChargeSessionCurrent(session)) return;
+      showSuccess(cobro.estado === 'ANULADO'
+        ? 'Este cobro ya estaba registrado y fue anulado. No se creó otro cobro.'
+        : 'Cobro registrado');
+    },
+    onError: async (e, { session }) => {
+      if (!isChargeSessionCurrent(session)) return;
       // El modal muestra este conflicto junto al monto y conserva el formulario.
       // Un toast adicional repetiría el mismo error fuera de contexto.
       if (hasApiErrorCode(e, 'COBRO_SUPERA_SALDO')) {

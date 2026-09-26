@@ -1,3 +1,4 @@
+import { chargeAccount, chargeGeneration, prepareCharge, readPendingCharge } from '../utils/pendingCharge';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { delay, http, HttpResponse } from 'msw';
 import { server, API } from '../test/server';
@@ -370,4 +371,82 @@ describe('axios interceptor de errores', () => {
     expect(authStore.getState().isAuthenticated).toBe(true);
     expect(showError).toHaveBeenCalledTimes(2);
   });
+});
+
+
+describe('axios — sesión de un cobro recuperable', () => {
+  const login = () => {
+    const token = `header.${btoa(JSON.stringify({ sub: 'a@a.com', tallerId: 1, exp: Date.now() / 1000 + 3600 }))}.sig`;
+    authStore.getState().login(token, 'a@a.com');
+    return { account: chargeAccount(token, true)!, generation: chargeGeneration() };
+  };
+
+  it('mantiene el logout y la purga cuando el 401 corresponde a la sesión actual', async () => {
+    const session = login();
+    const attempt = prepareCharge(session.account, 9, { monto: 500, metodo: 'EFECTIVO' });
+    server.use(http.post(`${API}/reparaciones/9/cobros`, () => new HttpResponse(null, { status: 401 })));
+    await expect(apiClient.post('/reparaciones/9/cobros', attempt.payload, { chargeSession: session })).rejects.toBeTruthy();
+    expect(authStore.getState().isAuthenticated).toBe(false);
+    expect(readPendingCharge(session.account, 9)).toBeNull();
+  });
+
+  it('no despacha un intento capturado antes de un logout y login de la misma cuenta', async () => {
+    const oldSession = login();
+    authStore.getState().logout();
+    login();
+    let calls = 0;
+    server.use(http.post(`${API}/reparaciones/9/cobros`, () => { calls += 1; return HttpResponse.json({ id: 7 }); }));
+    await expect(apiClient.post('/reparaciones/9/cobros', {}, { chargeSession: oldSession })).rejects.toBeTruthy();
+    expect(calls).toBe(0);
+    expect(authStore.getState().isAuthenticated).toBe(true);
+  });
+
+  it('no publica upgrades ni verificación para una sesión reemplazada', async () => {
+    const session = login();
+    let release!: () => void;
+    let started!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    const sent = new Promise<void>((resolve) => { started = resolve; });
+    const listener = vi.fn();
+    window.addEventListener(LIMITE_PLAN_EVENT, listener);
+    server.use(http.post(`${API}/reparaciones/9/cobros`, async () => {
+      started(); await held;
+      return new HttpResponse(null, { status: 402 });
+    }));
+    try {
+      const result = apiClient.post('/reparaciones/9/cobros', {}, { chargeSession: session }).catch(() => undefined);
+      await sent;
+      authStore.getState().logout();
+      login();
+      release();
+      await result;
+      expect(listener).not.toHaveBeenCalled();
+      expect(showError).not.toHaveBeenCalled();
+    } finally {
+      release();
+      window.removeEventListener(LIMITE_PLAN_EVENT, listener);
+    }
+  });
+});
+
+it('ignora la validación tardía del 403 de un cobro tras logout/login con el mismo token', async () => {
+  const token = `header.${btoa(JSON.stringify({ sub: 'a@a.com', tallerId: 1, exp: Date.now() / 1000 + 3600 }))}.sig`;
+  authStore.getState().login(token, 'a@a.com');
+  const session = { account: chargeAccount(token, true)!, generation: chargeGeneration() };
+  let release!: () => void;
+  let started!: () => void;
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  const validating = new Promise<void>((resolve) => { started = resolve; });
+  server.use(
+    http.post(`${API}/reparaciones/9/cobros`, () => new HttpResponse(null, { status: 403 })),
+    http.get(`${API}/suscripcion`, async () => { started(); await held; return new HttpResponse(null, { status: 403 }); }),
+  );
+  const result = apiClient.post('/reparaciones/9/cobros', {}, { chargeSession: session }).catch(() => undefined);
+  await validating;
+  authStore.getState().logout();
+  authStore.getState().login(token, 'a@a.com');
+  release();
+  await result;
+  expect(authStore.getState().isAuthenticated).toBe(true);
+  expect(authStore.getState().token).toBe(token);
 });

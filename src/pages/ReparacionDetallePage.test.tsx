@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   refetchCobros: vi.fn(),
   cambiarEstado: vi.fn(),
   isAdmin: true,
+  cobrosEnabled: true,
 }));
 
 const reparacion: Reparacion = {
@@ -66,7 +67,7 @@ vi.mock('../api/queries/cobros.queries', () => ({
 }));
 
 vi.mock('../api/queries/suscripcion.queries', () => ({
-  useFunciones: () => ({ cobros: true }),
+  useFunciones: () => ({ cobros: mocks.cobrosEnabled }),
 }));
 
 vi.mock('../api/mutations/presupuestos.mutations', () => ({
@@ -103,7 +104,9 @@ vi.mock('../components/RepuestoFormModal', () => ({
   ) : null),
 }));
 vi.mock('../components/PresupuestoFormModal', () => ({ PresupuestoFormModal: () => null }));
-vi.mock('../components/CobroFormModal', () => ({ CobroFormModal: () => null }));
+vi.mock('../components/CobroFormModal', () => ({
+  CobroFormModal: ({ isOpen }: { isOpen: boolean }) => isOpen ? <div role="dialog" aria-label="Cobro simulado" /> : null,
+}));
 vi.mock('../components/CobroAnulacionModal', () => ({
   CobroAnulacionModal: ({ isOpen, cobro }: { isOpen: boolean; cobro: Cobro | null }) => (
     isOpen ? <div role="dialog" aria-label="Anulación simulada">Cobro {cobro?.id}</div> : null
@@ -112,6 +115,8 @@ vi.mock('../components/CobroAnulacionModal', () => ({
 vi.mock('../components/ReclamoGarantiaModal', () => ({ ReclamoGarantiaModal: () => null }));
 vi.mock('../components/ConfirmDialog', () => ({ ConfirmDialog: () => null }));
 
+import { authStore } from '../store/auth.store';
+import { chargeAccount, prepareCharge } from '../utils/pendingCharge';
 import { ReparacionDetallePage } from './ReparacionDetallePage';
 
 const pendingResult = (refetch: ReturnType<typeof vi.fn>) => ({
@@ -156,6 +161,24 @@ describe('ReparacionDetallePage — estados honestos de subconsultas', () => {
     mocks.usePresupuestosQuery.mockReturnValue(pendingResult(mocks.refetchPresupuestos));
     mocks.useCobrosQuery.mockReturnValue(pendingResult(mocks.refetchCobros));
     mocks.isAdmin = true;
+    mocks.cobrosEnabled = true;
+    sessionStorage.clear();
+    authStore.getState().logout();
+  });
+
+  it.each(['paid', 'excess', 'unavailable', 'plan'])('permite abrir la recuperación sin habilitar nuevos cobros: %s', async (state) => {
+    const token = `header.${btoa(JSON.stringify({ sub: 'a@a.com', tallerId: 1, exp: Date.now() / 1000 + 3600 }))}.sig`;
+    authStore.getState().login(token, 'a@a.com');
+    prepareCharge(chargeAccount(token, true)!, 7, { monto: 500, metodo: 'EFECTIVO' });
+    mocks.cobrosEnabled = state !== 'plan';
+    mocks.useCobrosQuery.mockReturnValue(state === 'unavailable' ? errorResult(mocks.refetchCobros) : successResult({
+      total: 500, cobrado: state === 'excess' ? 600 : 500, saldo: 0,
+      excedente: state === 'excess' ? 100 : 0, requiereRevision: state === 'excess', pagado: true, cobros: [],
+    }, mocks.refetchCobros));
+    renderPage();
+    if (state !== 'plan') expect(screen.getByRole('button', { name: 'Registrar cobro' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Recuperar cobro pendiente' }));
+    expect(screen.getByRole('dialog', { name: 'Cobro simulado' })).toBeVisible();
   });
 
   it('muestra loaders locales, no inventa vacíos ni importes y bloquea las acciones dependientes', () => {

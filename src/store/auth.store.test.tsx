@@ -1,3 +1,4 @@
+import { chargeAccount, prepareCharge, readPendingCharge } from '../utils/pendingCharge';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { authStore, useAuth } from './auth.store';
@@ -94,5 +95,43 @@ describe('authStore — aislamiento de caché por identidad', () => {
     authStore.getState().login(makeToken('ROLE_ADMIN', 1), 'otro@taller.com');
 
     expect(queryClient.getQueryState(['perfil'])).toBeUndefined();
+  });
+});
+
+describe('authStore — recuperación de cobros', () => {
+  it('conserva el intento durante la rehidratación inicial de una sesión válida', async () => {
+    const token = makeToken('ROLE_ADMIN');
+    authStore.getState().login(token, 'a@a.com');
+    const account = chargeAccount(token, true)!;
+    const saved = prepareCharge(account, 9, { monto: 500, metodo: 'EFECTIVO' });
+    const persisted = localStorage.getItem('ordenfix-auth')!;
+    authStore.setState({ token: null, email: null, isAuthenticated: false });
+    localStorage.setItem('ordenfix-auth', persisted);
+    await authStore.persist.rehydrate();
+    expect(readPendingCharge(account, 9)).toEqual(saved);
+  });
+
+  it.each(['logout', 'tenant', 'subject'])('purga sólo la recuperación de cobros al cambiar %s', (change) => {
+    authStore.getState().login(makeToken('ROLE_ADMIN'), 'a@a.com');
+    const account = chargeAccount(authStore.getState().token, true)!;
+    prepareCharge(account, 9, { monto: 500, metodo: 'EFECTIVO' });
+    sessionStorage.setItem('unrelated', 'keep');
+    if (change === 'logout') authStore.getState().logout();
+    if (change === 'tenant') authStore.getState().login(makeToken('ROLE_ADMIN', 2), 'a@a.com');
+    if (change === 'subject') {
+      const token = `header.${b64url({ sub: 'another@example.com', tallerId: 1, role: 'ROLE_ADMIN', exp: Date.now() / 1000 + 3600 })}.sig`;
+      authStore.getState().login(token, 'a@a.com');
+    }
+    expect(readPendingCharge(account, 9)).toBeNull();
+    expect(sessionStorage.getItem('unrelated')).toBe('keep');
+  });
+
+  it('renueva la misma identidad sin borrar la operación', () => {
+    const token = makeToken('ROLE_ADMIN');
+    authStore.getState().login(token, 'a@a.com');
+    const account = chargeAccount(token, true)!;
+    const saved = prepareCharge(account, 9, { monto: 500, metodo: 'EFECTIVO' });
+    authStore.getState().login(token, 'a@a.com');
+    expect(readPendingCharge(account, 9)).toEqual(saved);
   });
 });

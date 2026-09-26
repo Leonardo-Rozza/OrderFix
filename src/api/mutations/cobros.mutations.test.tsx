@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
@@ -11,7 +11,19 @@ vi.mock('../../utils/toast', async (orig) => {
 });
 
 import { useAnularCobroMutation, useCrearCobroMutation } from './cobros.mutations';
-import { showError } from '../../utils/toast';
+import { authStore } from '../../store/auth.store';
+import { prepareCharge, chargeAccount, chargeGeneration } from '../../utils/pendingCharge';
+import { showError, showSuccess } from '../../utils/toast';
+
+
+const login = (tallerId = 1) => authStore.getState().login(
+  `header.${btoa(JSON.stringify({ sub: 'a@a.com', tallerId, exp: Date.now() / 1000 + 3600 }))}.sig`, 'a@a.com',
+);
+const variables = (monto: number) => {
+  const account = chargeAccount(authStore.getState().token, true)!;
+  return { attempt: prepareCharge(account, 7, { monto, metodo: 'EFECTIVO' }), session: { account, generation: chargeGeneration() } };
+};
+beforeEach(() => { sessionStorage.clear(); login(); vi.mocked(showSuccess).mockClear(); vi.mocked(showError).mockClear(); });
 
 const expectedKeys = [
   ['cobros', 7],
@@ -59,7 +71,7 @@ describe('mutaciones de cobros — invalidación de datos derivados', () => {
     const { result, invalidatedKeys } = setup(() => useCrearCobroMutation(7));
 
     await act(async () => {
-      await result.current.mutateAsync({ monto: 12000, metodo: 'EFECTIVO' });
+      await result.current.mutateAsync(variables(12000));
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -79,7 +91,7 @@ describe('mutaciones de cobros — invalidación de datos derivados', () => {
     const { result, invalidatedKeys } = setup(() => useCrearCobroMutation(7));
 
     await act(async () => {
-      await expect(result.current.mutateAsync({ monto: 4000, metodo: 'EFECTIVO' }))
+      await expect(result.current.mutateAsync(variables(4000)))
         .rejects.toBeTruthy();
     });
 
@@ -139,4 +151,36 @@ describe('mutaciones de cobros — invalidación de datos derivados', () => {
     expect(showError).not.toHaveBeenCalled();
     expect(invalidatedKeys()).toEqual(expect.arrayContaining(expectedKeys));
   });
+});
+
+
+it('informa explícitamente un replay de cobro anulado', async () => {
+  server.use(http.post(`${API}/reparaciones/7/cobros`, () => HttpResponse.json({ id: 3, estado: 'ANULADO' })));
+  const { result } = setup(() => useCrearCobroMutation(7));
+  await act(async () => { await result.current.mutateAsync(variables(500)); });
+  expect(showSuccess).toHaveBeenCalledWith('Este cobro ya estaba registrado y fue anulado. No se creó otro cobro.');
+  expect(showSuccess).not.toHaveBeenCalledWith('Cobro registrado');
+});
+
+it.each([201, 401, 402, 403, 500])('ignora la respuesta tardía %s de otra sesión', async (status) => {
+  let release!: () => void;
+  let arrived!: () => void;
+  const barrier = new Promise<void>((resolve) => { release = resolve; });
+  const received = new Promise<void>((resolve) => { arrived = resolve; });
+  server.use(http.post(`${API}/reparaciones/7/cobros`, async () => {
+    arrived();
+    await barrier;
+    return HttpResponse.json({ id: 3, estado: 'ACTIVO' }, { status });
+  }));
+  const { result, invalidatedKeys } = setup(() => useCrearCobroMutation(7));
+  let pending!: Promise<unknown>;
+  act(() => { pending = result.current.mutateAsync(variables(500)).catch(() => undefined); });
+  await received;
+  login(2);
+  const currentToken = authStore.getState().token;
+  await act(async () => { release(); await pending; });
+  expect(authStore.getState().token).toBe(currentToken);
+  expect(showSuccess).not.toHaveBeenCalled();
+  expect(showError).not.toHaveBeenCalled();
+  expect(invalidatedKeys()).toEqual([]);
 });

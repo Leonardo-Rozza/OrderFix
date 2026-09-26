@@ -39,7 +39,8 @@ import {
   useDeleteReparacionMutation,
 } from '../api/mutations/reparaciones.mutations';
 import { useDeleteRepuestoMutation } from '../api/mutations/repuestos.mutations';
-import { useAuth } from '../store/auth.store';
+import { chargeAccount, readPendingCharge } from '../utils/pendingCharge';
+import { authStore, useAuth } from '../store/auth.store';
 import type { Cobro, EstadoReparacion, Repuesto } from '../types';
 
 const EMPTY_REPUESTOS: Repuesto[] = [];
@@ -102,6 +103,17 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
   const responderPresupuesto = useResponderPresupuestoTallerMutation(reparacionId);
   const represupuestarPresupuesto = useRepresupuestarMutation(reparacionId);
   const { isAdmin } = useAuth();
+  const auth = authStore();
+  const chargeScope = chargeAccount(auth.token, auth.isAuthenticated);
+  let hasChargeRecovery = false;
+  if (chargeScope) {
+    try {
+      hasChargeRecovery = readPendingCharge(chargeScope, reparacionId) !== null;
+    } catch {
+      // The modal explains blocked storage recovery without allowing a new POST.
+      hasChargeRecovery = true;
+    }
+  }
   const cambiarEstado = useCambiarEstadoMutation();
   const deleteMutation = useDeleteReparacionMutation();
   const deleteRepuesto = useDeleteRepuestoMutation();
@@ -603,6 +615,14 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
                 })
               ) : null}
             </section>
+            {hasChargeRecovery && (
+              <div className={`${card} p-4 text-[13px] text-text-2`}>
+                <p>Hay una recuperación de cobro para revisar en esta pestaña. No registres el mismo pago como un cobro nuevo.</p>
+                <button type="button" className={`${btnGhost} mt-3`} onClick={() => setCobroOpen(true)}>
+                  Recuperar cobro pendiente
+                </button>
+              </div>
+            )}
             {/* Cobros (PRO) */}
             {cobrosHabilitado && (
               <section

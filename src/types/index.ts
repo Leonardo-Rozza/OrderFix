@@ -471,6 +471,7 @@ export interface Cobro {
 }
 
 export interface CobroCreate {
+  operacionId?: string;
   monto: number;
   metodo: MetodoPago;
   referencia?: string;

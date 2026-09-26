@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { useState } from 'react';
@@ -12,10 +12,14 @@ vi.mock('../utils/toast', async (importOriginal) => {
   return { ...actual, showError: vi.fn(), showSuccess: vi.fn() };
 });
 
+import { prepareCharge, chargeAccount, readPendingCharge } from '../utils/pendingCharge';
+import { authStore } from '../store/auth.store';
 import { showError } from '../utils/toast';
 
 describe('CobroFormModal', () => {
   beforeEach(() => {
+    sessionStorage.clear();
+    authStore.getState().login(`header.${btoa(JSON.stringify({ sub: 'a@a.com', tallerId: 1, exp: Date.now() / 1000 + 3600 }))}.sig`, 'a@a.com');
     vi.mocked(showError).mockClear();
   });
 
@@ -40,6 +44,7 @@ describe('CobroFormModal', () => {
     await user.click(submit);
 
     await waitFor(() => expect(body).toEqual({
+      operacionId: expect.any(String),
       monto: 5000,
       metodo: 'EFECTIVO',
       referencia: 'OP-123',
@@ -152,7 +157,7 @@ describe('CobroFormModal', () => {
     const monto = screen.getByLabelText(/^monto/i);
     await user.type(monto, '500');
     await user.click(screen.getByRole('button', { name: /registrar cobro/i }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Registrar cobro' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Reintentar el mismo cobro' })).toBeEnabled());
 
     expect(monto).toHaveValue('500');
     expect(onClose).not.toHaveBeenCalled();
@@ -214,4 +219,146 @@ describe('CobroFormModal', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/excedente a revisar.*\$ 800/i);
     expect(screen.getByRole('button', { name: 'Registrar cobro' })).toBeDisabled();
   });
+});
+
+
+describe('recuperación de cobros pendientes', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    sessionStorage.clear();
+    authStore.getState().login(`header.${btoa(JSON.stringify({ sub: 'a@a.com', tallerId: 1, exp: Date.now() / 1000 + 3600 }))}.sig`, 'a@a.com');
+  });
+
+  it.each([402, 403, 404, 409, 429, 500, 0])('conserva payload y UUID después del error incierto %s y de recargar', async (status) => {
+    const bodies: Record<string, unknown>[] = [];
+    const account = chargeAccount(authStore.getState().token, true)!;
+    server.use(http.post(`${API}/reparaciones/9/cobros`, async ({ request }) => {
+      const body = await request.json() as Record<string, unknown>;
+      bodies.push(body);
+      expect(readPendingCharge(account, 9)?.payload).toEqual(body);
+      if (bodies.length > 1) return HttpResponse.json({ id: 7, estado: 'ACTIVO' });
+      if (status === 0) return HttpResponse.error();
+      return HttpResponse.json({ code: status === 403 ? 'EMAIL_NO_VERIFICADO' : 'COBRO_OPERACION_CONFLICTO' }, { status });
+    }));
+    const first = renderWithProviders(<CobroFormModal isOpen onClose={vi.fn()} reparacionId={9} saldo={500} />);
+    await userEvent.type(screen.getByLabelText(/referencia/i), ' OP-1 ');
+    await userEvent.type(screen.getByLabelText(/observaciones/i), ' nota ');
+    await userEvent.click(screen.getByRole('button', { name: 'Registrar cobro' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Reintentar el mismo cobro' })).toBeEnabled());
+    expect(screen.getByLabelText(/^monto/i)).toBeDisabled();
+    first.unmount();
+    await act(async () => { await authStore.persist.rehydrate(); });
+    const onClose = vi.fn();
+    renderWithProviders(<CobroFormModal isOpen onClose={onClose} reparacionId={9} saldo={0} requiereRevision />);
+    expect(screen.getByLabelText(/^monto/i)).toHaveValue('500');
+    expect(screen.getByLabelText(/referencia/i)).toHaveValue('OP-1');
+    expect(bodies).toHaveLength(1);
+    await userEvent.click(screen.getByRole('button', { name: 'Reintentar el mismo cobro' }));
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+    expect(bodies).toEqual([bodies[0], bodies[0]]);
+    expect(readPendingCharge(account, 9)).toBeNull();
+  });
+
+  it('conserva el intento al cerrar y reabrir sin enviar automáticamente', async () => {
+    const account = chargeAccount(authStore.getState().token, true)!;
+    const saved = prepareCharge(account, 9, { monto: 500, metodo: 'TARJETA', referencia: 'OP-1' });
+    let calls = 0;
+    server.use(http.post(`${API}/reparaciones/9/cobros`, () => { calls += 1; return HttpResponse.json({ id: 7 }); }));
+    const Harness = () => {
+      const [open, setOpen] = useState(true);
+      return <><button onClick={() => setOpen(true)}>Abrir</button><CobroFormModal isOpen={open} onClose={() => setOpen(false)} reparacionId={9} saldo={0} /></>;
+    };
+    renderWithProviders(<Harness />);
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir' }));
+    expect(screen.getByLabelText(/^método/i)).toHaveValue('TARJETA');
+    expect(readPendingCharge(account, 9)).toEqual(saved);
+    expect(calls).toBe(0);
+  });
+
+  it.each(['denied', 'silent-write', 'corrupt'])('no envía nada si el almacenamiento está %s', async (failure) => {
+    const account = chargeAccount(authStore.getState().token, true)!;
+    if (failure === 'corrupt') {
+      prepareCharge(account, 9, { monto: 500, metodo: 'EFECTIVO' });
+      sessionStorage.setItem(sessionStorage.key(0)!, '{broken');
+    }
+    if (failure === 'denied') vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota'); });
+    if (failure === 'silent-write') vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => undefined);
+    let calls = 0;
+    server.use(http.post(`${API}/reparaciones/9/cobros`, () => { calls += 1; return HttpResponse.json({ id: 7 }); }));
+    renderWithProviders(<CobroFormModal isOpen onClose={vi.fn()} reparacionId={9} saldo={500} />);
+    if (failure !== 'corrupt') await userEvent.click(screen.getByRole('button', { name: 'Registrar cobro' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/No se pudo recuperar o conservar/);
+    expect(screen.getByRole('button', { name: 'Registrar cobro' })).toBeDisabled();
+    expect(calls).toBe(0);
+  });
+
+  it('corrige solamente COBRO_SUPERA_SALDO con el mismo UUID', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    server.use(http.post(`${API}/reparaciones/9/cobros`, async ({ request }) => {
+      bodies.push(await request.json() as Record<string, unknown>);
+      return bodies.length === 1
+        ? HttpResponse.json({ code: 'COBRO_SUPERA_SALDO', details: { pendiente: 300 } }, { status: 409 })
+        : HttpResponse.json({ id: 7, estado: 'ACTIVO' });
+    }));
+    const onClose = vi.fn();
+    renderWithProviders(<CobroFormModal isOpen onClose={onClose} reparacionId={9} saldo={500} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Registrar cobro' }));
+    await screen.findByRole('alert');
+    await userEvent.clear(screen.getByLabelText(/^monto/i));
+    await userEvent.type(screen.getByLabelText(/^monto/i), '300');
+    await userEvent.click(screen.getByRole('button', { name: 'Registrar cobro' }));
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+    expect(bodies[1]).toEqual({ ...bodies[0], monto: 300 });
+  });
+});
+
+
+it('un pago confirmado permite otra operación genuina del mismo importe con otro UUID', async () => {
+  sessionStorage.clear();
+  authStore.getState().login(`header.${btoa(JSON.stringify({ sub: 'a@a.com', tallerId: 1, exp: Date.now() / 1000 + 3600 }))}.sig`, 'a@a.com');
+  const bodies: Record<string, unknown>[] = [];
+  server.use(http.post(`${API}/reparaciones/9/cobros`, async ({ request }) => {
+    bodies.push(await request.json() as Record<string, unknown>);
+    return HttpResponse.json({ id: bodies.length, estado: 'ACTIVO' });
+  }));
+  const firstClose = vi.fn();
+  const first = renderWithProviders(<CobroFormModal isOpen onClose={firstClose} reparacionId={9} saldo={500} />);
+  await userEvent.click(screen.getByRole('button', { name: 'Registrar cobro' }));
+  await waitFor(() => expect(firstClose).toHaveBeenCalledOnce());
+  first.unmount();
+  const secondClose = vi.fn();
+  renderWithProviders(<CobroFormModal isOpen onClose={secondClose} reparacionId={9} saldo={500} />);
+  await userEvent.click(screen.getByRole('button', { name: 'Registrar cobro' }));
+  await waitFor(() => expect(secondClose).toHaveBeenCalledOnce());
+  expect(bodies[0].monto).toBe(bodies[1].monto);
+  expect(bodies[0].operacionId).not.toBe(bodies[1].operacionId);
+});
+
+it('una confirmación tardía no cierra ni limpia el intento de una nueva sesión de la misma cuenta', async () => {
+  sessionStorage.clear();
+  const token = `header.${btoa(JSON.stringify({ sub: 'a@a.com', tallerId: 1, exp: Date.now() / 1000 + 3600 }))}.sig`;
+  authStore.getState().login(token, 'a@a.com');
+  const account = chargeAccount(token, true)!;
+  let release!: () => void;
+  let started!: () => void;
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  const sent = new Promise<void>((resolve) => { started = resolve; });
+  server.use(http.post(`${API}/reparaciones/9/cobros`, async () => {
+    started(); await held; return HttpResponse.json({ id: 7, estado: 'ACTIVO' });
+  }));
+  const onClose = vi.fn();
+  renderWithProviders(<CobroFormModal isOpen onClose={onClose} reparacionId={9} saldo={500} />);
+  await userEvent.click(screen.getByRole('button', { name: 'Registrar cobro' }));
+  await sent;
+  let next!: ReturnType<typeof prepareCharge>;
+  act(() => {
+    authStore.getState().logout();
+    authStore.getState().login(token, 'a@a.com');
+    next = prepareCharge(account, 9, { monto: 300, metodo: 'TRANSFERENCIA' });
+  });
+  await act(async () => { release(); await held; });
+  await waitFor(() => expect(screen.getByLabelText(/^monto/i)).toHaveValue('300'));
+  expect(onClose).not.toHaveBeenCalled();
+  expect(readPendingCharge(account, 9)).toEqual(next);
 });

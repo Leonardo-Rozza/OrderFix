@@ -93,11 +93,11 @@ describe('EquipoFormModal', () => {
     expect(attempts).toBe(2);
   });
 
-  it('permite reasignar el cliente al editar y envía la nueva relación', async () => {
+  it.each<TipoEquipo>(['CELULAR', 'TABLET', 'JOYSTICK'])('reasigna el cliente de %s sin cambiar su tipo', async (tipo) => {
     const user = userEvent.setup();
     let body: Record<string, unknown> | undefined;
     const editing = {
-      tipo: 'CELULAR' as const,
+      tipo,
       id: 9,
       marca: 'Samsung',
       modelo: 'A52',
@@ -127,7 +127,7 @@ describe('EquipoFormModal', () => {
     expect(body).not.toHaveProperty('tipo');
   });
 
-  it.each<TipoEquipo>(['CELULAR', 'NOTEBOOK', 'CONSOLA', 'PC_ESCRITORIO', 'MONITOR', 'TV', 'OTRO'])(
+  it.each<TipoEquipo>(['CELULAR', 'TABLET', 'NOTEBOOK', 'CONSOLA', 'JOYSTICK', 'PC_ESCRITORIO', 'MONITOR', 'TV', 'OTRO'])(
     'crea %s sin exigir serie ni credenciales', async (tipo) => {
       const user = userEvent.setup();
       let body: Record<string, unknown> | undefined;
@@ -147,7 +147,7 @@ describe('EquipoFormModal', () => {
     },
   );
 
-  it('reclasifica un equipo sin borrar su serie ni el resto de datos', async () => {
+  it.each<TipoEquipo>(['NOTEBOOK', 'TABLET', 'JOYSTICK'])('reclasifica a %s sin borrar su serie ni el resto de datos', async (tipo) => {
     const user = userEvent.setup();
     const editing: Equipo = {
       id: 9, tipo: 'OTRO', marca: 'Lenovo', modelo: 'T14', imei: 'NB-000001',
@@ -160,8 +160,8 @@ describe('EquipoFormModal', () => {
     }));
     renderUI(<EquipoFormModal isOpen onClose={vi.fn()} editing={editing} />);
     expect(screen.getByLabelText('Tipo de equipo')).toHaveValue('OTRO');
-    await user.selectOptions(screen.getByLabelText('Tipo de equipo'), 'NOTEBOOK');
+    await user.selectOptions(screen.getByLabelText('Tipo de equipo'), tipo);
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
-    await waitFor(() => expect(body).toMatchObject({ tipo: 'NOTEBOOK', imei: 'NB-000001', color: 'Negro', descripcion: 'Con cargador' }));
+    await waitFor(() => expect(body).toMatchObject({ tipo, imei: 'NB-000001', color: 'Negro', descripcion: 'Con cargador' }));
   });
 });

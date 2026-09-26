@@ -46,7 +46,7 @@ const completarMinimos = async (
 };
 
 describe('ReparacionFormModal — alta rápida (modo nuevo)', () => {
-  it.each<TipoEquipo>(['CELULAR', 'NOTEBOOK', 'CONSOLA', 'TV'])(
+  it.each<TipoEquipo>(['CELULAR', 'TABLET', 'NOTEBOOK', 'CONSOLA', 'JOYSTICK', 'TV'])(
     'envía el tipo %s en ingreso rápido sin requerir datos de acceso', async (tipo) => {
       const user = userEvent.setup();
       let body: Record<string, unknown> | undefined;
@@ -485,7 +485,7 @@ describe('ReparacionFormModal — fechas de calendario', () => {
 });
 
 describe('ReparacionFormModal — edición segura de credenciales', () => {
-  it.each<TipoEquipo>(['NOTEBOOK', 'CONSOLA', 'MONITOR', 'TV'])(
+  it.each<TipoEquipo>(['TABLET', 'NOTEBOOK', 'CONSOLA', 'JOYSTICK', 'MONITOR', 'TV'])(
     'mantiene visibles y conserva las credenciales existentes en %s', async (equipoTipo) => {
       const user = userEvent.setup();
       let body: Record<string, unknown> | undefined;

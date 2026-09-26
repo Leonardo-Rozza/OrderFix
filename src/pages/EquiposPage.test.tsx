@@ -97,33 +97,35 @@ vi.mock('../components/ConfirmDialog', () => ({
 import { EquiposPage } from './EquiposPage';
 
 describe('EquiposPage — estado navegable del listado', () => {
-  it('combina tipo exacto, búsqueda y página; cambia el filtro y restaura todo al volver atrás', async () => {
-    const user = userEvent.setup();
-    const requests: URLSearchParams[] = [];
-    server.use(http.get(`${API}/equipos`, ({ request }) => {
-      requests.push(new URL(request.url).searchParams);
-      return HttpResponse.json({ content: [{ ...equipo, tipo: requests.at(-1)?.get('tipo') }],
-        page: { size: 20, number: Number(requests.at(-1)?.get('page')), totalElements: 100, totalPages: 5 } });
-    }));
-    const { router, queryClient } = renderWithProviders(<EquiposPage />, {
-      initialEntries: ['/equipos?q=modelo&page=2&sort=marca%2Casc&tipo=NOTEBOOK'],
-    });
-    const filtro = screen.getByRole('combobox', { name: 'Filtrar por tipo de equipo' });
-    expect(filtro).toHaveValue('NOTEBOOK');
-    await waitFor(() => expect(requests.some((p) => p.get('tipo') === 'NOTEBOOK' && p.get('page') === '2')).toBe(true));
-    await user.selectOptions(filtro, 'CONSOLA');
-    await waitFor(() => expect(requests.some((p) => p.get('tipo') === 'CONSOLA' && p.get('page') === '0' && p.get('q') === 'modelo' && p.get('sort') === 'marca,asc')).toBe(true));
-    expect(queryClient.getQueryData(queryKeys.equipos.list({ q: 'modelo', page: 0, size: 20, sort: 'marca,asc', tipo: 'CONSOLA' }))).toBeDefined();
-    expect(queryClient.getQueryData(queryKeys.equipos.list({ q: 'modelo', page: 2, size: 20, sort: 'marca,asc', tipo: 'NOTEBOOK' }))).toBeDefined();
-    await act(async () => { await router.navigate(-1); });
-    expect(filtro).toHaveValue('NOTEBOOK');
-    expect(new URLSearchParams(router.state.location.search).get('page')).toBe('2');
-    await user.selectOptions(filtro, '');
-    await waitFor(() => expect(requests.at(-1)?.has('tipo')).toBe(false));
-    expect(new URLSearchParams(router.state.location.search).has('tipo')).toBe(false);
-  });
+  it.each([['NOTEBOOK', 'CONSOLA'], ['TABLET', 'JOYSTICK'], ['JOYSTICK', 'TABLET']] as const)(
+    'combina %s con búsqueda y página; cambia a %s y restaura al volver atrás', async (initialType, nextType) => {
+      const user = userEvent.setup();
+      const requests: URLSearchParams[] = [];
+      server.use(http.get(`${API}/equipos`, ({ request }) => {
+        requests.push(new URL(request.url).searchParams);
+        return HttpResponse.json({ content: [{ ...equipo, tipo: requests.at(-1)?.get('tipo') }],
+          page: { size: 20, number: Number(requests.at(-1)?.get('page')), totalElements: 100, totalPages: 5 } });
+      }));
+      const { router, queryClient } = renderWithProviders(<EquiposPage />, {
+        initialEntries: [`/equipos?q=modelo&page=2&sort=marca%2Casc&tipo=${initialType}`],
+      });
+      const filtro = screen.getByRole('combobox', { name: 'Filtrar por tipo de equipo' });
+      expect(filtro).toHaveValue(initialType);
+      await waitFor(() => expect(requests.some((p) => p.get('tipo') === initialType && p.get('page') === '2')).toBe(true));
+      await user.selectOptions(filtro, nextType);
+      await waitFor(() => expect(requests.some((p) => p.get('tipo') === nextType && p.get('page') === '0' && p.get('q') === 'modelo' && p.get('sort') === 'marca,asc')).toBe(true));
+      expect(queryClient.getQueryData(queryKeys.equipos.list({ q: 'modelo', page: 0, size: 20, sort: 'marca,asc', tipo: nextType }))).toBeDefined();
+      expect(queryClient.getQueryData(queryKeys.equipos.list({ q: 'modelo', page: 2, size: 20, sort: 'marca,asc', tipo: initialType }))).toBeDefined();
+      await act(async () => { await router.navigate(-1); });
+      expect(filtro).toHaveValue(initialType);
+      expect(new URLSearchParams(router.state.location.search).get('page')).toBe('2');
+      await user.selectOptions(filtro, '');
+      await waitFor(() => expect(requests.at(-1)?.has('tipo')).toBe(false));
+      expect(new URLSearchParams(router.state.location.search).has('tipo')).toBe(false);
+    },
+  );
 
-  it.each(['notebook', 'TABLET', ' NOTEBOOK '])('elimina el tipo inválido %s de URL y API', async (tipo) => {
+  it.each(['notebook', 'CAMARA', ' NOTEBOOK '])('elimina el tipo inválido %s de URL y API', async (tipo) => {
     const requests: string[] = [];
     server.use(http.get(`${API}/equipos`, ({ request }) => {
       requests.push(request.url);

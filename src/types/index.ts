@@ -160,7 +160,7 @@ export interface ClienteUpdate extends ClienteCreate {
 }
 
 // ========== EQUIPO ==========
-export type TipoEquipo = 'CELULAR' | 'NOTEBOOK' | 'CONSOLA' | 'PC_ESCRITORIO' | 'MONITOR' | 'TV' | 'OTRO';
+export type TipoEquipo = 'CELULAR' | 'TABLET' | 'NOTEBOOK' | 'CONSOLA' | 'JOYSTICK' | 'PC_ESCRITORIO' | 'MONITOR' | 'TV' | 'OTRO';
 
 export interface Equipo {
   id: number;

@@ -20,7 +20,10 @@ const registerCollection = async (page: Page, token: string, repairId: number, m
   const response = await responsePromise;
   expect(response.status()).toBe(201);
   expect(response.request().headers().authorization === `Bearer ${token}`).toBe(true);
-  expect(response.request().postDataJSON()).toEqual({ monto, metodo: 'TRANSFERENCIA', referencia, observaciones });
+  expect(response.request().postDataJSON()).toEqual({
+    monto, metodo: 'TRANSFERENCIA', referencia, observaciones,
+    operacionId: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/),
+  });
   const collection = await response.json() as Cobro;
   expect(Number.isSafeInteger(collection.id) && collection.id > 0).toBe(true);
   expect(collection).toMatchObject({

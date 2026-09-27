@@ -73,6 +73,7 @@ for (const action of ['aprobar', 'rechazar'] as const) {
       expect(creation.request().postDataJSON()).toEqual({
         clienteNombre: 'Cliente recorrido', clienteApellido: 'Prueba local', clienteTelefono: phone,
         equipoMarca: 'Motorola', equipoModelo: 'G31', descripcionProblema: 'No carga', precioEstimado: 50000,
+        equipoTipo: 'OTRO',
       });
       const created = await creation.json() as IngresoRapidoResponse;
       const repairId = created.reparacion.id;

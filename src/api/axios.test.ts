@@ -381,6 +381,73 @@ describe('axios — sesión de un cobro recuperable', () => {
     return { account: chargeAccount(token, true)!, generation: chargeGeneration() };
   };
 
+  it.each([401, 403])('logs out when expiry occurs while awaiting the current charge %s response or validation', async (status) => {
+    const now = 2_000_000_000_000;
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(now);
+    const session = login();
+    const attempt = prepareCharge(session.account, 9, { monto: 500, metodo: 'EFECTIVO' });
+    queryClient.setQueryData(['dashboard'], { reparaciones: 4 });
+    let release!: () => void;
+    let started!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    const waiting = new Promise<void>((resolve) => { started = resolve; });
+    const released = vi.fn();
+    const unsubscribe = subscribeUnsavedChangesRelease(released);
+    let validations = 0;
+    server.use(
+      http.post(`${API}/reparaciones/9/cobros`, async () => {
+        if (status === 401) { started(); await held; }
+        return new HttpResponse(null, { status });
+      }),
+      http.get(`${API}/suscripcion`, async () => {
+        validations += 1;
+        started();
+        await held;
+        return new HttpResponse(null, { status: 401 });
+      }),
+    );
+    const result = expect(apiClient.post('/reparaciones/9/cobros', attempt.payload, {
+      chargeSession: session,
+    })).rejects.toMatchObject({ response: { status } });
+    try {
+      await waiting;
+      clock.mockReturnValue(now + 3_600_000);
+      release();
+      await result;
+      expect(authStore.getState().isAuthenticated).toBe(false);
+      expect(readPendingCharge(session.account, 9)).toBeNull();
+      expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
+      expect(chargeGeneration()).toBeGreaterThan(session.generation);
+      expect(released).toHaveBeenCalledTimes(1);
+      expect(validations).toBe(status === 403 ? 1 : 0);
+      expect(showError).not.toHaveBeenCalled();
+      expect(captureError).not.toHaveBeenCalled();
+    } finally {
+      release();
+      unsubscribe();
+    }
+  });
+
+  it('rejects a captured charge before dispatch if its token has already expired', async () => {
+    const now = 2_000_000_000_000;
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(now);
+    const session = login();
+    const attempt = prepareCharge(session.account, 9, { monto: 500, metodo: 'EFECTIVO' });
+    let calls = 0;
+    server.use(http.post(`${API}/reparaciones/9/cobros`, () => {
+      calls += 1;
+      return HttpResponse.json({ id: 7 });
+    }));
+
+    clock.mockReturnValue(now + 3_600_000);
+    await expect(apiClient.post('/reparaciones/9/cobros', attempt.payload, {
+      chargeSession: session,
+    })).rejects.toMatchObject({ code: 'ERR_CANCELED' });
+    expect(calls).toBe(0);
+    expect(readPendingCharge(session.account, 9)).toEqual(attempt);
+    expect(chargeGeneration()).toBe(session.generation);
+  });
+
   it('mantiene el logout y la purga cuando el 401 corresponde a la sesión actual', async () => {
     const session = login();
     const attempt = prepareCharge(session.account, 9, { monto: 500, metodo: 'EFECTIVO' });

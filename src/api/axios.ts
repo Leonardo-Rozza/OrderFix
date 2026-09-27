@@ -1,4 +1,4 @@
-import type { ChargeSession } from '../utils/pendingCharge';
+import { chargeAccount, type ChargeSession } from '../utils/pendingCharge';
 import axios, { AxiosError, AxiosHeaders } from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
 import { authStore, isChargeSessionCurrent } from '../store/auth.store';
@@ -122,10 +122,12 @@ const validateBaseSession = (token: string | null, resource: '/perfil' | '/suscr
 
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    if (config.chargeSession && !isChargeSessionCurrent(config.chargeSession)) {
-      throw new axios.CanceledError('Charge session changed before dispatch');
+    const auth = authStore.getState();
+    if (config.chargeSession && (!isChargeSessionCurrent(config.chargeSession)
+      || !chargeAccount(auth.token, auth.isAuthenticated))) {
+      throw new axios.CanceledError('Charge session changed or expired before dispatch');
     }
-    const token = authStore.getState().token;
+    const token = auth.token;
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }

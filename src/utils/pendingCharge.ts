@@ -23,12 +23,19 @@ export type PendingCharge = z.infer<typeof snapshotSchema>;
 export interface ChargeSession { account: string; generation: number }
 export const chargeGeneration = () => generation;
 
-export const chargeAccount = (token: string | null, authenticated: boolean): string | null => {
+/** Stable recovery scope only; this does not establish token validity or authorization. */
+export const chargeAccountIdentity = (token: string | null, authenticated: boolean): string | null => {
   const claims = decodeToken(token);
   if (!authenticated || typeof claims?.sub !== 'string' || !claims.sub.trim()
-    || typeof claims.tallerId !== 'number' || !Number.isSafeInteger(claims.tallerId) || claims.tallerId <= 0
-    || typeof claims.exp !== 'number' || !Number.isFinite(claims.exp) || claims.exp * 1000 <= Date.now()) return null;
+    || typeof claims.tallerId !== 'number' || !Number.isSafeInteger(claims.tallerId) || claims.tallerId <= 0) return null;
   return JSON.stringify([claims.sub.trim().toLowerCase(), claims.tallerId]);
+};
+
+/** UI access and new dispatch additionally require an unexpired token. */
+export const chargeAccount = (token: string | null, authenticated: boolean): string | null => {
+  const claims = decodeToken(token);
+  if (typeof claims?.exp !== 'number' || !Number.isFinite(claims.exp) || claims.exp * 1000 <= Date.now()) return null;
+  return chargeAccountIdentity(token, authenticated);
 };
 
 const keyFor = (account: string, reparacionId: number) => PREFIX + JSON.stringify([account, reparacionId]);

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { chargeAccount, readPendingCharge, prepareCharge, allowChargeCorrection, clearPendingCharge, purgePendingCharges, chargeGeneration } from './pendingCharge';
+import { chargeAccount, chargeAccountIdentity, readPendingCharge, prepareCharge, allowChargeCorrection, clearPendingCharge, purgePendingCharges, chargeGeneration } from './pendingCharge';
 
 const token = (sub = ' A@Example.com ', tallerId = 2, exp = Date.now() / 1000 + 3600) =>
   `header.${btoa(JSON.stringify({ sub, tallerId, exp }))}.signature`;
@@ -9,6 +9,34 @@ const payload = { monto: 500, metodo: 'EFECTIVO' as const, referencia: '  OP-1 '
 beforeEach(() => { vi.restoreAllMocks(); sessionStorage.clear(); purgePendingCharges(); });
 
 describe('pending charge recovery', () => {
+  it('separates stable account identity from the exact expiry boundary', () => {
+    const now = 2_000_000_000_000;
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(now);
+    const captured = token(' A@Example.com ', 2, now / 1000 + 60);
+    expect(chargeAccountIdentity(captured, true)).toBe(account);
+    expect(chargeAccount(captured, true)).toBe(account);
+
+    clock.mockReturnValue(now + 60_000);
+    expect(chargeAccountIdentity(captured, true)).toBe(account);
+    expect(chargeAccount(captured, true)).toBeNull();
+    expect(chargeAccountIdentity(captured, false)).toBeNull();
+  });
+
+  it.each([
+    { sub: '', tallerId: 2 },
+    { sub: 'a', tallerId: 0 },
+    { sub: 'a', tallerId: 1.5 },
+    { sub: 'a', tallerId: '2' },
+  ])('rejects malformed account scope %j independently of expiry', (claims) => {
+    const malformed = `header.${btoa(JSON.stringify(claims))}.signature`;
+    expect(chargeAccountIdentity(malformed, true)).toBeNull();
+  });
+
+  it.each([undefined, '2000000000', null])('does not permit dispatch with invalid expiry %s', (exp) => {
+    const malformed = `header.${btoa(JSON.stringify({ sub: 'a', tallerId: 2, exp }))}.signature`;
+    expect(chargeAccount(malformed, true)).toBeNull();
+  });
+
   it('requires valid authenticated claims and normalizes subject', () => {
     expect(chargeAccount(token(), true)).toBe(account);
     expect(chargeAccount(token(), false)).toBeNull();

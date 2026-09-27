@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { decodeToken, isTokenExpired, normalizeRole } from '../utils/jwt';
-import { chargeAccount, chargeGeneration, purgePendingCharges, type ChargeSession } from '../utils/pendingCharge';
+import { chargeAccountIdentity, chargeGeneration, purgePendingCharges, type ChargeSession } from '../utils/pendingCharge';
 import { queryClient } from '../api/queryClient';
 
 interface AuthState {
@@ -38,7 +38,7 @@ export const authStore = create<AuthState>()(
         const identidadActual = sessionIdentity(actual.token, actual.email);
         const identidadNueva = sessionIdentity(token, email);
         if (identidadActual !== identidadNueva
-          || chargeAccount(actual.token, actual.isAuthenticated) !== chargeAccount(token, true)) {
+          || chargeAccountIdentity(actual.token, actual.isAuthenticated) !== chargeAccountIdentity(token, true)) {
           purgePendingCharges();
           queryClient.clear();
         }
@@ -80,5 +80,5 @@ export const useAuth = () => {
 export const isChargeSessionCurrent = (session: ChargeSession) => {
   const auth = authStore.getState();
   return session.generation === chargeGeneration()
-    && session.account === chargeAccount(auth.token, auth.isAuthenticated);
+    && session.account === chargeAccountIdentity(auth.token, auth.isAuthenticated);
 };

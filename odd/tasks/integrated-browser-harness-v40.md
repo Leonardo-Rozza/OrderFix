@@ -11,11 +11,11 @@ Update the stale browser-test contracts and isolated photos database, then rerun
 - Delivery ask-on-risk; forecast 10–16 authored test lines plus this tracker, below 400. Two repository-local work units; source/test readability and exact checks are not traded for line count.
 
 ## Tasks
-- [ ] F1 Update current frontend browser request contracts.
+- [x] F1 Update current frontend browser request contracts.
   - Route: delegated writer; mapping/preparation spanned both repositories and more than four files. Same bounded writer owns the three planned test files; parent owns this document, mirror and commits.
   - Add equipoTipo: OTRO to the exact quick-repair payload expectation. Add a validated UUID v4 operacionId to the exact charge payload expectation; do not replace toEqual with broad partial matching.
   - Acceptance: all 14 real Registration browser cases reach their intended endpoints, including public budget response, repair delivery and charge annulment/correction on desktop/mobile.
-  - Checks: real LegalRegistrationBrowserE2E, frontend typecheck/lint, git diff --check. Commit evidence pending.
+  - Checks passed: real LegalRegistrationBrowserE2E, frontend typecheck/lint, git diff --check. Commit a12e1902b9388e4938cbcfb0ed0d1b5bfc7db5dc (49 additions + 1 deletion including this tracker). Native pending slice from 374d2ae95097b7050f1faa67826653ef38eed85a is high / high_risk (291 lines, earlier authentication fix included); review deferred per user, exact native START returned declined_this_candidate. No reviewer ran and no approval is claimed.
 - [x] B1 Bring only the photos browser fixture to current schema and rerun all three labs.
   - Route: delegated writer; current-schema browser fixture differs from shared historical V37 accreditation. Keep LegalPrivatePhotoOperationsIT and prior SQL unchanged.
   - Apply migrateLatest with the migration owner after historical fixture preparation and before application-role provisioning/seed accounts; verify the latest successful migration is 40.
@@ -32,7 +32,7 @@ Save new logs/reports under /private/tmp/integrated-harness-v40-proof. Compare e
 Each repository-local test change can be reverted independently without reverting production code or migrations. These labs are separate workflows, not one test joining photos and export for the same repair. They do not prove deployed/provider configuration, public-budget races or lost-response charge recovery through a real browser reload.
 
 ## Progress
-The three-file correction is implemented and the three real browser labs passed. Parent inspected the exact diff and final logs. Next: save the two repository-local work units and record their native assessment/deferred-review disposition; no push or deploy.
+Both repository-local work units are committed and the three real browser labs passed. Parent inspected the exact diff and final logs. This functional-validation task is complete; the deferred reviews and deployed/provider checks remain separate next steps. No push or deploy.
 
 ## Observed verification
 - Registration: 14 browser cases passed plus its Java orchestrator (1 test, 0 failures/errors/skips). Repairs reached public-budget approval/rejection and delivery; charges reached employee registration and owner annulment/correction, on desktop and mobile.
@@ -41,4 +41,4 @@ The three-file correction is implemented and the three real browser labs passed.
 - Offline test compilation, frontend typecheck/lint and both repository diff checks passed. No production code changed, so the unchanged full unit/build suites were not rerun for this test-only correction.
 - Evidence: /private/tmp/integrated-harness-v40-proof contains per-lab logs, XML/browser reports, screenshots and synthetic export artifacts. cleanup.txt confirms the six preexisting containers remained and ports 5175–5177 had no listeners. No source changes beyond the three scoped test files.
 - Supported Node 24.14.0 removed the previous Vite version warning. Existing Mockito dynamic-attachment, SpringDoc and compilation deprecation warnings remain. Provider/deployed behavior was not tested; no credentials, external providers or downloads were used.
-- Authored test delta: frontend 5 additions + 1 deletion; backend 4 additions. Commit identities and disposition pending.
+- Authored test delta: frontend 5 additions + 1 deletion; backend 4 additions. Initial work-unit commits total 54 authored lines including the 44-line tracker; this final tracking-only closure is additional bookkeeping. Source SQL, application code and shared historical fixtures remain unchanged.

@@ -2,7 +2,13 @@
 
 Fecha: 2026-09-08
 
-Estado: cuenta, taller/empleados, reparación/presupuesto y control opcional de cobros verificados
+**Plan vigente:** [salida conjunta a producción](../../odd/tasks/production-release.md).
+Este documento conserva decisiones y actas históricas, no un segundo backlog actual.
+Fotos incorporó después cuatro recorridos locales completos con Cloudinary real el
+2026-09-19, según [operación de fotos](../../../mvrg-backend/docs/operations/private-photos.md).
+La prueba en staging y su configuración/retención siguen pendientes.
+
+Estado del cierre inicial: cuenta, taller/empleados, reparación/presupuesto y control opcional de cobros verificados
 localmente con navegador → HTTP → PostgreSQL. Los cortes y sus límites se documentan abajo.
 En Evidencia y documentos, resumen, fotos y confirmación contextual están verificados localmente.
 Cloudinary real y el adapter productivo ya cuentan con una prueba sintética aprobada

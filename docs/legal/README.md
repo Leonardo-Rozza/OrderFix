@@ -1,5 +1,10 @@
 # OrdenFix — documentos legales de lanzamiento
 
+**Plan vigente:** [salida conjunta a producción](../../odd/tasks/production-release.md).
+Las secciones fechadas conservan evidencia de cada fase, no describen todos los pendientes
+actuales. Las lecturas públicas y el registro atómico con consentimiento ya están implementados;
+siguen pendientes la publicación definitiva, el rollout coordinado y su acreditación en staging.
+
 Estado editorial al 2026-08-31: **borradores editables; no aprobados para publicación ni cobro
 público**. El contrato técnico v1, la validación estática, el dry-run PostgreSQL, la
 importación/sello y la promoción, reemplazo, retiro y readiness editoriales ya están acreditados
@@ -85,9 +90,10 @@ conservar esta lista; una publicación seleccionada por el build público no pue
    devuelve `APPLICABLE`; ejecutar el `apply-*` correspondiente con las confirmaciones exactas y
    consultar nuevamente `readiness`. Promoción/reemplazo deben terminar `READY`; un retiro exitoso
    termina deliberadamente `APPLIED + NOT_READY`.
-9. **Publicación pública — pendiente.** Cuando existan contenido definitivo autorizado, V28,
-   catálogo/documentos/requisitos HTTP, aceptación y registro atómicos, seguridad/CORS, `409`,
-   `428`, enforcement y un entorno real, configurar el manifiesto/contactos, ejecutar
+9. **Publicación pública — pendiente.** Con contenido definitivo autorizado y capacidades
+   implementadas acreditadas en el entorno real, verificar roles/preflights, catálogo/documentos/
+   requisitos HTTP, registro atómico, seguridad/CORS, `409`, `428` y rollout coordinado.
+   Configurar el manifiesto/contactos, ejecutar
    `npm run check:public-release` y `npm run build:public`, desplegar en staging y acreditar ETag y
    smokes públicos.
 

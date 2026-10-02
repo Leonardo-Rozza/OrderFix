@@ -1,15 +1,24 @@
 # OrdenFix — Checklist de deploy (backend + frontend + legales + Sentry + Mercado Pago)
 
-Guía paso a paso para salir a producción. Ordenada: primero el backend, después el
-frontend, después los opcionales (Sentry, MercadoPago). Al final, el smoke test.
+El [plan único de salida](odd/tasks/production-release.md) es el backlog vigente de
+ambos repositorios. Esta guía reúne la configuración y los checks de despliegue;
+no reemplaza sus gates ni autoriza acceder a proveedores, bases o producción.
+Primero se acredita el candidato local, luego staging, recuperación y publicación;
+recién después se decide la apertura conjunta. Mercado Pago permanece pausado.
 
-> Estado al actualizar esto (2026-08-23): el build local saltea el guard de publicación;
+> Estado documental al 2026-10-02: el build local saltea el guard de publicación;
 > CI y los previews validan como mínimo que la API de runtime sea una URL HTTPS pública y
 > explícita; producción ejecuta el release guard completo. El lanzamiento público sigue
-> bloqueado de forma intencional hasta cerrar identidad legal, revisión profesional, precio
-> remoto y upload privado. Fuera de desarrollo ya no existe un fallback silencioso a
+> bloqueado hasta cerrar publicación legal definitiva, configuración coordinada, staging
+> y operación. El precio PRO remoto y las fotos privadas vía backend ya están implementados:
+> no son funcionalidades por rehacer. Fuera de desarrollo no existe un fallback silencioso a
 > localhost: una configuración incompleta detiene el build y, como segunda barrera, el
 > cliente HTTP falla antes de crear una conexión insegura.
+
+Los pasos y comandos de esta guía son **ejecución futura**, no realizadas en este cierre
+documental. Las referencias a paneles, dominios y proveedores de septiembre son actas
+históricas; requieren revalidación autorizada y no acreditan su estado actual. No imprimir
+secretos, reutilizar sesiones ambientales ni promover `main` para probar una configuración.
 
 ---
 
@@ -23,11 +32,18 @@ frontend, después los opcionales (Sentry, MercadoPago). Al final, el smoke test
 
    | Variable | Valor / notas |
    |---|---|
-   | `SPRING_DATASOURCE_URL` / `USERNAME` / `PASSWORD` | los de tu PostgreSQL (o `DATABASE_URL` según cómo lo tengas configurado) |
-   | `JWT_SECRET` (o como se llame en tu config) | un secreto largo y aleatorio, distinto al de dev |
+   | `DB_URL` / `DB_USERNAME` / `DB_PASSWORD` | URL JDBC y credenciales del datasource principal; son los nombres usados por `application.properties` |
+   | `JWT_SECRET` | secreto HS256 de al menos 32 bytes, distinto al de desarrollo |
+   | `JWT_ISSUER` / `JWT_EXPIRATION` | obligatorios; emisor esperado y duración del access token en milisegundos |
+   | `DEVICE_CREDENTIALS_ENCRYPTION_KEY` | Base64 de exactamente 32 bytes; conservar estable y respaldada fuera de Git |
+   | `ADMIN_USER` / `ADMIN_PASSWORD` / `ADMIN_EMAIL` | configuración privada del administrador inicial; no cuentas/contraseñas versionadas |
    | `FREE_MAX_REPARACIONES` | opcional, default 25 |
    | `APP_PUBLIC_URL` | **URL del frontend en producción** (ej: `https://mvgr-reparaciones-frontend.vercel.app`) — se usa para armar el link de seguimiento en el mensaje de WhatsApp |
-   | `MP_ENABLED` | `false` por ahora (ver sección 4 para activarlo) |
+   | `MP_ENABLED` / `MP_CHECKOUT_ENABLED` | `false` / `false`; pausa vigente, sección 4 sólo para un ensayo futuro autorizado |
+
+   La tabla no cubre los roles aislados ni keyrings de capacidades opt-in. El detalle de
+   base, cifrado, empaquetado y proxy está en [Deploy backend](../mvrg-backend/DEPLOY.md);
+   las migraciones actuales llegan a V40, sin editar ni reejecutar manualmente el historial.
 
 3. **Health check**: configurá el probe de Render a `GET /actuator/health` (público,
    devuelve `{"status":"UP"}`). Con esto Render sabe cuándo la app está viva.
@@ -37,31 +53,53 @@ frontend, después los opcionales (Sentry, MercadoPago). Al final, el smoke test
    El panel Vercel muestra `orden-fix.com.ar` y `www.orden-fix.com.ar` vinculados al
    proyecto `order-fix`, con redirección a `www` y certificados automáticos (2026-09-12).
    Git conectado: `Leonardo-Rozza/OrderFix`, con Production siguiendo `main` y
-   asignación automática de dominios. Falta acreditar la nueva versión desplegada
-   y el recorrido con backend; un push a main crea un despliegue de producción.
+   asignación automática de dominios en esa acta. Falta revalidar esa configuración y
+   acreditar la versión desplegada con backend. No hacer push ni merge a `main` para
+   ensayar: la integración histórica puede promover automáticamente a producción.
 5. Verificá que responde: `curl https://TU-BACKEND.onrender.com/actuator/health`.
 
-> Ojo con el plan free de Render: el servicio "duerme" tras ~15 min sin tráfico y la
-> primera request tarda ~30-60s. Para la beta está bien; para distribución conviene el
-> plan pago o un ping periódico.
+La capacidad, arranque en frío, persistencia y backups del hosting se verifican para el
+entorno elegido; no asumir límites ni precios actuales a partir de esta guía.
+
+### Registro y consentimiento: rollout conjunto
+
+Configurar las propiedades canónicas del backend, con credenciales restringidas de cada
+consumidor y publicación acreditada; no basta con el datasource principal:
+
+| Propiedad | Default | Requisito |
+| --- | --- | --- |
+| `ordenfix.legal.public-documents.enabled` | `false` | Lectura publicada y `ordenfix.legal.public-document-read.*` acreditados |
+| `ordenfix.legal.public-requirements.enabled` | `false` | Conjunto vigente y `ordenfix.legal.public-requirements.*` acreditados |
+| `ordenfix.legal.registration-consent.enabled` | `false` | Escritor `ordenfix.legal.registration-consent.*`, keyrings y metadata propios |
+| `ordenfix.legal.registration-enforcement.enabled` | `false` | Consentimiento y ambas lecturas públicas habilitados; frontend compatible ya comprobado |
+
+Primero lectores/publicación → consentimiento → frontend con
+`VITE_REGISTRATION_CONSENT=true` → prueba del registro y replay → enforcement.
+Con enforcement apagado, el request legacy sólo es válido si faltan los tres elementos
+legales; con enforcement activo ese request devuelve `428`. Un bloque legal completo
+con consentimiento apagado devuelve `503`, sin alta. El [contrato backend](../mvrg-backend/FRONTEND_INTEGRATION.md)
+define roles, preflights y keyrings exactos. La [matriz del plan](odd/tasks/production-release.md#matriz-coordinada-de-configuración)
+incluye fotos, exportaciones, email, MP, cierre y cuarentena de restore.
+El guard público no valida el flag de registro: un build aprobado no demuestra
+por sí solo que frontend y enforcement sean compatibles.
 
 ---
 
 ## 2. Frontend en Vercel
 
-El dominio confirmado por el usuario es `orden-fix.com.ar` y ya está conectado al
-proyecto `order-fix`: no duplicar esa configuración. Está conectado a
+El dominio confirmado por el usuario es `orden-fix.com.ar`; el acta del 2026-09-12
+registra su conexión al proyecto `order-fix`: revalidar, no duplicar por defecto. Registra
 `Leonardo-Rozza/OrderFix` (el antiguo nombre `mvgr-reparaciones-frontend` redirige allí),
-con rama productiva `main`. Revisar preview y gates antes de fusionar a esa rama.
-`cuenta.orden-fix.com.ar` ya está Verified en Resend; DKIM y SPF/Return-Path se
-publicaron en Vercel. El remitente local es `notificaciones@cuenta.orden-fix.com.ar`
-y una prueba autorizada figura Delivered, con recepción confirmada por el titular. Falta configurar el backend del entorno
+con rama productiva `main`. Revisar preview y gates antes de cualquier promoción autorizada.
+El acta de email registra `cuenta.orden-fix.com.ar` Verified en Resend y DKIM/SPF/Return-Path
+publicados en Vercel. Registra el remitente local `notificaciones@cuenta.orden-fix.com.ar`
+y una prueba autorizada Delivered, con recepción confirmada por el titular. Falta configurar el backend del entorno
 y probar los enlaces reales; la API key nunca va en el frontend ni en `VITE_*`.
 La guía y los cortes Email A–C están en
 [Email transaccional del backend](../mvrg-backend/docs/operations/email.md).
 
-El repo ya tiene `vercel.json`. Lo único que falta son las **variables de entorno**
-(críticas porque el `.env` ya no está en git):
+El repo tiene `vercel.json`. La configuración de entorno es necesaria, pero no sustituye
+publicación definitiva, prueba en staging y recuperación:
 
 1. Vercel → tu proyecto → **Settings → Environment Variables** → agregá para
    *Production*. Las variables `VITE_*` quedan visibles en el JavaScript del navegador:
@@ -70,11 +108,13 @@ El repo ya tiene `vercel.json`. Lo único que falta son las **variables de entor
    | Variable | Valor |
    |---|---|
    | `VITE_API_BASE_URL` | `https://TU-BACKEND.onrender.com` (con o sin `/api`, el front lo normaliza solo; debe ser HTTPS público) |
+   | `VITE_REGISTRATION_CONSENT` | `true` para el candidato público, coordinado con lectores, consentimiento y enforcement backend según la secuencia anterior |
    | `VITE_LEGAL_EMAIL` | contacto legal público que coincide con la publicación aprobada |
    | `VITE_PRIVACY_EMAIL` | canal público para ejercer derechos sobre datos personales |
    | `VITE_SUPPORT_EMAIL` | canal público de soporte y gestiones |
    | `ORDENFIX_LEGAL_PUBLICATION_MANIFEST` | `docs/legal/publications/<publicationId>/publication-manifest.json` |
    | `VITE_SENTRY_DSN` | el DSN de Sentry (opcional — ver sección 3; si no está, Sentry queda apagado sin romper nada) |
+   | `VITE_WORKSHOP_CLOSURE_ENABLED` | mantener ausente/`false`; cierre integral fuera de salida pública |
 
 2. Publicá dentro de `docs/legal/publications/<publicationId>/` únicamente el artefacto
    inmutable que ya pasó revisión jurídica y contable. Los borradores de
@@ -92,9 +132,9 @@ El repo ya tiene `vercel.json`. Lo único que falta son las **variables de entor
    ```
 
    El primer comando enumera códigos y archivos pendientes sin imprimir valores de las
-   variables. Hoy debe fallar por diseño hasta completar identidad/contactos y la publicación
-   legal real, retirar el precio fijo del frontend y reemplazar la subida unsigned por el
-   flujo firmado/privado.
+   variables. La configuración local auditada sigue bloqueada por identidad/contactos y
+   publicación legal real. Precio remoto y flujo privado ya están implementados; el guard
+   conserva el escaneo anti-regresión de importe fijo y carga unsigned/directa.
 4. **Redeploy** (Deployments → ⋯ → Redeploy) para que tome las variables. Las env de
    Vite se inyectan **en build**, no en runtime: cambiar la variable sin redeploy no hace nada.
 5. Verificá en el navegador: abrí la app → DevTools → Network → las llamadas deben ir a
@@ -120,22 +160,21 @@ Para desarrollo local nada cambia: `.env.local` (gitignoreado) con
 
 ---
 
-## 3. Sentry (monitoreo de errores) — 10 minutos
+## 3. Sentry (monitoreo de errores)
 
 El código ya está integrado (`src/lib/sentry.ts`): captura crashes de React, errores de
 red 5xx y errores de rutas, filtra los 4xx esperables, y asocia el email del usuario
 logueado. **Sin DSN es un no-op total**, así que activarlo es solo conseguir el DSN:
 
-1. Creá cuenta en [sentry.io](https://sentry.io) (plan free alcanza de sobra: 5k
-   errores/mes).
+1. En [Sentry](https://sentry.io), confirmar proyecto, permisos, capacidad y política de datos
+   del entorno antes de activarlo; no asumir cuotas vigentes.
 2. **Create Project** → plataforma **React** → nombre `ordenfix-frontend`.
 3. Copiá el **DSN** que te muestra (formato `https://xxxx@yyy.ingest.sentry.io/zzz`).
    Si no lo ves: Settings → Projects → ordenfix-frontend → Client Keys (DSN).
 4. Pegalo en Vercel como `VITE_SENTRY_DSN` y redeployá.
-5. Configurá la alerta: Alerts → el proyecto ya crea una regla default que te manda
-   email en cada error nuevo. Con eso alcanza para empezar.
-6. Probalo: entrá a la app en producción, forzá un error (por ejemplo, apagá el backend
-   y navegá) y fijate que aparezca el evento en Sentry en ~1 minuto.
+5. Configurar alertas y responsable de atención; verificar recepción y datos sanitizados.
+6. Probar un evento sintético controlado en staging bajo autorización. No apagar el
+   backend de producción para comprobar observabilidad.
 
 Notas:
 - En dev no molesta: sin `VITE_SENTRY_DSN` en `.env.local`, no se inicializa.
@@ -188,11 +227,13 @@ Configuración del **backend** para ese entorno (contrato §10):
 
 ---
 
-## 5. Smoke test post-deploy (15 minutos, en orden)
+## 5. Smoke test post-deploy (en orden)
 
-Con backend y frontend arriba, probá el camino crítico completo en producción:
+Primero acreditar el camino completo en staging (T4). Tras una promoción autorizada,
+repetir el smoke sintético acordado sin afectar datos de usuarios:
 
-- [ ] **Registro**: crear un taller nuevo (queda en TRIAL 14 días) → entra al dashboard.
+- [ ] **Registro**: condiciones publicadas y confirmaciones → TRIAL 14 días → dashboard;
+      verificar replay y flags coordinados, no fallback legacy accidental.
 - [ ] **Ingreso rápido**: Reparaciones → Nueva → cliente+equipo+problema → se crea con
       `numeroOrden` tipo `ORD-2026-0001`.
 - [ ] **Estados**: mover la orden por el tablero (Ingresado → En diagnóstico → …).
@@ -206,24 +247,38 @@ Con backend y frontend arriba, probá el camino crítico completo en producción
 - [ ] **Entrega y garantía**: completar → entregar → aparece la garantía (90 días) y
       el botón "Reclamo en garantía" crea una orden vinculada sin consumir cupo.
 - [ ] **Límite FREE**: (opcional) verificar que el contador "X/25 este mes" se mueve.
-- [ ] **Sentry**: forzar un error y verlo llegar.
-- [ ] **PRO** (si MP activo): upgrade sandbox completo (sección 4.4).
+- [ ] **Cuenta/email**: recuperación/verificación con enlaces HTTPS del entorno autorizado.
+- [ ] **Fotos** (si se activan): upload por backend, lectura por taller, denegación anónima,
+      borrado y reintento; no exponer IDs/URLs del proveedor en seguimiento público.
+- [ ] **Exportación**: Excel protegido; ZIP sólo si su gate de activación está aprobado.
+- [ ] **Monitoreo**: health, alertas y responsable de rollback acreditados.
+- [ ] **MP/cierre**: pausa y cierre público deshabilitado; no abrir checkout para hacer el smoke.
+
+Al terminar el trial, FREE/ACTIVA conserva titular único y 25 reparaciones mensuales;
+empleados y Cobros requieren TRIAL/PRO. La política para los primeros talleres sigue
+pendiente; MP pausado no equivale a PRO permanente gratuito.
 
 ---
 
-## 6. Pendientes que bloquean el lanzamiento público
+## 6. Pendientes vigentes de salida
 
 1. **Publicación legal real**: completar identidad/contactos, revisar los textos con abogado
    y contador, registrar sus referencias, completar la cobertura contractual exigida por el
    esquema y generar los SHA-256 del contenido definitivo en una publicación inmutable.
-2. **Oferta PRO remota**: retirar cualquier importe fijo del frontend. Precio, moneda,
-   período e impuestos deben venir del backend.
-3. **Upload privado**: reemplazar el preset Cloudinary unsigned y la subida directa desde el
-   navegador por una intención/autorización efímera emitida por backend, con borrado remoto.
-4. **Dominio propio** (ej. `app.ordenfix.com`): agregarlo en Vercel **y** en el CORS del
-   backend, y actualizar `APP_PUBLIC_URL` y `MP_BACK_URL`.
-5. **Contrato backend**: aceptación versionada, oferta/cancelación, exportación y cierre se
-   coordinan con el repositorio Java según el plan de lanzamiento.
+2. **Candidato y staging**: cerrar el integral backend actual, imagen/arranque V40,
+   variables/roles/preflights y registro coordinado; acreditar frontend y backend exactos.
+3. **Fotos/email/exportación**: repetir recorridos con configuración del despliegue,
+   retenciones, capacidad y recuperación. Fotos ya tiene cuatro casos completos locales
+   con Cloudinary real (2026-09-19), no sólo una prueba del adapter; eso no acredita staging.
+4. **Operación**: restore aislado con claves, cuarentena, rollback, alertas, responsables y
+   solicitudes de datos. La limpieza histórica requiere inventario concreto autorizado.
+5. **Oferta y entrega**: decidir acceso después del trial y estrategia de integración de
+   ambas ramas. Precio remoto y fotos privadas están implementados; MP y cierre integral
+   siguen fuera de activación. No se presupone seguro hacer push a `main`.
+
+El [plan único](odd/tasks/production-release.md) registra dependencias, aceptación y
+evidencia por tarea. Los runbooks backend gobiernan cada operación; esta lista no añade
+autorización de cambios de producto ni de operaciones externas.
 
 ---
 

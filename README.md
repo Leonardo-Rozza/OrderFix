@@ -2,6 +2,10 @@
 
 Sistema de gestión de reparaciones desarrollado con React, TypeScript y Vite. Aplicación web moderna y profesional para administrar clientes, equipos, reparaciones y repuestos.
 
+**Salida a producción:** el [plan único frontend/backend](odd/tasks/production-release.md)
+concentra el backlog vigente, dependencias y evidencia. [DEPLOY.md](DEPLOY.md) conserva
+la configuración operativa; las actas locales no acreditan un despliegue aprobado.
+
 ## Registro con consentimiento
 
 `VITE_REGISTRATION_CONSENT=true` habilita la lectura de condiciones y las confirmaciones explícitas

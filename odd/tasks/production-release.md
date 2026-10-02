@@ -1,6 +1,6 @@
 # OrdenFix — plan único de salida a producción
 
-Fecha de referencia: 2026-10-02. Estado: planificación documental en curso; producción no acreditada.
+Fecha de referencia: 2026-10-02. Estado: T1 documental cerrada; T2–T7 pendientes; producción no acreditada.
 
 Este documento concentra el trabajo de salida de frontend y backend. Reutiliza las capacidades terminadas y sus actas; no declara aprobado un despliegue por tener pruebas locales verdes.
 
@@ -65,12 +65,14 @@ Los lectores usan `ordenfix.legal.public-document-read.*` y `ordenfix.legal.publ
 
 ## Tareas y criterios de cierre
 
-- [ ] **T1 Unificar el plan y los puntos de entrada documentales.**
+- [x] **T1 Unificar el plan y los puntos de entrada documentales.**
   - Ruta: escritor delegado; preparación requiere más de cuatro archivos entre ambos repositorios y edición de dos documentos no triviales.
   - Alcance: este documento, `DEPLOY.md` y referencias breves desde README, acta inicial y README legal.
   - Aceptación: un solo backlog actual, pendientes verdaderos separados de actas históricas, comandos/flags contrastados y referencias válidas.
   - Checks aprobados (2026-10-02): 51 enlaces/anchors locales válidos, `git diff --check`, alcance de cinco archivos documentales y contraste de flags/runbooks. Suites y harness runtime N/A: no cambia comportamiento.
-  - Entrega documental verificada; commit y disposición nativa pendientes de registrar.
+  - Commit de unidad: `beed4301d6cb640ceb7d500eb8c5fe6272780cba`, `docs(release): unify production launch plan`; 279 adiciones + 49 eliminaciones = 328 líneas autoradas.
+  - Disposición nativa: `passive`, motivo `non_executable_only`, `review_due=false`, sobre `fd92975..beed430`. No requiere revisores ni representa aprobación de las features heredadas.
+  - Assessment inicial no evaluable por inventario/permisos; preflight y reintento con inventario canónico de `.atl/` excluido y permisos del índice temporal completaron la evaluación. Sin fallos documentales pendientes.
 - [ ] **T2 Cerrar la regresión local del candidato.**
   - Depende de T1. Ruta prevista: verificación delegada; fuentes, tests, empaquetado e imagen abarcan ambos proyectos.
   - Aceptación: suites aplicables frontend/backend, empaquetado sin secretos e imagen/arranque V40 del candidato exacto; laboratorios aislados cuando corresponda.
@@ -134,14 +136,18 @@ npm run build:public
 - TDD ON procede de la elección explícita previa, registrada en [charge-session-expiry.md](charge-session-expiry.md). Runner frontend: Vitest; backend: Maven Surefire/Failsafe. Para T1 no hay cambio de comportamiento: RED/GREEN y harness runtime son N/A; se usan checks documentales, sin desactivar TDD.
 - RDD ON, fuente global, verificado con `gentle-ai review mode status`. Las revisiones previas diferidas no pasan a aprobadas. El candidato de T1 es su commit documental desde `fd92975`, no la rama funcional acumulada.
 - Rama documental: `codex/production-release-plan`, creada desde `fd92975`; el backend no cambia de rama.
-- Delivery: `ask-on-risk`. Forecast T1: 300–360 líneas documentales autoradas, incluidas correcciones y tracking; running count pendiente. No hay PR ni estrategia de cadena elegida.
+- Delivery: `ask-on-risk`. Forecast T1: 300–360 líneas documentales autoradas. Running count: 328 de la unidad inicial más el cierre de tracking registrado abajo. No hay PR ni estrategia de cadena elegida.
 - La integración futura debe contar también los cambios funcionales heredados contra `main`: 1.597 líneas frontend y 2.751 backend autoradas (adiciones + eliminaciones locales). Resolver una estrategia de cadena y sus límites antes del gate aplicable; estas cifras no crean PRs ni autorizan push. El umbral aproximado de 400 es orientativo, no un motivo para omitir pruebas o comprimir documentación.
 - Cada tarea se cierra sólo con evidencia observada, actualización de este documento/espejo y commit de unidad de trabajo. Fallos y pendientes no se ocultan con checkboxes.
 - Rollback T1: retirar únicamente el plan y los cambios documentales de esta unidad; no revertir features, migraciones ni actas históricas.
 
 ## Progreso y siguiente paso
 
-T1 en preparación. Crear la versión reconciliada, verificar enlaces/alcance y registrar el commit y su disposición nativa. Después, resolver la política para talleres iniciales antes de cambiar capacidades o habilitar nuevas contrataciones.
+T1 cerrada: plan canónico, guía corregida y tres puntos de entrada actualizados. Los 51 enlaces/anchors locales y el whitespace pasaron; archivo y espejo se leyeron completos. El commit documental tuvo disposición pasiva; las revisiones funcionales previas siguen diferidas.
+
+Siguiente trabajo del plan: T2, regresión local del candidato. Antes de cambiar capacidades o habilitar nuevas contrataciones, resolver la política para talleres iniciales. T2–T7 no se ejecutaron en este cierre documental; no hubo suites/runtime, proveedores ni operaciones remotas.
+
+Conteo de cierre de tracking: 11 adiciones + 5 eliminaciones = 16 líneas; running total T1: 344 líneas autoradas. La unidad inicial conserva su identidad y evidencia aunque este registro se complete en un commit documental posterior.
 
 El espejo Engram usa `odd/production-release/tasks` y el locator `odd/tasks/production-release.md`; archivo y espejo se verifican por separado. El cierre documental no modifica el estado pendiente de T2–T7 ni convierte revisiones diferidas en aprobaciones.
 

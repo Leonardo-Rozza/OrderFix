@@ -1,15 +1,17 @@
 # Verify the current candidate with isolated Docker, backend and browser tests
 
-Status: canonical backend running locally; backend Surefire and frontend checks passed, with one retained intermittent frontend failure. Full PostgreSQL integration/browser verification remains pending port-binding permission. Offline Docker image build failed. No production-readiness approval.
+Status: all authorized canonical local verification phases executed; full clean verify and all four real browser laboratories FAILED. Backend remains healthy on loopback. V1/V3 acceptance is not met; corrective implementation and deployment are not authorized by this verification. Retain the frontend intermittency and Docker image-build limitations.
 
 ## Outcome and authorization
 
 On 2026-10-03 the user explicitly started Docker and requested local backend startup and all pending tests. This overrides the earlier runtime withdrawal only for this verification. It does not authorize new business features or unrequested production-source corrections. Existing account/repair task documents retain their historical entries; this dated verification scope takes precedence for local runtime/testing.
 
+Continuation authorization: the user explicitly approved the requested temporary all-interface PostgreSQL test publication and asked to finish tests before deployment. Only canonical disposable test resources may use that publication; the requested long-running backend/DB stay on loopback. Actual deployment/remotes/providers and production fixes remain out of scope.
+
 ## Scope and safety
 
 - Original frontend HEAD 35a1bb2805f0af0a43474deba61880339929cba0 and backend HEAD f87997f77529d00230e6cda4366733fc6375151d, codex/account-email-links. Preserve original source, the existing dirty repair/v38 trackers and both .atl directories. Create public-only temporary snapshots; exclude private/ignored settings, credentials and provider profiles.
-- Explicit Docker endpoint unix:///Users/leonardorozza/.docker/run/docker.sock; synthetic client config. Engine 29.8.1/Desktop 4.93.0 verified. Preserve all six preexisting containers and cached images; owned resources only, loopback binding, no prune/reset/restart/pull.
+- Explicit Docker endpoint unix:///Users/leonardorozza/.docker/run/docker.sock; synthetic client config. Engine 29.8.1/Desktop 4.93.0 verified. Preserve all six preexisting containers and remaining cached images; owned resources only, loopback runtime binding except authorized transient canonical integration publication, no prune/reset/restart/pull or further image/cache removals.
 - Use new disposable cached PostgreSQL 16 resources and synthetic user/admin/workshop/password/device key. Canonical startup may seed these synthetic rows and run ordinary local subscription housekeeping only inside its isolated DB. Disable real mail/MP/Cloudinary/private-photo/export/closure/maintenance/operational-deletion effects and all relevant job flags; quarantine false permits a normal test app start. Never import original private properties.
 - All providers/remotes/real SMTP/payments/shared DB/private credentials/downloads/push/PR/merge/deploy remain unauthorized. No source changes, guard weakening, test bypass or broad fixture rewrite to make tests green. Record failures and ask before a new correction outside an already authorized scope.
 - Keep a requested local backend running only if startup is safe and healthy; retain an owned manifest with PID/container/ports/synthetic config/logs/stop instructions. Clean up other owned test resources and prove preexisting resources preserved.
@@ -31,20 +33,21 @@ On 2026-10-03 the user explicitly started Docker and requested local backend sta
 - [x] **V2 Validate frontend units, tooling, static checks and simulated browser.**
   - Route: delegated verification; existing scripts/runner mapping spans 4+ files. Acceptance: full Vitest/tooling, lint/types/technical build and installed Chromium mocked-API scenarios; exact source snapshot, offline/synthetic env, no remote telemetry or public-deployment claim. Public release gate remains separate.
   - Matrix executed with passing final checks; an additional failed DateInput attempt is retained below. This closes execution of this matrix, not the unresolved intermittency or a production release gate.
-- [ ] **V3 Exercise real registration/photos/export and pending migration compatibility.**
+- [ ] **V3 Exercise real registration/photos/export/closure and pending migration compatibility.**
   - Route: delegated backend/browser verification after V1 outputs, sequential canonical labs on owned PostgreSQL/local storage. Acceptance: actual registration/verification/resend/reset with RecordingEmailSender, repair/budget/charge/photo/export desktop/mobile flows and guarded V41 migration/history/catalog checks through existing canonical fixtures. Source unchanged; preserve independent XML/browser reports. Never infer actual inbox delivery from a local observer.
   - Photos fixture has an explicit latest 40 assertion; registration/export may hit the V41 accreditation gap. If blocked, run and record each unaffected lab rather than modifying source/guards. E2 durable worker/API/E3 UI and PRO paid-period work are not implemented and cannot be accredited by these tests.
+  - Continuation inventory also identified WorkshopClosureBrowserE2E/playwright.closure-real.config.ts. Include this existing fourth canonical local lab under the user's all-pending-tests authorization after its synthetic/local-provider safeguards are verified; no new feature or remote/provider authorization. Inventory other opt-in browser harnesses so no applicable local check is silently omitted.
 
 ## Current execution boundary
 
 - Planning commit 57522f2021cbcaa6cc5ab57916318db5e4a8c58d: 41 authored lines, native passive/non_executable_only; no review due. Full tracker/mirror observation 865 read back before delegation.
 - V2 execution and V1/V3 partial-result work unit: 16cbd7182cc5ec86dce53a3e9214be63679597ef, 61 authored lines; native assessment against 57522f2 is passive/non_executable_only, review_due=false. Initial sandbox assessment could not create its Git index; scoped local retry succeeded, not a source-review approval. Running documentary count: 102 lines before this handoff bookkeeping; below the delivery budget, no PR created.
 - Delegated workers: backend_current_verification handles V1/V3; frontend_current_verification handles V2. Frontend mock ports 5173/5174 are distinct from real labs 5175–5177.
-- Canonical PostgreSQLContainer fixtures publish ephemeral ports using Docker's default binding, normally all interfaces; TESTCONTAINERS_HOST_OVERRIDE changes connection addressing, not binding. This exceeds the current strict-loopback boundary. Failsafe/labs are held pending explicit permission, without modifying test code or Docker settings. Backend proceeds with unaffected clean test and separately labelled skipTests packaging/JAR smoke on a NEW --pull=never -p127.0.0.1:<owned>:5432 database.
+- Initial boundary: canonical PostgreSQLContainer fixtures publish ephemeral ports using Docker's default binding, normally all interfaces; TESTCONTAINERS_HOST_OVERRIDE changes addressing, not binding. The initial run held Failsafe/labs and used loopback-only JAR smoke. User subsequently approved disposable test publication; the unchanged full regression and all four independent labs now executed, with failures recorded below.
 
 ## Observed results (2026-10-03)
 
-### V1 — partial; integration and image checks not green
+### V1 — initial loopback-only partial attempt
 
 - Backend candidate f87997f77529d00230e6cda4366733fc6375151d: offline Maven `clean test` exit 0, 288 frozen Surefire XML files, 8,390 declared cases, zero failures/errors/skips. This is NOT `clean verify`; Failsafe has not run.
 - Separate Maven `-DskipTests package` exit 0. Packaging explicitly skips tests and is not another test pass. Three generated JARs passed public-content/migration checks; canonical main JAR SHA256 e383610286dd033cddec3524a8ab6d0f584f8003d9a238930b4e90131685d7e2.
@@ -61,9 +64,41 @@ On 2026-10-03 the user explicitly started Docker and requested local backend sta
 - Initial npm-test supervisor had a Path+str observer error; its owned process group was stopped after ownership verification, interrupted log retained, and corrected supervisor reran canonical tests. This is separate from the genuine DateInput assertion failure.
 - Frontend worker stopped its browser/Vite processes and confirmed mock ports 5173/5174 free. Canonical E2E regenerated 18 tracked screenshot PNGs only inside the temporary snapshot; original files and installed dependency metadata remained unchanged.
 
-### V3 — not executed
+### V3 — initial loopback-only attempt, before continuation approval
 
-Canonical Failsafe/Testcontainers, real registration, private-photo and repair/export browser labs are held because their default ephemeral PostgreSQL publication uses all interfaces, outside this run's strict-loopback boundary. No fixtures, migration-history assertions or Docker settings were changed to bypass it. V41 compatibility concerns remain source findings, NOT a reproduced PostgreSQL failure. Real labs 5175–5177 have not started. Provider/deployed SMTP, Railway/Vercel, payments and native source review remain separately pending/unapproved.
+During the initial attempt, canonical Failsafe/Testcontainers and real registration/private-photo/export labs were held because default ephemeral PostgreSQL publication exceeded the then-strict loopback boundary. No fixtures/history assertions/Docker settings were changed to bypass it. V41 compatibility was then only a source finding; labs had not started. The authorized continuation below supersedes this execution status, not the separately unauthorized deployed/provider/native review boundaries.
+
+## Authorized continuation — execution complete, acceptance failed
+
+Fresh continuation proof: /private/tmp/ordenfix-local-verification.oSZf0Q/backend/integration-continuation. Independent public snapshots preserve the running JAR directory and original candidates. Offline/synthetic canonical runs execute sequentially without retries or source/fixture/guard/assertion edits; JUnit temporary-directory retention preserves diagnostic evidence only.
+
+| Phase | Observed result |
+| --- | --- |
+| 01: canonical Maven `clean verify` | Exit 1, 42m16.5s; reached Failsafe and failed its verification gate. |
+| Surefire | 288 XML / 8,390 cases passed; zero failures/errors/skips. |
+| Failsafe PostgreSQL | 138 classes / 1,515 cases: 1,424 passed, 23 failures, 68 errors, zero skips. 91 issues affect 48 classes. |
+| 02: LegalRegistrationBrowserE2E | One Java setup error; browser never launched. Legal editorial schema accreditation rejects latest V41 before registration/verification/resend/login/reset flows. |
+| 03: PrivatePhotoBrowserE2E | One Java setup error; latest-version assertion expects 40 but receives 41 at line 85. No real photo browser flow reached. |
+| 04: ExportBrowserE2E | One Java orchestrator failure; actual desktop/mobile Playwright cases both failed waiting 45s for ready. Both DOMs show `No se pudo preparar el respaldo`; ZIP/Excel downloads not reached. |
+| 05: WorkshopClosureBrowserE2E | One Java fixture failure at line 71: expected READY, actual QUEUED. Closure/download/restore UI not launched. |
+| 06: existing `antrun:run@verify-no-secret-properties-in-jar` | Separate exit 0, 2.47s; three JARs contain V41 and exclude secret/local/.env entries. This plugin was not reached by failed clean verify; this independent check does not turn the full gate green. |
+
+All four existing opt-in *BrowserE2E classes were inventoried and executed exactly once; no fifth harness exists. Surefire XML copied into later phases and artifact-phase Failsafe XML are retained provenance, NOT new executions. Unique Java regression/orchestrator case identities total 9,909; the two executed export Playwright project cases are separate. Zero skips does not imply setup-blocked UI flows ran.
+
+### Confirmed cause boundaries and retained gaps
+
+- LegalV29AcceptanceSchemaVerifier's exact-history query/RuntimeVersion enum ends at V40 (lines 292/731); latest fixtures apply V41. 38 failing integration traces directly reference this verifier. Registration setup reproduces that incompatibility; PostgresMigrationIT line 108 and photo setup explicitly expect latest 40. No checks were relaxed. The remaining issues are individually preserved, not automatically attributed to this one cause.
+- Export/closure READY/QUEUED and UNAVAILABLE/rejected operation failures are observable; successful real downloads/closure/restore/account email flows remain unverified. Diagnose their full paths before claiming one V41 fix resolves all 91 issues.
+- Read-only frontend diagnosis locates the retained DateInput failure in openCalendar's 5s setup wait, before the disabled/readOnly rerender; Suspense still shows its loading fallback. Per-test 10s does not extend that query. Concurrency/first-load timing is a hypothesis, not a proven close-state product bug. No new frontend tests or source changes were made in this continuation.
+- The standalone historical LegalV41CompatibilityIT artifact is unavailable; it was not recreated arbitrarily. Existing canonical suites reproduced the current issues. Docker offline image build remains failed due cached dependency absence; no image rebuild/download attempted. Deployed/provider/real inbox checks, unimplemented E2/E3/PRO work and native backend source-review slice remain separately pending/unapproved.
+
+### Evidence and preservation
+
+- Parent independently verified all 3,835 continuation manifest entries, zero hash mismatches, and recounted each executed XML phase. Worker-result SHA256 50776275b07f57ad5530aeae5482eb6dbc4ed44a3184b6d882df2dea0d93155e; manifest SHA256 58dcab838f564fb1b9b7c75ed4b41e7214235b3f98ee9db1cc4e93cf1d81de2f.
+- Full commands/env/cwd/exits are in phases/01-clean-verify through 06-artifact-secret-check/{command,result}.json; full issue messages/traces/source frames in integration-issue-summary.json and failure-source-locations.json. Export screenshots/DOM/trace/log evidence is under phases/04-export-browser/browser-evidence; successful custom report JSON/download artifacts were not produced.
+- source-preservation.json covers unchanged 1,293 backend and 518 frontend snapshot files and original application/test/config bytes. Only this parent-owned tracker changed in the original frontend. Seven protected files and prior evidence hashes matched; no original dependency writes.
+- All six original containers plus the requested runtime DB remain; no transient containers or lab listeners 5175–5178 remain. All remaining cached images, including intermediate inventory taken for this continuation, are preserved; no new image/cache removal. The prior cleanup incident is not erased by this result.
+- Parent independently rechecked PID 11272, PostgreSQL loopback binding and health/readiness/liveness HTTP 200/UP at 2026-10-03T23:41:18Z. Requested backend stays running on 52184 / owned DB 52183. parent-report-validation.json and parent-runtime-validation.json preserve independent checks; observer typos/config errors are separately retained in worker-result.json.
 
 ## Recoverable proof and commands
 
@@ -78,4 +113,4 @@ Fresh proof root: /private/tmp/ordenfix-local-verification.oSZf0Q. Exact command
 
 Fresh proof root /private/tmp/ordenfix-local-verification.oSZf0Q. baseline.json contains source heads, seven preserved-file hashes and six preexisting Docker IDs. Old /private/tmp account/E1-C/runtime roots are absent; prior documented test counts and native receipts remain historical only.
 
-Ask one focused question for permission to publish temporary disposable PostgreSQL test ports on all interfaces. Until answered, keep V1/V3 open; do not run held tests or change the canonical harness. Resume with this document and full mirror, verify the live owned runtime, then execute sequential canonical integration/labs and retain every result. Production corrections and real deployed/provider checks require their own authorized scope.
+Local verification execution is complete but release gates remain failed; keep V1/V3 unchecked. Ask for a scoped corrective implementation: exact V41 compatibility/fixtures without weakening drift/history/security validation, investigation/fix of remaining export/closure failures, and bounded DateInput test reliability work. Re-run focused checks, full clean verify and the four real labs after authorized corrections. Do not deploy, use remote/provider credentials or create a green release claim from healthy startup alone.

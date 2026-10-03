@@ -1,6 +1,6 @@
 # Send a safe customer email when a repair is completed
 
-Status: E1 capture implemented and locally verified; native review awaits user consent. E2/E3 and actual delivery are pending.
+Status: E1 capture implemented, locally verified, and native review approved/acknowledged. E2 delivery is next; E3 and actual delivery are pending.
 
 ## Outcome and authorization
 
@@ -30,7 +30,7 @@ User approval: “Dale, eso ... tenemos el link del presupuesto ... vamos a hace
 | Backend runners | Installed Java 21/Maven wrapper; offline Surefire and PostgreSQL/Failsafe in secret-free temporary snapshots |
 | Frontend runners | Installed Vitest/Node tooling and Playwright; lint, typecheck, technical build |
 | Native RDD | ON, deciding source global; verified by `gentle-ai review mode status` on 2026-10-03 |
-| Review boundaries | Frontend `2c8473732b0b69b2be2caa7d9ac55c5ccd1f94b6` after passive preparation; backend baseline above for this new feature only; no inherited-feature approval claimed |
+| Review boundaries | Frontend `c051ca5221f425cc49c86b3839791fcbe81af24c` after passive evidence update; backend `d6d9da0d75f08f89f62eb6fb277b817611c5c0f8` after acknowledged E1 approval; future candidates need their own assessment/consent |
 | Delivery | `ask-on-risk`; reuse the user's cached `feature-branch-chain` choice, no push/PR authorization |
 | Forecast | 1,060–1,560 authored additions + deletions, including tests/docs; generated outputs excluded |
 
@@ -40,13 +40,13 @@ Preserve both untracked `.atl/` directories and the pre-existing backend change 
 
 ## Tasks
 
-- [ ] **E1 Capture a durable completed-repair event.**
+- [x] **E1 Capture a durable completed-repair event.**
   - Route: delegated writer; mapping/preparation spans more than four source/contract/test files, and implementation touches multiple non-trivial files. Parent owns this tracker, its full Engram mirror, application of the allowlisted backend patch, commits, and native disposition.
   - Scope: next Flyway migration (verify V41 availability), dedicated persistence/enqueue code, default-off flag, both completion entry points, tests and bounded operation documentation. No dispatcher, SMTP transport, public status/retry API, or UI yet.
   - Acceptance: PUT/PATCH enqueue once after a real transition; disabled flag, other states, creation, and same-state replay enqueue nothing; missing email does not fail completion; rollback leaves neither completed state nor queued event; tenant isolation and concurrent replay hold.
   - Checks: observed RED before production edits, focused GREEN, related repair/subscription/transaction regression, PostgreSQL/Flyway rollback/deduplication/concurrency proof, compilation, migration configuration and diff checks. Full backend verification is required at coordinated feature closure and remains pending until observed; do not substitute H2 for physical-commit/migration proof.
   - Runtime boundary: isolated PostgreSQL service/API integration with recording transport; no real SMTP. Rollback: remove this event capture unit and its paired tests/docs without reverting prior release fixes or paid-subscription code.
-  - Outcome: implementation and functional checks observed; source commit `d6d9da0d75f08f89f62eb6fb277b817611c5c0f8`. Keep the task open until the pending native disposition is resolved; this is not an email-delivery claim.
+  - Outcome: implementation and functional checks observed; source commit `d6d9da0d75f08f89f62eb6fb277b817611c5c0f8`. Native reliability review approved and its exact closure acknowledged on 2026-10-03; this is not an email-delivery claim.
   - Actual: 402 additions + 4 deletions = 406 authored lines, including tests/docs. The migration, transaction capture, and physical-commit/concurrency tests form one coherent unit; retain readable coverage rather than shrink the six-line review-budget overage. No PR is created or authorized.
 - [ ] **E2 Deliver and recover without blind resend.**
   - Route: delegated writer; multiple non-trivial transport/persistence/API/test files and research/preparation boundaries.
@@ -70,9 +70,10 @@ Read-only mapping verified the existing budget/tracking link, both transactional
 | Unit | Repository and committed boundary | Evidence / disposition |
 | --- | --- | --- |
 | Preparation | Frontend `b3d7610bf227d7ab63db95d916dee2f42e3aa57e..2c8473732b0b69b2be2caa7d9ac55c5ccd1f94b6` | 87 additions + 13 deletions = 100 authored; 15 local references and whitespace passed; native `passive`, `non_executable_only`, no functional approval |
-| E1 capture | Backend `f2141f60f2023405ae7ddec5987f13784dd2e76b..d6d9da0d75f08f89f62eb6fb277b817611c5c0f8` | `feat(notifications): capture completed repair email events`; 7 files, 406 authored; native `medium`, `slice_budget_reached`, awaiting fresh user consent |
+| E1 capture | Backend `f2141f60f2023405ae7ddec5987f13784dd2e76b..d6d9da0d75f08f89f62eb6fb277b817611c5c0f8` | `feat(notifications): capture completed repair email events`; 7 files, 406 authored; native `medium`, `slice_budget_reached`, user consent granted; native reliability review approved and exact closure acknowledged |
+| E1 evidence | Frontend `2c8473732b0b69b2be2caa7d9ac55c5ccd1f94b6..c051ca5221f425cc49c86b3839791fcbe81af24c` | 40 additions + 6 deletions = 46 authored; whitespace and scope checks passed; native `passive`, `non_executable_only`, `review_due=false` |
 
-Running feature count through the source unit: 506 authored lines, plus this evidence-only tracker update. Delivery retains the cached `feature-branch-chain` choice; no push/PR/merge. Planned slices are the preparation unit, cohesive E1 capture, E2 delivery/API, and E3 UI/privacy; actual E2/E3 boundaries remain unset. Any future E1 PR would need explicit acceptance of its 406-line cohesive exception after this slicing pass; do not remove coverage to force the number under 400.
+Running feature count through the evidence unit: 552 authored lines; this small post-commit boundary annotation is not yet committed. Delivery retains the cached `feature-branch-chain` choice; no push/PR/merge. Planned slices are the preparation unit, cohesive E1 capture, E2 delivery/API, and E3 UI/privacy; actual E2/E3 boundaries remain unset. Any future E1 PR would need explicit acceptance of its 406-line cohesive exception after this slicing pass; do not remove coverage to force the number under 400.
 
 ### E1 verification (2026-10-03)
 
@@ -92,12 +93,14 @@ Final count is **152 distinct tests**, not the sum of intermediate reruns. The p
 
 Preserved corrected failures: the first unit observer counted Spring's `JdbcTemplate` initialization (3 tests, 1 failure); clearing setup invocations before the operation fixed the observer, and final 5 unit tests passed within the 125. Proof-helper handling of expected `git diff --no-index` exit 1 and archive modes was corrected without production changes. Initial native assessment was unassessable until the canonical unrelated `.atl/` exclusion was declared; it was not treated as low risk.
 
-### Pending native disposition and next step
+### Native disposition and next step
 
 Native assessment examined only the committed E1 boundary: 7 paths / 406 lines, `risk=medium`, `review_due=true`, `review_due_reason=slice_budget_reached`. The exact returned preflight STATUS ran, then excluded only `.atl/.skill-registry.cache.json` and `.atl/skill-registry.md` using its separately verified backend inventory `sha256:4425697ab74255760bb7c3b87dc13642263a59d4b65cc516abaa19765c94da71`.
 
-Binding: target `sha256:b21b64b61f7784b83e2c110506c08bc9785fda8283d8b70da1328574ae073422`, lineage `review-f62b849907584842`; base tree `cbe0cc2787f932bd9010afc5d61c734ab6ecefa8`, candidate tree `53db367f6fea70a76c76fa58aabbb961044f5651`. The returned `review start --consent=relay` was rejected by auto-review before process creation because fresh user consent and potential review-service source disclosure were not authorized. **No reviewer ran and no approval exists.** Do not retry or bypass the rejection; ask the user once, then re-read current native STATUS after an explicit answer.
+Binding: target `sha256:b21b64b61f7784b83e2c110506c08bc9785fda8283d8b70da1328574ae073422`, lineage `review-f62b849907584842`; base tree `cbe0cc2787f932bd9010afc5d61c734ab6ecefa8`, candidate tree `53db367f6fea70a76c76fa58aabbb961044f5651`. The first `review start --consent=relay` was rejected by auto-review before process creation for missing consent/potential review-service source disclosure; no bypass occurred. On 2026-10-03 the user explicitly authorized review of commit `d6d9da0` in response to that exact question. Refreshed STATUS retained the same candidate identity; relay and the returned `--consent granted` invocation succeeded. Native review selected `review-reliability`, correction budget 200. The compiled reviewer inspected all seven immutable patches and reported no established candidate-caused reliability defect; it was prohibited from running commands/tests, so its conclusion does not add test execution evidence. `review/capture-result` returned the approved last-event closure with result hash `sha256:6999c703a1b723c3e49f39acf8c295698de80acdff144cc02f2a08ea4a3627b0`. The exact returned acknowledgement succeeded: consumed revision `sha256:4207364801620e21b6834bb0bd25d5210791945555b21a9248037f28f284a598`, authority `burned`. No source corrections; E1 backend review boundary now advances to `d6d9da0d75f08f89f62eb6fb277b817611c5c0f8`.
 
-Next: resolve that consent, then continue E2 delivery/status/safe retry and E3 UI/link privacy. Full backend `clean verify`, frontend checks, joint browser proof, provider/deployed delivery, and paid-subscription work remain pending. E1 alone does not send customer emails; release T2 remains reopened for the coordinated candidate.
+Engram tooling is unavailable in this runtime: context/search/full observation and proactive save could not run. Last successful full mirror was observation #840 from the previous turn, reconciled against this file and the runtime history. This turn's mirror and session summary are pending; local progress is preserved here.
+
+Next: delegate bounded E2 mapping/preparation, then its temporary-snapshot writer using the accepted design and TDD mode. E2 transport/status/safe retry and E3 UI/link privacy are still pending. Full backend `clean verify`, frontend checks, joint browser proof, provider/deployed delivery, and paid-subscription work remain pending. E1 alone does not send customer emails; release T2 remains reopened for the coordinated candidate.
 
 Engram recovery topic: `odd/repair-ready-email/tasks`; repository-relative locator: `odd/tasks/repair-ready-email.md`. Mirror must contain the full current document, not a completion summary.

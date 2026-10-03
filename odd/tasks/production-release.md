@@ -1,6 +1,6 @@
 # OrdenFix — plan único de salida a producción
 
-Fecha de referencia: 2026-10-02; evidencia actualizada el 2026-10-03. Estado: T1 cerrada; checks funcionales T2 completos, cierre pendiente; T3–T7 pendientes; producción no acreditada.
+Fecha de referencia: 2026-10-02; evidencia actualizada el 2026-10-03. Estado: T1 y T2 cerradas; T3–T7 pendientes; producción no acreditada.
 
 Este documento concentra el trabajo de salida de frontend y backend. Reutiliza las capacidades terminadas y sus actas; no declara aprobado un despliegue por tener pruebas locales verdes.
 
@@ -73,19 +73,38 @@ Los lectores usan `ordenfix.legal.public-document-read.*` y `ordenfix.legal.publ
   - Commit de unidad: `beed4301d6cb640ceb7d500eb8c5fe6272780cba`, `docs(release): unify production launch plan`; 279 adiciones + 49 eliminaciones = 328 líneas autoradas.
   - Disposición nativa: `passive`, motivo `non_executable_only`, `review_due=false`, sobre `fd92975..beed430`. No requiere revisores ni representa aprobación de las features heredadas.
   - Assessment inicial no evaluable por inventario/permisos; preflight y reintento con inventario canónico de `.atl/` excluido y permisos del índice temporal completaron la evaluación. Sin fallos documentales pendientes.
-- [ ] **T2 Cerrar la regresión local del candidato.**
+- [x] **T2 Cerrar la regresión local del candidato.**
   - Depende de T1. Ruta: verificadores delegados frontend y backend; preparación abarca más de cuatro archivos de runners/configuración/empaquetado. Padre conserva tracking, espejo y commits.
   - Candidatos de la corrida preservada: frontend `6f972d6389f016510f01c9b96fda159a3a065b84` y backend `f2141f60f2023405ae7ddec5987f13784dd2e76b`; copias de esos commits sin secretos, Node compatible y Java 21. Ese intento Docker usó imágenes locales, sin descargas/proveedores; no confundirlo con el build anónimo autorizado después.
   - Corrección autorizada y verificada desde frontend `5fd5a4a624f94922174f84772d121e30e38aa020`: `e2e/helpers.ts` agrega `tallerId: 1`, coherente con `defaultPerfil`; una adición + una eliminación, SHA-256 `2dcd74884dc39ddae4907cc58e212ee42a6b46fbacfcc4c3efee0eb99c4ffe44`. Writer/verificador delegado tras la preparación sobre cinco archivos y elección de cadena. Subject, role, expiración, firma simulada y assertions preservados; `pendingCharge` y las protecciones productivas intactos.
   - Checks de corrección observados: RED, los cuatro smokes originales fallan 4/4 antes del cambio; GREEN, esos mismos cuatro aprueban 4/4. Matriz completa: 167/167 aprobados, 95 escritorio y 18 por cada uno de los cuatro proyectos móviles, sin fallos, omisiones ni flaky. No fue necesario refactorizar; se conserva la evidencia fallida previa.
+  - Comandos ya ejecutados, registrados como evidencia; no se vuelve a ejecutar el harness en este cierre:
+
+    ```sh
+    /bin/sh /private/tmp/ordenfix-t2-fixture-b9DeIz/run-browser-stage.sh red   # exit 1, cuatro fallos
+    /bin/sh /private/tmp/ordenfix-t2-fixture-b9DeIz/run-browser-stage.sh green # exit 0, cuatro aprobados
+    /bin/sh /private/tmp/ordenfix-t2-fixture-b9DeIz/run-browser-stage.sh full  # exit 0, 167 aprobados
+    ```
+
+  - Subcomandos Playwright observados, con las mismas assertions:
+
+    ```sh
+    # RED y GREEN
+    npm run test:e2e -- --config /private/tmp/ordenfix-t2-fixture-b9DeIz/playwright.validation.config.ts e2e/mobile.spec.ts --grep 'smoke móvil: todos los formularios críticos'
+    # Matriz completa
+    npm run test:e2e -- --config /private/tmp/ordenfix-t2-fixture-b9DeIz/playwright.validation.config.ts
+    ```
   - Build autorizado: Dockerfile/bases exactos, cliente Docker sin credenciales ambientales, red interna y relay TLS local limitado a `repo.maven.apache.org:443`; acreditar offline configuración Maven pública/anónima antes de habilitar upstream. El relay limita host/puerto, no inspecciona path/headers TLS; no afirmar esa inspección. Settings de usuario inesperados bloquean la ejecución sin leerlos ni reutilizarlos. Smoke posterior por ID inmutable con PostgreSQL y probes en red interna; no acredita servicios remotos.
   - Aceptación: suites aplicables frontend/backend, empaquetado sin secretos e imagen/arranque V40 del candidato exacto; laboratorios aislados cuando corresponda.
   - Checks fallidos, omitidos o no disponibles se registran; no sumar reportes históricos como si fueran un integral fresco.
   - Separar integral backend, labs reales locales y build público: son tres evidencias distintas. Conservar reportes por comando/candidato antes de que otro runner los sobrescriba.
-  - TDD ON desde [charge-session-expiry.md](charge-session-expiry.md), runners Vitest/Playwright y Maven Surefire/Failsafe; verificación original sin cambio de comportamiento y corrección posterior del fixture con RED/GREEN observados. RDD ON global; el padre registra la disposición del nuevo commit. Recalcular el forecast con la evidencia de fixture/imagen antes de cada commit, sin comprimirla para alcanzar un umbral.
-  - Checks funcionales y limpieza completos: fixture corregido, matriz frontend, integral backend, JAR, labs e imagen/arranque aprobados localmente. T2 permanece unchecked hasta registrar commit y disposición nativa; esos resultados no aprueban staging, build público ni producción.
+  - TDD ON desde [charge-session-expiry.md](charge-session-expiry.md), línea 15, runners Vitest/Playwright y Maven Surefire/Failsafe; verificación original sin cambio de comportamiento y corrección posterior del fixture con RED/GREEN observados. RDD ON global; este cierre es tracking, sin nuevo ciclo RED/GREEN ni harness.
+  - Cierre observado el 2026-10-03: fixture corregido, matriz frontend, integral backend, JAR, labs e imagen/arranque aprobados localmente; evidencia, integridad y limpieza completas. Esos resultados no aprueban staging, build público ni producción.
   - Commit parcial de evidencia: `f2351bd96f888bf31229979f0a70e28f9ef39b36`, `docs(release): record isolated candidate verification`; 27 adiciones + 7 eliminaciones = 34 líneas autoradas. No modifica fuentes ni cierra la aceptación de T2.
   - Disposición nativa: `passive`, motivo `non_executable_only`, `review_due=false`, sobre `6f972d6..f2351bd`. No requiere revisores ni aprueba las features heredadas o la release.
+  - Unidad funcional: `3a07d400c34c1fd5c263f82d9b0a0ed922d59fb0`, `test(e2e): align mock JWT with workshop scope`; únicamente helper y tracker, 43 adiciones + 17 eliminaciones = 60 líneas autoradas (helper 2, tracker 58).
+  - Assessment nativo exacto `5fd5a4a..3a07d40`: riesgo `medium`, señal `executable_change` en `e2e/helpers.ts`; `review_due=false`, motivo `under_budget`. No corresponde consentimiento de revisión ahora, no corrió un reviewer ni existe aprobación concedida; el slice medio permanece pendiente con boundary `5fd5a4a`.
+  - Checks de este cierre documental: 14 enlaces locales y `git diff --check` aprobados; sin cambios de fuentes, tests, recursos o alcance de operación.
   - Evidencia local preservada: `/private/tmp/ordenfix-t2-frontend-RbUT0I` y `/private/tmp/ordenfix-t2-backend-proof.uzUNUd`. No mezclar fallos de configuración temporal con defectos del candidato; el integral backend y los labs conservan reportes separados.
   - Frontend inicial observado: 1.107 Vitest en 114 archivos y 43 tooling aprobados; lint, TypeScript y build técnico con exit 0. Bundle principal 665,81 kB / 191,61 gzip; advertencia de tamaño, no fallo. Gates públicos omitidos automáticamente; no se acredita build público.
   - Diagnóstico histórico Playwright simulado: 163 aprobados / 4 fallidos de 167, sin skips/flaky; desktop 95/95, cada uno de los cuatro proyectos móviles 17/18. Falló el smoke `e2e/mobile.spec.ts:378`: JWT de `e2e/helpers.ts:8` sin `tallerId`; `pendingCharge.ts:29–31` rechazó ese alcance y Cobros bloqueó correctamente el CTA. En esa corrida no se corrigió el fixture ni se debilitó la protección; el resultado posterior está registrado arriba.
@@ -170,7 +189,7 @@ npm run build:public
 - RDD ON, fuente global, verificado con `gentle-ai review mode status`. Las revisiones previas diferidas no pasan a aprobadas. El candidato de T1 es su commit documental desde `fd92975`, no la rama funcional acumulada.
 - Rama documental: `codex/production-release-plan`, creada desde `fd92975`; el backend no cambia de rama.
 - Delivery: `ask-on-risk`, `chain_strategy=feature-branch-chain`, confirmada explícitamente. Forecast T1: 300–360 líneas documentales autoradas. La selección ordena futuras revisiones y no autoriza push, PRs, merge ni integración a `main`.
-- Forecast actualizado antes del commit: 60 líneas autoradas pendientes (fixture y evidencia) más 10–25 estimadas para su registro de cierre; acumulado previsto 456–471 desde las 386 comprometidas. La estrategia de cadena ya está resuelta; contar los commits observados sin reducir evidencia para evitar el gate. Ejecución local autorizada dentro del alcance indicado, sin ampliar destinos ni credenciales.
+- Forecast histórico previo a la unidad funcional: 60 líneas autoradas pendientes (fixture y evidencia) más 10–25 estimadas para su registro de cierre. La unidad observada suma 60 y lleva el acumulado a 446; el registro de cierre agrega 39 líneas, por lo que la feature totaliza 485. La identidad del commit de tracking se conserva en Engram después de crearlo. La estrategia de cadena ya está resuelta; contar los commits observados sin reducir evidencia para evitar el gate.
 
 ### Bloques de la cadena prevista
 
@@ -179,7 +198,7 @@ Todavía no existen PRs ni ramas hijas de revisión. Materializarlas requiere la
 | Bloque | Límites locales | Contenido y presupuesto autorado | Estado |
 | --- | --- | --- | --- |
 | 1 | `fd92975..6f972d6` | T1 documental, 344 líneas | Verificado, disposición pasiva |
-| 2 | `6f972d6..cierre-T2` | Evidencia local, fixture y Docker; 42 líneas comprometidas más trabajo previsto | En curso, extremo final pendiente |
+| 2 | `6f972d6..3a07d40` + metadata de cierre posterior | Evidencia local, fixture y Docker; 102 líneas de unidades previas + 39 de tracking = 141 | T2 local completa; slice medio `under_budget`, sin aprobación; commit de metadata conservado en Engram |
 | Siguientes | Desde el cierre anterior | T3–T7 por unidades coherentes y checks propios | Backlog, sin ejecución autorizada |
 
 Dependencia prevista: baseline funcional `fd92975` → bloque 1 → bloque 2 → bloques posteriores. Una futura PR tracker permanecerá draft/no-merge hasta integrar la cadena; el bloque 1 apunta al tracker y cada bloque posterior a su padre inmediato. El código funcional heredado necesita sus propios límites y gates antes de integrar a `main`; esta cadena documental no lo aprueba.
@@ -191,15 +210,17 @@ Dependencia prevista: baseline funcional `fd92975` → bloque 1 → bloque 2 →
 
 T1 cerrada: plan canónico, guía corregida y tres puntos de entrada actualizados. Los 51 enlaces/anchors locales y el whitespace pasaron; archivo y espejo se leyeron completos. El commit documental tuvo disposición pasiva; las revisiones funcionales previas siguen diferidas.
 
-Al 2026-10-03, los checks funcionales de T2 están completos: integral backend, empaquetado, smoke JAR, tres labs reales locales, corrección del fixture con RED/GREEN y matriz simulada 167/167, suites/estáticos/build técnico e imagen/arranque local. Evidencia, integridad y limpieza preservadas. T2 sigue abierta hasta registrar el commit y su disposición nativa; no se anticipan resultados de revisión. El prototipo con precio fijo de T6 no se corrigió y el build público sigue sin acreditarse; no promover el candidato.
+T2 cerrada el 2026-10-03: checks funcionales, evidencia, integridad y limpieza acreditados; unidad `3a07d40` registrada con assessment medio `under_budget`, sin revisión concedida. El prototipo con precio fijo de T6 no se corrigió y el build público sigue sin acreditarse; no promover el candidato.
+
+Siguiente paso: preparar T3 y resolver su entorno, audiencia y alcance operativo. Esta indicación no autoriza automáticamente su ejecución, acceso remoto ni despliegue; T3–T7 conservan sus checkboxes pendientes.
 
 La política comercial pendiente debe resolverse antes de cambiar capacidades o habilitar contrataciones. No se ejecutaron operaciones T3–T7 ni se declara build público, staging o producción aprobados. La evidencia local tiene un commit documental pasivo; las revisiones funcionales previas siguen diferidas.
 
 Conteo de cierre de tracking: 11 adiciones + 5 eliminaciones = 16 líneas; running total T1: 344 líneas autoradas. La unidad inicial conserva su identidad y evidencia aunque este registro se complete en un commit documental posterior.
 
-Conteo T2 comprometido: 34 líneas de la unidad de evidencia, más 8 de su registro de commit/disposición; running acumulado: 386 líneas autoradas antes de la corrección y nueva prueba Docker. Cadena de feature elegida, sin PRs; recalcular por commits observados.
+Conteo T2 comprometido: 42 líneas previas + 60 de la unidad funcional = 102. Registro de cierre: 30 adiciones + 9 eliminaciones = 39 líneas; T2 suma 141 y la feature 485 líneas autoradas por unidades. La identidad y evaluación del commit de este registro se preservan en Engram después de observarlas, sin inventar una identidad autorreferencial. Cadena `feature-branch-chain` elegida, sin push ni PRs.
 
-El espejo Engram usa `odd/production-release/tasks` y el locator `odd/tasks/production-release.md`; archivo y espejo se verifican por separado. El cierre documental no modifica el estado pendiente de T2–T7 ni convierte revisiones diferidas en aprobaciones.
+El espejo Engram usa `odd/production-release/tasks` y el locator `odd/tasks/production-release.md`; archivo y espejo se verifican por separado. El cierre documental no modifica el estado pendiente de T3–T7 ni convierte revisiones diferidas o slices bajo presupuesto en aprobaciones.
 
 ## Referencias principales
 

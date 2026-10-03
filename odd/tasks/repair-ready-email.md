@@ -1,6 +1,6 @@
 # Send a safe customer email when a repair is completed
 
-Status: E1 capture implemented, locally verified, and native review approved/acknowledged. A newly verified V41 guarded-runtime compatibility gap blocks E2; E3 and actual delivery are pending.
+Status: E1 capture implemented, locally verified, and native review approved/acknowledged. E1-C has a compiled regression test but no behavioral RED/fix because the local Docker engine is unavailable. The V41 compatibility gap blocks E2; E3 and actual delivery are pending.
 
 ## Outcome and authorization
 
@@ -30,9 +30,9 @@ User approval: “Dale, eso ... tenemos el link del presupuesto ... vamos a hace
 | Backend runners | Installed Java 21/Maven wrapper; offline Surefire and PostgreSQL/Failsafe in secret-free temporary snapshots |
 | Frontend runners | Installed Vitest/Node tooling and Playwright; lint, typecheck, technical build |
 | Native RDD | ON, deciding source global; verified by `gentle-ai review mode status` on 2026-10-03 |
-| Review boundaries | Frontend `ffdfb7142ef580797d4109995da6c227eb09d4b2` after passive E1 review closure; backend `d6d9da0d75f08f89f62eb6fb277b817611c5c0f8` after acknowledged E1 approval; future candidates need their own assessment/consent |
+| Review boundaries | Frontend `d6ecaa12a987f49b262f262253c11e375087ad7a` after passive compatibility preparation; backend `d6d9da0d75f08f89f62eb6fb277b817611c5c0f8` after acknowledged E1 approval; future candidates need their own assessment/consent |
 | Delivery | `ask-on-risk`; reuse the user's cached `feature-branch-chain` choice, no push/PR authorization |
-| Forecast | Revised 2,000–2,800 authored additions + deletions including V41 compatibility, E2 protocol/transport tests and E3; generated outputs excluded |
+| Forecast | Revised 2,200–3,200 authored additions + deletions including observed preparation/evidence units, V41 compatibility, E2 protocol/transport tests and E3; generated outputs excluded |
 
 The line budget is a planning heuristic, not a code-golf target. E2 may naturally exceed 400 because persistence/transport certainty need cohesive tests. Make one honest slicing pass; do not omit tests or compress readable code. No PR slices are materialized yet; record exact committed boundaries before any authorized PR work.
 
@@ -56,7 +56,7 @@ Preserve both untracked `.atl/` directories and the pre-existing backend change 
   - Bounded allowlist to validate: existing `LegalV29AcceptanceSchemaVerifier`, `LegalV38ProfileErasureSchema`, `LegalV37OperationalDeletionSchema`, `LegalPrivatePhotoSchema`; narrowly scoped new `LegalV41RepairReadyEmailSchema` and V41 PostgreSQL compatibility tests, plus bounded operations documentation. Return any required expansion before editing outside this scope.
   - Checks: TDD ON (same source/runner above): observe real PostgreSQL V41 compatibility consumer RED before production edits; migrated AND pg_dump/pg_restore V41 GREEN; historical V40 plus checksum/history/FK/unique/check/catalog mutation rejection, unknown V42 and bounded sentinel. Focused guard/consumer regression, E1 capture regression, full compilation, exact allowlist/hashes/whitespace and cleanup. Full coordinated feature backend/frontend/browser gate remains pending after E3.
   - Runtime boundary: only disposable cached local PostgreSQL with synthetic configuration; no real SMTP, shared database, private settings, downloads or provider calls. Rollback this accreditation unit/tests/docs without changing the V41 migration, E1 capture, or existing legal data/permissions.
-  - Forecast: 350–650 authored lines; preserve readable tests even if the cohesive correction exceeds the advisory budget. Implementation/RED/GREEN/commit and native outcome are not yet observed.
+  - Forecast: 350–650 authored lines; preserve readable tests even if the cohesive correction exceeds the advisory budget. Prepared a 120-line regression IT in a separate snapshot and observed full offline compilation; behavioral RED/GREEN, production edits, source commit and native outcome remain unobserved. Do not treat setup failures as RED or apply the test alone as a completed work unit.
 - [ ] **E2 Deliver and recover without blind resend.**
   - Route: delegated writer; multiple non-trivial transport/persistence/API/test files and research/preparation boundaries.
   - Scope: text/HTML template containing the existing public link, dedicated SMTP result contract, independent worker/claim/lease/ACK, tenant-scoped GET status and safe POST retry, operational docs and tests.
@@ -82,8 +82,9 @@ Read-only mapping verified the existing budget/tracking link, both transactional
 | E1 capture | Backend `f2141f60f2023405ae7ddec5987f13784dd2e76b..d6d9da0d75f08f89f62eb6fb277b817611c5c0f8` | `feat(notifications): capture completed repair email events`; 7 files, 406 authored; native `medium`, `slice_budget_reached`, user consent granted; native reliability review approved and exact closure acknowledged |
 | E1 evidence | Frontend `2c8473732b0b69b2be2caa7d9ac55c5ccd1f94b6..c051ca5221f425cc49c86b3839791fcbe81af24c` | 40 additions + 6 deletions = 46 authored; whitespace and scope checks passed; native `passive`, `non_executable_only`, `review_due=false` |
 | E1 review closure | Frontend `c051ca5221f425cc49c86b3839791fcbe81af24c..ffdfb7142ef580797d4109995da6c227eb09d4b2` | 12 additions + 9 deletions = 21 authored; whitespace/scope passed, native `passive`, `non_executable_only`, `review_due=false` |
+| E1-C preparation | Frontend `ffdfb7142ef580797d4109995da6c227eb09d4b2..d6ecaa12a987f49b262f262253c11e375087ad7a` | 16 additions + 6 deletions = 22 authored; whitespace/scope passed, native `passive`, `non_executable_only`, `review_due=false` |
 
-Running feature count through the E1 review closure: 573 authored lines; this new correction-task/preparation update is not yet committed. Delivery retains the cached `feature-branch-chain` choice; no push/PR/merge. Planned slices are the preparation unit, cohesive E1 capture, E2 delivery/API, and E3 UI/privacy; actual E2/E3 boundaries remain unset. Any future E1 PR would need explicit acceptance of its 406-line cohesive exception after this slicing pass; do not remove coverage to force the number under 400.
+Running feature count through E1-C preparation: 595 authored lines, excluding the next preparation-outcome evidence update and uncommitted temporary test. Delivery retains the cached `feature-branch-chain` choice; no push/PR/merge. Planned slices are the preparation unit, cohesive E1 capture, E2 delivery/API, and E3 UI/privacy; actual E2/E3 boundaries remain unset. Any future E1 PR would need explicit acceptance of its 406-line cohesive exception after this slicing pass; do not remove coverage to force the number under 400.
 
 ### E1 verification (2026-10-03)
 
@@ -103,6 +104,18 @@ Final count is **152 distinct tests**, not the sum of intermediate reruns. The p
 
 Preserved corrected failures: the first unit observer counted Spring's `JdbcTemplate` initialization (3 tests, 1 failure); clearing setup invocations before the operation fixed the observer, and final 5 unit tests passed within the 125. Proof-helper handling of expected `git diff --no-index` exit 1 and archive modes was corrected without production changes. Initial native assessment was unassessable until the canonical unrelated `.atl/` exclusion was declared; it was not treated as low risk.
 
+### E1-C preparation and current prerequisite (2026-10-03)
+
+Snapshot `/private/tmp/ordenfix-ready-email-e1c.5QpiDI`, backend baseline `d6d9da0d75f08f89f62eb6fb277b817611c5c0f8`. All baseline source bytes and original backend/pre-existing doc/`.atl` hashes are preserved. Only new temporary `src/test/java/com/leonardorozza/mvgrreparacionesbackend/legal/manifest/persistence/LegalV41CompatibilityIT.java` exists (120 lines, SHA256 `434594347a546be1769b89a6fa46cd1d17e12f4d396f2cc51221aa45e8ace3a7`). It prepares actual V41 migration/pg_dump/pg_restore, historical V40 and ten guarded consumers, including the real export snapshot reader. It has not executed.
+
+Parent inspected the prepared test/hash and real compile log/exit: `/private/tmp/ordenfix-ready-email-e1c.5QpiDI/run-maven.sh -DskipTests test-compile` passed, 599 production / 472 test sources, exit 0, 24.821 seconds. Installed Maven 3.9.11 and Java 21.0.10, synthetic settings/env-i and offline resolution. `commands.json`, `verification-summary.json`, `red-compile.stdout`, `red-compile.exit`, `original-preservation.json`, `setup-failure.txt` and `cleanup-final.txt` retain evidence.
+
+**No PostgreSQL test, migration, behavioral RED/GREEN, or production edit occurred.** The explicit local Unix socket `/Users/leonardorozza/.docker/run/docker.sock` remains absent. Parent located installed Docker Desktop through `/usr/local/bin/docker` pointing into `/Volumes/DiscoExtern/Docker.app` and dispatched only that existing app (`open` exit 0), but engine readiness did not follow. Native UI inspection timed out; no UI settings, agreements or permission prompts were accepted. Do not discover/use ambient remote Docker contexts, SSH or credentials to bypass this prerequisite.
+
+Preserved preparation failures, not RED: Docker inventory commands failed (an initial pipeline without `pipefail` masked the exit; empty files do NOT establish a successful inventory/cleanup comparison); the wrapper compile stalled at a confirmed Java version probe and was stopped only by scoped own-process SIGTERM, exit 143. The temporary launcher now uses the verified installed Maven binary directly, no wrapper bootstrap. No download was observed, but the initial pre-output phase was not fully audited; do not claim a comprehensive no-network proof for that interrupted setup. No own PostgreSQL/container resources or SMTP test transport were created/invoked. Installed local PostgreSQL/pg_dump/pg_restore 16.15 were discovered as an alternative, but no alternate harness or cluster was started; canonical fixture parity would need a scoped decision before using it.
+
+Resume once the explicit Docker engine is ready: establish a real successful resource inventory, run the actual compiled integration test to observe behavioral RED, then continue the bounded E1-C writer and measured fix. Do not modify production to get ahead of missing RED or substitute H2. E2 remains deferred.
+
 ### Native disposition and next step
 
 Native assessment examined only the committed E1 boundary: 7 paths / 406 lines, `risk=medium`, `review_due=true`, `review_due_reason=slice_budget_reached`. The exact returned preflight STATUS ran, then excluded only `.atl/.skill-registry.cache.json` and `.atl/skill-registry.md` using its separately verified backend inventory `sha256:4425697ab74255760bb7c3b87dc13642263a59d4b65cc516abaa19765c94da71`.
@@ -111,6 +124,6 @@ Binding: target `sha256:b21b64b61f7784b83e2c110506c08bc9785fda8283d8b70da1328574
 
 Engram tooling is unavailable in this runtime: context/search/full observation and proactive save could not run. Last successful full mirror was observation #840 from the previous turn, reconciled against this file and the runtime history. This turn's mirror and session summary are pending; local progress is preserved here.
 
-Next: delegated E1-C temporary-snapshot writer reproduces and fixes the newly mapped V41 compatibility gap before introducing V42/E2. Read-only mapping finished; no E1-C test failure or fix is observed yet. E2 transport/status/safe retry and E3 UI/link privacy are still pending. Full backend `clean verify`, frontend checks, joint browser proof, provider/deployed delivery, and paid-subscription work remain pending. E1 alone does not send customer emails; release T2 remains reopened for the coordinated candidate.
+Next: ask the user to make the local Docker engine available, then resume the delegated E1-C writer from its preserved snapshot/compiled test. The V41 incompatibility is verified from source, not yet reproduced as a behavioral test failure or fixed; do not introduce V42/E2 first. E2 transport/status/safe retry and E3 UI/link privacy are still pending. Full backend `clean verify`, frontend checks, joint browser proof, provider/deployed delivery, and paid-subscription work remain pending. E1 alone does not send customer emails; release T2 remains reopened for the coordinated candidate.
 
 Engram recovery topic: `odd/repair-ready-email/tasks`; repository-relative locator: `odd/tasks/repair-ready-email.md`. Mirror must contain the full current document, not a completion summary.

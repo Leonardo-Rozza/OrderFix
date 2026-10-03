@@ -1,6 +1,6 @@
 # OrdenFix — plan único de salida a producción
 
-Fecha de referencia: 2026-10-02; evidencia actualizada el 2026-10-03. Estado: T1 y T2 cerradas; checks funcionales T6-A1 completos, commit/disposición pendientes; T3–T7 pendientes; producción no acreditada.
+Fecha de referencia: 2026-10-02; evidencia actualizada el 2026-10-03. Estado: T1 y T2 cerradas; T6-A1 local cerrada y revisada; T3–T7 pendientes; producción no acreditada.
 
 Este documento concentra el trabajo de salida de frontend y backend. Reutiliza las capacidades terminadas y sus actas; no declara aprobado un despliegue por tener pruebas locales verdes.
 
@@ -151,8 +151,8 @@ Los lectores usan `ordenfix.legal.public-document-read.*` y `ordenfix.legal.publ
   - La activación pública exige el release inmutable realmente aprobado y repetir registro y checks públicos contra esa publicación y sus hashes; una prueba sintética previa no reemplaza esta evidencia.
   - Fixtures y borradores nunca reemplazan publicación real; operación editorial remota requiere autorización específica.
   - Hallazgo histórico T2: el build copiaba `public/OrdenFix project naming/OrdenFix.dc.html`; el diagnóstico emitía `PRO_PRICE_LITERAL_FOUND` (líneas 299/611). La prueba fallida original se conserva. T6-A1 excluye ahora los tres assets mediante archivo intacto fuera de `public`, sin retocar el precio de muestra ni debilitar el guard; no reemplaza los gates completos de publicación/configuración.
-  - [ ] **T6-A1 Archivar el prototipo fuera del artefacto desplegable.** Subunidad local autorizada el 2026-10-03; no cierra T6 ni habilita staging/publicación.
-    - Ruta: writer/verificador delegado; preparación sobre cuatro o más archivos de assets, configuración y guard/tests. No se modifican componentes React ni el validador público.
+  - [x] **T6-A1 Archivar el prototipo fuera del artefacto desplegable.** Subunidad local autorizada el 2026-10-03; no cierra T6 ni habilita staging/publicación.
+    - Ruta: writer/verificador delegado; preparación sobre cuatro o más archivos de assets, configuración y guard/tests. Padre: cierre de tracking inline mecánico de este único archivo, sin nuevas decisiones de diseño. No se modifican componentes React ni el validador público.
     - Diseño aceptado: trasladar `OrdenFix.dc.html`, `support.js` y `.thumbnail` byte a byte a `docs/prototypes/ordenfix/`, conservando nombres y relación HTML/helper. No borrar materiales ni retocar precios de muestra.
     - Impacto aceptado: las URLs públicas directas del prototipo dejan de publicarse. No se encontraron consumidores en la app; no se acreditan bookmarks externos. Actas históricas y resultados fallidos previos se preservan.
     - Secuencia observada desde `77672c235dcea2725557ed0bff52e71417d8daaa`: regresión nueva en `scripts/check-public-release.test.mjs:939`, 39 adiciones + 1 eliminación = 40 líneas fuente; RED antes de cualquier traslado, archivo de los tres assets y GREEN con el mismo test. No se modificaron app, Vite, package, guard, validador previo ni E2E.
@@ -169,9 +169,11 @@ Los lectores usan `ordenfix.legal.public-document-read.*` y `ordenfix.legal.publ
     - Prueba preservada: `/private/tmp/ordenfix-t6-a1-afFTeV/results/t6-a1-summary.json` y reportes separados por invocación. Los 590 archivos del snapshot conservan identidad, con sólo dos overrides declarados (test y metadata del padre); 31 PNG generados preservados aparte/restaurados en el proof y puerto 15175 sin listener. Material y evidencia históricos intactos; no regenerados en el original.
     - Backend/Maven/Docker/labs reales N/A: sólo cambia distribución frontend. Backend `f2141f6` y su diff documental previo (9 adiciones + 2 eliminaciones), ambas `.atl/` y recursos ajenos preservados. Build público integral, staging y publicación siguen sin acreditarse; no se ejecutó reset de datos ni acceso a paneles.
     - Rollback: devolver únicamente esos tres assets a su ubicación previa y retirar esta regresión/registro; reaparece el bloqueo conocido. No revertir el fixture JWT ni otros cambios de la release.
-    - Forecast inicial: 90–180 líneas autoradas adicionales desde las 485 comprometidas. Diff observado pendiente: test 40 + tracker 41 = 81 líneas autoradas, antes del commit y disposición; recalcular si el padre agrega metadata. Los renames byte idénticos aportan identidad, no contenido nuevo. El umbral orientativo de 400 no justifica comprimir evidencia.
-    - RDD ON global; rango medio pendiente desde `5fd5a4a` (85 líneas netas hasta `77672c2`, `under_budget`). Evaluar cada nuevo commit con esa frontera y seguir la transición nativa si corresponde; no existe aprobación concedida.
-    - Checks funcionales completos; commit, conteo final y disposición nativa pendientes del padre. T6-A1 permanece unchecked; tampoco se cierran T6 ni las tareas de staging/publicación.
+    - Unidad registrada: `e68b4dca39a7a2c931b21b81d6aa9771560fcede`, `fix(build): archive unpublished design prototype`; 71 adiciones + 10 eliminaciones = 81 líneas autoradas (test 40, tracker 41) y tres renames Git `R100`. Running de la feature: 566 líneas por unidades antes de este registro. Forecast inicial 90–180; no se comprimió evidencia ni se borró contenido.
+    - RDD ON global. Assessment exacto `5fd5a4a..e68b4dc`: `medium`, 9 paths y 5.278 líneas según la proyección nativa, `review_due=true`, motivo `slice_budget_reached`. Git reconoce los tres traslados intactos como `R100`; ese conteo autorado no reemplaza el presupuesto nativo ni permite eludir el gate. El rango incluye el fixture JWT pendiente y esta unidad.
+    - Consentimiento explícito concedido y revisión nativa completada: lineage `review-e074d162a6d59ef3`, candidato `sha256:b9145b82c5562b12cad6d38450cb966a11149547ec842d7218f53441b7c16920`, lente `review-reliability`, findings `[]`. Reviewer Codex compilado inspeccionó patches inmutables y renames; los reportes de ejecución fueron evidencia documental, no una nueva corrida de tests.
+    - Resultado `sha256:71e0a5c2b2c81ed44e3a845cf0fbdf30f30a53a6386b2c09ea4e33dcd2b5022a`; estado nativo `approved`. Receipt exacto reconocido, revisión consumida `sha256:0b8ad4d927684b816ae90a2fd2c0f451646b932fdc3548eee038364b21376a40`, authority `burned`. Assessment posterior: `consumed=true`, `review_due=false`, `already_reviewed`; nueva frontera `e68b4dc`. No se necesitaron correcciones ni roles adicionales.
+    - T6-A1 cerrada localmente el 2026-10-03: checks, commit y disposición nativa observados. Este registro posterior es documental, sin cambio runtime ni nuevo RED/GREEN. T6 y staging/publicación continúan pendientes; la revisión sólo cubre `5fd5a4a..e68b4dc`, no el backend ni las features funcionales heredadas.
 
 - [ ] **T7 Release conjunta y apertura.**
   - Depende de T1–T6. Ruta prevista: coordinación del titular y ejecución acotada autorizada.
@@ -220,8 +222,8 @@ Todavía no existen PRs ni ramas hijas de revisión. Materializarlas requiere la
 | Bloque | Límites locales | Contenido y presupuesto autorado | Estado |
 | --- | --- | --- | --- |
 | 1 | `fd92975..6f972d6` | T1 documental, 344 líneas | Verificado, disposición pasiva |
-| 2 | `6f972d6..77672c2` | Evidencia local, fixture y Docker; 141 líneas por unidades, 95 de diff neto | T2 local completa; slice medio `under_budget`, sin aprobación |
-| 3 (T6-A1) | Desde `77672c2` al futuro commit observado | Archivo intacto, regresión y prueba; test 40 + tracker 41 = 81 líneas pendientes | Checks locales completos; commit/disposición pendientes, sin PR ni extremo inventado |
+| 2 | `6f972d6..77672c2` | Evidencia local, fixture y Docker; 141 líneas por unidades, 95 de diff neto | T2 local completa; fixture del rango pendiente revisado con el bloque 3 |
+| 3 (T6-A1) | `77672c2..e68b4dc` + registro documental posterior | Archivo intacto, regresión y prueba; 81 líneas de la unidad funcional | T6-A1 local cerrada; review nativo aprobado/reconocido, sin PR |
 | Siguientes | Desde el cierre anterior | T3–T7 por unidades coherentes y checks propios | Backlog, sin ejecución autorizada |
 
 Dependencia prevista: baseline funcional `fd92975` → bloque 1 → bloque 2 → bloques posteriores. Una futura PR tracker permanecerá draft/no-merge hasta integrar la cadena; el bloque 1 apunta al tracker y cada bloque posterior a su padre inmediato. El código funcional heredado necesita sus propios límites y gates antes de integrar a `main`; esta cadena documental no lo aprueba.
@@ -233,15 +235,17 @@ Dependencia prevista: baseline funcional `fd92975` → bloque 1 → bloque 2 →
 
 T1 cerrada: plan canónico, guía corregida y tres puntos de entrada actualizados. Los 51 enlaces/anchors locales y el whitespace pasaron; archivo y espejo se leyeron completos. El commit documental tuvo disposición pasiva; las revisiones funcionales previas siguen diferidas.
 
-T2 cerrada el 2026-10-03: checks funcionales, evidencia, integridad y limpieza acreditados; unidad `3a07d40` registrada con assessment medio `under_budget`, sin revisión concedida. El bloqueo histórico del prototipo tiene ahora solución local verificada en T6-A1; el build público sigue sin acreditarse. No promover el candidato.
+T2 cerrada el 2026-10-03: checks funcionales, evidencia, integridad y limpieza acreditados; unidad `3a07d40` registrada inicialmente con assessment medio `under_budget`; su fixture quedó luego cubierto por la revisión consolidada `5fd5a4a..e68b4dc`, sin extenderla al código backend. El bloqueo histórico del prototipo tiene ahora solución local verificada en T6-A1; el build público sigue sin acreditarse. No promover el candidato.
 
-T6-A1 tiene archivo intacto, RED/GREEN, suites/estáticos, diagnóstico limpio de artefactos y Playwright 167/167 verificados; queda registrar commit y disposición nativa. T3 espera enlaces de proyectos y autorización de acceso. El titular informa datos ficticios y reset posible si hiciera falta; no se verificó inventario remoto ni se autoriza borrado por defecto. T6-A1 y T3–T7 conservan sus checkboxes pendientes.
+T6-A1 tiene archivo intacto, RED/GREEN, suites/estáticos, diagnóstico limpio de artefactos y Playwright 167/167 verificados, en commit `e68b4dc`. La revisión consolidada fue aprobada sin hallazgos y su receipt reconocido; la subtarea local queda cerrada. T3 espera enlaces de proyectos y autorización de acceso. El titular informa datos ficticios y reset posible si hiciera falta; no se verificó inventario remoto ni se autoriza borrado por defecto. T3–T7 conservan sus checkboxes pendientes; no se declara T6 completa.
 
-La política comercial pendiente debe resolverse antes de cambiar capacidades o habilitar contrataciones. No se ejecutaron operaciones externas T3–T7; sólo la subunidad local T6-A1 autorizada. No se declara build público, staging o producción aprobados, ni se inspeccionaron sesiones/credenciales ambientales. Las revisiones funcionales previas siguen diferidas; no se inventa una disposición para la nueva unidad.
+La política comercial pendiente debe resolverse antes de cambiar capacidades o habilitar contrataciones. No se ejecutaron operaciones externas T3–T7; sólo la subunidad local T6-A1 autorizada. No se declara build público, staging o producción aprobados, ni se inspeccionaron sesiones/credenciales ambientales. Las revisiones de features heredadas fuera de `5fd5a4a..e68b4dc` siguen diferidas; la aprobación del rango local no acredita una release pública.
 
 Conteo de cierre de tracking: 11 adiciones + 5 eliminaciones = 16 líneas; running total T1: 344 líneas autoradas. La unidad inicial conserva su identidad y evidencia aunque este registro se complete en un commit documental posterior.
 
 Conteo T2 comprometido: 42 líneas previas + 60 de la unidad funcional = 102. Registro de cierre: 30 adiciones + 9 eliminaciones = 39 líneas; T2 suma 141 y la feature 485 líneas autoradas por unidades. La identidad y evaluación del commit de este registro se preservan en Engram después de observarlas, sin inventar una identidad autorreferencial. Cadena `feature-branch-chain` elegida, sin push ni PRs.
+
+Registro de cierre T6-A1: 15 adiciones + 11 eliminaciones = 26 líneas documentales; subunidad total 107 y feature acumulada 592 por unidades. El commit de este tracking y su assessment se conservan en Engram después de observarlos; no se inventa una identidad autorreferencial.
 
 El espejo Engram usa `odd/production-release/tasks` y el locator `odd/tasks/production-release.md`; archivo y espejo se verifican por separado. El cierre documental no modifica el estado pendiente de T3–T7 ni convierte revisiones diferidas o slices bajo presupuesto en aprobaciones.
 

@@ -1,6 +1,6 @@
 # Build safe account verification and password-reset links
 
-Status: approved design; implementation/checks pending. Engram mirror pending/unavailable.
+Status: A1 implemented and verified with 268 isolated passing unit tests. Native medium slice remains under budget, not reviewed/approved. Deployed/inbox validation and Engram mirror remain pending.
 
 ## Outcome and authorization
 
@@ -31,17 +31,28 @@ Use one pure builder for existing verification/reset emails. Current APP_PUBLIC_
 
 ## Task
 
-- [ ] **A1 Correct account links with preserved email semantics.**
+- [x] **A1 Correct account links with preserved email semantics.**
   - Route: delegated writer. Mapping/preparation covered 4+ files; two non-trivial services, shared builder and tests require delegation. Parent owns tracker, frozen patch transfer, commits and native disposition.
   - Acceptance: canonical HTTPS/local links with/without final slash; reject unsafe/malformed origins and empty/unsafe tokens; same link in text/HTML; invalid configuration sends nothing, logs no secrets, preserves generic completion/token transaction; disabled mail remains disabled.
   - TDD: observe service-level assertion RED before production edits (not setup/compilation failure), focused GREEN then refactor. Preserve escaping, issuance, commit/rollback and SMTP failure coverage.
   - Checks: new builder tests, AccountVerificationNotifierTest, CuentaResetSchedulingTest, CuentaVerificationSchedulingTest, AccountVerificationTokenIssuerTest, AccountEmailTemplateTest, SmtpEmailSenderTest, EmailConfigurationTest, RecoveryQuarantineEnvironmentPostProcessorTest. Offline full source/test compilation, allowlist/hash integrity and whitespace checks.
-  - Runtime boundary: synthetic unit observers/transaction callbacks only; no application context/network/server/DB. Physical transaction, backend integration, browser and deployed checks remain pending, not waived.
+  - Runtime boundary: synthetic unit observers/transaction callbacks and existing isolated in-memory ApplicationContextRunner configuration tests only; no Boot/application startup, scheduling, network, server or DB. Physical transaction, backend integration, browser and deployed checks remain pending, not waived.
   - Rollback: remove builder/paired tests/docs and restore only the two account-link construction paths, preserving all prior release/email changes.
-  - Evidence: pending. Work-unit commit: pending. Native outcome: pending.
+  - RED evidence: new public-only snapshot /private/tmp/ordenfix-account-email-links-a1.H1N0yN; production unchanged; run-maven.sh -Dtest=AccountVerificationNotifierTest,CuentaResetSchedulingTest test returned exit1, 61 cases / 44 assertion failures / 0 errors or skips. Full 602 production + 474 test sources compiled. RED log SHA256 46735e60c93f55dea24be539768b7c68e0b1b58f3408cbe5a34855ef2cb6154a; parent read back report/hash. GREEN and source commit observed; native review deferred by the exact under-budget assessment (not an approval).
+
+## Verified outcome
+
+- Shared AccountEmailLinks is used by both existing account-email paths. HTTPS or exact HTTP loopback only; canonical routes despite a final slash; invalid origins/tokens produce no mail or leaked values. Reset preserves its generic result/token transaction without registering an invalid callback. Verification retains best-effort failure diagnostics/no retry. Independent HTML escaping and disabled SMTP remain covered.
+- Source work-unit commit: f87997f77529d00230e6cda4366733fc6375151d; seven files, 228 additions + 8 deletions = 236 authored lines. Parent verified all 1,182 public candidate files and all seven committed blobs against the tested snapshot; six unrelated preserved paths remain byte-identical.
+- Focused GREEN: 124 unique cases / three classes, exit0. Final regression: 268 unique cases / twelve classes, zero failures/errors/skips, exit0; repeated runs are not added together. Full offline compilation: 603 production + 475 test sources, exit0. Existing mapper warnings remain unchanged; whitespace/allowlist checks passed.
+- Final runner: /private/tmp/ordenfix-account-email-links-a1.H1N0yN/run-maven.sh -Dtest=AccountEmailLinksTest,AccountVerificationNotifierTest,CuentaResetSchedulingTest,CuentaVerificationSchedulingTest,AccountVerificationTokenIssuerTest,AccountEmailTemplateTest,SmtpEmailSenderTest,EmailConfigurationTest,RecoveryQuarantineEnvironmentPostProcessorTest,RepairReadyEmailTemplateTest,SmtpRepairReadyEmailTransportTest,RepairReadyEmailTransportConfigurationTest test
+- Compile runner: same new snapshot run-maven.sh -DskipTests test-compile. Java21/Maven3.9.11/offline env-i, synthetic settings; configuration tests use only the two authorized in-memory contexts.
+- Frozen proof root: /private/tmp/ordenfix-account-email-links-a1.H1N0yN/proof. Patch SHA256 9c23ca04421bbb3a89858299774cf0c48a6d6c7e2408cabb101a03466643620e; full source manifest SHA256 5fffe8a44f323f9dd1efa918d2821bdd7f6b96f13e9d0c91e5b54ca79550e238; allowlist manifest SHA256 0736754cb980a3bf19bf4ceb14ae4a5eda30ac1e202087544cc95f8d36aa95f9. XML/logs/commands/counts and unavailable checks are in verification-summary.json and independent phase-report directories.
+- Exact native assessment: backend 00b265d..f87997f is medium/executable_change, review_due=false, reason under_budget, 236 lines. No reviewer/remote review ran or was granted; backend reviewed boundary stays at 00b265d for the accumulating slice. Planning assessment is passive. No assessment failure, gate bypass or mode change.
+- Not executed: Boot/Docker/DB/browser startup, physical integration, full backend clean verify, real SMTP/provider access, frontend regression or deployed/inbox checks. No frontend behavior changed; those coordinated release checks remain pending, not waived. No push/PR/merge/deployment or private configuration access.
 
 ## Progress and next step
 
-Read this document before edits. Freeze a public-only new snapshot, observe RED and implement approved scope. Record exact runner, counts, logs, hashes, commit identities and unavailable checks at closure.
+Planning commit 04dcc700550aaa544f7313e5a734e6a7692c5b58: 47 authored lines. Native assessment against frontend baseline is passive/non_executable_only; no review due and boundary advances to this commit. Source task A1 is functionally closed by its work-unit commit and observed checks. Next validate the actual Railway/Vercel registration, verification/resend/reset and inbox flow only after separate explicit destination/operation/session authorization; do not resume withdrawn local runtime work. Parent proof root /private/tmp/ordenfix-account-links-parent.zIMxwh holds baseline preservation and exact assessment. The feature currently has 283 authored committed lines (47 planning + 236 source), before this documentary outcome; no PR slice is created. The cached chain strategy remains available if later authorized work crosses the advisory budget.
 
 Engram tools are unavailable; no authoritative session ID supplied or invented. Local progress is preserved. Read back and mirror the full document to odd/account-email-links/tasks when tools return. This is the single approved ODD design/task artifact; no SDD selected.

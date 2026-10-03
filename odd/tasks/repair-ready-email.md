@@ -1,6 +1,6 @@
 # Send a safe customer email when a repair is completed
 
-Status: E1 capture implemented, locally verified, and native review approved/acknowledged. Docker/application startup work was withdrawn by the user. Continue E2-S, the standalone inert template/SMTP transport, using isolated unit tests only. E1-C still lacks behavioral RED/fix and blocks durable delivery integration; E3 and actual delivery are pending.
+Status: E1 capture implemented and its native review acknowledged. E2-S standalone template/SMTP transport implemented with 138 passing isolated unit tests; source commit awaits fresh native-review consent. Docker/application startup work is withdrawn. E1-C still lacks behavioral RED/fix and blocks durable delivery integration; E3 and actual delivery are pending.
 
 ## Outcome and authorization
 
@@ -32,7 +32,7 @@ On 2026-10-03 the user withdrew Docker/application startup work and requested co
 | Backend runners | Installed Java21/Maven3.9.11 directly, no wrapper bootstrap; offline Surefire and PostgreSQL/Failsafe in secret-free temporary snapshots |
 | Frontend runners | Installed Vitest/Node tooling and Playwright; lint, typecheck, technical build |
 | Native RDD | ON, deciding source global; verified by `gentle-ai review mode status` on 2026-10-03 |
-| Review boundaries | Frontend `d08db65e7270f4e0641aef1d45e72a9d31c95505` after passive prerequisite-outcome evidence; backend `d6d9da0d75f08f89f62eb6fb277b817611c5c0f8` after acknowledged E1 approval; future candidates need their own assessment/consent |
+| Review boundaries | Frontend `c8a3316845e07cf01868813055e16bd0a2b6c73a` after passive offline-unit preparation; backend `d6d9da0d75f08f89f62eb6fb277b817611c5c0f8` after acknowledged E1 approval; future candidates need their own assessment/consent |
 | Delivery | `ask-on-risk`; reuse the user's cached `feature-branch-chain` choice, no push/PR authorization |
 | Forecast | Revised 2,200–3,200 authored additions + deletions including observed preparation/evidence units, V41 compatibility, E2 protocol/transport tests and E3; generated outputs excluded |
 
@@ -67,7 +67,7 @@ Preserve both untracked `.atl/` directories and the pre-existing backend change 
   - Checks: TDD ON (same source/runner above): observe real PostgreSQL V41 compatibility consumer RED before production edits; migrated AND pg_dump/pg_restore V41 GREEN; historical V40 plus checksum/history/FK/unique/check/catalog mutation rejection, unknown V42 and bounded sentinel. Focused guard/consumer regression, E1 capture regression, full compilation, exact allowlist/hashes/whitespace and cleanup. Full coordinated feature backend/frontend/browser gate remains pending after E3.
   - Runtime boundary: only disposable cached local PostgreSQL with synthetic configuration; no real SMTP, shared database, private settings, downloads or provider calls. Rollback this accreditation unit/tests/docs without changing the V41 migration, E1 capture, or existing legal data/permissions.
   - Forecast: 350–650 authored lines; preserve readable tests even if the cohesive correction exceeds the advisory budget. Prepared a 120-line regression IT in a separate snapshot and observed full offline compilation; behavioral RED/GREEN, production edits, source commit and native outcome remain unobserved. Do not treat setup failures as RED or apply the test alone as a completed work unit.
-- [ ] **E2-S Prepare the standalone repair-ready template and SMTP transport.**
+- [x] **E2-S Prepare the standalone repair-ready template and SMTP transport.**
   - Route: delegated bounded writer after delegated read-only seam mapping; template, internal port, adapter and tests are multiple non-trivial files. Parent owns tracker, frozen allowlisted source transfer, commits and native disposition.
   - Why now: template/transport does not query PostgreSQL or consume repair events, so it is independent of E1-C. This changes delivery order, not approved business scope.
   - Scope: pure text/HTML template with existing `/seguimiento/{codigoSeguimiento}`; dedicated internal transport returning `ACCEPTED`, `PRE_SEND_FAILURE`, `UNCERTAIN`, `DISABLED`; strict origin/single-address/header validation, transaction rejection and capture/mail/delivery/quarantine barriers before provider resolution. New `ordenfix.reparaciones.email.delivery-enabled=false` default. No dispatcher, scheduler, endpoint, database/migration, existing account-email change or repair-service call.
@@ -75,6 +75,7 @@ Preserve both untracked `.atl/` directories and the pre-existing backend change 
   - Acceptance: same bearer link in both MIME alternatives, escaped HTML, no unnecessary personal/budget data or external images; content/request representations redacted; disabled/quarantined/transaction-active paths never resolve SMTP. Preparation errors differ from uncertain send; acceptance never claims inbox delivery. Remain unconsumed until durable worker validates tenant/recipient/state/lease.
   - Checks: TDD ON from explicit source above; genuine compilable assertion RED then GREEN. Installed Java21/Maven3.9.11 offline Surefire, mocked JavaMailSender/in-memory MIME; template/validation/barrier/failure/privacy tests, existing account/template SMTP regression and full compile. No Docker, application server, DB, browser, real SMTP, downloads or provider calls. Setup/compilation failure is not RED; integration/release gates stay pending.
   - Forecast: 450–650 authored lines including readable tests. Retain cached `ask-on-risk / feature-branch-chain`; no PR/push or test compression to fit advisory400. Rollback only port/template/adapter, paired tests and inert default/docs, preserving E1/account email.
+  - Outcome: eight frozen/tested files applied byte-for-byte and committed as `00b265d257bf44d87ebbe858bcf1d519e5236dbf`; 576 authored additions, no deletions. Compile and 138 final distinct unit tests passed; native assessed medium/slice-budget-reached, fresh consent pending. Checkbox records the isolated implementation/checks, not reviewed or integrated production delivery.
 - [ ] **E2 Deliver and recover without blind resend.**
   - Route: delegated writer; multiple non-trivial transport/persistence/API/test files and research/preparation boundaries.
   - Scope: integrate the E2-S template/transport only after E1-C, independent worker/claim/lease/ACK, tenant-scoped GET status and safe POST retry, operational docs and tests. E2-S completion alone must not wire or enable delivery.
@@ -102,8 +103,10 @@ Read-only mapping verified the existing budget/tracking link, both transactional
 | E1 review closure | Frontend `c051ca5221f425cc49c86b3839791fcbe81af24c..ffdfb7142ef580797d4109995da6c227eb09d4b2` | 12 additions + 9 deletions = 21 authored; whitespace/scope passed, native `passive`, `non_executable_only`, `review_due=false` |
 | E1-C preparation | Frontend `ffdfb7142ef580797d4109995da6c227eb09d4b2..d6ecaa12a987f49b262f262253c11e375087ad7a` | 16 additions + 6 deletions = 22 authored; whitespace/scope passed, native `passive`, `non_executable_only`, `review_due=false` |
 | E1-C prerequisite outcome | Frontend `d6ecaa12a987f49b262f262253c11e375087ad7a..d08db65e7270f4e0641aef1d45e72a9d31c95505` | 19 additions + 6 deletions = 25 authored; whitespace/scope passed, native `passive`, `non_executable_only`, `review_due=false`; compilation only, no behavior/fix claim |
+| R1 withdrawal / E2-S preparation | Frontend `d08db65e7270f4e0641aef1d45e72a9d31c95505..c8a3316845e07cf01868813055e16bd0a2b6c73a` | 30 additions + 9 deletions = 39 authored; whitespace/scope passed, native passive/non-executable-only, review_due=false. R1 owned processes closed; no Docker acceptance claim |
+| E2-S standalone transport | Backend `d6d9da0d75f08f89f62eb6fb277b817611c5c0f8..00b265d257bf44d87ebbe858bcf1d519e5236dbf` | 8 files / 576 authored; compile + 138 unit tests passed; native medium/slice_budget_reached. Fresh consent pending; backend reviewed boundary remains d6d9da0 |
 
-Running feature count through the prerequisite-outcome unit: 620 authored lines, excluding this small uncommitted post-commit boundary annotation and the temporary test. Delivery retains the cached `feature-branch-chain` choice; no push/PR/merge. Planned slices are the preparation unit, cohesive E1 capture, E2 delivery/API, and E3 UI/privacy; actual E2/E3 boundaries remain unset. Any future E1 PR would need explicit acceptance of its 406-line cohesive exception after this slicing pass; do not remove coverage to force the number under 400.
+Running feature count through E2-S source: 1,235 authored lines (620 previous + 39 preparation + 576 source), excluding this evidence update and the uncommitted E1-C temporary test. Delivery retains the cached `feature-branch-chain` choice; no push/PR/merge. Planned slices are the preparation unit, cohesive E1 capture, E2 delivery/API, and E3 UI/privacy; actual E2/E3 boundaries remain unset. Any future E1 PR would need explicit acceptance of its 406-line cohesive exception after this slicing pass; do not remove coverage to force the number under 400.
 
 ### E1 verification (2026-10-03)
 
@@ -137,6 +140,26 @@ Historical R1 startup before withdrawal: external bundle `com.docker.docker`4.93
 
 Runtime attempts are now withdrawn. E1-C requires its genuine PostgreSQL regression before production correction; do not modify guarded production code ahead of RED or substitute H2. Durable E2 remains deferred, but standalone E2-S can proceed with synthetic offline unit tests without Docker or application startup.
 
+### E2-S verification and consent boundary (2026-10-03)
+
+Proof: `/private/tmp/ordenfix-ready-email-e2s.1Qh3ja`; parent transfer/commits/native evidence: `/private/tmp/ordenfix-email-e2s-parent.rfvqRA`. Parent inspected source/contracts, defaults, test assertions and real command/exit/XML artifacts; no application, DB, Docker or real SMTP was started for E2-S.
+
+| Check | Observed result |
+| --- | --- |
+| Compilable behavioral RED | 70 tests / 65 assertion failures, 0 errors/skips, exit1; compile exit0, red stubs/tests and XML retained |
+| Final focused GREEN | 71 tests / 3 classes, 0 failures/errors/skips, exit0 |
+| Final distinct related GREEN | 138 tests / 10 classes, 0 failures/errors/skips, exit0; includes new transport/template/defaults plus account SMTP/templates, closure config, capture and recovery-quarantine regression |
+| Compilation | 602 production / 474 test sources actually compiled; final `test-compile` exit0 up-to-date; installed Java21.0.10/Maven3.9.11, direct offline runner with synthetic env/settings |
+| Exact transfer | Patch SHA256 `03b1676266377f273730c836c1a8dc4644fe37c91e26b2ceda1f7a813365a67c`; allowlist manifest `b50b157dc39f63e36252fee8953ee56222a60fee61ec47776f03f324ac4bc006`; all8 source and committed blob hashes match the tested candidate |
+| Preservation / scope | Exact8 changed paths, patch and whitespace checks passed; pre-existing v38 tracker/.atl unchanged and unstaged; no provider calls/downloads/runtime activation; Maven processes finished |
+| Native disposition | medium, review_due=true, slice_budget_reached; exact returned committed-only preflight ran and excluded only the canonical2 .atl paths. No review actor or source disclosure: fresh consent required |
+
+Exact final unit command: `/private/tmp/ordenfix-ready-email-e2s.1Qh3ja/run-maven.sh -Dtest=RepairReadyEmailTemplateTest,SmtpRepairReadyEmailTransportTest,RepairReadyEmailTransportConfigurationTest,AccountEmailTemplateTest,SmtpEmailSenderTest,WorkshopClosureEmailTemplateTest,ClosureNotificationConfigurationTest,EmailConfigurationTest,RepairReadyEmailEnqueuerTest,RecoveryQuarantineEnvironmentPostProcessorTest test` (exit0). Counts do not sum intermediate reruns or historical E1 tests.
+
+Preserved correction: first GREEN had five observer failures from MIME LF-to-CRLF canonicalization. Only strict equality normalization of decoded CRLF changed, retaining all other body content; production bytes unchanged, one privacy regression added. This is not a transport repair or real-delivery proof. Local planning apply_patch timed out; readback showed no modification and the guarded tracker update succeeded through the file tool. Initial frontend assessment required explicit unrelated-file declaration; sandbox STATUS failed safely, scoped local preflight and declared assessment then succeeded passive. None were treated as RED or inferred low risk.
+
+E2-S binding: target `sha256:9b60a1b31a731d38bd1361c5c0455ac95e929a09283335bebc7701072ac18411`, proposed lineage `review-2fce485cdef8a848`, base tree `53db367f6fea70a76c76fa58aabbb961044f5651`, candidate tree `dc7f99492982d791605195097b91b6dfc035d86a`. Exact next relay command is in `backend-e2s-ready-status.json` at the parent proof root; execution is deferred until the user permits this candidate's diff disclosure. Source development consent does not reuse E1 review consent.
+
 ### Native disposition and next step
 
 Native assessment examined only the committed E1 boundary: 7 paths / 406 lines, `risk=medium`, `review_due=true`, `review_due_reason=slice_budget_reached`. The exact returned preflight STATUS ran, then excluded only `.atl/.skill-registry.cache.json` and `.atl/skill-registry.md` using its separately verified backend inventory `sha256:4425697ab74255760bb7c3b87dc13642263a59d4b65cc516abaa19765c94da71`.
@@ -145,6 +168,6 @@ Binding: target `sha256:b21b64b61f7784b83e2c110506c08bc9785fda8283d8b70da1328574
 
 Engram tooling is unavailable in this runtime: context/search/full observation and proactive save could not run. Last successful full mirror was observation #840 from the previous turn, reconciled against this file and the runtime history. This turn's mirror and session summary are pending; local progress is preserved here.
 
-Next: implement E2-S through the bounded writer with offline synthetic unit checks and keep it unconsumed/default-off. Do not resume Docker/application attempts. E1-C incompatibility is verified from source, not yet reproduced as a behavioral test failure or fixed; canonical PostgreSQL proof, durable E2/V42, E3 UI/link privacy, full backend `clean verify`, frontend/joint-browser checks, provider/deployed delivery and paid-subscription work remain pending. E1 plus standalone transport does not send customer emails automatically; release T2 remains reopened for the coordinated candidate.
+Next: obtain fresh human consent for native review of E2-S commit `00b265d257bf44d87ebbe858bcf1d519e5236dbf`; never reuse E1 consent. Keep transport unconsumed/default-off and do not resume Docker/application attempts. E1-C incompatibility is verified from source, not yet reproduced as a behavioral test failure or fixed; canonical PostgreSQL proof, durable E2/V42, E3 UI/link privacy, full backend `clean verify`, frontend/joint-browser checks, provider/deployed delivery and paid-subscription work remain pending. E1 plus standalone transport does not send customer emails automatically; release T2 remains reopened for the coordinated candidate.
 
 Engram recovery topic: `odd/repair-ready-email/tasks`; repository-relative locator: `odd/tasks/repair-ready-email.md`. Mirror must contain the full current document, not a completion summary.

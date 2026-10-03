@@ -1,6 +1,6 @@
 # OrdenFix — plan único de salida a producción
 
-Fecha de referencia: 2026-10-02; evidencia actualizada el 2026-10-03. Estado: T1 y T2 cerradas; T6-A1 local cerrada y revisada; T3–T7 pendientes; producción no acreditada.
+Fecha de referencia: 2026-10-02; evidencia actualizada el 2026-10-03. Estado: T1 y T6-A1 local cerradas; T2 reabierta para el nuevo candidato conjunto; feature de email en preparación local y T3–T7 pendientes; producción no acreditada.
 
 Este documento concentra el trabajo de salida de frontend y backend. Reutiliza las capacidades terminadas y sus actas; no declara aprobado un despliegue por tener pruebas locales verdes.
 
@@ -10,9 +10,10 @@ Este documento concentra el trabajo de salida de frontend y backend. Reutiliza l
 
 - Objetivo: cerrar una release conjunta, verificable y recuperable, sin una reescritura arquitectónica ni funcionalidades nuevas ajenas a la salida.
 - Autorizado: T1 documental, T2 de validación local y, por confirmación posterior, corregir únicamente el fixture JWT agregando `tallerId: 1`; completar el build Docker con descargas públicas anónimas desde [Maven Central](https://repo.maven.apache.org/maven2/). Confirmación posterior: T6-A1, archivar intactos los tres assets del prototipo fuera de `public`, agregar regresión de empaquetado y verificar el artefacto técnico local.
-- No autorizado: otros cambios de funcionalidad, debilitar guards, activar flags/proveedores, operar bases reales, usar credenciales remotas, borrar datos/materiales, hacer push/PR/merge o desplegar.
+- Nueva feature local autorizada: [email de reparación completada](repair-ready-email.md), sólo ante una transición real a `COMPLETADO`, con el enlace público existente de presupuesto/seguimiento. Email opcional y WhatsApp manual se conservan; otros estados o notificaciones quedan fuera. Su tracker separado conserva alcance, tareas y evidencia; E1 por sí sola captura el evento, no envía emails.
+- No autorizado: funcionalidad ajena a esos alcances, debilitar guards, activar flags/pagos/proveedores, enviar emails reales, operar bases reales, usar credenciales remotas, borrar datos/materiales, hacer push/PR/merge o desplegar.
 - T3–T7 siguen como backlog no autorizado automáticamente. Las descargas aprobadas no incluyen otros destinos, sesiones autenticadas, pulls de imágenes ni acceso a settings privados; cualquier ampliación requiere autorización independiente.
-- Mercado Pago permanece pausado; el cierre integral continúa deshabilitado para salida pública. No se publica contenido legal de prueba.
+- Mercado Pago permanece pausado: elegir lanzamiento PRO pago no autoriza su activación ni operaciones remotas. El cierre integral continúa deshabilitado para salida pública. No se publica contenido legal de prueba.
 - Se preservan las actas históricas, ambas carpetas `.atl/` y el cambio previo del backend en `odd/tasks/v38-deploy-fixes.md`.
 
 ## Baseline y evidencia
@@ -28,9 +29,9 @@ Este documento concentra el trabajo de salida de frontend y backend. Reutiliza l
 
 Las actas de septiembre sobre Vercel, Resend, dominios y proveedores son evidencia fechada, no consultas actuales a sus paneles. Deben revalidarse con autorización antes de operar. Precio PRO remoto, subida privada vía backend, APIs legales y exportación ya están implementados; sus pendientes actuales son publicación, configuración y prueba operativa, no reconstrucción funcional.
 
-## Decisiones pendientes
+## Decisiones y pendientes de salida
 
-- Acceso de los primeros talleres después del TRIAL de 14 días: FREE/ACTIVA conserva titular único y hasta 25 reparaciones mensuales; empleados y Cobros necesitan TRIAL/PRO. No se promete PRO permanente con MP pausado.
+- Política comercial decidida: PRO pago disponible desde el lanzamiento; la cancelación conserva PRO hasta el fin del período pagado. Falta implementar y acreditar esa vigencia (no existe `paidThrough`) y cerrar la prueba del proveedor MP antes de habilitar contrataciones. No se promete PRO permanente con MP pausado; FREE/ACTIVA conserva titular único y 25 reparaciones mensuales, y empleados/Cobros requieren TRIAL/PRO.
 - Modalidad y entorno de apertura, versiones a integrar, retenciones y responsables deben quedar confirmados antes del go/no-go.
 - Identidad/contactos y publicación definitiva conservan su cierre posterior a la evidencia técnica aplicable; no bloquean preparar el trabajo local.
 
@@ -73,7 +74,8 @@ Los lectores usan `ordenfix.legal.public-document-read.*` y `ordenfix.legal.publ
   - Commit de unidad: `beed4301d6cb640ceb7d500eb8c5fe6272780cba`, `docs(release): unify production launch plan`; 279 adiciones + 49 eliminaciones = 328 líneas autoradas.
   - Disposición nativa: `passive`, motivo `non_executable_only`, `review_due=false`, sobre `fd92975..beed430`. No requiere revisores ni representa aprobación de las features heredadas.
   - Assessment inicial no evaluable por inventario/permisos; preflight y reintento con inventario canónico de `.atl/` excluido y permisos del índice temporal completaron la evaluación. Sin fallos documentales pendientes.
-- [x] **T2 Cerrar la regresión local del candidato.**
+- [ ] **T2 Cerrar la regresión local del candidato.**
+  - Reabierta el 2026-10-03 por la nueva feature autorizada de email: el candidato conjunto que la incluya requiere regresión nueva. Se conserva íntegro el cierre histórico del 2026-10-03 y su evidencia; no se acreditan resultados nuevos ni se invalidan los resultados de aquellos candidatos. El cierre de `repair-ready-email.md` incluye E1–E3; sólo capturar E1 no satisface este gate de salida.
   - Depende de T1. Ruta: verificadores delegados frontend y backend; preparación abarca más de cuatro archivos de runners/configuración/empaquetado. Padre conserva tracking, espejo y commits.
   - Candidatos de la corrida preservada: frontend `6f972d6389f016510f01c9b96fda159a3a065b84` y backend `f2141f60f2023405ae7ddec5987f13784dd2e76b`; copias de esos commits sin secretos, Node compatible y Java 21. Ese intento Docker usó imágenes locales, sin descargas/proveedores; no confundirlo con el build anónimo autorizado después.
   - Corrección autorizada y verificada desde frontend `5fd5a4a624f94922174f84772d121e30e38aa020`: `e2e/helpers.ts` agrega `tallerId: 1`, coherente con `defaultPerfil`; una adición + una eliminación, SHA-256 `2dcd74884dc39ddae4907cc58e212ee42a6b46fbacfcc4c3efee0eb99c4ffe44`. Writer/verificador delegado tras la preparación sobre cinco archivos y elección de cadena. Subject, role, expiración, firma simulada y assertions preservados; `pendingCharge` y las protecciones productivas intactos.
@@ -99,7 +101,7 @@ Los lectores usan `ordenfix.legal.public-document-read.*` y `ordenfix.legal.publ
   - Checks fallidos, omitidos o no disponibles se registran; no sumar reportes históricos como si fueran un integral fresco.
   - Separar integral backend, labs reales locales y build público: son tres evidencias distintas. Conservar reportes por comando/candidato antes de que otro runner los sobrescriba.
   - TDD ON desde [charge-session-expiry.md](charge-session-expiry.md), línea 15, runners Vitest/Playwright y Maven Surefire/Failsafe; verificación original sin cambio de comportamiento y corrección posterior del fixture con RED/GREEN observados. RDD ON global; este cierre es tracking, sin nuevo ciclo RED/GREEN ni harness.
-  - Cierre observado el 2026-10-03: fixture corregido, matriz frontend, integral backend, JAR, labs e imagen/arranque aprobados localmente; evidencia, integridad y limpieza completas. Esos resultados no aprueban staging, build público ni producción.
+  - Cierre histórico observado el 2026-10-03: fixture corregido, matriz frontend, integral backend, JAR, labs e imagen/arranque aprobados localmente; evidencia, integridad y limpieza completas. Esos resultados no aprueban el nuevo candidato de email, staging, build público ni producción.
   - Commit parcial de evidencia: `f2351bd96f888bf31229979f0a70e28f9ef39b36`, `docs(release): record isolated candidate verification`; 27 adiciones + 7 eliminaciones = 34 líneas autoradas. No modifica fuentes ni cierra la aceptación de T2.
   - Disposición nativa: `passive`, motivo `non_executable_only`, `review_due=false`, sobre `6f972d6..f2351bd`. No requiere revisores ni aprueba las features heredadas o la release.
   - Unidad funcional: `3a07d400c34c1fd5c263f82d9b0a0ed922d59fb0`, `test(e2e): align mock JWT with workshop scope`; únicamente helper y tracker, 43 adiciones + 17 eliminaciones = 60 líneas autoradas (helper 2, tracker 58).
@@ -137,6 +139,7 @@ Los lectores usan `ordenfix.legal.public-document-read.*` y `ordenfix.legal.publ
 - [ ] **T4 Acreditar los recorridos de staging.**
   - Depende de T3. Ruta prevista: verificación delegada con datos sintéticos y alcance autorizado.
   - Aceptación: cuenta/consentimiento/replay, email HTTPS, ADMIN/USER y aislamiento, reparación/presupuesto/entrega con y sin Cobros, fotos privadas y exportación según activación; móvil y escritorio.
+  - Incluir la notificación de `COMPLETADO`, email opcional, enlace existente de presupuesto/seguimiento y WhatsApp manual del candidato conjunto; los envíos reales siguen sujetos a autorización operativa independiente.
   - Incluir fallo de lectura legal, revisión desactualizada, ETag/CORS y `428`; lectura de fotos sólo por backend, denegación anónima y borrado/reintento. No confundir ausencia del asset con eliminación de backups/CDN.
   - No se ejecutan email, Cloudinary ni MP por disponer de credenciales ambientales.
 - [ ] **T5 Cerrar operación y recuperación.**
@@ -178,7 +181,7 @@ Los lectores usan `ordenfix.legal.public-document-read.*` y `ordenfix.legal.publ
 - [ ] **T7 Release conjunta y apertura.**
   - Depende de T1–T6. Ruta prevista: coordinación del titular y ejecución acotada autorizada.
   - Aceptación: versiones/digests exactos, CI aprobado, revisión pendiente resuelta según política, go/no-go, smokes y rollback.
-  - Antes de promover: T1–T6 aplicables cerradas, decisión TRIAL/FREE resuelta y ninguna omisión bloqueante. T7 se cierra después de la release y el smoke autorizados, con vigilancia y rollback a artefacto/configuración identificados.
+  - Antes de promover: T1–T6 aplicables y feature `repair-ready-email.md` cerradas, candidato conjunto revalidado, PRO pago y cancelación al fin del período implementados/acreditados, prueba MP aplicable cerrada y ninguna omisión bloqueante. Estos gates no autorizan activar pagos/proveedores. T7 se cierra después de la release y el smoke autorizados, con vigilancia y rollback a artefacto/configuración identificados.
   - Push, PR, merge y deploy no están autorizados por este documento.
 
 ## Comandos de verificación previstos
@@ -211,18 +214,18 @@ npm run build:public
 
 - TDD ON procede de la elección explícita previa, registrada en [charge-session-expiry.md](charge-session-expiry.md). Runner frontend: Vitest; backend: Maven Surefire/Failsafe. Para T1 no hay cambio de comportamiento: RED/GREEN y harness runtime son N/A; se usan checks documentales, sin desactivar TDD.
 - RDD ON, fuente global, verificado con `gentle-ai review mode status`. Las revisiones previas diferidas no pasan a aprobadas. El candidato de T1 es su commit documental desde `fd92975`, no la rama funcional acumulada.
-- Rama documental: `codex/production-release-plan`, creada desde `fd92975`; el backend no cambia de rama.
+- Rama documental histórica: `codex/production-release-plan`, creada desde `fd92975`. Continuación local actual: `codex/repair-ready-email` en ambos repositorios, desde frontend `b3d7610` y backend `f2141f6`; el tracker de esa feature conserva sus límites y checks propios.
 - Delivery: `ask-on-risk`, `chain_strategy=feature-branch-chain`, confirmada explícitamente. Forecast T1: 300–360 líneas documentales autoradas. La selección ordena futuras revisiones y no autoriza push, PRs, merge ni integración a `main`.
 - Forecast histórico previo a la unidad funcional: 60 líneas autoradas pendientes (fixture y evidencia) más 10–25 estimadas para su registro de cierre. La unidad observada suma 60 y lleva el acumulado a 446; el registro de cierre agrega 39 líneas, por lo que la feature totaliza 485. La identidad del commit de tracking se conserva en Engram después de crearlo. La estrategia de cadena ya está resuelta; contar los commits observados sin reducir evidencia para evitar el gate.
 
 ### Bloques de la cadena prevista
 
-Todavía no existen PRs ni ramas hijas de revisión. Materializarlas requiere la autorización aplicable; las unidades permanecen en `codex/production-release-plan` y sus límites se conservan por commits.
+Todavía no existen PRs ni ramas hijas de revisión. Materializarlas requiere la autorización aplicable; las unidades históricas se conservan por commits y la continuación local está en `codex/repair-ready-email`, sin convertir esa rama en aprobación de la release.
 
 | Bloque | Límites locales | Contenido y presupuesto autorado | Estado |
 | --- | --- | --- | --- |
 | 1 | `fd92975..6f972d6` | T1 documental, 344 líneas | Verificado, disposición pasiva |
-| 2 | `6f972d6..77672c2` | Evidencia local, fixture y Docker; 141 líneas por unidades, 95 de diff neto | T2 local completa; fixture del rango pendiente revisado con el bloque 3 |
+| 2 | `6f972d6..77672c2` | Evidencia local, fixture y Docker; 141 líneas por unidades, 95 de diff neto | T2 histórica completa; fixture del rango revisado con el bloque 3; nuevo candidato pendiente |
 | 3 (T6-A1) | `77672c2..e68b4dc` + registro documental posterior | Archivo intacto, regresión y prueba; 81 líneas de la unidad funcional | T6-A1 local cerrada; review nativo aprobado/reconocido, sin PR |
 | Siguientes | Desde el cierre anterior | T3–T7 por unidades coherentes y checks propios | Backlog, sin ejecución autorizada |
 
@@ -235,11 +238,13 @@ Dependencia prevista: baseline funcional `fd92975` → bloque 1 → bloque 2 →
 
 T1 cerrada: plan canónico, guía corregida y tres puntos de entrada actualizados. Los 51 enlaces/anchors locales y el whitespace pasaron; archivo y espejo se leyeron completos. El commit documental tuvo disposición pasiva; las revisiones funcionales previas siguen diferidas.
 
-T2 cerrada el 2026-10-03: checks funcionales, evidencia, integridad y limpieza acreditados; unidad `3a07d40` registrada inicialmente con assessment medio `under_budget`; su fixture quedó luego cubierto por la revisión consolidada `5fd5a4a..e68b4dc`, sin extenderla al código backend. El bloqueo histórico del prototipo tiene ahora solución local verificada en T6-A1; el build público sigue sin acreditarse. No promover el candidato.
+T2 tuvo cierre histórico el 2026-10-03: checks funcionales, evidencia, integridad y limpieza acreditados; unidad `3a07d40` registrada inicialmente con assessment medio `under_budget`; su fixture quedó luego cubierto por la revisión consolidada `5fd5a4a..e68b4dc`, sin extenderla al código backend. El bloqueo histórico del prototipo tiene solución local verificada en T6-A1; el build público sigue sin acreditarse. T2 se reabre para revalidar el candidato conjunto posterior a la feature de email, sin borrar ni reutilizar como prueba nueva los resultados anteriores.
 
 T6-A1 tiene archivo intacto, RED/GREEN, suites/estáticos, diagnóstico limpio de artefactos y Playwright 167/167 verificados, en commit `e68b4dc`. La revisión consolidada fue aprobada sin hallazgos y su receipt reconocido; la subtarea local queda cerrada. T3 espera enlaces de proyectos y autorización de acceso. El titular informa datos ficticios y reset posible si hiciera falta; no se verificó inventario remoto ni se autoriza borrado por defecto. T3–T7 conservan sus checkboxes pendientes; no se declara T6 completa.
 
-La política comercial pendiente debe resolverse antes de cambiar capacidades o habilitar contrataciones. No se ejecutaron operaciones externas T3–T7; sólo la subunidad local T6-A1 autorizada. No se declara build público, staging o producción aprobados, ni se inspeccionaron sesiones/credenciales ambientales. Las revisiones de features heredadas fuera de `5fd5a4a..e68b4dc` siguen diferidas; la aprobación del rango local no acredita una release pública.
+La política PRO pago/cancelación al fin del período está decidida; su implementación y prueba MP siguen pendientes, con MP pausado y cierre integral público apagado. Próximo trabajo local: E1 de `repair-ready-email.md`, aún en preparación temporal al reconciliar este registro; E2/E3 y su cierre coordinado son necesarios antes de acreditar envío y revalidar la release. Esta actualización sólo reconcilia documentación: sin fuentes nuevas ni tests/builds ejecutados aquí; RED/GREEN y harness N/A.
+
+No se ejecutaron operaciones externas T3–T7; sólo la subunidad local T6-A1 autorizada. No se declara el nuevo candidato, build público, staging o producción aprobados, ni se inspeccionaron sesiones/credenciales ambientales. Las revisiones de features heredadas fuera de `5fd5a4a..e68b4dc` siguen diferidas; la aprobación del rango local no acredita la feature nueva ni una release pública.
 
 Conteo de cierre de tracking: 11 adiciones + 5 eliminaciones = 16 líneas; running total T1: 344 líneas autoradas. La unidad inicial conserva su identidad y evidencia aunque este registro se complete en un commit documental posterior.
 

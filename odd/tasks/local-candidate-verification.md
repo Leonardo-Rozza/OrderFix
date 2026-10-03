@@ -38,6 +38,7 @@ On 2026-10-03 the user explicitly started Docker and requested local backend sta
 ## Current execution boundary
 
 - Planning commit 57522f2021cbcaa6cc5ab57916318db5e4a8c58d: 41 authored lines, native passive/non_executable_only; no review due. Full tracker/mirror observation 865 read back before delegation.
+- V2 execution and V1/V3 partial-result work unit: 16cbd7182cc5ec86dce53a3e9214be63679597ef, 61 authored lines; native assessment against 57522f2 is passive/non_executable_only, review_due=false. Initial sandbox assessment could not create its Git index; scoped local retry succeeded, not a source-review approval. Running documentary count: 102 lines before this handoff bookkeeping; below the delivery budget, no PR created.
 - Delegated workers: backend_current_verification handles V1/V3; frontend_current_verification handles V2. Frontend mock ports 5173/5174 are distinct from real labs 5175–5177.
 - Canonical PostgreSQLContainer fixtures publish ephemeral ports using Docker's default binding, normally all interfaces; TESTCONTAINERS_HOST_OVERRIDE changes connection addressing, not binding. This exceeds the current strict-loopback boundary. Failsafe/labs are held pending explicit permission, without modifying test code or Docker settings. Backend proceeds with unaffected clean test and separately labelled skipTests packaging/JAR smoke on a NEW --pull=never -p127.0.0.1:<owned>:5432 database.
 

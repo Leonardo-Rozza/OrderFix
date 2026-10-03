@@ -5,7 +5,7 @@ const b64url = (o: object) =>
   Buffer.from(JSON.stringify(o)).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 
 export const futureToken = (role = 'ROLE_ADMIN') =>
-  `${b64url({ alg: 'HS256' })}.${b64url({ sub: 'admin@mvgr.com', role, exp: Math.floor(Date.now() / 1000) + 3600 })}.firma`;
+  `${b64url({ alg: 'HS256' })}.${b64url({ sub: 'admin@mvgr.com', role, tallerId: 1, exp: Math.floor(Date.now() / 1000) + 3600 })}.firma`;
 
 /** Inyecta sesión en localStorage (formato de zustand persist) antes de cargar la app. */
 export const seedAuth = async (

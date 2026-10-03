@@ -80,7 +80,9 @@ Los lectores usan `ordenfix.legal.public-document-read.*` y `ordenfix.legal.publ
   - Checks fallidos, omitidos o no disponibles se registran; no sumar reportes históricos como si fueran un integral fresco.
   - Separar integral backend, labs reales locales y build público: son tres evidencias distintas. Conservar reportes por comando/candidato antes de que otro runner los sobrescriba.
   - TDD ON heredado, runners Vitest/Playwright y Maven Surefire/Failsafe; ejecución de verificación, sin cambio de comportamiento ni nuevo ciclo RED/GREEN. RDD ON global; boundary documental previo `6f972d6`. Forecast T2 actualizado: 35–50 líneas de tracking, incluido registro de disposición, sin source/tests; recalcular antes de cada commit, sin comprimir evidencia para alcanzar un umbral.
-  - Checks y limpieza observados se registran abajo; T2 permanece abierta por cuatro fallos móviles simulados e imagen/arranque Docker pendientes. Commit y disposición nativa: pendientes del padre. Un fallo no autoriza su corrección ni marcar T2 cerrada.
+  - Checks y limpieza observados se registran abajo; T2 permanece abierta por cuatro fallos móviles simulados e imagen/arranque Docker pendientes. Un fallo no autoriza su corrección ni marcar T2 cerrada.
+  - Commit parcial de evidencia: `f2351bd96f888bf31229979f0a70e28f9ef39b36`, `docs(release): record isolated candidate verification`; 27 adiciones + 7 eliminaciones = 34 líneas autoradas. No modifica fuentes ni cierra la aceptación de T2.
+  - Disposición nativa: `passive`, motivo `non_executable_only`, `review_due=false`, sobre `6f972d6..f2351bd`. No requiere revisores ni aprueba las features heredadas o la release.
   - Evidencia local preservada: `/private/tmp/ordenfix-t2-frontend-RbUT0I` y `/private/tmp/ordenfix-t2-backend-proof.uzUNUd`. No mezclar fallos de configuración temporal con defectos del candidato; el integral backend y los labs conservan reportes separados.
   - Frontend observado: 1.107 Vitest en 114 archivos y 43 tooling aprobados; lint, TypeScript y build técnico con exit 0. Bundle principal 665,81 kB / 191,61 gzip; advertencia de tamaño, no fallo. Gates públicos omitidos automáticamente; no se acredita build público.
   - Playwright simulado completo: 163 aprobados / 4 fallidos de 167, sin skips/flaky; desktop 95/95, cada uno de los cuatro proyectos móviles 17/18. Falla el smoke `e2e/mobile.spec.ts:378`: JWT de `e2e/helpers.ts:8` sin `tallerId`; `pendingCharge.ts:29–31` rechaza ese alcance y Cobros bloquea correctamente el CTA. No se corrigió el fixture ni se debilitó la protección.
@@ -165,9 +167,11 @@ T1 cerrada: plan canónico, guía corregida y tres puntos de entrada actualizado
 
 T2 conserva el integral backend, empaquetado, smoke del JAR y tres labs reales locales aprobados, con evidencia y limpieza acreditadas. Sigue abierta por cuatro fallos del fixture móvil simulado y la imagen/arranque Docker offline pendientes; el prototipo con precio fijo de T6 no se corrigió. El siguiente paso es resolver el alcance autorizado de esos bloqueos, no promover el candidato.
 
-La política comercial pendiente debe resolverse antes de cambiar capacidades o habilitar contrataciones. No se ejecutaron operaciones T3–T7 ni se declara build público, staging o producción aprobados. Commit y disposición nativa de este registro quedan pendientes del padre.
+La política comercial pendiente debe resolverse antes de cambiar capacidades o habilitar contrataciones. No se ejecutaron operaciones T3–T7 ni se declara build público, staging o producción aprobados. La evidencia local tiene un commit documental pasivo; las revisiones funcionales previas siguen diferidas.
 
 Conteo de cierre de tracking: 11 adiciones + 5 eliminaciones = 16 líneas; running total T1: 344 líneas autoradas. La unidad inicial conserva su identidad y evidencia aunque este registro se complete en un commit documental posterior.
+
+Conteo T2: 34 líneas de la unidad de evidencia, más 8 de este registro de commit/disposición; running documental acumulado: 386 líneas autoradas. Sin PR ni estrategia de cadena elegida; recalcular antes del siguiente commit.
 
 El espejo Engram usa `odd/production-release/tasks` y el locator `odd/tasks/production-release.md`; archivo y espejo se verifican por separado. El cierre documental no modifica el estado pendiente de T2–T7 ni convierte revisiones diferidas en aprobaciones.
 

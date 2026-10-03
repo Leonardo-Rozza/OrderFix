@@ -1,6 +1,6 @@
 # Send a safe customer email when a repair is completed
 
-Status: E1 capture implemented, locally verified, and native review approved/acknowledged. E2 delivery is next; E3 and actual delivery are pending.
+Status: E1 capture implemented, locally verified, and native review approved/acknowledged. A newly verified V41 guarded-runtime compatibility gap blocks E2; E3 and actual delivery are pending.
 
 ## Outcome and authorization
 
@@ -30,9 +30,9 @@ User approval: “Dale, eso ... tenemos el link del presupuesto ... vamos a hace
 | Backend runners | Installed Java 21/Maven wrapper; offline Surefire and PostgreSQL/Failsafe in secret-free temporary snapshots |
 | Frontend runners | Installed Vitest/Node tooling and Playwright; lint, typecheck, technical build |
 | Native RDD | ON, deciding source global; verified by `gentle-ai review mode status` on 2026-10-03 |
-| Review boundaries | Frontend `c051ca5221f425cc49c86b3839791fcbe81af24c` after passive evidence update; backend `d6d9da0d75f08f89f62eb6fb277b817611c5c0f8` after acknowledged E1 approval; future candidates need their own assessment/consent |
+| Review boundaries | Frontend `ffdfb7142ef580797d4109995da6c227eb09d4b2` after passive E1 review closure; backend `d6d9da0d75f08f89f62eb6fb277b817611c5c0f8` after acknowledged E1 approval; future candidates need their own assessment/consent |
 | Delivery | `ask-on-risk`; reuse the user's cached `feature-branch-chain` choice, no push/PR authorization |
-| Forecast | 1,060–1,560 authored additions + deletions, including tests/docs; generated outputs excluded |
+| Forecast | Revised 2,000–2,800 authored additions + deletions including V41 compatibility, E2 protocol/transport tests and E3; generated outputs excluded |
 
 The line budget is a planning heuristic, not a code-golf target. E2 may naturally exceed 400 because persistence/transport certainty need cohesive tests. Make one honest slicing pass; do not omit tests or compress readable code. No PR slices are materialized yet; record exact committed boundaries before any authorized PR work.
 
@@ -48,12 +48,21 @@ Preserve both untracked `.atl/` directories and the pre-existing backend change 
   - Runtime boundary: isolated PostgreSQL service/API integration with recording transport; no real SMTP. Rollback: remove this event capture unit and its paired tests/docs without reverting prior release fixes or paid-subscription code.
   - Outcome: implementation and functional checks observed; source commit `d6d9da0d75f08f89f62eb6fb277b817611c5c0f8`. Native reliability review approved and its exact closure acknowledged on 2026-10-03; this is not an email-delivery claim.
   - Actual: 402 additions + 4 deletions = 406 authored lines, including tests/docs. The migration, transaction capture, and physical-commit/concurrency tests form one coherent unit; retain readable coverage rather than shrink the six-line review-budget overage. No PR is created or authorized.
+- [ ] **E1-C Restore guarded runtime compatibility with V41.**
+  - Route: delegated writer following the bounded E2 preparation mapper; verified compatibility work spans more than four guard/consumer/test files and several non-trivial edits. Parent owns this tracker, exact frozen patch application, source/evidence commits, and fresh native disposition.
+  - Problem: the actual V41 history has fifteen rows since V27 and V40 is no longer latest; `LegalV29AcceptanceSchemaVerifier` recognizes only exact V27–V40 histories. Its consumers reject the newly migrated database. This is a fail-closed runtime-consumer incompatibility, NOT a verified default application-startup failure; E1 tests disabled photo/export surfaces and did not cover accreditation.
+  - Authorized scope: correct the email feature's additive migration compatibility without changing legal/account business behavior, role/permissions, old migrations, startup defaults, provider flags, or operational deletion semantics. No V42 or transport/API/UI work in this correction unit.
+  - Acceptance: freeze actual V41 checksum and measured migrated/restored PostgreSQL catalogs; preserve V38 profile allowance and V39/V40 equipment/charge checks; accredit V41 email table and repair identity constraint precisely; enlarge bounded-history sentinel for the admitted version, preserving all historical histories and fail-closed unknown V42/drift rejection.
+  - Bounded allowlist to validate: existing `LegalV29AcceptanceSchemaVerifier`, `LegalV38ProfileErasureSchema`, `LegalV37OperationalDeletionSchema`, `LegalPrivatePhotoSchema`; narrowly scoped new `LegalV41RepairReadyEmailSchema` and V41 PostgreSQL compatibility tests, plus bounded operations documentation. Return any required expansion before editing outside this scope.
+  - Checks: TDD ON (same source/runner above): observe real PostgreSQL V41 compatibility consumer RED before production edits; migrated AND pg_dump/pg_restore V41 GREEN; historical V40 plus checksum/history/FK/unique/check/catalog mutation rejection, unknown V42 and bounded sentinel. Focused guard/consumer regression, E1 capture regression, full compilation, exact allowlist/hashes/whitespace and cleanup. Full coordinated feature backend/frontend/browser gate remains pending after E3.
+  - Runtime boundary: only disposable cached local PostgreSQL with synthetic configuration; no real SMTP, shared database, private settings, downloads or provider calls. Rollback this accreditation unit/tests/docs without changing the V41 migration, E1 capture, or existing legal data/permissions.
+  - Forecast: 350–650 authored lines; preserve readable tests even if the cohesive correction exceeds the advisory budget. Implementation/RED/GREEN/commit and native outcome are not yet observed.
 - [ ] **E2 Deliver and recover without blind resend.**
   - Route: delegated writer; multiple non-trivial transport/persistence/API/test files and research/preparation boundaries.
   - Scope: text/HTML template containing the existing public link, dedicated SMTP result contract, independent worker/claim/lease/ACK, tenant-scoped GET status and safe POST retry, operational docs and tests.
   - Acceptance: no SMTP inside the repair transaction/row lock; honest accepted/not-delivered wording; known pre-send failure retry, uncertain send/ACK/lease never automatically resent; current tenant/recipient/state validated; missing email can recover after correction; disabled flags/recovery quarantine prevent sends; no arbitrary-recipient endpoint.
   - Checks: focused RED/GREEN and PostgreSQL worker/lease/ACK/concurrent-retry tests, synthetic MIME observer, API tenant/role regression, full backend gate at feature closure. No provider delivery proof or activation.
-  - Forecast: 500–750 authored lines; cohesive delivery slices to be refined from actual code without size-only rework.
+  - Revised forecast after mapping: 1,000–1,500 authored lines with meaningful tests. Cohesive boundaries: durable protocol/status/retry API, then dedicated SMTP/template/scheduler. Both remain inert until safely combined; no PRs. V42 must carry measured guarded-runtime accreditation, not just an enum extension. No unresolved product decision was found.
 - [ ] **E3 Show notification status and protect its public link.**
   - Route: delegated writer; multiple non-trivial React/API/test files, with a bounded telemetry regression.
   - Scope: completion-detail notification status/retry, DTO/hooks/query keys and tests, redact tracking code/link from Sentry payloads. Keep manual WhatsApp unchanged.
@@ -72,8 +81,9 @@ Read-only mapping verified the existing budget/tracking link, both transactional
 | Preparation | Frontend `b3d7610bf227d7ab63db95d916dee2f42e3aa57e..2c8473732b0b69b2be2caa7d9ac55c5ccd1f94b6` | 87 additions + 13 deletions = 100 authored; 15 local references and whitespace passed; native `passive`, `non_executable_only`, no functional approval |
 | E1 capture | Backend `f2141f60f2023405ae7ddec5987f13784dd2e76b..d6d9da0d75f08f89f62eb6fb277b817611c5c0f8` | `feat(notifications): capture completed repair email events`; 7 files, 406 authored; native `medium`, `slice_budget_reached`, user consent granted; native reliability review approved and exact closure acknowledged |
 | E1 evidence | Frontend `2c8473732b0b69b2be2caa7d9ac55c5ccd1f94b6..c051ca5221f425cc49c86b3839791fcbe81af24c` | 40 additions + 6 deletions = 46 authored; whitespace and scope checks passed; native `passive`, `non_executable_only`, `review_due=false` |
+| E1 review closure | Frontend `c051ca5221f425cc49c86b3839791fcbe81af24c..ffdfb7142ef580797d4109995da6c227eb09d4b2` | 12 additions + 9 deletions = 21 authored; whitespace/scope passed, native `passive`, `non_executable_only`, `review_due=false` |
 
-Running feature count through the evidence unit: 552 authored lines; this small post-commit boundary annotation is not yet committed. Delivery retains the cached `feature-branch-chain` choice; no push/PR/merge. Planned slices are the preparation unit, cohesive E1 capture, E2 delivery/API, and E3 UI/privacy; actual E2/E3 boundaries remain unset. Any future E1 PR would need explicit acceptance of its 406-line cohesive exception after this slicing pass; do not remove coverage to force the number under 400.
+Running feature count through the E1 review closure: 573 authored lines; this new correction-task/preparation update is not yet committed. Delivery retains the cached `feature-branch-chain` choice; no push/PR/merge. Planned slices are the preparation unit, cohesive E1 capture, E2 delivery/API, and E3 UI/privacy; actual E2/E3 boundaries remain unset. Any future E1 PR would need explicit acceptance of its 406-line cohesive exception after this slicing pass; do not remove coverage to force the number under 400.
 
 ### E1 verification (2026-10-03)
 
@@ -101,6 +111,6 @@ Binding: target `sha256:b21b64b61f7784b83e2c110506c08bc9785fda8283d8b70da1328574
 
 Engram tooling is unavailable in this runtime: context/search/full observation and proactive save could not run. Last successful full mirror was observation #840 from the previous turn, reconciled against this file and the runtime history. This turn's mirror and session summary are pending; local progress is preserved here.
 
-Next: delegate bounded E2 mapping/preparation, then its temporary-snapshot writer using the accepted design and TDD mode. E2 transport/status/safe retry and E3 UI/link privacy are still pending. Full backend `clean verify`, frontend checks, joint browser proof, provider/deployed delivery, and paid-subscription work remain pending. E1 alone does not send customer emails; release T2 remains reopened for the coordinated candidate.
+Next: delegated E1-C temporary-snapshot writer reproduces and fixes the newly mapped V41 compatibility gap before introducing V42/E2. Read-only mapping finished; no E1-C test failure or fix is observed yet. E2 transport/status/safe retry and E3 UI/link privacy are still pending. Full backend `clean verify`, frontend checks, joint browser proof, provider/deployed delivery, and paid-subscription work remain pending. E1 alone does not send customer emails; release T2 remains reopened for the coordinated candidate.
 
 Engram recovery topic: `odd/repair-ready-email/tasks`; repository-relative locator: `odd/tasks/repair-ready-email.md`. Mirror must contain the full current document, not a completion summary.

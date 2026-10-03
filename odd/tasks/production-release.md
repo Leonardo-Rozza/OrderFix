@@ -1,6 +1,6 @@
 # OrdenFix — plan único de salida a producción
 
-Fecha de referencia: 2026-10-02. Estado: T1 documental cerrada; T2–T7 pendientes; producción no acreditada.
+Fecha de referencia: 2026-10-02. Estado: T1 cerrada; T2 con evidencia local y bloqueos abiertos; T3–T7 pendientes; producción no acreditada.
 
 Este documento concentra el trabajo de salida de frontend y backend. Reutiliza las capacidades terminadas y sus actas; no declara aprobado un despliegue por tener pruebas locales verdes.
 
@@ -9,9 +9,9 @@ Este documento concentra el trabajo de salida de frontend y backend. Reutiliza l
 ## Objetivo y alcance autorizado
 
 - Objetivo: cerrar una release conjunta, verificable y recuperable, sin una reescritura arquitectónica ni funcionalidades nuevas ajenas a la salida.
-- Autorizado en este paso: unificar este plan y corregir referencias/instrucciones documentales del frontend.
+- Autorizado: T1 documental y, por confirmación explícita posterior, T2 de validación local con copias/recursos descartables y registro de evidencia.
 - No autorizado: modificar comportamiento, activar flags/proveedores, operar bases reales, usar credenciales remotas, borrar datos, hacer push/PR/merge o desplegar.
-- Las tareas T2–T7 son el backlog de salida, no una autorización automática de ejecución. Cada operación externa requiere destino, operación y credencial/sesión explícitos.
+- T3–T7 siguen como backlog no autorizado automáticamente. T2 no autoriza corregir código/tests ni operar servicios externos; cada operación externa requiere destino, operación y credencial/sesión explícitos.
 - Mercado Pago permanece pausado; el cierre integral continúa deshabilitado para salida pública. No se publica contenido legal de prueba.
 - Se preservan las actas históricas, ambas carpetas `.atl/` y el cambio previo del backend en `odd/tasks/v38-deploy-fixes.md`.
 
@@ -22,8 +22,8 @@ Este documento concentra el trabajo de salida de frontend y backend. Reutiliza l
 | Frontend | `fd92975`, rama de código `codex/charge-retry-recovery`; 10 commits sobre `main` local | No se consultaron refs remotas ni despliegue |
 | Backend | `f2141f6`, misma rama de código; 17 commits sobre `main` local; esquema V40 | No se acredita imagen/base desplegadas |
 | Frontend, auditoría 2026-10-02 | 1.107 Vitest, 43 tooling, 13 Chromium con API simulada; lint, TypeScript y build técnico aprobados | No es un build público ni un recorrido de staging |
-| Backend, auditoría 2026-10-02 | Compilación completa y 56 pruebas focalizadas aprobadas en copia temporal sin secretos | Integral backend no repetido |
-| Integración local documentada V40 | 14 registro, 4 fotos y 2 exportación aprobados | Evidencia histórica, no corrida actual |
+| Backend, auditoría 2026-10-02 | Compilación completa y 56 pruebas focalizadas aprobadas en copia temporal sin secretos | Auditoría inicial; integral posterior registrado en T2 |
+| Integración local documentada V40 | 14 registro, 4 fotos y 2 exportación aprobados | Evidencia previa; repetición actual registrada en T2 |
 | Cloudinary real, 2026-09-19 | Cuatro recorridos locales completos documentados | Falta acreditar rol/configuración de staging, retención/backups/CDN |
 
 Las actas de septiembre sobre Vercel, Resend, dominios y proveedores son evidencia fechada, no consultas actuales a sus paneles. Deben revalidarse con autorización antes de operar. Precio PRO remoto, subida privada vía backend, APIs legales y exportación ya están implementados; sus pendientes actuales son publicación, configuración y prueba operativa, no reconstrucción funcional.
@@ -74,10 +74,27 @@ Los lectores usan `ordenfix.legal.public-document-read.*` y `ordenfix.legal.publ
   - Disposición nativa: `passive`, motivo `non_executable_only`, `review_due=false`, sobre `fd92975..beed430`. No requiere revisores ni representa aprobación de las features heredadas.
   - Assessment inicial no evaluable por inventario/permisos; preflight y reintento con inventario canónico de `.atl/` excluido y permisos del índice temporal completaron la evaluación. Sin fallos documentales pendientes.
 - [ ] **T2 Cerrar la regresión local del candidato.**
-  - Depende de T1. Ruta prevista: verificación delegada; fuentes, tests, empaquetado e imagen abarcan ambos proyectos.
+  - Depende de T1. Ruta: verificadores delegados frontend y backend; preparación abarca más de cuatro archivos de runners/configuración/empaquetado. Padre conserva tracking, espejo y commits.
+  - Candidatos: frontend `6f972d6389f016510f01c9b96fda159a3a065b84` y backend `f2141f60f2023405ae7ddec5987f13784dd2e76b`; copias de esos commits sin secretos, Node compatible y Java 21. Docker exclusivamente local, imágenes existentes y sin descargas/proveedores.
   - Aceptación: suites aplicables frontend/backend, empaquetado sin secretos e imagen/arranque V40 del candidato exacto; laboratorios aislados cuando corresponda.
   - Checks fallidos, omitidos o no disponibles se registran; no sumar reportes históricos como si fueran un integral fresco.
   - Separar integral backend, labs reales locales y build público: son tres evidencias distintas. Conservar reportes por comando/candidato antes de que otro runner los sobrescriba.
+  - TDD ON heredado, runners Vitest/Playwright y Maven Surefire/Failsafe; ejecución de verificación, sin cambio de comportamiento ni nuevo ciclo RED/GREEN. RDD ON global; boundary documental previo `6f972d6`. Forecast T2 actualizado: 35–50 líneas de tracking, incluido registro de disposición, sin source/tests; recalcular antes de cada commit, sin comprimir evidencia para alcanzar un umbral.
+  - Checks y limpieza observados se registran abajo; T2 permanece abierta por cuatro fallos móviles simulados e imagen/arranque Docker pendientes. Commit y disposición nativa: pendientes del padre. Un fallo no autoriza su corrección ni marcar T2 cerrada.
+  - Evidencia local preservada: `/private/tmp/ordenfix-t2-frontend-RbUT0I` y `/private/tmp/ordenfix-t2-backend-proof.uzUNUd`. No mezclar fallos de configuración temporal con defectos del candidato; el integral backend y los labs conservan reportes separados.
+  - Frontend observado: 1.107 Vitest en 114 archivos y 43 tooling aprobados; lint, TypeScript y build técnico con exit 0. Bundle principal 665,81 kB / 191,61 gzip; advertencia de tamaño, no fallo. Gates públicos omitidos automáticamente; no se acredita build público.
+  - Playwright simulado completo: 163 aprobados / 4 fallidos de 167, sin skips/flaky; desktop 95/95, cada uno de los cuatro proyectos móviles 17/18. Falla el smoke `e2e/mobile.spec.ts:378`: JWT de `e2e/helpers.ts:8` sin `tallerId`; `pendingCharge.ts:29–31` rechaza ese alcance y Cobros bloquea correctamente el CTA. No se corrigió el fixture ni se debilitó la protección.
+  - Prueba frontend: `results/frontend-summary.json`, `results/playwright.json` y logs/traces bajo la raíz indicada. Los 31 PNG generados se preservaron aparte; copia de fuentes verificada idéntica antes/después y puerto 15173 liberado. Intentos iniciales de configuración/permisos y error transitorio de lectura Git no son defectos del candidato; no hubo reparación del repositorio.
+  - Backend integral observado sobre `f2141f60f2023405ae7ddec5987f13784dd2e76b`: `./mvnw -o -B clean verify`, Java 21, exit 0 / `BUILD SUCCESS`, duración 1 h 39 min. Surefire: 8.206 tests en 283 XML; Failsafe: 2.106 en 137 XML; total 10.312, sin fallos, errores ni omisiones.
+  - Prueba integral preservada antes de los labs bajo `/private/tmp/ordenfix-t2-backend-proof.uzUNUd`: `reports/full-surefire`, `reports/full-failsafe`, `full-verify-summary.json` y `full-verify.log`. No se sustituye por reportes focalizados posteriores.
+  - Empaquetado: `verify-no-secret-properties-in-jar` aprobó tres JAR; `jar-packaging-proof.json` confirma ausencia de entradas prohibidas de configuración, recursos de tests y helpers de ejecución externa, y coincidencia de `application.properties` y V40 con el source versionado. Es un guard de entradas acotado, no una certificación exhaustiva de ausencia de secretos; no acredita la imagen Docker.
+  - Smoke del JAR principal exacto, SHA-256 `74905d30eee62e2bd37dbe3c2fd738b7aa2eb1bf4af2d2e2af2226915085078b`: 40 migraciones, última V40, arranque JPA con `ddl-auto=validate`, health/readiness/liveness `UP` y exit 0. Prueba: `jar-smoke-{artifact.txt,app.log,exit,schema.txt,health.json,readiness.json,liveness.json,cleanup-verification.txt}` bajo la raíz backend. No certifica imagen Docker.
+  - El primer intento de conectividad de puertos con red `--internal` falló antes de ejecutar Java y se preservó separado. El reintento usó bridge efímero propio y puerto publicado sólo en loopback, sin modificar el candidato; ese fallo no es un defecto de arranque de la app.
+  - Labs reales locales ejecutados en serie: Registration 14, Photos 4 y Export 2 casos aprobados; sus tres orquestadores Java aprobaron un test cada uno por separado. Cada Maven terminó exit 0, sin fallos, errores, omisiones ni flaky. Fotos usó almacenamiento local; proveedores apagados.
+  - Prueba de labs: `labs-summary.json` y reportes independientes en `labs/<nombre>` bajo la raíz backend. `cleanup-final.txt` confirma seis contenedores preexistentes sin cambios, ningún contenedor añadido y ausencia de listeners en 5175, 5176, 5177 y 50792.
+  - Integridad: 1.281 archivos versionados del snapshot backend y 590 del frontend verificados byte a byte; HEAD original backend y cambios locales preexistentes preservados. No hubo cambios de fuentes/pruebas/Dockerfile ni operaciones T3–T7.
+  - Rollback del registro T2: revertir sólo sus cambios documentales en este tracker; no revertir fuentes ni eliminar artefactos de prueba, recursos preexistentes o datos de usuarios.
+  - Imagen Docker original: build offline con bases cacheadas, `pull=false` y `network=none` falló por falta de `org.mapstruct:mapstruct-processor:pom:1.6.3` en la caché de la capa Maven (`docker-build.log`). Imagen/arranque de imagen pendientes; no demuestra un defecto de código ni fallo de CI remoto. Sin descargas ni modificación del Dockerfile.
 - [ ] **T3 Preparar staging y la matriz coordinada.**
   - Depende de T1; despliegue sólo después de T2. Ruta prevista: preparación delegada, aprobación operativa del titular.
   - Aceptación: URLs, roles dedicados, permisos/preflights, keyrings, flags y SHAs/digests identificados. No aplicar scripts de laboratorio a una base compartida.
@@ -99,6 +116,7 @@ Los lectores usan `ordenfix.legal.public-document-read.*` y `ordenfix.legal.publ
   - Registrar `publicationId`, hashes, resultados editoriales y build público del mismo candidato, sin guardar secretos. Readiness editorial `READY` no reemplaza readiness público de staging.
   - La activación pública exige el release inmutable realmente aprobado y repetir registro y checks públicos contra esa publicación y sus hashes; una prueba sintética previa no reemplaza esta evidencia.
   - Fixtures y borradores nunca reemplazan publicación real; operación editorial remota requiere autorización específica.
+  - Hallazgo T2: el build copia el prototipo `public/OrdenFix project naming/OrdenFix.dc.html`; el diagnóstico de artefactos emite `PRO_PRICE_LITERAL_FOUND` (líneas 299/611). Precio remoto de la app ya existe, pero eso no limpia los archivos estáticos. Resolver el alcance del artefacto antes del gate, sin borrado autorizado por este hallazgo.
 - [ ] **T7 Release conjunta y apertura.**
   - Depende de T1–T6. Ruta prevista: coordinación del titular y ejecución acotada autorizada.
   - Aceptación: versiones/digests exactos, CI aprobado, revisión pendiente resuelta según política, go/no-go, smokes y rollback.
@@ -145,7 +163,9 @@ npm run build:public
 
 T1 cerrada: plan canónico, guía corregida y tres puntos de entrada actualizados. Los 51 enlaces/anchors locales y el whitespace pasaron; archivo y espejo se leyeron completos. El commit documental tuvo disposición pasiva; las revisiones funcionales previas siguen diferidas.
 
-Siguiente trabajo del plan: T2, regresión local del candidato. Antes de cambiar capacidades o habilitar nuevas contrataciones, resolver la política para talleres iniciales. T2–T7 no se ejecutaron en este cierre documental; no hubo suites/runtime, proveedores ni operaciones remotas.
+T2 conserva el integral backend, empaquetado, smoke del JAR y tres labs reales locales aprobados, con evidencia y limpieza acreditadas. Sigue abierta por cuatro fallos del fixture móvil simulado y la imagen/arranque Docker offline pendientes; el prototipo con precio fijo de T6 no se corrigió. El siguiente paso es resolver el alcance autorizado de esos bloqueos, no promover el candidato.
+
+La política comercial pendiente debe resolverse antes de cambiar capacidades o habilitar contrataciones. No se ejecutaron operaciones T3–T7 ni se declara build público, staging o producción aprobados. Commit y disposición nativa de este registro quedan pendientes del padre.
 
 Conteo de cierre de tracking: 11 adiciones + 5 eliminaciones = 16 líneas; running total T1: 344 líneas autoradas. La unidad inicial conserva su identidad y evidencia aunque este registro se complete en un commit documental posterior.
 

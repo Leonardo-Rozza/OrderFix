@@ -1,6 +1,6 @@
 # OrdenFix — plan único de salida a producción
 
-Fecha de referencia: 2026-10-02; evidencia actualizada el 2026-10-03. Estado: T1 y T2 cerradas; T3–T7 pendientes; producción no acreditada.
+Fecha de referencia: 2026-10-02; evidencia actualizada el 2026-10-03. Estado: T1 y T2 cerradas; checks funcionales T6-A1 completos, commit/disposición pendientes; T3–T7 pendientes; producción no acreditada.
 
 Este documento concentra el trabajo de salida de frontend y backend. Reutiliza las capacidades terminadas y sus actas; no declara aprobado un despliegue por tener pruebas locales verdes.
 
@@ -9,8 +9,8 @@ Este documento concentra el trabajo de salida de frontend y backend. Reutiliza l
 ## Objetivo y alcance autorizado
 
 - Objetivo: cerrar una release conjunta, verificable y recuperable, sin una reescritura arquitectónica ni funcionalidades nuevas ajenas a la salida.
-- Autorizado: T1 documental, T2 de validación local y, por confirmación posterior, corregir únicamente el fixture JWT agregando `tallerId: 1`; completar el build Docker con descargas públicas anónimas desde [Maven Central](https://repo.maven.apache.org/maven2/).
-- No autorizado: modificar comportamiento productivo, otras correcciones, activar flags/proveedores, operar bases reales, usar credenciales remotas, borrar datos/prototipos, hacer push/PR/merge o desplegar.
+- Autorizado: T1 documental, T2 de validación local y, por confirmación posterior, corregir únicamente el fixture JWT agregando `tallerId: 1`; completar el build Docker con descargas públicas anónimas desde [Maven Central](https://repo.maven.apache.org/maven2/). Confirmación posterior: T6-A1, archivar intactos los tres assets del prototipo fuera de `public`, agregar regresión de empaquetado y verificar el artefacto técnico local.
+- No autorizado: otros cambios de funcionalidad, debilitar guards, activar flags/proveedores, operar bases reales, usar credenciales remotas, borrar datos/materiales, hacer push/PR/merge o desplegar.
 - T3–T7 siguen como backlog no autorizado automáticamente. Las descargas aprobadas no incluyen otros destinos, sesiones autenticadas, pulls de imágenes ni acceso a settings privados; cualquier ampliación requiere autorización independiente.
 - Mercado Pago permanece pausado; el cierre integral continúa deshabilitado para salida pública. No se publica contenido legal de prueba.
 - Se preservan las actas históricas, ambas carpetas `.atl/` y el cambio previo del backend en `odd/tasks/v38-deploy-fixes.md`.
@@ -110,7 +110,7 @@ Los lectores usan `ordenfix.legal.public-document-read.*` y `ordenfix.legal.publ
   - Diagnóstico histórico Playwright simulado: 163 aprobados / 4 fallidos de 167, sin skips/flaky; desktop 95/95, cada uno de los cuatro proyectos móviles 17/18. Falló el smoke `e2e/mobile.spec.ts:378`: JWT de `e2e/helpers.ts:8` sin `tallerId`; `pendingCharge.ts:29–31` rechazó ese alcance y Cobros bloqueó correctamente el CTA. En esa corrida no se corrigió el fixture ni se debilitó la protección; el resultado posterior está registrado arriba.
   - Prueba frontend inicial: `results/frontend-summary.json`, `results/playwright.json` y logs/traces bajo la raíz indicada. Los 31 PNG generados se preservaron aparte; copia de fuentes verificada idéntica antes/después y puerto 15173 liberado. Intentos iniciales de configuración/permisos y error transitorio de lectura Git no son defectos del candidato; en esa corrida no hubo reparación del repositorio.
   - Prueba fresca del fixture: `/private/tmp/ordenfix-t2-fixture-b9DeIz/results/fixture-summary.json`, reportes por invocación, patch y hashes separados. Se repitieron 1.107 Vitest en 114 archivos + 43 tooling, lint, TypeScript, build técnico y diff checks, todos con exit 0. Los roots anteriores se conservaron.
-  - Integridad de la corrección: 590 archivos del snapshot coinciden con el baseline `5fd5a4a` salvo el único override autorizado del fixture; 31 PNG generados preservados/restaurados y puerto 15174 sin listener. `dist/` técnico byte a byte idéntico al anterior; persiste la advertencia 665,81 kB / 191,61 gzip y el marker de precio del prototipo T6. No se acredita build público.
+  - Integridad de la corrección T2: 590 archivos del snapshot coinciden con el baseline `5fd5a4a` salvo el único override autorizado del fixture; 31 PNG generados preservados/restaurados y puerto 15174 sin listener. En esa corrida, `dist/` técnico era byte a byte idéntico al anterior, con advertencia 665,81 kB / 191,61 gzip y marker de precio del prototipo. Ese diagnóstico histórico se conserva; la exclusión posterior del prototipo se acredita en T6-A1. No se acredita build público.
   - Backend integral observado sobre `f2141f60f2023405ae7ddec5987f13784dd2e76b`: `./mvnw -o -B clean verify`, Java 21, exit 0 / `BUILD SUCCESS`, duración 1 h 39 min. Surefire: 8.206 tests en 283 XML; Failsafe: 2.106 en 137 XML; total 10.312, sin fallos, errores ni omisiones.
   - Prueba integral preservada antes de los labs bajo `/private/tmp/ordenfix-t2-backend-proof.uzUNUd`: `reports/full-surefire`, `reports/full-failsafe`, `full-verify-summary.json` y `full-verify.log`. No se sustituye por reportes focalizados posteriores.
   - Empaquetado: `verify-no-secret-properties-in-jar` aprobó tres JAR; `jar-packaging-proof.json` confirma ausencia de entradas prohibidas de configuración, recursos de tests y helpers de ejecución externa, y coincidencia de `application.properties` y V40 con el source versionado. Es un guard de entradas acotado, no una certificación exhaustiva de ausencia de secretos; no acredita la imagen Docker.
@@ -150,7 +150,29 @@ Los lectores usan `ordenfix.legal.public-document-read.*` y `ordenfix.legal.publ
   - Registrar `publicationId`, hashes, resultados editoriales y build público del mismo candidato, sin guardar secretos. Readiness editorial `READY` no reemplaza readiness público de staging.
   - La activación pública exige el release inmutable realmente aprobado y repetir registro y checks públicos contra esa publicación y sus hashes; una prueba sintética previa no reemplaza esta evidencia.
   - Fixtures y borradores nunca reemplazan publicación real; operación editorial remota requiere autorización específica.
-  - Hallazgo T2: el build copia el prototipo `public/OrdenFix project naming/OrdenFix.dc.html`; el diagnóstico de artefactos emite `PRO_PRICE_LITERAL_FOUND` (líneas 299/611). Precio remoto de la app ya existe, pero eso no limpia los archivos estáticos. Resolver el alcance del artefacto antes del gate, sin borrado autorizado por este hallazgo.
+  - Hallazgo histórico T2: el build copiaba `public/OrdenFix project naming/OrdenFix.dc.html`; el diagnóstico emitía `PRO_PRICE_LITERAL_FOUND` (líneas 299/611). La prueba fallida original se conserva. T6-A1 excluye ahora los tres assets mediante archivo intacto fuera de `public`, sin retocar el precio de muestra ni debilitar el guard; no reemplaza los gates completos de publicación/configuración.
+  - [ ] **T6-A1 Archivar el prototipo fuera del artefacto desplegable.** Subunidad local autorizada el 2026-10-03; no cierra T6 ni habilita staging/publicación.
+    - Ruta: writer/verificador delegado; preparación sobre cuatro o más archivos de assets, configuración y guard/tests. No se modifican componentes React ni el validador público.
+    - Diseño aceptado: trasladar `OrdenFix.dc.html`, `support.js` y `.thumbnail` byte a byte a `docs/prototypes/ordenfix/`, conservando nombres y relación HTML/helper. No borrar materiales ni retocar precios de muestra.
+    - Impacto aceptado: las URLs públicas directas del prototipo dejan de publicarse. No se encontraron consumidores en la app; no se acreditan bookmarks externos. Actas históricas y resultados fallidos previos se preservan.
+    - Secuencia observada desde `77672c235dcea2725557ed0bff52e71417d8daaa`: regresión nueva en `scripts/check-public-release.test.mjs:939`, 39 adiciones + 1 eliminación = 40 líneas fuente; RED antes de cualquier traslado, archivo de los tres assets y GREEN con el mismo test. No se modificaron app, Vite, package, guard, validador previo ni E2E.
+    - Aceptación: tres renames con hashes idénticos, prototipo ausente de `dist`, app y favicons presentes, guard sin debilitar y sin `PRO_PRICE_LITERAL_FOUND` en el artefacto candidato. Ninguna llamada a proveedores ni lectura de configuración privada.
+    - TDD ON, fuente explícita `charge-session-expiry.md:15`; comando focalizado `node --test --test-name-pattern='technical packaging excludes archived prototypes and preserves public favicons' scripts/check-public-release.test.mjs`: RED exit 1 / un fallo (`2044.510541 ms`) antes de cualquier traslado; mismo GREEN exit 0 / un aprobado (`291.34175 ms`). Reportes RED y diagnóstico original `PRO_PRICE_LITERAL_FOUND` preservados.
+    - La regresión usa Vite instalado real, `configFile:false` y `envDir:false`, con `publicDir` real e index mínimo aislado. Comprueba ausencia recursiva de los tres basenames, identidad byte a byte de ambos favicons, index y resultado `[]` del mismo `validatePublicArtifacts`; el test previo que rechaza precios copiados y el validador no cambiaron.
+    - Archivo materializado en `docs/prototypes/ordenfix/`: los tres assets mantienen bytes y blobs Git al 100%, con nombres y relación HTML/helper preservados.
+      - `OrdenFix.dc.html`: 112.411 bytes; SHA-256 `64a13feaacff8a1de6b0e3775e26ec53e005667bc553d6d48223e80f5cc6f88c`.
+      - `support.js`: 53.975 bytes; SHA-256 `505f94e08eeccbc87acc6fcc6a47dd9f51fcd74a8d28ab58eb7eb784f7b92efe`.
+      - `.thumbnail`: 4.502 bytes; SHA-256 `1e2e7d9e66ebb0959754ca8bcc5085f135c246455d379ad9b333e2a7e0bf41dd`.
+    - Checks frescos: `npm test`, 1.107 Vitest en 114 archivos + 44 Node tooling; lint, TypeScript, build técnico y diff checks, todos exit 0. Node 24.14.0 / npm 11.9, dependencias físicas instaladas y ejecución offline sin descargas.
+    - Artefacto técnico real: 11 archivos en `dist`, sin ninguno de los tres basenames; app, index y favicons byte a byte idénticos al dist T2. Sólo se excluyeron los tres archivos del prototipo. `node /private/tmp/ordenfix-t6-a1-afFTeV/verify-artifacts.mjs` devuelve `issues: []`; no es un build público integral. Su build técnico omitió automáticamente los gates de configuración/publicación completos; diagnóstico de artefactos registrado por separado. Persiste la advertencia 665,81 kB / 191,61 gzip sobre el umbral orientativo de 500 kB.
+    - Playwright completo: `npm run test:e2e -- --config /private/tmp/ordenfix-t6-a1-afFTeV/playwright.validation.config.ts`, 167/167 aprobados (95 escritorio + 18 por cada uno de cuatro proyectos móviles), sin fallos, omisiones ni flaky. Loopback 15175, HTTP/S externo bloqueado por proxy sumidero; sin backend ni proveedores.
+    - Prueba preservada: `/private/tmp/ordenfix-t6-a1-afFTeV/results/t6-a1-summary.json` y reportes separados por invocación. Los 590 archivos del snapshot conservan identidad, con sólo dos overrides declarados (test y metadata del padre); 31 PNG generados preservados aparte/restaurados en el proof y puerto 15175 sin listener. Material y evidencia históricos intactos; no regenerados en el original.
+    - Backend/Maven/Docker/labs reales N/A: sólo cambia distribución frontend. Backend `f2141f6` y su diff documental previo (9 adiciones + 2 eliminaciones), ambas `.atl/` y recursos ajenos preservados. Build público integral, staging y publicación siguen sin acreditarse; no se ejecutó reset de datos ni acceso a paneles.
+    - Rollback: devolver únicamente esos tres assets a su ubicación previa y retirar esta regresión/registro; reaparece el bloqueo conocido. No revertir el fixture JWT ni otros cambios de la release.
+    - Forecast inicial: 90–180 líneas autoradas adicionales desde las 485 comprometidas. Diff observado pendiente: test 40 + tracker 41 = 81 líneas autoradas, antes del commit y disposición; recalcular si el padre agrega metadata. Los renames byte idénticos aportan identidad, no contenido nuevo. El umbral orientativo de 400 no justifica comprimir evidencia.
+    - RDD ON global; rango medio pendiente desde `5fd5a4a` (85 líneas netas hasta `77672c2`, `under_budget`). Evaluar cada nuevo commit con esa frontera y seguir la transición nativa si corresponde; no existe aprobación concedida.
+    - Checks funcionales completos; commit, conteo final y disposición nativa pendientes del padre. T6-A1 permanece unchecked; tampoco se cierran T6 ni las tareas de staging/publicación.
+
 - [ ] **T7 Release conjunta y apertura.**
   - Depende de T1–T6. Ruta prevista: coordinación del titular y ejecución acotada autorizada.
   - Aceptación: versiones/digests exactos, CI aprobado, revisión pendiente resuelta según política, go/no-go, smokes y rollback.
@@ -198,7 +220,8 @@ Todavía no existen PRs ni ramas hijas de revisión. Materializarlas requiere la
 | Bloque | Límites locales | Contenido y presupuesto autorado | Estado |
 | --- | --- | --- | --- |
 | 1 | `fd92975..6f972d6` | T1 documental, 344 líneas | Verificado, disposición pasiva |
-| 2 | `6f972d6..3a07d40` + metadata de cierre posterior | Evidencia local, fixture y Docker; 102 líneas de unidades previas + 39 de tracking = 141 | T2 local completa; slice medio `under_budget`, sin aprobación; commit de metadata conservado en Engram |
+| 2 | `6f972d6..77672c2` | Evidencia local, fixture y Docker; 141 líneas por unidades, 95 de diff neto | T2 local completa; slice medio `under_budget`, sin aprobación |
+| 3 (T6-A1) | Desde `77672c2` al futuro commit observado | Archivo intacto, regresión y prueba; test 40 + tracker 41 = 81 líneas pendientes | Checks locales completos; commit/disposición pendientes, sin PR ni extremo inventado |
 | Siguientes | Desde el cierre anterior | T3–T7 por unidades coherentes y checks propios | Backlog, sin ejecución autorizada |
 
 Dependencia prevista: baseline funcional `fd92975` → bloque 1 → bloque 2 → bloques posteriores. Una futura PR tracker permanecerá draft/no-merge hasta integrar la cadena; el bloque 1 apunta al tracker y cada bloque posterior a su padre inmediato. El código funcional heredado necesita sus propios límites y gates antes de integrar a `main`; esta cadena documental no lo aprueba.
@@ -210,11 +233,11 @@ Dependencia prevista: baseline funcional `fd92975` → bloque 1 → bloque 2 →
 
 T1 cerrada: plan canónico, guía corregida y tres puntos de entrada actualizados. Los 51 enlaces/anchors locales y el whitespace pasaron; archivo y espejo se leyeron completos. El commit documental tuvo disposición pasiva; las revisiones funcionales previas siguen diferidas.
 
-T2 cerrada el 2026-10-03: checks funcionales, evidencia, integridad y limpieza acreditados; unidad `3a07d40` registrada con assessment medio `under_budget`, sin revisión concedida. El prototipo con precio fijo de T6 no se corrigió y el build público sigue sin acreditarse; no promover el candidato.
+T2 cerrada el 2026-10-03: checks funcionales, evidencia, integridad y limpieza acreditados; unidad `3a07d40` registrada con assessment medio `under_budget`, sin revisión concedida. El bloqueo histórico del prototipo tiene ahora solución local verificada en T6-A1; el build público sigue sin acreditarse. No promover el candidato.
 
-Siguiente paso: preparar T3 y resolver su entorno, audiencia y alcance operativo. Esta indicación no autoriza automáticamente su ejecución, acceso remoto ni despliegue; T3–T7 conservan sus checkboxes pendientes.
+T6-A1 tiene archivo intacto, RED/GREEN, suites/estáticos, diagnóstico limpio de artefactos y Playwright 167/167 verificados; queda registrar commit y disposición nativa. T3 espera enlaces de proyectos y autorización de acceso. El titular informa datos ficticios y reset posible si hiciera falta; no se verificó inventario remoto ni se autoriza borrado por defecto. T6-A1 y T3–T7 conservan sus checkboxes pendientes.
 
-La política comercial pendiente debe resolverse antes de cambiar capacidades o habilitar contrataciones. No se ejecutaron operaciones T3–T7 ni se declara build público, staging o producción aprobados. La evidencia local tiene un commit documental pasivo; las revisiones funcionales previas siguen diferidas.
+La política comercial pendiente debe resolverse antes de cambiar capacidades o habilitar contrataciones. No se ejecutaron operaciones externas T3–T7; sólo la subunidad local T6-A1 autorizada. No se declara build público, staging o producción aprobados, ni se inspeccionaron sesiones/credenciales ambientales. Las revisiones funcionales previas siguen diferidas; no se inventa una disposición para la nueva unidad.
 
 Conteo de cierre de tracking: 11 adiciones + 5 eliminaciones = 16 líneas; running total T1: 344 líneas autoradas. La unidad inicial conserva su identidad y evidencia aunque este registro se complete en un commit documental posterior.
 

@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, mkdir, readFile, rename, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, rename, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
+import { build } from 'vite';
 import {
   LEGAL_MANIFEST_ISSUE_CODES,
   findPlaceholderIssues,
@@ -933,6 +934,43 @@ test('el control post-build inspecciona archivos copiados desde public', async (
   assert.deepEqual(issues, [
     { code: 'PRO_PRICE_LITERAL_FOUND', target: 'dist/assets/public-copy.js' },
   ]);
+});
+
+test('technical packaging excludes archived prototypes and preserves public favicons', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'ordenfix-packaging-'));
+  const publicDir = path.join(repositoryRoot, 'public');
+  await writeFile(
+    path.join(root, 'index.html'),
+    '<!doctype html><main>OrdenFix packaging regression</main>\n'
+  );
+  await build({
+    root,
+    configFile: false,
+    envDir: false,
+    publicDir,
+    logLevel: 'silent',
+    build: { outDir: 'dist', emptyOutDir: true },
+  });
+
+  const artifactRoot = path.join(root, 'dist');
+  const artifacts = await readdir(artifactRoot, { recursive: true });
+  for (const filename of ['OrdenFix.dc.html', 'support.js', '.thumbnail']) {
+    assert.ok(
+      !artifacts.some((artifact) => path.basename(artifact) === filename),
+      `${filename} must remain outside the deployable artifact`
+    );
+  }
+  for (const filename of ['favicon.svg', 'favicon-32x32.png']) {
+    assert.deepEqual(
+      await readFile(path.join(artifactRoot, filename)),
+      await readFile(path.join(publicDir, filename))
+    );
+  }
+  assert.match(
+    await readFile(path.join(artifactRoot, 'index.html'), 'utf8'),
+    /OrdenFix packaging regression/
+  );
+  assert.deepEqual(await validatePublicArtifacts(root), []);
 });
 
 test('el control post-build exige una entrada real y regular', async () => {

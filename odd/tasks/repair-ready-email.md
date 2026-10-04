@@ -1,23 +1,18 @@
 # Send a safe customer email when a repair is completed
 
-**Current status — 2026-10-04:** E1 capture, E1-C V41 compatibility, E2-S standalone transport, E2-M strictly accredited V42 delivery metadata, E2-W fenced delivery worker and E3-P telemetry privacy are implemented. The exact backend candidate through `e38bd4570f90915f26b7794bd7b9b34885215043` and frontend slice through `e5b5913ddb5869c584eedc5032a57b4a2b1e6205` have native approval and their actual acknowledgements, without findings or source corrections. Status/retry API, scheduler and status UI are still open. **Automatic sending, inbox delivery and production readiness are not established.**
+**Current status — 2026-10-04:** E1 capture, E1-C V41 compatibility, E2-S transport, E2-M V42 metadata, E2-W fenced worker, E2-A status/safe-retry API and E3-P telemetry privacy are implemented. API commit `238eb2b104c8ae5fd6ab0e93c4856d46a322ccf4` has verified final161 PostgreSQL/352 unit-regression cases; its new native review awaits fresh sharing consent. Earlier backend through `e38bd4570f90915f26b7794bd7b9b34885215043` and frontend through `e5b5913ddb5869c584eedc5032a57b4a2b1e6205` remain approved/acknowledged, not reused for this API. Scheduler/status UI/full release gates remain open. **Real sending, inbox delivery and production readiness are not established.**
 
 ## Quick path
 
-1. Preserve the two acknowledged review boundaries below; do not repeat closed reviews or reuse consent for future candidates.
-2. Resume **E2-A** from its read-only mapping after reconciling frozen E2-W source and this full mirror.
-3. Complete **E2-A/E2-G/E3**, with observed checks and work-unit commits.
-4. Run fresh coordinated backend/frontend/browser gates; real provider/deployed delivery needs separate authorization.
-
-Historical detail: frontend `11ba24e`, proof roots below and `/private/tmp/repair-ready-email-tracker-pre-condense.md`. This remains the one feature document.
+Resolve only the new E2-A review-sharing consent, then E2-G/E3 and fresh release gates. Closed reviews stay closed; provider/activation consent remains separate. The proof index retains full history; this remains one feature document.
 
 ## Outcome, authorization and exclusions
 
-Email the customer after a real existing-repair transition to `COMPLETADO`, reusing `/seguimiento/{codigoSeguimiento}` for latest budget/status. Optional email/manual WhatsApp preserved; transport failure never rolls back repair.
+Notify after a real existing-repair transition to COMPLETADO, reusing /seguimiento/{codigoSeguimiento} for current budget/status. Email remains optional; preserve manual WhatsApp and never roll back repair for transport failure.
 
-Original product approval and 2026-10-04 “Dale avanzemos con el envio de emails” authorize **local** implementation/synthetic checks only. No real SMTP/provider, activation, Railway/Vercel/shared DB/private config/payment/downloads/push/PR/merge/deploy. Paid PRO/paid-period cancellation is separate.
+Original approval/Oct4 “Dale avanzemos con el envio de emails”: local implementation/synthetic checks only, no SMTP/provider/activation, Railway/Vercel/shared DB/private config/payment/downloads/push/PR/merge/deploy. Paid PRO/paid-period cancellation is separate.
 
-R1 was withdrawn on Oct3 and remains withdrawn. Later dedicated V41/Docker completion and local authorization supersede its blocker; new tests may use owned disposable PostgreSQL, never protected running backend/shared data. Pending checks are not waived.
+R1 remains withdrawn (Oct3); dedicated V41/Docker proof supersedes its blocker. Pending checks remain required.
 
 ## Current policy and recovery identity
 
@@ -27,13 +22,13 @@ Repositories: frontend `/Volumes/DiscoExtern/Desktop/mvgr-reparaciones-frontend`
 | --- | --- |
 | Resume baselines | Frontend `6330d8e5cded8678f6bfb19eb1be38aa7dcdc9e1`; backend `4c847abec4081c69094922b20ee4c3155b564074` |
 | Original baselines | Frontend `b3d7610bf227d7ab63db95d916dee2f42e3aa57e`; backend `f2141f60f2023405ae7ddec5987f13784dd2e76b` |
-| Evidence heads / reviewed boundaries | Frontend head and acknowledged boundary `e5b5913ddb5869c584eedc5032a57b4a2b1e6205`; backend head and acknowledged boundary `e38bd4570f90915f26b7794bd7b9b34885215043`. This subsequent documentary closure is outside those immutable candidates |
+| Evidence heads / reviewed boundaries | Frontend head/effective boundary `1e9b74f1a1b186e23357d979be14ea768b2c8d56` (documentary passive assessment); last approved/ACK candidate `e5b5913ddb5869c584eedc5032a57b4a2b1e6205`. Backend head `238eb2b104c8ae5fd6ab0e93c4856d46a322ccf4`, acknowledged boundary still `e38bd4570f90915f26b7794bd7b9b34885215043`; new API review due, consent pending |
 | TDD | **ON**, explicit prior choice in `odd/tasks/charge-session-expiry.md:15`; compilable assertion RED → GREEN → cleanup. Setup failures are not RED |
 | Backend checks | Installed Java 21.0.10/Maven 3.9.11 directly, offline Surefire and real PostgreSQL/Failsafe in secret-free snapshots/settings; no wrapper bootstrap |
 | Frontend checks | Installed Node 24.14.0/Vitest 3.2.6, Node tooling, lint/typecheck/technical build and Playwright; public-only snapshots/synthetic environment, no private `.env` loading |
 | Native RDD | **ON/global**; new candidates require their own assessment, consent and exact lifecycle |
 | Delivery | `ask-on-risk`, cached `feature-branch-chain`; no PR/push/merge authorized or materialized |
-| Running count / forecast | **3,635 authored committed work-unit lines**, including source E2-M 736/privacy 151; separate V41/Docker features/generated outputs excluded. Remaining 820–1,340 after worker completion/API mapping; approximate feature 4,500–5,000 before future evidence revisions; re-estimate per unit |
+| Running count / forecast | **4,873 authored committed work-unit lines** before this frontend documentary checkpoint, including E2-A1,195; separate V41/Docker features/generated outputs excluded. Remaining scheduler120–240/UI350–550 plus evidence revisions. Original API350–550 forecast exceeded coherently by physical race/security coverage, not source scope expansion or a hard budget breach; preserve readable tests and cached feature-branch-chain |
 
 About 400 authored additions plus deletions is a planning heuristic, not an acceptance cap. Preserve readable coverage and strict checks. Cohesive schema/admission exceeds it; a future PR size exception requires explicit acceptance. Record actual commit/slice boundaries.
 
@@ -41,95 +36,74 @@ About 400 authored additions plus deletions is a planning heuristic, not an acce
 
 ### Capture, privacy and defaults
 
-- One event per workshop/repair/`COMPLETADO`, in the same transaction as a real PUT/PATCH transition, with shared repair lock/database uniqueness. Disabled/no-op/other-state/direct completed creation capture nothing; no historical repair backfill, budget mail or `LISTO_SIN_REPARAR` mail.
-- Missing email records `SIN_EMAIL` without blocking completion. Persistence failure can roll back repair/event; later transport failure cannot. Persist references/metadata only, never recipients/bodies/budgets/credentials/tracking secrets/raw provider errors.
-- Resolve current workshop/repair/customer before dispatch. Dedicated transport/worker, independent of account closure; existing verification/reset mail unchanged. Bearer-code redaction preserves public tracking/budget and manual WhatsApp.
-- Defaults: `ordenfix.reparaciones.email.enabled=false` and `ordenfix.reparaciones.email.delivery-enabled=false`; SMTP/scheduling remain off. Independent capture/mail/delivery/quarantine barriers precede provider resolution.
-- Internal outcomes: `ACCEPTED`, `PRE_SEND_FAILURE`, `UNCERTAIN`, `DISABLED`; strict origin/single-address/header validation and transaction-active rejection. **Acceptance is not inbox delivery.** Pre-send failure can retry; uncertain send/SQL ACK, expired lease or in-flight attempt must never auto-resend. No exactly-once promise.
+- One workshop/repair/COMPLETADO event, unique and committed with the real existing-repair PUT/PATCH transition under its repair lock. Disabled/no-op/other-state/direct completed creation captures nothing; no historical backfill, budget mail or LISTO_SIN_REPARAR mail.
+- Missing email records SIN_EMAIL without blocking completion. Persistence failure may roll back repair/event; transport failure cannot. Durable storage contains references/metadata, never recipient/body/budget/credentials/tracking secret/raw provider errors.
+- Resolve current workshop/repair/customer at dispatch. Repair mail is separate from account verification/reset/closure mail. Preserve tracking/budget/manual WhatsApp; redact bearer codes in telemetry.
+- Capture `ordenfix.reparaciones.email.enabled` and delivery `ordenfix.reparaciones.email.delivery-enabled` default false; SMTP/scheduling remain off. Independent capture/mail/delivery/quarantine gates precede provider resolution.
+- Transport outcomes ACCEPTED/PRE_SEND_FAILURE/UNCERTAIN/DISABLED retain strict origin/address/header checks. Transaction, certainty and retry rules are specified in E2-W below; acceptance is not inbox delivery.
 
-### Durable schema and fixed API
+### Schema and API
 
-Immutable V42, not edits to existing migrations. States: `PENDIENTE`, `SIN_EMAIL`, `EN_CURSO`, `ACEPTADO`, `FALLO_PREVIO`, `INCIERTO`. Six fields: `attempt_count`, `available_at`, `lease_token`, `lease_until`, `accepted_at`, `updated_at`; attempts 0–10, lease/ACK/state consistency, bounded polling/expiry indexes. Backfill metadata on existing events only; old six-column enqueues remain valid.
+Immutable V42, no prior migration edits. States: PENDIENTE/SIN_EMAIL/EN_CURSO/ACEPTADO/FALLO_PREVIO/INCIERTO. Fields: attempt_count/available_at/lease_token/lease_until/accepted_at/updated_at; attempts 0–10, state/lease/ACK consistency, bounded pending/expiry indexes. Backfill existing events only; six-column enqueues remain valid.
 
-Strict admission keeps frozen checksum/catalogs, ordered/latest history and sentinel 17; independent C/en_US migrated/restored profiles. Preserve historical target41/old constants and unknown V43/drift/downgrade rejection. Fingerprints omit physical `installed_rank`, so order checks remain independent; all read/row/trip/time/DML budgets stay unchanged.
+Strict admission retains frozen checksum/catalogs, ordered/latest history, sentinel 17, C/en_US migrated/restored profiles, target41/old constants and V43/drift/downgrade rejection. Fingerprints exclude installed_rank; independent ordering and all read/row/trip/time/DML budgets stay unchanged.
 
-GET `/api/reparaciones/{id}/notificacion-email`; POST `/api/reparaciones/{id}/notificacion-email/reintentos` with empty body. DTO only `estado`/`reintentable`, including derived `NO_EVENTO`/`DESHABILITADO`; verified current tenant and existing ADMIN/EMPLEADO permissions. No arbitrary recipient/sensitive payload/synchronous SMTP. UI offers server-authorized safe retry only, never automatic retry; stale/foreign-session responses cannot update the current view.
+Fixed HTTP routes/two-field DTO and tenant/ADMIN/ROLE_USER contracts are fully specified in active E2-A. No recipient/sensitive payload/HTTP SMTP. E3 allows server-authorized manual safe retry only, not automatic or stale foreign-session publication.
 
 ## Tasks and acceptance
 
-Each source task uses **delegated mapping/preparation and a bounded writer**: 4+ files to understand, 2+ non-trivial files to implement. Parent owns decisions, task/mirror, allowlisted transfer, commits and native disposition. Fixed contracts above are acceptance criteria; observed checks below are evidence, not authorization.
+Source tasks use delegated preparation/mapping (4+ files) and a bounded writer (2+ non-trivial files). Parent owns decisions, task/mirror, transfer, commits and native disposition. Contracts are acceptance; verification is evidence, not authorization.
 
-- [x] **E1 Capture a durable completed-repair event.** V41/enqueuer/shared PUT/PATCH lock/default-off; commit `d6d9da0`, checked and native approved/acknowledged. Transaction, optional-email and replay checks below. Rollback capture with tests/docs only.
-- [ ] **R1 Restore and verify the local Docker/Spring Boot runtime — withdrawn by user.** Historical native-PG health/JPA/41 migrations passed, but R1 Docker acceptance never established. Owned Java 68235/PG 67481 closed; not E1-C behavior proof or a scheduled retry. Later dedicated Docker evidence is separate.
-- [x] **E1-C Restore guarded runtime compatibility with V41.** Dedicated `odd/tasks/v41-schema-compatibility.md` C1/C2/C3 (`fe1bec7`, `364a90a`, `cb82a0b`) supersede compile-only preparation. Migrated/restored strict accreditation preserves old migrations/business/roles/V38/equipment/charge/historical rejection. Rollback guards/tests/docs, not V41/legal data.
-- [x] **E2-S Prepare the standalone repair-ready template and SMTP transport.** Commit `00b265d`, checked/native acknowledged. Text/escaped HTML/current link; no unnecessary personal/budget data/external images. Address/origin/header/barrier/transaction/certainty tests; remains unconsumed. Rollback adapter/template/port/tests/default/docs, preserving account mail.
+- [x] **E1 Capture a durable completed-repair event.** V41/enqueuer/shared PUT/PATCH lock/default-off; `d6d9da0`, checked/native approved/ACK. Checks below. Rollback capture/tests/docs together.
+- [ ] **R1 Restore and verify the local Docker/Spring Boot runtime — withdrawn by user.** Native-PG health/JPA/41 migrations passed, not R1 Docker acceptance or E1-C behavior. Owned Java68235/PG67481 closed; no scheduled retry. Dedicated later Docker proof is separate.
+- [x] **E1-C Restore guarded runtime compatibility with V41.** Dedicated `odd/tasks/v41-schema-compatibility.md` C1/C2/C3 (`fe1bec7`, `364a90a`, `cb82a0b`) supersede compile-only preparation. Preserve migrations/business/roles/V38/equipment/charge/historical rejection. Rollback guards/tests/docs, not V41/legal data.
+- [x] **E2-S Prepare the standalone repair-ready template and SMTP transport.** `00b265d`, checked/native ACK; text/escaped HTML/current link, no unnecessary personal/budget data/external images. Address/origin/header/barrier/transaction/certainty checks, no provider delivery. Rollback adapter/template/port/tests/default/docs, preserving account mail.
 - [ ] **E2 Deliver and recover without blind resend.** Overall task remains open.
-  - [x] **E2-M Add and strictly accredit durable delivery metadata.** Commit `6605d6b`, 19 files/736 authored; migration/helper/guard selectors. Narrow allowed selector 42, exact six-field capture whitelist and 16-placeholder history classifier/sentinel 17; budgets unchanged. No worker/API/scheduler. Rollback new migration/admission/tests together before deployment, preserving V41/account/repair/permissions.
-  - [x] **E2-W Implement fenced claim/send/ACK and safe recovery.** Depends on metadata. Claim committed before send, token-fenced ACK, bounded current tenant/repair/customer/open-workshop/recipient/lease revalidation immediately before SMTP. No SQL/repair transaction send or automatic ambiguous resend. PostgreSQL concurrency/lease/recovery TDD and synthetic transport/MIME. Commit `e38bd4570f90915f26b7794bd7b9b34885215043`: 9 paths, Git 971 additions + 21 deletions = 992 authored. Final PG108/unit153 verified on exact final source; medium/slice_budget_reached, fresh human consent followed by native approval/actual ACK. Rollback these nine files together, preserving V41/V42 and prior guards. The accepted boundary is retained below.
-  - [ ] **E2-A Expose tenant-scoped status and safe retry.** Depends on worker; fixed API above, corrected missing-email recovery, no accepted/in-flight/uncertain resend or HTTP SMTP. PostgreSQL concurrent retry/API tenant/role RED/GREEN. New read-only mapping forecast 350–550 replaces 220–380; exact proposed boundary below.
-  - [ ] **E2-G Wire the opt-in bounded scheduler.** Depends on worker/API; independent default-off scheduler and capture/mail/delivery/quarantine gates. Synthetic scheduler/runtime tests; separate authorization before activation. Forecast 120–240.
-- [ ] **E3 Show notification status and protect its public link.** Remaining DTO/hooks/query keys/invalidation/status/retry UI. Missing/loading/error never block completion; safe retry/no stale foreign-session publication; WhatsApp/public budget preserved. RED/GREEN, complete frontend/tooling/lint/types/build, simulated browser completion/status/retry/WhatsApp and coordinated end-to-end gates. UI 350–550 replaces old combined 280–420 forecast; rollback UI/hooks/tests together.
-  - [x] **E3-P Protect the tracking bearer secret in telemetry.** `src/lib/sentry.ts`/paired tests only; code/path/Error filtering preserves diagnostics/token filtering/original/shared references. Commit `b6bade6`, source 151, medium under_budget (not approval). No telemetry activation; rollback sanitizer/tests together.
+  - [x] **E2-M Add and strictly accredit durable delivery metadata.** `6605d6b`, 19 files/736 authored; selector42, six-field capture whitelist, 16-placeholder history classifier/sentinel17, unchanged budgets. No worker/API/scheduler in this unit. Before deployment, rollback migration/admission/tests together, preserving V41/account/repair/permissions.
+  - [x] **E2-W Implement fenced claim/send/ACK and safe recovery.** `e38bd4570f90915f26b7794bd7b9b34885215043`, checked protocol/native approved/ACK below. Rollback its nine paths together, preserving V41/V42/guards.
+  - [x] **E2-A Expose tenant-scoped status and safe retry.** Exact six-path commit `238eb2b104c8ae5fd6ab0e93c4856d46a322ccf4`, Git1,192 additions +3 deletions =1,195 authored. Final161 PG/352 unit-regression cases pass on exact final candidate, new-file-inclusive staged whitespace0. Corrected email/tenant-role/concurrency/rollback/no unsafe resend/HTTP SMTP verified below. Native medium/slice_budget_reached, new sharing consent pending; no approval claimed. Rollback only these six paths together, preserving Store/Worker/schema/auth.
+  - [ ] **E2-G Wire the opt-in bounded scheduler.** Depends on worker/API. Default-off scheduler/capture/mail/delivery/quarantine gates; synthetic scheduler/runtime checks and separate activation authorization. Forecast 120–240.
+- [ ] **E3 Show notification status and protect its public link.** DTO/hooks/query keys/invalidation/status/manual safe retry; missing/loading/error never blocks completion; no stale foreign-session publication, preserve WhatsApp/public budget. RED/GREEN, full frontend/tooling/lint/types/build and simulated browser completion/status/retry/WhatsApp/coordinated gates. UI 350–550 replaces 280–420. Rollback UI/hooks/tests together.
+  - [x] **E3-P Protect the tracking bearer secret in telemetry.** `src/lib/sentry.ts`/paired tests; field/path/Error filtering preserves diagnostics/token filtering/original/shared references. `b6bade6`, source151, medium under_budget at that commit—not standalone approval. No telemetry activation. Rollback sanitizer/tests together.
 
 ## E2-W accepted implementation boundary
 
-**Worker/Store/Permit/tests/docs only**, no migration/guard/API/UI/scheduler/capture/CRUD/JWT/auth or activation. Implementation committed and exact checks observed below; its exact native review is approved and acknowledged. TDD remains ON with the installed offline Java21/Maven3.9.11 runner above; future work requires a new source-bound snapshot and actual XML.
+Completed Worker/Store/Permit/tests/docs, no API/scheduler/activation or migration/guard/CRUD/JWT/auth expansion. Exact nine-path rollback/transfer: committed `e38bd457`, `/private/tmp/ordenfix-ready-email-e2w.azjj8e4_/allowlist.json`. Historical inert contracts had no claim/permission/effect; only actual assertion RED—not setup/compilation—counted.
 
-| Rule | Accepted technical choice |
-| --- | --- |
-| Public seams | `Worker.runNext()` at most one attempt; mandatory `Result send(Request, Permit)`, functional boolean Permit through Store; writer may choose minimal internal Store/claim signatures |
-| Inert preparation exception | New compilable contracts may return no claim/permission/effect **before assertion RED**; compile-only preparation is not RED or successful behavior. Then observe PostgreSQL assertion RED before behavior writes |
-| Barriers | Existing capture/mail/delivery false defaults; quarantine other than literal `"false"`, missing transport or active caller transaction: no claim/SMTP |
-| Store/time | REQUIRES_NEW, READ_COMMITTED, timeout 5 s; authoritative `clock_timestamp()` checked **after lock waits**, not JVM/pre-lock time |
-| Recovery | At most 20 expired leases, EN_CURSO→INCIERTO, clear lease, never requeue automatically |
-| Claim | At most 20 PENDIENTE/FALLO_PREVIO candidates, available time/attempt < 10, order availability/creation/ID. Workshop admission before `FOR UPDATE SKIP LOCKED`; revalidate coherent tenant/repair/equipment/customer/current COMPLETADO/open workshop |
-| Confirmed lease | EN_CURSO, increment attempt, random token, **120 s**. Unknown commit: no SMTP, never assume rollback |
-| Permit | Before JavaMailSender resolution and after MIME immediately before send; verify current token/lease/state/relations/workshop/recipient/code against Request. False/throw/unknown commit: no SMTP. PII in memory only, no binds/logs; redacted Request/claim representations |
-| Send/ACK | SMTP outside SQL transactions/locks. ACK locks first, checks fresh DB time/token/EN_CURSO; expired/replaced token cannot modify. Accepted→ACEPTADO, known pre-send failure→FALLO_PREVIO, absent email→SIN_EMAIL, ambiguous exception/null→INCIERTO; clear lease. Unknown ACK after send never compensates with resend/downgrade |
-| Backoff | Known failure only: **30 s**, exponential doubling per attempt, maximum **1 h**, from DB time; cap 10, no retry in same invocation |
+- **Entry/gates:** Worker.runNext handles at most one attempt; mandatory Result send(Request, Permit), boolean Permit through Store. Capture/mail/delivery false, quarantine other than literal "false", missing transport or active caller transaction prevents claim/SMTP.
+- **Transactions/time:** REQUIRES_NEW, READ_COMMITTED, timeout 5 s; authoritative clock_timestamp after lock waits. Recovery materializes at most 20 expired EN_CURSO IDs, changes to INCIERTO/clears lease, never requeues.
+- **Claim:** scan at most 20 due PENDIENTE/FALLO_PREVIO candidates with attempts < 10, ordered availability/creation/ID. Workshop admission precedes event FOR UPDATE SKIP LOCKED; current tenant/repair/equipment/customer must cohere, repair COMPLETADO/workshop open. Increment attempt, random token, 120 s lease; unknown commit means no SMTP, never assume rollback.
+- **Permit/send:** check before JavaMailSender resolution and after MIME immediately before send; fresh token/lease/state/relations/workshop/recipient/code matches Request. False/throw/unknown commit refuses SMTP. PII in memory only, no binds/logs; redacted Request/claim. SMTP holds no SQL transaction/lock.
+- **ACK/backoff:** lock event before fresh DB-time/token/EN_CURSO checks; expired/replaced token cannot change it. Accepted→ACEPTADO, known pre-send failure→FALLO_PREVIO, absent email→SIN_EMAIL, ambiguous exception/null→INCIERTO; clear lease. Unknown ACK never compensates by resend/downgrade. Known failure uses 30 s exponential doubling, max 1 h, cap 10, no retry within an invocation.
 
-Exact nine-path backend allowlist, relative to backend root:
+No main TransportConfiguration class exists: SmtpRepairReadyEmailTransport conditional annotation/values configure it. Public application.properties: MAIL_ENABLED default false at 96, capture/delivery literal false at 168/170.
 
-| Change | Path |
-| --- | --- |
-| New | `src/main/java/com/leonardorozza/mvgrreparacionesbackend/service/notification/RepairReadyEmailStore.java` |
-| New | `src/main/java/com/leonardorozza/mvgrreparacionesbackend/service/notification/RepairReadyEmailWorker.java` |
-| New | `src/test/java/com/leonardorozza/mvgrreparacionesbackend/service/notification/RepairReadyEmailWorkerIT.java` |
-| New | `src/test/java/com/leonardorozza/mvgrreparacionesbackend/service/notification/RepairReadyEmailWorkerTest.java` |
-| Modify | `src/main/java/com/leonardorozza/mvgrreparacionesbackend/service/notification/RepairReadyEmailTransport.java` |
-| Modify | `src/main/java/com/leonardorozza/mvgrreparacionesbackend/service/notification/SmtpRepairReadyEmailTransport.java` |
-| Modify | `src/test/java/com/leonardorozza/mvgrreparacionesbackend/service/notification/SmtpRepairReadyEmailTransportTest.java` |
-| Modify | `src/test/java/com/leonardorozza/mvgrreparacionesbackend/service/notification/RepairReadyEmailTransportConfigurationTest.java` |
-| Modify | `docs/operations/email.md` |
-
-No production `RepairReadyEmailTransportConfiguration.java` exists: configuration is SmtpRepairReadyEmailTransport's conditional annotation/values. `application.properties`: MAIL_ENABLED default false at 96, capture/delivery literal false at 168/170; no new class or default change.
-
-Checks: visible committed claim before mock transport/no active transaction; **physical commit-then-throw** claim/ACK; concurrent claim/token replacement; ACK lock wait past expiry; recipient/equipment/code changes during MIME; permit false/throw; every barrier; eligibility/backoff/cap/privacy. Bounded latches/real PG locks, not timing-only sleeps. Permit is fresh authorization, not SQL/SMTP atomicity/exactly-once. New mapper forecast **650–1,000 authored** with readable physical coverage; supersedes 450–750, re-estimate totals before commit.
+Coverage below uses bounded latches/real PG locks, not timing-only sleeps, including denied/throwing permits. Permission is not SQL/SMTP atomicity/exactly-once. Actual committed Git metric: 992.
 
 ## E2-W committed verification (2026-10-04)
 
-Commit `e38bd4570f90915f26b7794bd7b9b34885215043`, parent `6605d6b9353632ca44609e23197b2c444a11b936`; exact nine paths above. Staged whitespace exit0; all working/staged/committed file hashes match the tested snapshot. **Git 971 additions + 21 deletions = 992 authored** is the ledger/native metric. Frozen Python unifieddiff reports 972+22=994 for identical bytes; the first parent count guard stopped before commit, not a source/test failure. No coverage/source shrinking followed.
+Commit `e38bd4570f90915f26b7794bd7b9b34885215043`, parent `6605d6b9353632ca44609e23197b2c444a11b936`;9 paths. Working/staged/committed hashes match tested bytes; staged whitespace exit 0. Git971+21=992 is the ledger/native metric; Python unifieddiff972+22=994 describes identical bytes. The parent count guard stopped before commit, not a source/test failure; no source/coverage shrinking followed.
 
-| Phase | Observed result / qualification |
+| Phase | Actual cases/failures/errors/skips and qualification |
 | --- | --- |
-| SMTP01 RED | 75 cases, 8 assertion failures, 0 errors/skips, exit1; mechanical/inert contracts compiled before feature behavior |
-| PG01 RED | Real PG/Flyway42, 1 assertion failure, 0 errors/skips, exit1, inert worker before behavior |
-| SMTP02 GREEN | 82/3 classes, 0 failures/errors/skips; older Store/WorkerIT revision, not final whole-source proof |
-| PG02 attempted GREEN | 33 cases, 1 functional failure + 3 fixture errors, exit1; never GREEN. Expiry changed21 instead of20; old V33 correctly rejected closure/tenant-ID fixtures |
-| PG03 isolated RED | 1 expiry-bound assertion failure, 0 errors/skips, exit1 on unchanged PG02 source |
-| PG04 GREEN | 33 pass, 0 failures/errors/skips; final production but older WorkerIT, not final whole-source proof |
-| PG05 final | **108/4 actual classes**: Worker38, Capture10, ClosureEffects43, ClosureStore17; 0 failures/errors/skips, exit0, 78.52s |
-| Unit06 final | **153/11 actual classes**, including SMTP68/config7/Worker7 and account/closure/template/quarantine regressions; 0 failures/errors/skips, exit0, 4.37s |
+| SMTP01 RED |75/8/0/0,exit 1; compilable inert contracts before behavior |
+| PG01 RED |1/1/0/0,exit 1,realPG/Flyway42 inert worker |
+| SMTP02 GREEN |82/3 classes, 0 failures/errors/skips; older Store/WorkerIT, not final whole source |
+| PG02 attempted GREEN |33/1/3/0,exit 1; expiry changed21 instead of20; V33 correctly rejected closure/tenant-ID fixtures. Never GREEN |
+| PG03 isolated RED |1/1/0/0,exit 1; unchanged PG02 source |
+| PG04 GREEN |33/0/0/0; final production, older WorkerIT; not final whole source |
+| PG05 final |108/4 actual classes: Worker38/Capture10/ClosureEffects43/ClosureStore17;0/0/0,exit 0,78.52s |
+| Unit06 final |153/11 actual classes including SMTP68/config7/Worker7 plus account/closure/template/quarantine;0/0/0,exit 0,4.37s |
 
-Both final phases bind to identical before/after/final **1,299-file** manifest `f7b1b7726564db3aba46cbae943f93de0bce91673aaad81f8bbb1b015159361d`; **261 distinct final cases**, never a sum of reruns. Compilation observed607 main/480 test sources; no fresh full clean verify claimed. Physical PostgreSQL commit-then-08006 proves unknown claim→zero SMTP and unknown ACK→no resend. Tests verify committed visibility/no transaction at transport, pre/post-MIME permission, current recipient/equipment/customer/tracking/state/lease/token/real-closure changes, concurrent/SKIP LOCKED claims, 20-candidate scan, ACK lock wait/DB deadline, backoff/cap/privacy. The observed expiry bound bug was fixed with a materialized20-ID CTE, not guard relaxation. Fixtures use actual closure protocol/coherent pointers; original guards unchanged.
+Both final runs bind to exact before/after/final 1,299-file manifest `f7b1b7726564db3aba46cbae943f93de0bce91673aaad81f8bbb1b015159361d`: 261 distinct cases, not summed reruns. Compile: 607 main/480 tests; no fresh full clean verify. Physical commit-then-08006 proves unknown claim→zero SMTP and unknown ACK→no resend. Recorded tests exercise the contract edge cases above, including real closure, SKIP LOCKED and ACK lock-wait/DB deadlines. Expiry fixed by materialized20-ID CTE; coherent actual-closure fixtures and original guards preserved.
 
-Frozen root `/private/tmp/ordenfix-ready-email-e2w.azjj8e4_`: 4,171 hashes independently verified; manifest `9928cf7ef17ac679f6eb8cc06cff7bf5af742d170531703446e1a7ab1ca07494`; patch `0e2a7bb5aeebc6ecf1f0768155006d5e42cb0a6061a1e607028f64acaca42837`; allowlist `0c76c0acdae162151b0408ebf7ea21cb15e774d0c34ba1a49ff4bf469ad32517`. Independent actual XML/source bookkeeping `/private/tmp/ordenfix-e2w-bookkeeping-53uu4ev6/receipt.json`, SHA `017b12a227cbed51e0837faf4972d625ac2a24aa25d2dad7540535cba92a1d14`. Parent integrity/transfer/commit receipts: `/private/tmp/ordenfix-email-e2w-parent-{integrity,transfer,commit}.json`. Original1,295 public hashes/6 protected hashes preserved before transfer; after transfer1,290 old files unchanged and1,299 final files match. Protected JAR hash unchanged. Parent `kill(pid,0)` was unavailable with sandbox EPERM, not proof of process exit; writer confirms PID11272 alive. No runtime restart.
+Frozen `/private/tmp/ordenfix-ready-email-e2w.azjj8e4_`:4,171 verified hashes; manifest `9928cf7ef17ac679f6eb8cc06cff7bf5af742d170531703446e1a7ab1ca07494`, patch `0e2a7bb5aeebc6ecf1f0768155006d5e42cb0a6061a1e607028f64acaca42837`, allowlist `0c76c0acdae162151b0408ebf7ea21cb15e774d0c34ba1a49ff4bf469ad32517`. Independent XML/source receipt `/private/tmp/ordenfix-e2w-bookkeeping-53uu4ev6/receipt.json`, SHA `017b12a227cbed51e0837faf4972d625ac2a24aa25d2dad7540535cba92a1d14`. Parent integrity/transfer/commit: `/private/tmp/ordenfix-email-e2w-parent-{integrity,transfer,commit}.json`. Before transfer1,295 public/6 protected hashes preserved; afterward 1,290 old files unchanged/1,299 final match. Old JAR unchanged. Parent PID probe EPERM was not exit proof; writer confirms PID 11272 alive; no restart.
 
-**Inventory mistake and containment:** initial owned unfrozen Docker preservation record collected overly broad metadata that could include Config.Env/Cmd/Args. Replaced before freeze with explicitly safe fields; no broad stdout/duplicates retained, no credential values displayed/used, no original resource mutation. `inventory-scope-correction.json` documents it. Retained inventories certify safe IDs/Image/Created/Running/StartedAt/network-attachment equality and48 images/8 containers/5 networks, not private-config equivalence or forensic secure erasure. Never collect broad private metadata again.
+**Inventory containment:** an initial owned unfrozen Docker record collected broad metadata potentially including Config.Env/Cmd/Args. Before freeze replaced by safe allowlisted fields, no broad stdout/duplicates retained or credential values displayed/used; originals/resources unchanged. `inventory-scope-correction.json` limits proof to IDs/Image/Created/Running/StartedAt/network attachments and 48 images/8 containers/5 networks—not private-config equivalence or forensic erasure. Never repeat broad inspection.
 
-Native: first undeclared `.atl`/read-only `.git` attempts failed safely and were retained, never inferred low risk. Scoped local retry/exclusion of only verified two `.atl` files succeeded: **medium,992 lines, slice_budget_reached**, exact returned committed-only preflight ran. Target `sha256:9d3bc7abc5976bb98c1fdcf042d1ef66e80d73981f7df7e45dddb878afe854eb`, lineage `review-1d8cf3470d065a22`, base tree `e510458002be4f33ac94db5f53444d9426473460`, candidate tree `51b048adb0567374d09b2e223346360afffd3237`, paths digest `sha256:14a1678bea5fe12f077f376f0959ff75f22cb44066ba5db5b31aa6fc0246677f`. Initial START consent=relay returned **consent_required**; retained `/private/tmp/ordenfix-email-e2w-{assess-final,preflight,ready-status,consent-relay}.json` is historical, not the final state. Fresh human “Si” authorized this exact candidate and the frontend slice; current approved/acknowledged closure is below. Backend boundary advances to e38bd457. No provider, activation, API, scheduler, UI, migration, Docker build, browser, full verification, remote push/PR/merge or deployment was included.
+Initial `.atl`/read-only `.git` native failures remain retained, never low-risk evidence. Historical consent_required receipts: `/private/tmp/ordenfix-email-e2w-{assess-final,preflight,ready-status,consent-relay}.json`. Final medium/slice_budget_reached approval/ACK is bound below.
 
-## E2-A next mapping — not implemented
+## E2-A accepted implementation boundary — 2026-10-04
 
 Read-only current6605d6b mapping/full mirror reconciled; reconcile against frozen E2-W before any writer. Business EMPLEADO uses existing **ROLE_USER**, not ROLE_EMPLEADO (`persistence/entity/enums/UserRole.java:3–5`, `config/security/AuthenticatedUserPrincipal.java:34`); ADMIN remains ROLE_ADMIN. No security/schema expansion.
 
@@ -137,17 +111,55 @@ Parent accepts a separate controller/status service with only the fixed two-fiel
 
 Transaction starts before `TenantService.currentTallerId()`; READ_COMMITTED explicit even for readonly GET, preserving WorkshopClosureGate admission. POST admission→tenant repair lock→event lock→fresh DB time/re-read current relations/gates/state/email/cap. Frozen E2-W inspected by parent: claims/ACK never lock repair rows, so no inverse event→repair-lock ordering. All PII validation in transient memory only.
 
-Proposed six-path backend unit: new `controller/RepairReadyEmailController.java`, `service/dto/reparacion/RepairReadyEmailStatusDTO.java`, `service/notification/RepairReadyEmailStatusService.java` beneath existing main package; new `service/notification/RepairReadyEmailStatusServiceTest.java` and `service/notification/RepairReadyEmailApiIT.java` beneath existing test package; modify `docs/operations/email.md`. Forecast350–550 authored, advisory only. Before writer, freeze full absolute/relative allowlist and exact inert-contract preparation if needed; TDDON/offline installed Surefire/Failsafe. Tests: real JWT ADMIN/USER/tenant/account/workshop barriers, truly empty body/privacy, GET no writes, corrected email/cap/backoff, concurrent retry/claim/delete/customer/closure races, physical rollback and zero SMTP. Mapping ran no tests or mutations and provides no future GREEN evidence.
+Human “Dale avanzemos con el próximo paso” authorizes this local API unit. Root read/reconciled actual document/full840 and current backend e38bd457; fresh narrow delegated mapping found no product gap. Route: **delegated preparation/mapping + one bounded writer**, because understanding spans4+ files and implementation includes5 non-trivial new Java files plus operations docs. Parent owns this file/full mirror, exact transfer, Git/native lifecycle; prior approved reviews stay closed. Forecast350–550 authored remains advisory, not a code/test cap; cached ask-on-risk/feature-branch-chain continues. No scheduler/UI/schema/Store/Worker/security expansion or SMTP activation.
+
+**Frozen six-path allowlist.** Backend root `/Volumes/DiscoExtern/Desktop/mvrg-backend`; every final path is the root plus its exact repository-relative locator below. Writer works only in a new public-only owned `$SNAP/source`, copied from committed e38bd457; exclude private properties/.env/.atl/.git/target and never alter originals or old frozen proof/runtime resources. Five Java files are new; only existing operations doc is modified.
+
+| Repository-relative locator | Final absolute locator |
+| --- | --- |
+| `src/main/java/com/leonardorozza/mvgrreparacionesbackend/controller/RepairReadyEmailController.java` | `/Volumes/DiscoExtern/Desktop/mvrg-backend/src/main/java/com/leonardorozza/mvgrreparacionesbackend/controller/RepairReadyEmailController.java` |
+| `src/main/java/com/leonardorozza/mvgrreparacionesbackend/service/dto/reparacion/RepairReadyEmailStatusDTO.java` | `/Volumes/DiscoExtern/Desktop/mvrg-backend/src/main/java/com/leonardorozza/mvgrreparacionesbackend/service/dto/reparacion/RepairReadyEmailStatusDTO.java` |
+| `src/main/java/com/leonardorozza/mvgrreparacionesbackend/service/notification/RepairReadyEmailStatusService.java` | `/Volumes/DiscoExtern/Desktop/mvrg-backend/src/main/java/com/leonardorozza/mvgrreparacionesbackend/service/notification/RepairReadyEmailStatusService.java` |
+| `src/test/java/com/leonardorozza/mvgrreparacionesbackend/service/notification/RepairReadyEmailStatusServiceTest.java` | `/Volumes/DiscoExtern/Desktop/mvrg-backend/src/test/java/com/leonardorozza/mvgrreparacionesbackend/service/notification/RepairReadyEmailStatusServiceTest.java` |
+| `src/test/java/com/leonardorozza/mvgrreparacionesbackend/service/notification/RepairReadyEmailApiIT.java` | `/Volumes/DiscoExtern/Desktop/mvrg-backend/src/test/java/com/leonardorozza/mvgrreparacionesbackend/service/notification/RepairReadyEmailApiIT.java` |
+| `docs/operations/email.md` | `/Volumes/DiscoExtern/Desktop/mvrg-backend/docs/operations/email.md` |
+
+**HTTP-first TDD ON:** source is explicit prior user choice at frontend `odd/tasks/charge-session-expiry.md:15`. Write ApiIT using literal routes/existing DTO-independent JSON assertions, real PostgreSQL/Flyway42/JWT/security chain before production code. Observe compilable absent-route-versus-expected200 assertion RED, not setup/compile failure. Forecast404 was corrected to observed500: existing generic exception handling maps the absent-resource fallback to500; do not alter that unrelated handler/security or add a test-only response handler. No inert production scaffold exception is needed/authorized. Then implement only allowed production paths to GREEN, paired focused unit tests and refactor. ApiIT owns a local NoScheduling fixture; existing CaptureIT nested fixture is inaccessible. No mocked authentication substitutes for real token/role/account/tenant HTTP acceptance.
+
+**Exact installed runners:** from `$SNAP/source`, Java home `/Users/leonardorozza/Library/Java/JavaVirtualMachines/corretto-21.0.10/Contents/Home`, executable `/Users/leonardorozza/.m2/wrapper/dists/apache-maven-3.9.11/a2d47e15/bin/mvn`, flags `-o -s "$SNAP/settings.xml" -gs "$SNAP/global-settings.xml" "-Duser.home=$SNAP/home" "-Djava.io.tmpdir=$SNAP/tmp" -Djunit.jupiter.tempdir.cleanup.mode.default=NEVER`. Surefire selector `-Dtest=RepairReadyEmailStatusServiceTest test`; PostgreSQL/Failsafe selector `-Dit.test=RepairReadyEmailApiIT test-compile failsafe:integration-test failsafe:verify`. Preserve POM Mockito javaagent; no skipTests/bootstrap/downloads/hidden missing selectors. Each phase records exact command/env, current actual XML/testcase counts, exit/log hash and whole-source before/after manifest; retain failed/setup phases honestly, do not sum reruns.
+
+**Accepted precision:** read persisted event truth independently of worker's private COMPLETADO/current-inner-join eligibility projection; later ENTREGADO or incoherent current relations must preserve actual state with reintentable=false, not invent NO_EVENTO. Derive retry eligibility separately, including gate/cap/due/current email/coherence checks. GET no DML or lease recovery. POST rejects any actual byte in the body (including chunked input), not merely nonzero Content-Length; no configurable recipient/query/SMTP. Pure local validation only, no provider resolution. Existing token/account/workshop barriers and indistinguishable missing/foreign404 remain.
+
+**Acceptance and applicable checks:** observe HTTP RED then final API+unit GREEN and related Worker/Capture/SMTP/account/workshop-closure regressions on exact final source. Exercise ADMIN/USER/foreign/inactive/unverified/workshop barriers, empty-body/query/privacy, all persisted/derived states with gates on/off, GET read-only, changed delivered/incoherent relationships, corrected-email and due/cap/backoff preservation, repeated/concurrent retry and worker/delete/customer/closure races, physical rollback and zero SMTP. Use fresh synthetic env-i/HOME/settings and public config only; owned disposable cached PostgreSQL fixture is permitted, existing48 images/8 containers/5 networks and protected old backend/JAR remain unchanged. Acquire only narrow explicit safe Docker fields from outset, never broad inspect/credentials/private configs/prune. No remote/provider/private session access. Runtime acceptance here is real local HTTP/PG, not SMTP/inbox/deployed proof. Check new-file-inclusive whitespace, exact allowlist/public source hashes and preserved originals before root transfer. Rollback these six paths together only, preserving committed Store/Worker/V41/V42/auth/account/PRO contracts. Remaining full coordinated release gates are separate, not waived by this API unit.
+
+## E2-A committed verification and fresh native checkpoint
+
+Initial frozen candidate `/private/tmp/ordenfix-ready-email-e2a.t79cd1lu`:4,194 hashes, manifest `c120be18f19d7f2a534c14852f943ce3c4eef0a02415f16822a24a3442b14ad0`,1,304-source map `138d4e3b6864c394c5351bb60e79f31d2fefa17dd16bca7ccf09bc33fb0f6bd2`. Focused71 unit/50 API and initial final161 PG/352 unit pass, not cumulative distinct totals. Independent old-proof receipt `/private/tmp/ordenfix-e2a-proof-bookkeeping-3bck4y9y/receipt.json`, SHA `d771801d1799f87a062c2b902b140ecd958c1e572be5fd582870bbf32793571b`.
+
+Parent found a stale preceding operations paragraph saying API pending. New immutable docfix candidate changes only that paragraph (3 deletions/4 additions); all5 Java/1,303 other files unchanged. Old4,194 proof entries remain unchanged. New final root `/private/tmp/ordenfix-ready-email-e2a-docfix.3al0ry4z`:4,151 hashes, manifest `c72a2e8c8dcc66f6db842dc47e25e06b1f3b70a31561f2948fa8b87296b4340f`,1,304-source map `5f3cefe65d6d954fbf939f51346a061820f344a30ce9b0fbe9170081b2bbc57a`,6-path allowlist `256cf8bdc0ebed2cc72042a9ab44f2ceeb9ce245583eb12331c114e400f5652c`, patch `8b4f6250007febf9b6e8f78d0afb178e977fb2f5e5c212c501f8b1952f79c2cc`. Retained `freeze-attempt-01.json` is helper Path-shadowing TypeError, corrected only in unfrozen proof helper; no test/source change.
+
+| Fresh final phase | Actual cases/classes | Observed result/source |
+| --- | --- | --- |
+| Docfix01 PostgreSQL |161/6: API50,Worker38,Capture10,ClosureEffects43,ClosureStore17,ClosureHttp3 |0 failures/errors/skips, exit0, real PostgreSQL/Flyway42/JWT/security; compiled610 main/482 tests |
+| Docfix02 unit/regressions |352/21, including Status71, prior mail/worker/quarantine153 and account/JWT/workshop regressions |0 failures/errors/skips, exit0; reused compiled classes, no new compile marker |
+
+Both fresh phases' full1,304 before/after manifests equal exact final candidate: **513 distinct final cases**, never sums of reruns. Earlier phase02 RED remains unchanged-production-code TDD evidence, not a fresh final-whole-source RED. API tests use real Spring MVC/JWT/filter chain and physical PostgreSQL, mock transport/no scheduling; unknown-length body tests use a Servlet wrapper, **not network-wire chunked exchange**. Physical lock waits/current email/DB clock, worker claim/delete/closure races, rollback, tenant/role/account barriers, all persisted/derived states/noDML/noSMTP/cap/backoff/privacy observed.
+
+Root rehashed all4,151/final1,304/allowlist6/original1,299/protected6, inspected actual XML/testcase counts/exits/log hashes; independent final bookkeeping `/private/tmp/ordenfix-e2a-docfix-bookkeeping-xilr98i4/receipt.json`, SHA `cc7835c1b802e57b769330b96b900f8d0236a7d6a17803e929935593abd7935d`, verified, no discrepancies. Parent receipts `/private/tmp/ordenfix-email-e2a-parent-{initial,final}-integrity.json`; transfer/commit/staged-check/numstat under `/private/tmp/ordenfix-email-e2a-parent`. After exact transfer/commit all1,304 source/staged/committed bytes match;1,298 old files unchanged,5 new. Protected JAR/v38/.atl/PID11272 and narrow safe Docker48/8/5 identity/runtime/network fields unchanged; no fixture leftovers or manual/global cleanup. No private-config equivalence claim.
+
+Native actual assessment from acknowledged e38bd457: **medium,6 paths/1,195 Git authored, review_due=true/slice_budget_reached**. Exact returned STATUS ran; native collect requested intended-untracked selection. Declared exclusion only of the two verified .atl files; local ready STATUS exit0 kept exact committed candidate. Target `sha256:89e04b116a610f36d7902de1550794c31204706e689bde764f0b40306f00afc8`, proposed lineage `review-cdf7f76d7a7d81fd`, base/candidate trees `51b048adb0567374d09b2e223346360afffd3237`/`96443fdf5deb57eda89fa8b7486bf1c713478eed`, paths `sha256:3939e133b03eab3d4a5b890d140fe0548e045773fc168a320adb4cb2c729eb70`. `/private/tmp/ordenfix-email-e2a-parent/{assess,preflight,ready-status}.json`/exits0.
+
+Attempt to execute exact returned START consent=relay was **rejected by runtime auto-review before execution** because prior human grant covered only the old two candidates, not new OpenAI sharing. No START response/consent-required receipt/new authority/actor/approval exists; do not bypass or retry indirectly. Ask one fresh authorization for exact backend `e38bd457..238eb2b`,6 files, separate local Codex CLI session, sharing only with OpenAI. On grant refresh native statuses and follow returned transitions; on decline follow native ordinary policy, do not toggle global RDD. Backend reviewed boundary stays e38bd457. All defaults remain false; full clean release/frontend/Docker/browser/provider/inbox/deployed checks remain pending, not waived.
 
 ## Observed verification — never sum reruns
 
-| Unit | Observed checks and retained limits |
+| Unit | Actual checks and limits |
 | --- | --- |
-| E1 | RED:4 PostgreSQL assertion failures,0 errors/skips. Final125 Surefire/15 classes and27 Failsafe =152 distinct pass cases; compile 599/471. Physical commit/rollback/tenant/FK/uniqueness/concurrency/no-op/creation/optional-email exercised. Initial JdbcTemplate observer/proof helpers corrected, no SMTP |
-| E1-C | Dedicated V41 full 10,605 cases/427 classes,0failure/error/skip,56m38s;22 real browser cases separately. **Not** a fresh full V42 feature run; earlier failures retained. No SMTP inbox/Cloudinary/MercadoPago proof |
-| Docker | Canonical V41 image/PG16.14/Flyway41/JPA/health/readiness/liveness, UID999/artifact/config/migration guards passed. 27 opt-in flags off, **not all schedulers**. Prior offline Maven-parent failure retained; not new V42 sending proof |
-| E2-S | RED 70/65 failures; focused 71/3 classes, related138/10 classes pass; compile 602/474. Mocked SMTP only. Five MIME LF/CRLF observer assertions corrected without production change; no runtime/provider delivery |
-| E3-P | RED 19/15 failures, refinement 22/1 encoded-space failure, focused 22 pass. Corrected full Vitest 1,125/114 files, tooling 44, lint/types/technical build exit0. Initial 324 failures/8 errors: synthetic port1/MSW localhost8080 mismatch; unchanged candidate passed corrected environment. Public-only envDir:false.668.49kB warning/DateInput intermittency remain. Browser/provider N/A for privacy alone, pending coordinated feature |
+| E1 | RED 4 PG assertion failures,0 errors/skips; final 125 Surefire/15 classes +27 Failsafe =152 distinct passes, compile 599/471. Commit/rollback/tenant/FK/unique/concurrent/no-op/creation/optional-email covered; JdbcTemplate observer/helpers corrected. No SMTP |
+| E1-C | V41 full 10,605/427 classes, 0 failures/errors/skips,56m38s; 22 separate browser cases. Not a fresh V42 feature run; earlier failures retained. No SMTP inbox/Cloudinary/MercadoPago proof |
+| Docker | V41 image/PG16.14/Flyway41/JPA/health/readiness/liveness, UID999/artifact/config/migration guards passed.27 opt-in flags off, not all schedulers. Prior offline Maven-parent failure retained; not V42 sending proof |
+| E2-S | RED 70/65 failures; focused 71/3 classes, related 138/10 pass, compile 602/474. Mocked SMTP; 5 MIME LF/CRLF observer fixes without production change. No runtime/provider delivery |
+| E3-P | RED 19/15 failures, refinement 22/1 encoded-space failure, focused 22 pass. Corrected full Vitest 1,125/114 files, tooling 44, lint/types/technical build exit 0. Initial 324 failures/8 errors were synthetic port 1/MSW localhost8080 mismatch; same candidate passed corrected public-only envDir:false. 668.49kB warning/DateInput intermittency remain. Browser/provider N/A for privacy; coordinated feature checks pending |
 
 ### E2-M phase-specific proof
 
@@ -160,28 +172,28 @@ Every retained phase source-before/source-after manifest is stable. Counts are f
 | 03 catalog attempt | 1 | 1 | 0 | 0 | Populated/fresh catalog mismatch retained |
 | 04 stability RED | 1 | 1 | 0 | 0 | Clean assertion before moving indexes |
 | 05 admission RED | 5 | 3 | 0 | 0 | Positive consumer/recovery RED after stable migration, before guard writes |
-| 06 focused attempt | 137 | 1 | 2 | 0 | Overall exit1: recovery 64/migration 1 pass; registration selector failure and two negative-fixture setup errors |
+| 06 focused attempt | 137 | 1 | 2 | 0 | Overall exit 1: recovery 64/migration 1 pass; registration selector failure and two negative-fixture setup errors |
 | 07 legal GREEN | 146 | 0 | 0 | 0 | V42 compatibility72 + historical V41 compatibility74, exactly two actual classes |
 | 08 related regression | 238 | 2 | 0 | 0 | 13 actual classes; stale exact capture whitelist/history classifier failed; real registration writer 25/HTTP 11 and other listed classes passed |
 | 09 corrected checks | 11 | 0 | 0 | 0 | Capture 10/capacity1, exact final original-snapshot source |
 | 10 mail/quarantine | 138 | 0 | 0 | 0 | 10 actual mocked unit classes, exact final original-snapshot source |
-| Corrected EOF migration | 1 | 0 | 0 | 0 | Fresh real PG/Flyway42 on the committed SQL; compile 605 main/478 test, staged whitespace exit0 |
+| Corrected EOF migration | 1 | 0 | 0 | 0 | Fresh real PG/Flyway42 on the committed SQL; compile 605 main/478 test, staged whitespace exit 0 |
 
 Source qualification matters: phase06's passed recovery/migration files remained unchanged, but production `LegalRegistrationSchemaVerifier` changed later; this is **relevant unchanged-file reuse**, not a final-whole-candidate run. Phases07/08 match all final production/docs but differ in two later-corrected tests; phases09/10 match the entire original final snapshot. Requested `LegalRegistrationJdbcServiceIT` has no actual XML/coverage; registration writer/HTTP really ran in08.
 
 ### V42 stability and final correction
 
-Timestamp columns were added nullable without volatile defaults, backfilled from `created_at`, then given CURRENT_TIMESTAMP defaults/NOT NULL: stable `atthasmissing`/`attmissingval`, valid six-column enqueues. Raw populated/fresh catalogs differed only in new-index `indcheckxmin` after HOT backfill. Observed RED preceded moving final indexes **before** backfill; empty/populated/restored profiles then agreed without VACUUM/reindex/normalization or V41 projection changes.
+Added timestamp fields nullable, backfilled from created_at, then CURRENT_TIMESTAMP/NOT NULL: stable atthasmissing/attmissingval, valid six-column enqueue. Populated/fresh catalogs differed only in new-index indcheckxmin after HOT backfill. Assertion RED preceded moving indexes before backfill; empty/populated/restored profiles then agreed without VACUUM/reindex/normalization or V41 projection change.
 
-Staged whitespace found one extra EOF blank line in the **new/unapplied** V42 SQL; unstaged check had missed the untracked file. Retain exit2, not an initial pass claim. Fresh correction removed only that LF: 1,294 other source files identical, SQL tokens/Flyway11.14.1 checksum unchanged; fresh real-PG migration 1 passed and staged gate reproduced exit2→0. Commit702 additions/34 deletions =736 authored, not original737. Prior profiles/regressions remain **equivalent-SQL/unchanged-file reuse, not fresh reruns**.
+Staged whitespace caught an extra blank EOF in new/unapplied V42; unstaged check missed untracked SQL. Retain exit 2, not an initial pass. Fresh correction removed only one LF: 1,294 other files identical, SQL tokens/Flyway11.14.1 checksum unchanged; fresh PG migration 1 passed, staged gate exit 2→0. Commit 702+34=736, not 737. Earlier profiles/regressions are equivalent-SQL/unchanged-file reuse, not fresh reruns.
 
 ## Native closure and delivery ledger
 
-Backend range `fe1bec7..6605d6b`: high/process_boundary,22 paths/1,165 authored lines, budget200. Fresh human “Si vamos” authorized the separate local Codex CLI session to send **only this exact diff to OpenAI**, not SMTP/cloud/deploy. All four compiled lenses (risk/resilience/readability/reliability) completed; final **approved**, exact ACK authority **burned**, consumed `sha256:6cb96f98c404d5b1076f3cc1aea142b270b1f811d2d8efbe861759aefd2a0bef`. Reviewed backend boundary **6605d6b**. Review actors added no test executions.
+Historical `fe1bec7..6605d6b`: high/process_boundary, 22 paths/1,165 authored, budget 200. “Si vamos” authorized only that exact diff via separate local Codex CLI/OpenAI. Four compiled lenses approved, no reviewer tests; ACK burned, consumed `sha256:6cb96f98c404d5b1076f3cc1aea142b270b1f811d2d8efbe861759aefd2a0bef`, then boundary 6605d6b.
 
-Informational R2/R3: optional V41/V42 measurement writers share a versionless output directory. Frozen phase05 selected V42 only and all retained profiles end 42: proof **not invalidated**. No accepted correction task or reopening follows. Future combined measurement must avoid overwrite/ambiguous provenance.
+Optional V41/V42 writers share a versionless output directory (informational R2/R3). Phase05 selected only V42/all profiles end 42; proof remains valid, no correction task/reopening accepted. Future combined measurements must avoid overwrite/ambiguous provenance.
 
-Historical frontend `6330d8e..11ba24e`: medium,3 paths/252 net authored, under_budget. Closed committed slice `6330d8e5cded8678f6bfb19eb1be38aa7dcdc9e1..e5b5913ddb5869c584eedc5032a57b4a2b1e6205`: **medium,3 paths/480 net authored, slice_budget_reached**, approved and actually acknowledged; boundary advances to e5b5913. Failed undeclared `.atl`/sandbox/transport attempts retained, never inferred low risk. Canonical unchanged two-file `.atl` exclusion inventory: `sha256:4425697ab74255760bb7c3b87dc13642263a59d4b65cc516abaa19765c94da71`.
+Frontend `6330d8e..11ba24e`: medium, 3 paths/252 net authored, under_budget. Failed .atl/sandbox/transport attempts never meant low risk; unchanged two-file exclusion digest `sha256:4425697ab74255760bb7c3b87dc13642263a59d4b65cc516abaa19765c94da71`. Current exact closures are below.
 
 | Unit | Repository / commit | Authored / disposition |
 | --- | --- | --- |
@@ -194,15 +206,17 @@ Historical frontend `6330d8e..11ba24e`: medium,3 paths/252 net authored, under_b
 | E2-M checkpoint | Frontend `11ba24e` |64 documentary; prior count2,281; frontend under_budget |
 | E2-W | Backend `e38bd4570f90915f26b7794bd7b9b34885215043` |992 Git authored; final108PG/153unit; fresh consent, native approved/acknowledged |
 | E2-W documentary checkpoint | Frontend `e5b5913ddb5869c584eedc5032a57b4a2b1e6205` |182 additions +180 deletions =362 authored; running3,635; complete committed slice480 native approved/acknowledged |
+| Two-review closure | Frontend `1e9b74f1a1b186e23357d979be14ea768b2c8d56` |31 additions +12 deletions =43 authored, one document; running3,678; native passive/non_executable_only, review_due=false/reason=passive; boundary advances to this commit |
+| E2-A | Backend `238eb2b104c8ae5fd6ab0e93c4856d46a322ccf4` |1,192 additions +3 deletions =1,195 authored,6 paths; running4,873 before frontend checkpoint; final161PG/352unit, staged whitespace0; medium/slice_budget_reached, fresh sharing consent pending |
 
-Historical documentary commits `c051ca5`, `ffdfb71`, `d6ecaa1`, `d08db65`, `c8a3316`, `f6e1ca4`, `84dd47e` and their passive checks remain in archived 11ba24e; prior running count 1,285. No PR exists. Future worker/API/scheduler/UI slices need exact boundaries/tests/docs; closed-candidate consent is not reusable.
+Archived in 11ba24e: `c051ca5`, `ffdfb71`, `d6ecaa1`, `d08db65`, `c8a3316`, `f6e1ca4`, `84dd47e` with passive checks; prior count 1,285. No PR; future slices need exact boundaries/checks/docs and fresh consent.
 
 ## Proof locators and historical recovery
 
 | Evidence | Immutable/local locator |
 | --- | --- |
 | E1 capture | `/private/tmp/ordenfix-ready-email-e1.bSxxx2`; `commands.json`, final related/PG reports and allowlist/hash evidence |
-| Historical setup/withdrawal | `/private/tmp/ordenfix-ready-email-e1c.5QpiDI` (compile599/472 only, failed Docker/UI/inventory/wrapper setup); `/private/tmp/ordenfix-local-runtime-r1.Hx2eCS/proof/runtime-closed.json` (only Java68235/PG67481 closed) |
+| Historical setup/withdrawal | `/private/tmp/ordenfix-ready-email-e1c.5QpiDI` (compile 599/472 only, failed Docker/UI/inventory/wrapper setup); `/private/tmp/ordenfix-local-runtime-r1.Hx2eCS/proof/runtime-closed.json` (only Java68235/PG67481 closed) |
 | Dedicated completed V41 | Frontend `odd/tasks/v41-schema-compatibility.md`; `/private/tmp/ordenfix-v41-c3.o5sjef1f`; backend `docs/verification/v41-combined-verification.md` |
 | Dedicated Docker | Frontend `odd/tasks/docker-current-candidate.md`; `/private/tmp/ordenfix-docker-central.mhl8gcf8`; backend `docs/verification/docker-current-verification.md`. Prior offline failure `/private/tmp/ordenfix-docker-current.rw1d0dwp` retained |
 | E2-S source/tests/native | `/private/tmp/ordenfix-ready-email-e2s.1Qh3ja`; `/private/tmp/ordenfix-email-e2s-parent.rfvqRA` |
@@ -218,23 +232,23 @@ Temporary paths may not survive cleanup: retain Git/source/docs as recovery anch
 
 ## Preservation, rollback and open gates
 
-Preserve backend `odd/tasks/v38-deploy-fixes.md`, both `.atl/` inventories, tracker history, running Java PID 11272/old JAR and all unrelated Docker resources. No private properties/authenticated sessions/ambient credentials/shared DB. Synthetic cleanup touches captured owned resources only, never purge/prune/unrelated restart/settings/security/global cache or image cleanup.
+Preserve backend odd/tasks/v38-deploy-fixes.md, both .atl inventories, tracker history, Java PID11272/old JAR and unrelated Docker resources. No private properties/authenticated sessions/ambient credentials/shared DB. Clean only captured owned synthetic resources; no purge/prune/unrelated restart/settings/security/global-cache/image cleanup.
 
-E2-M correction directly measured48 images/8 containers/5 networks and metadata unchanged, no fixture resources left. Original E2-M inventory observed13 visible images only; separate48-ID historical baseline matched. Do not inflate its scope.
+E2-M correction measured48 images/8 containers/5 networks/metadata unchanged, no fixtures left. Original E2-M inventory covered13 visible images only; separate48-ID historical baseline matched. Do not inflate its scope.
 
-Before deployment, revert a coherent unit/tests/docs/dependencies without rewriting applied migrations or reverting prior release/legal/account/PRO work. Real activation remains separately authorized.
+Rollback coherent units/tests/docs/dependencies before deployment, never rewrite applied migrations or revert prior release/legal/account/PRO work. Real activation requires separate authorization.
 
-**Pending:** API/scheduler/status UI; fresh new-candidate backend clean verify, coordinated frontend/technical and Docker/browser end-to-end; public release gate; real SMTP/provider/inbox/deployed proof. Both exact native review closures are complete, not these functional/release gates. Historical V41/Docker successes do not certify V42 sending. **Limits:** DateInput intermittency,668.49kB bundle warning, local56m38s versus25min CI timeout (risk, not observed GitHub failure). Paid PRO unchanged/unactivated; separate release work remains.
+Pending: new API native consent/review, scheduler/UI; fresh backend clean verify, coordinated frontend/technical/Docker/browser E2E, public release gate, real SMTP/provider/inbox/deployed proof. API functional checks and closed earlier native reviews do not certify V42 sending. Limits: DateInput intermittency,668.49kB bundle warning; local56m38s versus25min CI timeout is risk, not observed GitHub failure. Paid PRO remains unchanged/unactivated; separate release work remains.
 
 ## Next step and mirror
 
-Parent reconciled the full file/mirror before delegating E2-W, verified frozen evidence and source, transferred/committed the exact nine files and assessed the new candidate. Both newly consented exact native reviews are now approved and acknowledged. Next functional unit is E2-A after freezing its exact six-path plan/TDD runner against backend e38bd457 in this file/full mirror; no E2-A source writer has started. New source commits need their own assessment/consent; neither closed review is reusable.
+Parent reconciled file/full840 before exact six-path/TDD plan freeze and bounded E2-A delegation. Initial `/private/tmp/ordenfix-ready-email-e2a.t79cd1lu` matched1,299 public baseline files. Phase01 compiled607 main/481 tests with realPG/Flyway42 but2 UUID36-varchar20 fixture errors, not RED. Only new ApiIT fixture corrected. **Phase02 genuine HTTP RED:**2 expected200-vs500 assertion failures/0errors/skips, exit1, stable1,300-file source; root XML/result/log verified absent-route NoResourceFoundException, logSHA `a119e26a6ca1b50adb0f0273c489c4c49436524c5684c7c602c0a5afd6ad76ef`. Existing generic handler explains500, correcting404 forecast without unrelated changes. No production classes existed before RED. Final API implemented/verified/transferred/committed; fresh native sharing consent remains next, not another implementation step. Earlier reviews remain closed. After native disposition, continue E2-G/E3 under local authorization, never real activation/deploy by inference.
 
 Repository-relative locator: `odd/tasks/repair-ready-email.md`. Engram recovery topic: `odd/repair-ready-email/tasks`. Mirror the **full current document**, not only a completion note; read back file and mirror. Do not invent a session ID. If mirroring fails, preserve local progress and mark it pending without blocking safe unrelated work.
 
 ### Two-candidate acknowledged closure — 2026-10-04
 
-Human “Si” directly granted both exact committed diffs through the separate local Codex CLI session, sharing only with OpenAI. Fresh statuses verified unchanged targets before exact native granted transitions. Each medium candidate selected one consolidated compiled `review-reliability` lens, correction budget200. Root executed backend then frontend sequentially with ambient custom endpoints/API-key channels unset. Authentic capture-result calls used exact collect argument tokens, without manual results or a substitute review. Both captures exited0 with empty stderr, no findings, no source corrections. Actual exact ACKs each exited0, action `acknowledged`, authority `burned`.
+Human “Si” granted only both exact committed diffs via separate local Codex CLI/OpenAI. Fresh statuses matched. Each medium plan selected one compiled consolidated reliability lens, budget 200; root ran them sequentially with custom endpoints/API-key channels unset, exact collect tokens/authentic capture calls, no manual/substitute result. Captures: exit 0, empty stderr, no findings/corrections. Actual exact ACKs: exit 0, acknowledged, authority burned.
 
 | Binding | Backend worker | Frontend privacy/documentary slice |
 | --- | --- | --- |
@@ -245,6 +259,8 @@ Human “Si” directly granted both exact committed diffs through the separate 
 | Actual consumed revision | `sha256:6611608201fe08817d9f2765e79c9bcd766958a8da5c498edb5ce8b34f353142` | `sha256:db058e47a76a55ec8cbeee69c877d7598ac8cdbbdf0355fa2aa687721493227e` |
 | New reviewed boundary | `e38bd4570f90915f26b7794bd7b9b34885215043` | `e5b5913ddb5869c584eedc5032a57b4a2b1e6205` |
 
-Frontend base/candidate trees are `00c0924ff78d6635aa91271abb86fc9c3e13bbca`/`1f7e11ed0acc8ce42a2e906eede46bd1f4cca666`; paths digest `sha256:82c82b7dec428cf3c23253b1001437e9b13137dbaa792ff26594d86605b2cff3`. Exact three paths were this task document, `src/lib/sentry.ts`, `src/lib/sentry.test.ts`; privacy code/tests remain byte-identical to verified proof. Subsequent closure bookkeeping is not in either closed immutable candidate.
+Backend trees `e510458002be4f33ac94db5f53444d9426473460` / `51b048adb0567374d09b2e223346360afffd3237`, paths `sha256:14a1678bea5fe12f077f376f0959ff75f22cb44066ba5db5b31aa6fc0246677f`. Frontend trees `00c0924ff78d6635aa91271abb86fc9c3e13bbca` / `1f7e11ed0acc8ce42a2e906eede46bd1f4cca666`, paths `sha256:82c82b7dec428cf3c23253b1001437e9b13137dbaa792ff26594d86605b2cff3`. Three frontend files: this document, src/lib/sentry.ts, src/lib/sentry.test.ts; privacy bytes match proof. Later annotations are outside both immutable candidates.
 
-Reviewers inspected all9/all3 immutable patches respectively; no commands/tests or external-proof reads were performed. Approval adds static review evidence, **not** new functional, full-verification, SMTP/inbox or deployment evidence. This turn's route is inline one-file deterministic documentary closure with independent delegated receipt/identity bookkeeping; no source writer or implementation expansion. Runtime/tests are N/A for the documentation-only closure; retained earlier checks stay qualified. Rollback only this documentary closure, preserving all source/native receipts/history. No Railway/Vercel/SMTP/private configuration/push/PR/merge/activation or future candidate-sharing authorization is included. Closed reviews must not be repeated.
+Actors inspected all 9/all 3 patches, no commands/tests/external-proof reads. Static approval is not fresh functional/full/SMTP/inbox/deployment verification. This was inline documentary closure with delegated identity/receipt bookkeeping, no source writer/expanded implementation; runtime/tests N/A. Rollback documentary closure only, preserving source/receipts/history. No provider/cloud/private configuration/push/PR/merge/activation/future sharing authorization; never repeat closed reviews.
+
+Independent ACK receipt `/private/tmp/ordenfix-email-final-ack-bookkeeping-go8tgn06/receipt.json`, SHA `969fb89c073cca3e46dff9d226c376b5d68fb977e10c3359f362d841754bc3d2`: root verified frozen hash, exact targets/lineages/revisions/four exit 0, no discrepancies. Documentary evidence `/private/tmp/ordenfix-email-two-reviews.z162qooi/documentary-{commit,assess}.json`, `documentary-staged-check.txt`, assessment exit 0/empty stderr. Source unchanged; one-path 43-line passive assessment from e5b5913, no actor/consent. Current annotations are parent-owned; full mirror readback required.

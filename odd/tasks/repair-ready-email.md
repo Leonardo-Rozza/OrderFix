@@ -1,10 +1,10 @@
 # Send a safe customer email when a repair is completed
 
-**Current status — 2026-10-04:** E1 capture, E1-C V41 compatibility, E2-S standalone transport, E2-M strictly accredited V42 delivery metadata, E2-W fenced delivery worker and E3-P telemetry privacy are implemented. The backend candidate through `6605d6b9353632ca44609e23197b2c444a11b936` has native approval and its exact acknowledgement. E2-W is committed as `e38bd4570f90915f26b7794bd7b9b34885215043` with verified local checks; its new native review needs fresh consent. Status/retry API, scheduler and status UI are still open. **Automatic sending, inbox delivery and production readiness are not established.**
+**Current status — 2026-10-04:** E1 capture, E1-C V41 compatibility, E2-S standalone transport, E2-M strictly accredited V42 delivery metadata, E2-W fenced delivery worker and E3-P telemetry privacy are implemented. The exact backend candidate through `e38bd4570f90915f26b7794bd7b9b34885215043` and frontend slice through `e5b5913ddb5869c584eedc5032a57b4a2b1e6205` have native approval and their actual acknowledgements, without findings or source corrections. Status/retry API, scheduler and status UI are still open. **Automatic sending, inbox delivery and production readiness are not established.**
 
 ## Quick path
 
-1. Resolve the freshly relayed native consent for the new E2-W candidate and pending frontend slice; previous approvals are not reusable.
+1. Preserve the two acknowledged review boundaries below; do not repeat closed reviews or reuse consent for future candidates.
 2. Resume **E2-A** from its read-only mapping after reconciling frozen E2-W source and this full mirror.
 3. Complete **E2-A/E2-G/E3**, with observed checks and work-unit commits.
 4. Run fresh coordinated backend/frontend/browser gates; real provider/deployed delivery needs separate authorization.
@@ -27,13 +27,13 @@ Repositories: frontend `/Volumes/DiscoExtern/Desktop/mvgr-reparaciones-frontend`
 | --- | --- |
 | Resume baselines | Frontend `6330d8e5cded8678f6bfb19eb1be38aa7dcdc9e1`; backend `4c847abec4081c69094922b20ee4c3155b564074` |
 | Original baselines | Frontend `b3d7610bf227d7ab63db95d916dee2f42e3aa57e`; backend `f2141f60f2023405ae7ddec5987f13784dd2e76b` |
-| Evidence heads / reviewed boundaries | Frontend head `11ba24e`, reviewed boundary `6330d8e`; backend head `e38bd4570f90915f26b7794bd7b9b34885215043`, reviewed boundary `6605d6b9353632ca44609e23197b2c444a11b936` |
+| Evidence heads / reviewed boundaries | Frontend head and acknowledged boundary `e5b5913ddb5869c584eedc5032a57b4a2b1e6205`; backend head and acknowledged boundary `e38bd4570f90915f26b7794bd7b9b34885215043`. This subsequent documentary closure is outside those immutable candidates |
 | TDD | **ON**, explicit prior choice in `odd/tasks/charge-session-expiry.md:15`; compilable assertion RED → GREEN → cleanup. Setup failures are not RED |
 | Backend checks | Installed Java 21.0.10/Maven 3.9.11 directly, offline Surefire and real PostgreSQL/Failsafe in secret-free snapshots/settings; no wrapper bootstrap |
 | Frontend checks | Installed Node 24.14.0/Vitest 3.2.6, Node tooling, lint/typecheck/technical build and Playwright; public-only snapshots/synthetic environment, no private `.env` loading |
 | Native RDD | **ON/global**; new candidates require their own assessment, consent and exact lifecycle |
 | Delivery | `ask-on-risk`, cached `feature-branch-chain`; no PR/push/merge authorized or materialized |
-| Running count / forecast | **3,273 authored work-unit lines before this documentary revision**, including source E2-M 736/privacy 151; separate V41/Docker features/generated outputs excluded. Remaining 820–1,340 after worker completion/API mapping; approximate feature 4,100–4,700 before this documentary revision; re-estimate per unit |
+| Running count / forecast | **3,635 authored committed work-unit lines**, including source E2-M 736/privacy 151; separate V41/Docker features/generated outputs excluded. Remaining 820–1,340 after worker completion/API mapping; approximate feature 4,500–5,000 before future evidence revisions; re-estimate per unit |
 
 About 400 authored additions plus deletions is a planning heuristic, not an acceptance cap. Preserve readable coverage and strict checks. Cohesive schema/admission exceeds it; a future PR size exception requires explicit acceptance. Record actual commit/slice boundaries.
 
@@ -65,7 +65,7 @@ Each source task uses **delegated mapping/preparation and a bounded writer**: 4+
 - [x] **E2-S Prepare the standalone repair-ready template and SMTP transport.** Commit `00b265d`, checked/native acknowledged. Text/escaped HTML/current link; no unnecessary personal/budget data/external images. Address/origin/header/barrier/transaction/certainty tests; remains unconsumed. Rollback adapter/template/port/tests/default/docs, preserving account mail.
 - [ ] **E2 Deliver and recover without blind resend.** Overall task remains open.
   - [x] **E2-M Add and strictly accredit durable delivery metadata.** Commit `6605d6b`, 19 files/736 authored; migration/helper/guard selectors. Narrow allowed selector 42, exact six-field capture whitelist and 16-placeholder history classifier/sentinel 17; budgets unchanged. No worker/API/scheduler. Rollback new migration/admission/tests together before deployment, preserving V41/account/repair/permissions.
-  - [x] **E2-W Implement fenced claim/send/ACK and safe recovery.** Depends on metadata. Claim committed before send, token-fenced ACK, bounded current tenant/repair/customer/open-workshop/recipient/lease revalidation immediately before SMTP. No SQL/repair transaction send or automatic ambiguous resend. PostgreSQL concurrency/lease/recovery TDD and synthetic transport/MIME. Commit `e38bd4570f90915f26b7794bd7b9b34885215043`: 9 paths, Git 971 additions + 21 deletions = 992 authored. Final PG108/unit153 verified on exact final source; medium/slice_budget_reached, fresh consent pending. Rollback these nine files together, preserving V41/V42 and prior guards. The accepted boundary is retained below.
+  - [x] **E2-W Implement fenced claim/send/ACK and safe recovery.** Depends on metadata. Claim committed before send, token-fenced ACK, bounded current tenant/repair/customer/open-workshop/recipient/lease revalidation immediately before SMTP. No SQL/repair transaction send or automatic ambiguous resend. PostgreSQL concurrency/lease/recovery TDD and synthetic transport/MIME. Commit `e38bd4570f90915f26b7794bd7b9b34885215043`: 9 paths, Git 971 additions + 21 deletions = 992 authored. Final PG108/unit153 verified on exact final source; medium/slice_budget_reached, fresh human consent followed by native approval/actual ACK. Rollback these nine files together, preserving V41/V42 and prior guards. The accepted boundary is retained below.
   - [ ] **E2-A Expose tenant-scoped status and safe retry.** Depends on worker; fixed API above, corrected missing-email recovery, no accepted/in-flight/uncertain resend or HTTP SMTP. PostgreSQL concurrent retry/API tenant/role RED/GREEN. New read-only mapping forecast 350–550 replaces 220–380; exact proposed boundary below.
   - [ ] **E2-G Wire the opt-in bounded scheduler.** Depends on worker/API; independent default-off scheduler and capture/mail/delivery/quarantine gates. Synthetic scheduler/runtime tests; separate authorization before activation. Forecast 120–240.
 - [ ] **E3 Show notification status and protect its public link.** Remaining DTO/hooks/query keys/invalidation/status/retry UI. Missing/loading/error never block completion; safe retry/no stale foreign-session publication; WhatsApp/public budget preserved. RED/GREEN, complete frontend/tooling/lint/types/build, simulated browser completion/status/retry/WhatsApp and coordinated end-to-end gates. UI 350–550 replaces old combined 280–420 forecast; rollback UI/hooks/tests together.
@@ -73,7 +73,7 @@ Each source task uses **delegated mapping/preparation and a bounded writer**: 4+
 
 ## E2-W accepted implementation boundary
 
-**Worker/Store/Permit/tests/docs only**, no migration/guard/API/UI/scheduler/capture/CRUD/JWT/auth or activation. Implementation committed and exact checks observed below; native approval is pending. TDD remains ON with the installed offline Java21/Maven3.9.11 runner above; new source-bound snapshot and actual XML required.
+**Worker/Store/Permit/tests/docs only**, no migration/guard/API/UI/scheduler/capture/CRUD/JWT/auth or activation. Implementation committed and exact checks observed below; its exact native review is approved and acknowledged. TDD remains ON with the installed offline Java21/Maven3.9.11 runner above; future work requires a new source-bound snapshot and actual XML.
 
 | Rule | Accepted technical choice |
 | --- | --- |
@@ -127,7 +127,7 @@ Frozen root `/private/tmp/ordenfix-ready-email-e2w.azjj8e4_`: 4,171 hashes indep
 
 **Inventory mistake and containment:** initial owned unfrozen Docker preservation record collected overly broad metadata that could include Config.Env/Cmd/Args. Replaced before freeze with explicitly safe fields; no broad stdout/duplicates retained, no credential values displayed/used, no original resource mutation. `inventory-scope-correction.json` documents it. Retained inventories certify safe IDs/Image/Created/Running/StartedAt/network-attachment equality and48 images/8 containers/5 networks, not private-config equivalence or forensic secure erasure. Never collect broad private metadata again.
 
-Native: first undeclared `.atl`/read-only `.git` attempts failed safely and were retained, never inferred low risk. Scoped local retry/exclusion of only verified two `.atl` files succeeded: **medium,992 lines, slice_budget_reached**, exact returned committed-only preflight ran. Target `sha256:9d3bc7abc5976bb98c1fdcf042d1ef66e80d73981f7df7e45dddb878afe854eb`, proposed lineage `review-1d8cf3470d065a22`, base tree `e510458002be4f33ac94db5f53444d9426473460`, candidate tree `51b048adb0567374d09b2e223346360afffd3237`, paths digest `sha256:14a1678bea5fe12f077f376f0959ff75f22cb44066ba5db5b31aa6fc0246677f`. Exact START consent=relay returned **consent_required**; no actor or new approval. `/private/tmp/ordenfix-email-e2w-{assess-final,preflight,ready-status,consent-relay}.json`. Previous user grant covered old22-path backend candidate only; reviewed boundary remains6605d6b. No provider, activation, API, scheduler, UI, migration, Docker build, browser, full verification, remote push/PR/merge or deployment was included.
+Native: first undeclared `.atl`/read-only `.git` attempts failed safely and were retained, never inferred low risk. Scoped local retry/exclusion of only verified two `.atl` files succeeded: **medium,992 lines, slice_budget_reached**, exact returned committed-only preflight ran. Target `sha256:9d3bc7abc5976bb98c1fdcf042d1ef66e80d73981f7df7e45dddb878afe854eb`, lineage `review-1d8cf3470d065a22`, base tree `e510458002be4f33ac94db5f53444d9426473460`, candidate tree `51b048adb0567374d09b2e223346360afffd3237`, paths digest `sha256:14a1678bea5fe12f077f376f0959ff75f22cb44066ba5db5b31aa6fc0246677f`. Initial START consent=relay returned **consent_required**; retained `/private/tmp/ordenfix-email-e2w-{assess-final,preflight,ready-status,consent-relay}.json` is historical, not the final state. Fresh human “Si” authorized this exact candidate and the frontend slice; current approved/acknowledged closure is below. Backend boundary advances to e38bd457. No provider, activation, API, scheduler, UI, migration, Docker build, browser, full verification, remote push/PR/merge or deployment was included.
 
 ## E2-A next mapping — not implemented
 
@@ -181,7 +181,7 @@ Backend range `fe1bec7..6605d6b`: high/process_boundary,22 paths/1,165 authored 
 
 Informational R2/R3: optional V41/V42 measurement writers share a versionless output directory. Frozen phase05 selected V42 only and all retained profiles end 42: proof **not invalidated**. No accepted correction task or reopening follows. Future combined measurement must avoid overwrite/ambiguous provenance.
 
-Frontend `6330d8e..11ba24e`: medium,3 paths/252 net authored, **under_budget**, consumed=false. No approval; boundary stays6330d8e. Failed undeclared `.atl`/sandbox/transport attempts retained, never inferred low risk. Canonical unchanged two-file `.atl` exclusion inventory: `sha256:4425697ab74255760bb7c3b87dc13642263a59d4b65cc516abaa19765c94da71`.
+Historical frontend `6330d8e..11ba24e`: medium,3 paths/252 net authored, under_budget. Closed committed slice `6330d8e5cded8678f6bfb19eb1be38aa7dcdc9e1..e5b5913ddb5869c584eedc5032a57b4a2b1e6205`: **medium,3 paths/480 net authored, slice_budget_reached**, approved and actually acknowledged; boundary advances to e5b5913. Failed undeclared `.atl`/sandbox/transport attempts retained, never inferred low risk. Canonical unchanged two-file `.atl` exclusion inventory: `sha256:4425697ab74255760bb7c3b87dc13642263a59d4b65cc516abaa19765c94da71`.
 
 | Unit | Repository / commit | Authored / disposition |
 | --- | --- | --- |
@@ -192,7 +192,8 @@ Frontend `6330d8e..11ba24e`: medium,3 paths/252 net authored, **under_budget**, 
 | Privacy closure | Frontend `ce99ba6b23cb23eaf4c2084aea1ee8783586c01e` |9 documentary |
 | E2-M | Backend `6605d6b9353632ca44609e23197b2c444a11b936` |736; qualified functional/current acknowledged native approval |
 | E2-M checkpoint | Frontend `11ba24e` |64 documentary; prior count2,281; frontend under_budget |
-| E2-W | Backend `e38bd4570f90915f26b7794bd7b9b34885215043` |992 Git authored; final108PG/153unit; fresh native consent pending |
+| E2-W | Backend `e38bd4570f90915f26b7794bd7b9b34885215043` |992 Git authored; final108PG/153unit; fresh consent, native approved/acknowledged |
+| E2-W documentary checkpoint | Frontend `e5b5913ddb5869c584eedc5032a57b4a2b1e6205` |182 additions +180 deletions =362 authored; running3,635; complete committed slice480 native approved/acknowledged |
 
 Historical documentary commits `c051ca5`, `ffdfb71`, `d6ecaa1`, `d08db65`, `c8a3316`, `f6e1ca4`, `84dd47e` and their passive checks remain in archived 11ba24e; prior running count 1,285. No PR exists. Future worker/API/scheduler/UI slices need exact boundaries/tests/docs; closed-candidate consent is not reusable.
 
@@ -209,7 +210,8 @@ Historical documentary commits `c051ca5`, `ffdfb71`, `d6ecaa1`, `d08db65`, `c8a3
 | E2-M original proof | `/private/tmp/ordenfix-ready-email-e2m.h4lnzk7c`; 1,617 hashes verified, manifest `642932e7280da5495ac0ad61833c2694f82ceab4509b5e6f9924341ff915f179`; original final1,295-source map `8e2ce2a29911bd14392574fdb7c05673363d54cf7f5450f3db413c9f63e6a1cc` |
 | E2-M final correction | `/private/tmp/ordenfix-ready-email-e2m-eof.ksdyoznj`; 1,341 hashes verified, manifest `c08545f5150bb5d94fd0b0d64040388bff74a2468f23d123b837dfbaa3e97881`; final V42 SHA256 `98bc0fe6c296866d7c7ad32f63e9913bccc2a344c6b68db183d0c6667b57a282` |
 | Independent E2-M validation | `/private/tmp/ordenfix-email-e2m-parent-integrity.json`, `/private/tmp/ordenfix-email-e2m-parent-transfer.json`, `/private/tmp/ordenfix-e2m-bookkeeping-jl6todo6/receipt.json` |
-| Current native authority | `/private/tmp/ordenfix-email-e2m-native/backend-granted-start.json`, four `capture-review-*.json`, `backend-approved-acknowledgement.json`; lineage `review-11bf12eb78cb9c22`, target `sha256:d468241a1d8f2d75a07db03b06a3f06ee9d8af3079feaad908eace32bfdf816d` |
+| Earlier E2-M native authority | `/private/tmp/ordenfix-email-e2m-native/backend-granted-start.json`, four `capture-review-*.json`, `backend-approved-acknowledgement.json`; lineage `review-11bf12eb78cb9c22`, target `sha256:d468241a1d8f2d75a07db03b06a3f06ee9d8af3079feaad908eace32bfdf816d` |
+| Current two-review closure | `/private/tmp/ordenfix-email-two-reviews.z162qooi`; `{backend,frontend}-{refresh-status,granted-start,reviewing-status,capture-reliability,approved-acknowledgement}.json` and actual `.exit`/`.stderr` files; closure bindings below |
 | Full pre-condensation history | Frontend commit `11ba24e` and `/private/tmp/repair-ready-email-tracker-pre-condense.md`; detailed bindings/commands/setup failures remain here, not in a second feature document |
 
 Temporary paths may not survive cleanup: retain Git/source/docs as recovery anchors; do not delete proof or claim missing artifacts were reverified.
@@ -222,10 +224,27 @@ E2-M correction directly measured48 images/8 containers/5 networks and metadata 
 
 Before deployment, revert a coherent unit/tests/docs/dependencies without rewriting applied migrations or reverting prior release/legal/account/PRO work. Real activation remains separately authorized.
 
-**Pending:** new E2-W and frontend native review consent/closure, API/scheduler/status UI; fresh new-candidate backend clean verify, coordinated frontend/technical and Docker/browser end-to-end; public release gate; real SMTP/provider/inbox/deployed proof. Historical V41/Docker successes do not certify V42 sending. **Limits:** DateInput intermittency,668.49kB bundle warning, local56m38s versus25min CI timeout (risk, not observed GitHub failure). Paid PRO unchanged/unactivated; separate release work remains.
+**Pending:** API/scheduler/status UI; fresh new-candidate backend clean verify, coordinated frontend/technical and Docker/browser end-to-end; public release gate; real SMTP/provider/inbox/deployed proof. Both exact native review closures are complete, not these functional/release gates. Historical V41/Docker successes do not certify V42 sending. **Limits:** DateInput intermittency,668.49kB bundle warning, local56m38s versus25min CI timeout (risk, not observed GitHub failure). Paid PRO unchanged/unactivated; separate release work remains.
 
 ## Next step and mirror
 
-Parent reconciled the full file/mirror before delegating E2-W, verified frozen evidence and source, transferred/committed the exact nine files and assessed the new candidate. Fresh native consent is pending; next functional unit is E2-A after frozen-source reconciliation. Backend 6605d6b is already acknowledged; new changes need their own assessment/consent.
+Parent reconciled the full file/mirror before delegating E2-W, verified frozen evidence and source, transferred/committed the exact nine files and assessed the new candidate. Both newly consented exact native reviews are now approved and acknowledged. Next functional unit is E2-A after freezing its exact six-path plan/TDD runner against backend e38bd457 in this file/full mirror; no E2-A source writer has started. New source commits need their own assessment/consent; neither closed review is reusable.
 
 Repository-relative locator: `odd/tasks/repair-ready-email.md`. Engram recovery topic: `odd/repair-ready-email/tasks`. Mirror the **full current document**, not only a completion note; read back file and mirror. Do not invent a session ID. If mirroring fails, preserve local progress and mark it pending without blocking safe unrelated work.
+
+### Two-candidate acknowledged closure — 2026-10-04
+
+Human “Si” directly granted both exact committed diffs through the separate local Codex CLI session, sharing only with OpenAI. Fresh statuses verified unchanged targets before exact native granted transitions. Each medium candidate selected one consolidated compiled `review-reliability` lens, correction budget200. Root executed backend then frontend sequentially with ambient custom endpoints/API-key channels unset. Authentic capture-result calls used exact collect argument tokens, without manual results or a substitute review. Both captures exited0 with empty stderr, no findings, no source corrections. Actual exact ACKs each exited0, action `acknowledged`, authority `burned`.
+
+| Binding | Backend worker | Frontend privacy/documentary slice |
+| --- | --- | --- |
+| Exact range | `6605d6b9353632ca44609e23197b2c444a11b936..e38bd4570f90915f26b7794bd7b9b34885215043`,9 paths/992 Git authored | `6330d8e5cded8678f6bfb19eb1be38aa7dcdc9e1..e5b5913ddb5869c584eedc5032a57b4a2b1e6205`,3 paths/480 net Git authored |
+| Lineage | `review-1d8cf3470d065a22` | `review-943e1e8902b69207` |
+| Target | `sha256:9d3bc7abc5976bb98c1fdcf042d1ef66e80d73981f7df7e45dddb878afe854eb` | `sha256:b22b3a3a6e03498905287a71cfbdddd1f57e5f94c5c4496cf0a9ab4eb487aed6` |
+| Reliability result | `sha256:7175dcf6846db552bcfc63ac3d03fee7ff14bc9813dc454ba07fc3351f8b1544` | `sha256:cbf1696e58b8d276206e4928b9f273cdc68d40d02f8e2ce5c16cbc3f8d614e09` |
+| Actual consumed revision | `sha256:6611608201fe08817d9f2765e79c9bcd766958a8da5c498edb5ce8b34f353142` | `sha256:db058e47a76a55ec8cbeee69c877d7598ac8cdbbdf0355fa2aa687721493227e` |
+| New reviewed boundary | `e38bd4570f90915f26b7794bd7b9b34885215043` | `e5b5913ddb5869c584eedc5032a57b4a2b1e6205` |
+
+Frontend base/candidate trees are `00c0924ff78d6635aa91271abb86fc9c3e13bbca`/`1f7e11ed0acc8ce42a2e906eede46bd1f4cca666`; paths digest `sha256:82c82b7dec428cf3c23253b1001437e9b13137dbaa792ff26594d86605b2cff3`. Exact three paths were this task document, `src/lib/sentry.ts`, `src/lib/sentry.test.ts`; privacy code/tests remain byte-identical to verified proof. Subsequent closure bookkeeping is not in either closed immutable candidate.
+
+Reviewers inspected all9/all3 immutable patches respectively; no commands/tests or external-proof reads were performed. Approval adds static review evidence, **not** new functional, full-verification, SMTP/inbox or deployment evidence. This turn's route is inline one-file deterministic documentary closure with independent delegated receipt/identity bookkeeping; no source writer or implementation expansion. Runtime/tests are N/A for the documentation-only closure; retained earlier checks stay qualified. Rollback only this documentary closure, preserving all source/native receipts/history. No Railway/Vercel/SMTP/private configuration/push/PR/merge/activation or future candidate-sharing authorization is included. Closed reviews must not be repeated.

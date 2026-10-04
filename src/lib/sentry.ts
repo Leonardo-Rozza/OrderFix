@@ -8,8 +8,12 @@ const SENSITIVE_KEYS = new Set([
   'setcookie',
   'pindesbloqueo',
   'patrondesbloqueo',
+  'codigoseguimiento',
 ]);
-const SENSITIVE_TEXT_VALUE = /((?:"|')?(?:pinDesbloqueo|patronDesbloqueo|authorization|set-cookie|cookie|[a-z0-9_-]*(?:password|contrase(?:n|ñ)a|token)[a-z0-9_-]*)(?:"|')?\s*(?::|=)\s*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^,}\]&\s]+)/gi;
+const SENSITIVE_TEXT_VALUE = /((?:"|')?(?:pinDesbloqueo|patronDesbloqueo|c[oó]digo[_-]?Seguimiento|authorization|set-cookie|cookie|[a-z0-9_-]*(?:password|contrase(?:n|ñ)a|token)[a-z0-9_-]*)(?:"|')?\s*(?::|=)\s*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^,}\]&\s]+)/gi;
+const ESCAPED_TRACKING_VALUE = /((?:\\+")c[oó]digo[_-]?Seguimiento(?:\\+")\s*:\s*(?:\\+"))((?:(?!\\+").)+)(\\+")/gi;
+// Keep the route and query diagnostics, never the bearer path segment.
+const TRACKING_PATH = /((?:\\*\/|%2f)seguimiento(?:\\*\/|%2f))((?:(?!%2f|%3f|%23|%22|%27|%5c)[^/?#\s"'<>\\])+)/gi;
 const BEARER_TOKEN = /\bBearer\s+[a-z0-9._~+/=-]+/gi;
 
 const normalizeKey = (key: string): string =>
@@ -31,7 +35,9 @@ const isSensitiveKey = (key: string): boolean => {
 const sanitizeText = (value: string): string =>
   value
     .replace(BEARER_TOKEN, `Bearer ${SENTRY_REDACTED}`)
-    .replace(SENSITIVE_TEXT_VALUE, `$1"${SENTRY_REDACTED}"`);
+    .replace(SENSITIVE_TEXT_VALUE, `$1"${SENTRY_REDACTED}"`)
+    .replace(ESCAPED_TRACKING_VALUE, `$1${SENTRY_REDACTED}$3`)
+    .replace(TRACKING_PATH, `$1${SENTRY_REDACTED}`);
 
 /**
  * Clona y filtra payloads antes de que salgan del navegador. Además de objetos
@@ -74,7 +80,7 @@ export const sanitizeSentryPayload = <T>(value: T): T => {
 export const toSafeSentryError = (error: unknown): Error => {
   const source = error instanceof Error ? error : new Error(String(error));
   const safe = new Error(sanitizeText(source.message));
-  safe.name = source.name;
+  safe.name = sanitizeText(source.name);
   if (source.stack) safe.stack = sanitizeText(source.stack);
   return safe;
 };

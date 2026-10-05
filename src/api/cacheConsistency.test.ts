@@ -7,6 +7,7 @@ import {
   reconcileEquipoChanged,
   reconcilePresupuestoChanged,
   reconcileReparacionDeleted,
+  reconcileReparacionChanged,
   reconcileSuscripcionDegraded,
 } from './cacheConsistency';
 import { queryKeys } from './queryKeys';
@@ -277,5 +278,37 @@ describe('consistencia de caché', () => {
     expect(client.getQueryState(queryKeys.recibos.byReparacion(reparacion.id))).toBeUndefined();
     expect(isInvalidated(client, queryKeys.dashboard.all)).toBe(true);
     expect(isInvalidated(client, queryKeys.clientes.list(params))).toBe(false);
+  });
+});
+
+
+describe('repair email cache consistency', () => {
+  it('isolates repair and generation without account or bearer keys', () => {
+    expect(queryKeys.repairEmail.detail(13, 4)).toEqual(['repair-email', 13, 4]);
+    expect(queryKeys.repairEmail.detail(13, 5)).not.toEqual(queryKeys.repairEmail.detail(13, 4));
+    expect(queryKeys.repairEmail.detail(14, 4)).not.toEqual(queryKeys.repairEmail.detail(13, 4));
+  });
+  it('refreshes only the changed repair notification after a confirmed transition', async () => {
+    const client = createClient();
+    const current = queryKeys.repairEmail.detail(reparacion.id, 4);
+    const other = queryKeys.repairEmail.detail(99, 4);
+    seed(client, current); seed(client, other);
+    await reconcileReparacionChanged(client, { reparacionId: reparacion.id, reparacion });
+    expect(isInvalidated(client, current)).toBe(true);
+    expect(isInvalidated(client, other)).toBe(false);
+  });
+  it('refreshes eligibility after client contact updates and purges deleted repair scopes', async () => {
+    const client = createClient();
+    const current = queryKeys.repairEmail.detail(reparacion.id, 4);
+    const older = queryKeys.repairEmail.detail(reparacion.id, 3);
+    const other = queryKeys.repairEmail.detail(99, 4);
+    [current, older, other].forEach((key) => seed(client, key));
+    await reconcileClienteChanged(client, { type: 'updated', cliente });
+    expect(isInvalidated(client, current)).toBe(true);
+    expect(isInvalidated(client, other)).toBe(true);
+    await reconcileReparacionDeleted(client, reparacion.id);
+    expect(client.getQueryState(current)).toBeUndefined();
+    expect(client.getQueryState(older)).toBeUndefined();
+    expect(client.getQueryState(other)).toBeDefined();
   });
 });

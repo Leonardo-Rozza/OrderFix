@@ -4,6 +4,7 @@ import { DashboardLayout } from '../layouts/DashboardLayout';
 import { EstadoBadge } from '../components/EstadoBadge';
 import { Select } from '../components/Select';
 import { ReparacionFormModal } from '../components/ReparacionFormModal';
+import { RepairEmailStatusCard } from '../components/RepairEmailStatusCard';
 import { RepairPhotos } from '../components/RepairPhotos';
 import { RepuestoFormModal } from '../components/RepuestoFormModal';
 import { PresupuestoFormModal } from '../components/PresupuestoFormModal';
@@ -863,6 +864,8 @@ const ReparacionDetalleContent = ({ reparacionId }: { reparacionId: number }) =>
                 Avisar al cliente
               </button>
             </div>
+
+            <RepairEmailStatusCard repairId={rep.id} />
 
             {/* Garantía y conformidad (aparecen a partir de la entrega) */}
             {(rep.garantiaFin || rep.garantiaInicio || rep.fechaConformidadEntrega) && (

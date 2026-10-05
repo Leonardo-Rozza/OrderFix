@@ -22,13 +22,13 @@ Repositories: frontend `/Volumes/DiscoExtern/Desktop/mvgr-reparaciones-frontend`
 | --- | --- |
 | Resume baselines | Frontend `6330d8e5cded8678f6bfb19eb1be38aa7dcdc9e1`; backend `4c847abec4081c69094922b20ee4c3155b564074` |
 | Original baselines | Frontend `b3d7610bf227d7ab63db95d916dee2f42e3aa57e`; backend `f2141f60f2023405ae7ddec5987f13784dd2e76b` |
-| Evidence heads / reviewed boundaries | Frontend head/effective boundary `fa4ce480d7ae850cdf16c0669a0025a21807507b` (native closure122/passive); last approved/ACK candidate `e5b5913ddb5869c584eedc5032a57b4a2b1e6205`. Backend head `3956ac2d989eedc7644aa7190bde585537b7ce01`; acknowledged boundary now `3956ac2d989eedc7644aa7190bde585537b7ce01`. API and scheduler exact reviews closed |
+| Evidence heads / reviewed boundaries | Frontend head/effective boundary `855d1cd6ce9b718f130f14ccc8206f15fa83bef2` (approved E3 tracking67/passive); last approved/ACK candidate `e5b5913ddb5869c584eedc5032a57b4a2b1e6205`. Backend head `3956ac2d989eedc7644aa7190bde585537b7ce01`; acknowledged boundary now `3956ac2d989eedc7644aa7190bde585537b7ce01`. API and scheduler exact reviews closed |
 | TDD | **ON**, explicit prior choice in `odd/tasks/charge-session-expiry.md:15`; compilable assertion RED → GREEN → cleanup. Setup failures are not RED |
 | Backend checks | Installed Java 21.0.10/Maven 3.9.11 directly, offline Surefire and real PostgreSQL/Failsafe in secret-free snapshots/settings; no wrapper bootstrap |
 | Frontend checks | Installed Node 24.14.0/Vitest 3.2.6, Node tooling, lint/typecheck/technical build and Playwright; public-only snapshots/synthetic environment, no private `.env` loading |
 | Native RDD | **ON/global**; new candidates require their own assessment, consent and exact lifecycle |
 | Delivery | `ask-on-risk`, cached `feature-branch-chain`; no PR/push/merge authorized or materialized |
-| Running count / forecast | **6,046 authored committed work-unit lines** (prior5,132+557+235+closure122); separate V41/Docker/generated outputs excluded. E3I300–500+U350–550=650–1,050 advisorysource+docs; onecohesivedeliverable, no plumbing-onlycommit. Scheduler forecast200–400 exceeded coherently by physical timing/error/configuration tests, not scope expansion or a hard cap; preserve readable coverage and cached feature-branch-chain |
+| Running count / forecast | **6,113 authored committed work-unit lines** (prior5,132+557+235+closure122); separate V41/Docker/generated outputs excluded. E3I300–500+U350–550=650–1,050 advisorysource+docs; onecohesivedeliverable, no plumbing-onlycommit. Scheduler forecast200–400 exceeded coherently by physical timing/error/configuration tests, not scope expansion or a hard cap; preserve readable coverage and cached feature-branch-chain |
 
 About 400 authored additions plus deletions is a planning heuristic, not an acceptance cap. Preserve readable coverage and strict checks. Cohesive schema/admission exceeds it; a future PR size exception requires explicit acceptance. Record actual commit/slice boundaries.
 
@@ -78,7 +78,7 @@ OnecohesiveE3work-unit; I/U aresteps, notnewcheckboxes/plumbing-onlycommits. Del
 
 TDD ON `odd/tasks/charge-session-expiry.md:15`; installedNode24.14/Vitest3.2.6/TS5.9.3/Vite7.3.5. Exactinstallednode+vitest.mjs publicsafeconfig/envDir:false (or `./node_modules/.bin/vitest run` there); writerfreezessuiteselectors. CompilableassertionREDbeforeproduction→GREEN→refactor; setupfailure notRED. Service/Axios/queryKeys/cacheConsistency/hooks/Card/detailpairedtests+charge/sessionregressions. No downloads/privateenv.
 
-ForecastI300–500+U350–550=650–1,050 advisory+docs; preserve readablecoverage. Cachedask-on-risk/feature-branch-chain, ~400notcap/size-onlysplit/codecompression. RDDON/global: assess committedunit againstfrontendfa4ce480; fresh exactsharingconsent ifdue, oldgrantsnotinherited.
+ForecastI300–500+U350–550=650–1,050 advisory+docs; preserve readablecoverage. Cachedask-on-risk/feature-branch-chain, ~400notcap/size-onlysplit/codecompression. RDDON/global: assess committedunit againstfrontend855d1cd; fresh exactsharingconsent ifdue, oldgrantsnotinherited.
 
 Pending: typecheck/lint/fullVitest/test:release/technicalbuild/new-file-inclusivewhitespace/Playwrightsyntheticcompletion-status-refresh-retry-WhatsApp-publiclink. Exactrunners frompackage; publicsnapshot/syntheticenv, recordfailed/skipped/unavailable/deferred. MocklocalHTTP/browsernot backend/provider/inbox/deployedproof; coordinated/publicreleasegatesopen. RollbackE3integration/card/detail/tests together.
 
@@ -357,3 +357,15 @@ Fresh human “Si dale” grants only the exact five-file diff through separate 
 Independent `/private/tmp/ordenfix-e2g-fresh-review-preparation-pxay8dbi/receipt.json`, SHA `f87ff9f464b7bf3ea54846d884d22860514175b5e6a075a7e0b7ab3782377f23`: root rehashed all18 output/exit/stderr bindings; exact5Git/1,307public/6protected unchanged. Actor allfive-patch/test-inspection claim is scoped attestation, not new tests/history audit/fullclean/SMTP/inbox/deployed proof. Prior554 functional cases/compile-label qualification remain separate, not rerun. Old reviews stay closed; future sharing requires fresh consent.
 
 Capacity-only delegated condensation:49,735→47,668 chars,66unique hashes/86 occurrences/43TEMP+84total locator tokens/11states/sixcontract blocks preserved;45,500 advisory target unmet. Candidate/receipt at `/private/tmp/repair-email-headroom-buy27hqx`; original `canonical-before-review.md` in native root. Parent actual-closure annotations follow acceptance; no source/RDD budget shrinking.
+
+E3 tracking commit `855d1cd6ce9b718f130f14ccc8206f15fa83bef2`: doc-only36add/31del=67; initial assessment failed on undeclared .atl, canonical STATUS verified exact two exclusions; reassessment passive/non_executable_only, no native actor/sharing. Source E3 checks pending.
+
+## E3 local evidence — 2026-10-04
+
+13 source/test paths, one coherent delegated unit; backend/authstore/charge-storage unchanged. UI/root-inspected desktop+mobile screenshots: status/manual GET/single bodyless retry, nonblocking completion, no-phone/WhatsApp/publicbudget intact. Checkbox awaits exact native closure; release gates stay open. Rollback all13 together.
+
+RED46/8fail before production; finalfocused200/10files0F/E/S. New heldGET/uncertainPOST raceRED9/1fail fixed with current mutation-error barrier until explicit freshGET. Initial97/99 observer failures fixed with waitFor. Prior `/private/tmp/ordenfix-email-e3.z63k9r9k` immutable/nonfinal; final `/private/tmp/ordenfix-email-e3-race.t_74xu0k`: public331 `ff9a8a3a836a4091d3e000b87622d64f4756ee772723fecc958d72144b0663ad`, input342 `201d5d4e364a03a0cdfc8ed5263cfca203ae55b347daf1fec13790019ec7fa14`; original equal.
+
+Full1197 cases/117files, release44, lint/types/technicalbuild all0: `/private/tmp/ordenfix-e3-final-verification.vgtk7d7t/receipt.json` SHA `9c2b7a823dfffff015e3c4a50f09da275b43d16b085d9f2dbd809506aef40c40`. All8steps0;342writer/343local+2public supplements unchanged. Nested pending label retained, actualfinal passed. Browser8/8/no skips/flaky: `/private/tmp/ordenfix-e3-browser-rc_45r_i/artifacts/final-summary.json` SHA `b52aacecef23c6c48191505ccec39e0d00470a54d7ae47afbbd017129c8dd1f7`,342 unchanged.
+
+Retained harness failures: npm double/dev/null corrected to distinct empty configs; browser EPERM/module/contradictoryDTO fixture corrected. No sums of prior reruns. Final loader/cache ownTEMP; preliminary symlink may have written installed .vite-temp. Font fallback/GoogleFonts blocked;675.21kB build warning, publication/artifact guards SKIPPED. No provider/inbox/activation/currentcleanbackend/Docker/coordinated/deployed proof. Whitespace/commit/native assessment next; new sharing consent absent.

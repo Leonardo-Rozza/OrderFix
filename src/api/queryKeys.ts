@@ -82,6 +82,11 @@ export const queryKeys = {
     details: ['reparacion'] as const,
     detail: (id: number | undefined) => ['reparacion', id] as const,
   },
+  repairEmail: {
+    all: ['repair-email'] as const,
+    byReparacion: (id: number) => ['repair-email', id] as const,
+    detail: (id: number, generation: number | null) => ['repair-email', id, generation] as const,
+  },
   repuestos: {
     all: ['repuestos'] as const,
     list: (params: ListParams) => ['repuestos', params] as const,

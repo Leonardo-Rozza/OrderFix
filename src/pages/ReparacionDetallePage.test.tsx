@@ -89,6 +89,10 @@ vi.mock('../store/auth.store', async (importOriginal) => ({
   useAuth: () => ({ isAdmin: mocks.isAdmin }),
 }));
 
+vi.mock('../components/RepairEmailStatusCard', () => ({
+  RepairEmailStatusCard: ({ repairId }: { repairId: number }) => <section aria-label="Notificación por email">Estado de email {repairId}</section>,
+}));
+
 vi.mock('../components/ReparacionFormModal', () => ({ ReparacionFormModal: () => null }));
 vi.mock('../components/RepuestoFormModal', () => ({
   RepuestoFormModal: ({
@@ -164,6 +168,23 @@ describe('ReparacionDetallePage — estados honestos de subconsultas', () => {
     mocks.cobrosEnabled = true;
     sessionStorage.clear();
     authStore.getState().logout();
+  });
+
+  it('keeps an independent email panel below WhatsApp even without a phone', () => {
+    const phone = reparacion.clienteTelefono;
+    const code = reparacion.codigoSeguimiento;
+    reparacion.clienteTelefono = undefined;
+    reparacion.codigoSeguimiento = 'synthetic-tracking';
+    try {
+      renderPage();
+      const whatsapp = screen.getByRole('button', { name: 'Avisar al cliente' });
+      const email = screen.getByRole('region', { name: 'Notificación por email' });
+      expect(whatsapp).toBeDisabled();
+      expect(email).toHaveTextContent('Estado de email 7');
+      expect(whatsapp.compareDocumentPosition(email) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(screen.getByRole('link', { name: 'Ver página →' })).toHaveAttribute('href', '/seguimiento/synthetic-tracking');
+      expect(screen.getByLabelText('Cambiar estado')).toBeEnabled();
+    } finally { reparacion.clienteTelefono = phone; reparacion.codigoSeguimiento = code; }
   });
 
   it.each(['paid', 'excess', 'unavailable', 'plan'])('permite abrir la recuperación sin habilitar nuevos cobros: %s', async (state) => {

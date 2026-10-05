@@ -54,6 +54,7 @@ export const reconcileClienteChanged = async (
       queryKeys.dashboard.all,
       queryKeys.resumenes.all,
       queryKeys.seguimiento.all,
+      queryKeys.repairEmail.all,
     );
   }
 
@@ -86,6 +87,7 @@ export const reconcileEquipoChanged = async (
       queryKeys.repuestos.details,
       queryKeys.resumenes.all,
       queryKeys.seguimiento.all,
+      queryKeys.repairEmail.all,
     );
   }
 
@@ -105,6 +107,7 @@ export const reconcileReparacionChanged = async (
     queryKeys.equipos.all,
     queryKeys.equipos.details,
     queryKeys.cobros.byReparacion(event.reparacionId),
+    queryKeys.repairEmail.byReparacion(event.reparacionId),
     queryKeys.resumenes.byReparacion(event.reparacionId),
     queryKeys.seguimiento.all,
   ];
@@ -134,6 +137,8 @@ export const reconcileReparacionDeleted = async (
   queryClient: QueryClient,
   reparacionId: number,
 ): Promise<void> => {
+  await queryClient.cancelQueries({ queryKey: queryKeys.repairEmail.byReparacion(reparacionId) });
+  queryClient.removeQueries({ queryKey: queryKeys.repairEmail.byReparacion(reparacionId) });
   await removeExactKeys(queryClient, [
     queryKeys.reparaciones.detail(reparacionId),
     queryKeys.repuestos.byReparacion(reparacionId),

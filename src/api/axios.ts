@@ -11,6 +11,8 @@ declare module 'axios' {
   interface AxiosRequestConfig {
     /** Prevent a late recoverable charge from affecting a replacement session. */
     chargeSession?: ChargeSession;
+    /** Opt-in repair email scope; rejects stale dispatch and response side effects. */
+    repairEmailSession?: ChargeSession;
     /** La superficie que hace el GET muestra su propio error y acción de reintento. */
     errorMode?: 'inline';
     /** Las consultas de Cuenta comprueban el 403 sin depender de la suscripción. */
@@ -127,6 +129,10 @@ apiClient.interceptors.request.use(
       || !chargeAccount(auth.token, auth.isAuthenticated))) {
       throw new axios.CanceledError('Charge session changed or expired before dispatch');
     }
+    if (config.repairEmailSession && (!isChargeSessionCurrent(config.repairEmailSession)
+      || !chargeAccount(auth.token, auth.isAuthenticated))) {
+      throw new axios.CanceledError('Repair email session changed or expired before dispatch');
+    }
     const token = auth.token;
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -137,9 +143,15 @@ apiClient.interceptors.request.use(
 );
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.config.repairEmailSession && !isChargeSessionCurrent(response.config.repairEmailSession)) {
+      throw new axios.CanceledError('Repair email session changed before response');
+    }
+    return response;
+  },
   async (error: AxiosError) => {
     if (error.config?.chargeSession && !isChargeSessionCurrent(error.config.chargeSession)) throw error;
+    if (error.config?.repairEmailSession && !isChargeSessionCurrent(error.config.repairEmailSession)) throw error;
     // Una búsqueda reemplazada o una query sin observadores no es un fallo para
     // el usuario ni para telemetría. React Query igualmente recibe el rechazo y
     // resuelve el estado de concurrencia de esa request.
@@ -190,13 +202,14 @@ apiClient.interceptors.response.use(
 
         // Si la identidad cambió mientras validábamos, no afectamos la nueva sesión.
         if (authStore.getState().token === token
-          && (!error.config?.chargeSession || isChargeSessionCurrent(error.config.chargeSession))) {
+          && (!error.config?.chargeSession || isChargeSessionCurrent(error.config.chargeSession))
+          && (!error.config?.repairEmailSession || isChargeSessionCurrent(error.config.repairEmailSession))) {
           if (validation === 'valida') {
-            if (!accountRead) showError(getErrorMessage(error, 'No tenés permisos para esta acción.'));
+            if (!accountRead && !error.config?.repairEmailSession) showError(getErrorMessage(error, 'No tenés permisos para esta acción.'));
           } else if (validation === 'invalida') {
             closeInvalidSession();
           } else {
-            if (!accountRead) showError('No pudimos verificar tu sesión. Revisá tu conexión e intentá de nuevo.');
+            if (!accountRead && !error.config?.repairEmailSession) showError('No pudimos verificar tu sesión. Revisá tu conexión e intentá de nuevo.');
           }
         }
       }
@@ -207,7 +220,7 @@ apiClient.interceptors.response.use(
         showError(getErrorMessage(error, 'No se pudo obtener la información.'));
       }
       // Reportar a Sentry los errores de red/servidor (5xx o sin respuesta).
-      captureError(error);
+      if (!error.config?.repairEmailSession) captureError(error);
     }
 
     throw error;

@@ -517,3 +517,116 @@ it('ignora la validación tardía del 403 de un cobro tras logout/login con el m
   expect(authStore.getState().isAuthenticated).toBe(true);
   expect(authStore.getState().token).toBe(token);
 });
+
+describe('repair email request session isolation', () => {
+  const login = () => {
+    const token = `header.${btoa(JSON.stringify({ sub: 'email-status@workshop.test', tallerId: 3, exp: Date.now() / 1000 + 3600 }))}.sig`;
+    authStore.getState().login(token, 'email-status@workshop.test');
+    return { account: chargeAccount(token, true)!, generation: chargeGeneration() };
+  };
+  const path = '/reparaciones/9/notificacion-email';
+
+  it.each(['replacement', 'expired'])('rejects %s before dispatch without any global effects', async (reason) => {
+    const now = 2_000_000_000_000;
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(now);
+    const session = login();
+    let calls = 0;
+    server.use(http.get(`${API}${path}`, () => {
+      calls++;
+      return HttpResponse.json({ estado: 'SIN_EMAIL', reintentable: true });
+    }));
+    if (reason === 'replacement') { authStore.getState().logout(); login(); }
+    else clock.mockReturnValue(now + 3_600_000);
+
+    await expect(apiClient.get(path, { repairEmailSession: session, errorMode: 'inline' }))
+      .rejects.toMatchObject({ code: 'ERR_CANCELED' });
+    expect(calls).toBe(0);
+    expect(showError).not.toHaveBeenCalled();
+    expect(captureError).not.toHaveBeenCalled();
+  });
+
+  it.each([200, 401, 402, 403, 503])('ignores late %s after same-account logout/login', async (status) => {
+    const session = login();
+    const oldToken = authStore.getState().token!;
+    let started!: () => void;
+    let release!: () => void;
+    const sent = new Promise<void>((resolve) => { started = resolve; });
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    const event = vi.fn();
+    const released = vi.fn();
+    const unsubscribe = subscribeUnsavedChangesRelease(released);
+    let validations = 0;
+    window.addEventListener(LIMITE_PLAN_EVENT, event);
+    window.addEventListener(EMAIL_VERIFICATION_REQUIRED_EVENT, event);
+    server.use(
+      http.get(`${API}${path}`, async () => {
+        started(); await held;
+        return HttpResponse.json({ estado: 'PENDIENTE', reintentable: false }, { status });
+      }),
+      http.get(`${API}/suscripcion`, () => { validations++; return HttpResponse.json({}); }),
+    );
+    const pending = apiClient.get(path, { repairEmailSession: session, errorMode: 'inline' });
+    const result = expect(pending).rejects.toBeTruthy();
+    try {
+      await sent;
+      authStore.getState().logout();
+      authStore.getState().login(oldToken, 'email-status@workshop.test');
+      queryClient.setQueryData(['replacement-workshop'], { repair: 97 });
+      release();
+      await result;
+      expect(authStore.getState().isAuthenticated).toBe(true);
+      expect(queryClient.getQueryData(['replacement-workshop'])).toEqual({ repair: 97 });
+      expect(validations).toBe(0);
+      expect(event).not.toHaveBeenCalled();
+      expect(released).not.toHaveBeenCalled();
+      expect(showError).not.toHaveBeenCalled();
+      expect(captureError).not.toHaveBeenCalled();
+    } finally {
+      release(); unsubscribe();
+      window.removeEventListener(LIMITE_PLAN_EVENT, event);
+      window.removeEventListener(EMAIL_VERIFICATION_REQUIRED_EVENT, event);
+    }
+  });
+
+  it('checks generation again after asynchronous 403 validation', async () => {
+    const session = login();
+    const token = authStore.getState().token!;
+    let started!: () => void;
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => { started = resolve; });
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    server.use(
+      http.get(`${API}${path}`, () => new HttpResponse(null, { status: 403 })),
+      http.get(`${API}/suscripcion`, async () => {
+        started(); await held; return new HttpResponse(null, { status: 401 });
+      }),
+    );
+    const result = expect(apiClient.get(path, { repairEmailSession: session, errorMode: 'inline' })).rejects.toBeTruthy();
+    try {
+      await waiting;
+      authStore.getState().logout();
+      authStore.getState().login(token, 'email-status@workshop.test');
+      release(); await result;
+      expect(authStore.getState().isAuthenticated).toBe(true);
+      expect(showError).not.toHaveBeenCalled();
+    } finally { release(); }
+  });
+
+  it('still logs out on a current-session 401 after in-flight token expiry', async () => {
+    const now = 2_000_000_000_000;
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(now);
+    const session = login();
+    let started!: () => void;
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => { started = resolve; });
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    server.use(http.get(`${API}${path}`, async () => {
+      started(); await held; return new HttpResponse(null, { status: 401 });
+    }));
+    const result = expect(apiClient.get(path, { repairEmailSession: session, errorMode: 'inline' })).rejects.toBeTruthy();
+    try {
+      await waiting; clock.mockReturnValue(now + 3_600_000); release(); await result;
+      expect(authStore.getState().isAuthenticated).toBe(false);
+    } finally { release(); }
+  });
+});

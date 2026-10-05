@@ -51,9 +51,13 @@ export const useRepairEmailNotification = (repairId: number) => {
         current ? { ...current, reintentable: false } : undefined
       ));
     },
-    onSuccess: (status, attempt) => {
+    onSuccess: async (status, attempt) => {
       if (!isActive(attempt)) return;
-      client.setQueryData(queryKeys.repairEmail.detail(attempt.repairId, attempt.session.generation), status);
+      const key = queryKeys.repairEmail.detail(attempt.repairId, attempt.session.generation);
+      // Fence reads started during the POST before publishing its authoritative DTO.
+      await client.cancelQueries({ queryKey: key, exact: true });
+      if (!isActive(attempt)) return;
+      client.setQueryData(key, status);
     },
   });
 

@@ -6,6 +6,7 @@ import { http, HttpResponse } from 'msw';
 import { authStore } from '../../store/auth.store';
 import { server, API } from '../../test/server';
 import { captureRepairEmailSession, type RepairEmailStatus } from '../repairEmail';
+import * as repairEmail from '../repairEmail';
 import { queryKeys } from '../queryKeys';
 import { useRepairEmailNotification } from './repairEmail.queries';
 
@@ -243,3 +244,139 @@ it('does not restore retry permission from a competing invalidation GET after an
     expect({ reads, posts }).toEqual({ reads: 3, posts: 2 });
   } finally { heldPost.resolve(); heldCompeting.resolve(); heldFresh.resolve(); }
 });
+
+it.each(['PENDIENTE', 'INCIERTO'] as const)(
+  'keeps the successful %s DTO when an obsolete GET finishes after the POST',
+  async (estado) => {
+    const session = captureRepairEmailSession()!;
+    const key = queryKeys.repairEmail.detail(9, session.generation);
+    const status: RepairEmailStatus = { estado, reintentable: false };
+    const eligible: RepairEmailStatus = { estado: 'SIN_EMAIL', reintentable: true };
+    const fresh: RepairEmailStatus = { estado: 'FALLO_PREVIO', reintentable: true };
+    const postStarted = deferred();
+    const heldPost = deferred();
+    const competingStarted = deferred();
+    const heldCompeting = deferred();
+    const competingCompleted = deferred();
+    let reads = 0;
+    let competingSignal: AbortSignal | undefined;
+    // This unit model deliberately ignores AbortSignal so a cancelled transport
+    // still completes. Query cancellation, not cooperative HTTP abort, must fence it.
+    vi.spyOn(repairEmail, 'fetchRepairEmailStatus').mockImplementation(async (_id, _session, signal) => {
+      reads++;
+      if (reads === 2) {
+        competingSignal = signal;
+        competingStarted.resolve();
+        await heldCompeting.promise;
+        competingCompleted.resolve();
+      }
+      return reads > 2 ? fresh : eligible;
+    });
+    const post = vi.spyOn(repairEmail, 'retryRepairEmail').mockImplementation(async () => {
+      postStarted.resolve();
+      await heldPost.promise;
+      return status;
+    });
+    const { client, wrapper } = createHarness();
+    const { result } = renderHook(() => useRepairEmailNotification(9), { wrapper });
+    await waitFor(() => expect(result.current.canRetry).toBe(true));
+    let pending!: Promise<void>;
+    let competingRead!: Promise<void>;
+    act(() => { pending = result.current.retry(); });
+    try {
+      await postStarted.promise;
+      act(() => { competingRead = client.invalidateQueries({ queryKey: key, exact: true }); });
+      await competingStarted.promise;
+      await act(async () => { heldPost.resolve(); await pending; });
+      await act(async () => {
+        heldCompeting.resolve();
+        await competingCompleted.promise;
+        await competingRead;
+      });
+      expect(client.getQueryData(key)).toEqual(status);
+      await waitFor(() => expect(result.current.status).toEqual(status));
+      expect(competingSignal?.aborted).toBe(true);
+      expect(result.current.canRetry).toBe(false);
+      expect(result.current.retryFailed).toBe(false);
+      await act(async () => { await result.current.retry(); });
+      expect(post).toHaveBeenCalledTimes(1);
+      expect(reads).toBe(2);
+
+      act(() => result.current.refresh());
+      await waitFor(() => expect(result.current.canRetry).toBe(true));
+      expect(client.getQueryData(key)).toEqual(fresh);
+      expect(result.current.status).toEqual(fresh);
+      expect(reads).toBe(3);
+      expect(post).toHaveBeenCalledTimes(1);
+    } finally { heldPost.resolve(); heldCompeting.resolve(); }
+  },
+);
+
+it.each(['SIN_EMAIL', 'FALLO_PREVIO'] as const)(
+  'preserves an authoritative eligible %s DTO from a successful POST',
+  async (estado) => {
+    const session = captureRepairEmailSession()!;
+    const status: RepairEmailStatus = { estado, reintentable: true };
+    let reads = 0;
+    let posts = 0;
+    server.use(
+      http.get(statusUrl, () => { reads++; return HttpResponse.json({ estado: 'SIN_EMAIL', reintentable: true }); }),
+      http.post(retryUrl, () => { posts++; return HttpResponse.json(status); }),
+    );
+    const { client, wrapper } = createHarness();
+    const { result } = renderHook(() => useRepairEmailNotification(9), { wrapper });
+    await waitFor(() => expect(result.current.canRetry).toBe(true));
+    await act(async () => { await result.current.retry(); });
+    await waitFor(() => expect(result.current.status).toEqual(status));
+    expect(client.getQueryData(queryKeys.repairEmail.detail(9, session.generation))).toEqual(status);
+    expect(result.current.canRetry).toBe(true);
+    expect(result.current.retryFailed).toBe(false);
+    expect({ reads, posts }).toEqual({ reads: 1, posts: 1 });
+  },
+);
+
+it.each(['repair', 'workshop', 'unmount'])(
+  'rechecks %s scope after successful-response cancellation before publishing',
+  async (change) => {
+    const session = captureRepairEmailSession()!;
+    const cancellationStarted = deferred();
+    const heldCancellation = deferred();
+    server.use(
+      http.get(statusUrl, () => HttpResponse.json({ estado: 'SIN_EMAIL', reintentable: true })),
+      http.post(retryUrl, () => HttpResponse.json({ estado: 'PENDIENTE', reintentable: false })),
+    );
+    const { client, wrapper } = createHarness();
+    const cancelQueries = client.cancelQueries.bind(client);
+    let cancellations = 0;
+    const cancel = vi.spyOn(client, 'cancelQueries').mockImplementation(async (...args) => {
+      await cancelQueries(...args);
+      if (++cancellations === 2) {
+        cancellationStarted.resolve();
+        await heldCancellation.promise;
+      }
+    });
+    const { result, rerender, unmount } = renderHook(({ id }) => useRepairEmailNotification(id), {
+      wrapper, initialProps: { id: 9 },
+    });
+    await waitFor(() => expect(result.current.canRetry).toBe(true));
+    let pending!: Promise<void>;
+    act(() => { pending = result.current.retry(); });
+    try {
+      await waitFor(() => expect(cancel).toHaveBeenCalledTimes(2));
+      await cancellationStarted.promise;
+      expect(cancel.mock.calls[1]).toEqual([{ queryKey: queryKeys.repairEmail.detail(9, session.generation), exact: true }]);
+      if (change === 'repair') rerender({ id: 10 });
+      else if (change === 'workshop') act(() => { login(4); });
+      else unmount();
+      if (change !== 'unmount') await waitFor(() => expect(result.current.canRetry).toBe(true));
+      await act(async () => { heldCancellation.resolve(); await pending; });
+      expect(client.getQueryData<RepairEmailStatus>(queryKeys.repairEmail.detail(9, session.generation))?.estado).not.toBe('PENDIENTE');
+      if (change !== 'unmount') {
+        expect(result.current.status?.estado).toBe('SIN_EMAIL');
+        expect(result.current.retryFailed).toBe(false);
+      }
+      expect(showSuccess).not.toHaveBeenCalled();
+      expect(showError).not.toHaveBeenCalled();
+    } finally { heldCancellation.resolve(); }
+  },
+);

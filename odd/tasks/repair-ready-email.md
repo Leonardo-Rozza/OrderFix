@@ -1,10 +1,10 @@
 # Send a safe customer email when a repair is completed
 
-**Current status — 2026-10-04:** E1/E1-C/E2-S/E2-M/E2-W/E2-A/E2-G/E3-P are implemented. API `238eb2b104c8ae5fd6ab0e93c4856d46a322ccf4` has final161 PostgreSQL/352 unit-regression passes and exact approved/burned native ACK. Earlier worker/privacy approvals remain separately bound below. Scheduler `3956ac2` has554 distinct final passes; its exact native review is approved/burned; status UI and full release gates stay open. **Real sending, inbox delivery and production readiness are not established.**
+**Current status — 2026-10-04:** E1/E1-C/E2-S/E2-M/E2-W/E2-A/E2-G/E3/E3-P are implemented. API `238eb2b104c8ae5fd6ab0e93c4856d46a322ccf4` has final161 PostgreSQL/352 unit-regression passes and exact approved/burned native ACK. Earlier worker/privacy approvals remain separately bound below. Scheduler `3956ac2` has554 distinct final passes; its exact native review is approved/burned; E3 review is approved with an informational follow-up; full release gates stay open. **Real sending, inbox delivery and production readiness are not established.**
 
 ## Quick path
 
-Implement approvedlocalE3 after parentcanonical/fullmirrorreadback. Earlierreviewsstayclosed; provider/activation/futuresharingseparate. Samefeature/proofindex.
+E3 review closed. Its advisory is separate later work; provider/activation/release gates stay open. Earlier reviews stay closed.
 
 ## Outcome, authorization and exclusions
 
@@ -22,13 +22,13 @@ Repositories: frontend `/Volumes/DiscoExtern/Desktop/mvgr-reparaciones-frontend`
 | --- | --- |
 | Resume baselines | Frontend `6330d8e5cded8678f6bfb19eb1be38aa7dcdc9e1`; backend `4c847abec4081c69094922b20ee4c3155b564074` |
 | Original baselines | Frontend `b3d7610bf227d7ab63db95d916dee2f42e3aa57e`; backend `f2141f60f2023405ae7ddec5987f13784dd2e76b` |
-| Evidence heads / reviewed boundaries | Frontend head/effective boundary `855d1cd6ce9b718f130f14ccc8206f15fa83bef2` (approved E3 tracking67/passive); last approved/ACK candidate `e5b5913ddb5869c584eedc5032a57b4a2b1e6205`. Backend head `3956ac2d989eedc7644aa7190bde585537b7ce01`; acknowledged boundary now `3956ac2d989eedc7644aa7190bde585537b7ce01`. API and scheduler exact reviews closed |
+| Evidence heads / reviewed boundaries | Frontend head `02f443d659c1ef4b96142378a9cebb0591b80993`; effective boundary `02f443d659c1ef4b96142378a9cebb0591b80993` (approved/ACK); previous approved/ACK candidate `e5b5913ddb5869c584eedc5032a57b4a2b1e6205`. Backend head `3956ac2d989eedc7644aa7190bde585537b7ce01`; acknowledged boundary now `3956ac2d989eedc7644aa7190bde585537b7ce01`. API and scheduler exact reviews closed |
 | TDD | **ON**, explicit prior choice in `odd/tasks/charge-session-expiry.md:15`; compilable assertion RED → GREEN → cleanup. Setup failures are not RED |
 | Backend checks | Installed Java 21.0.10/Maven 3.9.11 directly, offline Surefire and real PostgreSQL/Failsafe in secret-free snapshots/settings; no wrapper bootstrap |
 | Frontend checks | Installed Node 24.14.0/Vitest 3.2.6, Node tooling, lint/typecheck/technical build and Playwright; public-only snapshots/synthetic environment, no private `.env` loading |
 | Native RDD | **ON/global**; new candidates require their own assessment, consent and exact lifecycle |
 | Delivery | `ask-on-risk`, cached `feature-branch-chain`; no PR/push/merge authorized or materialized |
-| Running count / forecast | **6,113 authored committed work-unit lines** (prior5,132+557+235+closure122); separate V41/Docker/generated outputs excluded. E3I300–500+U350–550=650–1,050 advisorysource+docs; onecohesivedeliverable, no plumbing-onlycommit. Scheduler forecast200–400 exceeded coherently by physical timing/error/configuration tests, not scope expansion or a hard cap; preserve readable coverage and cached feature-branch-chain |
+| Running count / forecast | **6,965 authored committed work-unit lines** (prior6,113+E3 source834/docs18); separate V41/Docker/generated outputs excluded. E3I300–500+U350–550=650–1,050 advisorysource+docs; onecohesivedeliverable, no plumbing-onlycommit. Scheduler forecast200–400 exceeded coherently by physical timing/error/configuration tests, not scope expansion or a hard cap; preserve readable coverage and cached feature-branch-chain |
 
 About 400 authored additions plus deletions is a planning heuristic, not an acceptance cap. Preserve readable coverage and strict checks. Cohesive schema/admission exceeds it; a future PR size exception requires explicit acceptance. Record actual commit/slice boundaries.
 
@@ -63,7 +63,7 @@ Source tasks use mandatory delegated mapping/preparation/writers. Parent owns de
   - [x] **E2-W Implement fenced claim/send/ACK and safe recovery.** `e38bd4570f90915f26b7794bd7b9b34885215043`, checked protocol/native approved/ACK below. Rollback its nine paths together, preserving V41/V42/guards.
   - [x] **E2-A Expose tenant-scoped status and safe retry.** `238eb2b104c8ae5fd6ab0e93c4856d46a322ccf4`,6paths/Git1,192+3=1,195; final161PG/352unit/staged0. Contract/race/noSMTP checks and medium/slice_budget_reached fresh exact grant/compiled approval/burned ACK below. Rollback6paths only, preserving Store/Worker/schema/auth.
   - [x] **E2-G Wire the approved opt-in bounded scheduler.** `3956ac2d989eedc7644aa7190bde585537b7ce01`,5paths/557/staged0; real scheduling RED/GREEN/final161PG+393unit=554 distinct. Default-off/one attempt/30s barriers below. Medium/slice_budget_reached: fresh exact grant, reliability approval and actual burned ACK below; activation separate.
-- [ ] **E3 Show notification status and protect its public link.** DTO/hooks/query keys/invalidation/status/manual safe retry; missing/loading/error never blocks completion; no stale foreign-session publication, preserve WhatsApp/public budget. RED/GREEN, full frontend/tooling/lint/types/build and simulated browser completion/status/retry/WhatsApp/coordinated gates. ApprovedE3boundarybelow: I/Usteps, notnewcheckboxes/commits;650–1,050advisory, full/browserpending. RollbackAPI/hooks/card/detail/tests together.
+- [x] **E3 Show notification status and protect its public link.** DTO/hooks/query keys/invalidation/status/manual safe retry; missing/loading/error never blocks completion; no stale foreign-session publication, preserve WhatsApp/public budget. RED/GREEN, full frontend/tooling/lint/types/build and synthetic browser completion/status/retry/WhatsApp. Coordinated release gates remain open under E2. ApprovedE3boundarybelow: I/Usteps, notnewcheckboxes/commits;650–1,050advisory, full/browserpending. RollbackAPI/hooks/card/detail/tests together.
   - [x] **E3-P Protect the tracking bearer secret in telemetry.** `src/lib/sentry.ts`/paired tests; field/path/Error filtering preserves diagnostics/token filtering/original/shared references. `b6bade6`, source151, medium under_budget at that commit—not standalone approval. No telemetry activation. Rollback sanitizer/tests together.
 
 ## E3 accepted implementation boundary — 2026-10-04
@@ -105,7 +105,7 @@ FinalGREEN/commit/approvedburnedACK below; new-file-inclusivewhitespace/native c
 
 ### E2-G final evidence and closed native review
 
-Frozen `/private/tmp/ordenfix-ready-email-e2g.apmq3l_3`:1,460 manifest `24feace7957db4b8d2a37cd149755c14512840d3d3377629355f76c700cd063e`; final1,307 map `c23251245298caf1fa0f9bc3547889566831adfb0fda71062fc4f95a6b6abe16`. Root checked hashes/XML/selectors.
+Frozen `/private/tmp/ordenfix-ready-email-e2g.apmq3l_3`: 1,460 hashes, manifest `24feace7957db4b8d2a37cd149755c14512840d3d3377629355f76c700cd063e`; final 1,307 map `c23251245298caf1fa0f9bc3547889566831adfb0fda71062fc4f95a6b6abe16`. Root verified hashes/XML/selectors.
 
 | Phase | Actual observed outcome |
 | --- | --- |
@@ -114,13 +114,13 @@ Frozen `/private/tmp/ordenfix-ready-email-e2g.apmq3l_3`:1,460 manifest `24feace7
 |04 |41/2classes0F/E/S, exit0, final source; subset of06 |
 |05/06 |161PG/6+393unit/23=554 distinct0F/E/S, exits0, exact final before/after |
 
-Retained summary mislabels03:02 compiled611main/attempted484tests;03/04 recompiled484tests only. **Incremental, not clean-full**; main/properties same02→final,02 tests/doc differ,03 only ConfigurationTest. Independent `/private/tmp/ordenfix-e2g-final-bookkeeping-m4n5y6n0/receipt.json`, SHA `9b873e14a338bdd2f306733152a1776a74150a78ff8ca2331edd85dfe08f69a5`; frozen proof unchanged.
+**Incremental, not clean-full.** Retained summary labels phase02 as03: 02 compiled611main/attempted484tests;03/04 recompiled484tests. Main/properties equal02→final;02 tests/doc differ,03 only ConfigurationTest. Independent `/private/tmp/ordenfix-e2g-final-bookkeeping-m4n5y6n0/receipt.json`, SHA `9b873e14a338bdd2f306733152a1776a74150a78ff8ca2331edd85dfe08f69a5`; proof unchanged.
 
-Parent `/private/tmp/ordenfix-email-e2g-parent-dldr0fng`:1,304baseline/6protected unchanged,3new absent;1,307working/exact5Git/1,302old match/557/staged0. Not whole-Git (`mvnw.cmd` CRLF). SafeDocker48/8/5 unchanged;7auto-removed. Earlier1312traversal discarded8excluded hashes/no values emitted or used, **not zero historical reads**.
+Parent `/private/tmp/ordenfix-email-e2g-parent-dldr0fng`: 1,304 baseline/6 protected unchanged;3 additions,1,307 working/exact5Git,1,302 old match;557/staged0. `mvnw.cmd` CRLF prevents whole-Git equivalence. Docker48/8/5 unchanged;7 fixtures auto-removed. Historical1312 traversal discarded8 excluded hashes without emitting/using values—**not zero historical reads**.
 
-Native `238eb2b..3956ac2`:medium/557/slice_budget_reached; parent assess/preflight/ready-status0/empty stderr/two verified .atl exclusions. Target `sha256:32a1f4216760396ce5384919ca394f9d353a8c4300027445155633548f7d3ad5`, proposed `review-dcbd61fa31ef125f`; was **pre-consent/no START/actor/sharing** then; fresh exact grant/approved ACK below advances boundary3956ac2. Commit receipt `/private/tmp/ordenfix-e2g-commit-identity-c_o64im1/receipt.json`, SHA `7a30209a26267b2658d52b9422d7262ade149e9c58d0d3b6a08cdd92df537d32`.
+Native `238eb2b..3956ac2`: medium/557/slice_budget_reached; assess/preflight/ready-status0, empty stderr, two verified .atl exclusions. Target `sha256:32a1f4216760396ce5384919ca394f9d353a8c4300027445155633548f7d3ad5`, `review-dcbd61fa31ef125f` initially pre-consent/no START; later exact approval/ACK below. Commit `/private/tmp/ordenfix-e2g-commit-identity-c_o64im1/receipt.json`, SHA `7a30209a26267b2658d52b9422d7262ade149e9c58d0d3b6a08cdd92df537d32`.
 
-Timer/mock+separatePG prove local scope only, not SMTP/inbox/fullclean/image/browser/deployed. Documentary closure: mechanical/delegated, runtimeN/A/staged/native/document-only rollback.
+Timer/mock and separate PG prove local scope, not provider/full-clean/image/browser/deployed readiness. Documentary closure is document-only with runtime N/A and staged/native checks.
 
 
 ## E2-W accepted implementation boundary
@@ -139,7 +139,7 @@ Coverage below uses bounded latches/real PG locks, not timing-only sleeps, inclu
 
 ## E2-W committed verification (2026-10-04)
 
-Nine-path `e38bd4570f90915f26b7794bd7b9b34885215043`, parent `6605d6b9353632ca44609e23197b2c444a11b936`: working/staged/committed bytes match; whitespace0. Git971+21=992 versus Python972+22=994 for identical bytes. Count guard stopped before commit, not source/test failure.
+Nine-path `e38bd4570f90915f26b7794bd7b9b34885215043` over `6605d6b9353632ca44609e23197b2c444a11b936`: working/staged/committed bytes match, whitespace0. Same bytes: Git971+21=992 vs Python972+22=994; count guard stopped before commit, not a source/test failure.
 
 | Phase | Cases/F/E/S and source |
 | --- | --- |
@@ -152,11 +152,11 @@ Nine-path `e38bd4570f90915f26b7794bd7b9b34885215043`, parent `6605d6b9353632ca44
 | PG05 final |108/4 classes: Worker38/Capture10/ClosureEffects43/ClosureStore17; 0F/E/S, exit0,78.52s |
 | Unit06 final |153/11 classes including SMTP68/config7/Worker7/account/closure/template/quarantine; 0F/E/S, exit0,4.37s |
 
-Final1,299 before/after map `f7b1b7726564db3aba46cbae943f93de0bce91673aaad81f8bbb1b015159361d`:261 distinct cases, compile607/480, no clean verify or rerun aggregation. Physical commit-then-08006: unknown claim→zero SMTP; unknown ACK→no resend. Bounded real closure/SKIP LOCKED/ACK waits/DB deadlines; materialized20-ID expiry/coherent fixtures preserve guards.
+Final1,299 map `f7b1b7726564db3aba46cbae943f93de0bce91673aaad81f8bbb1b015159361d`: 261 distinct, compile607/480; no clean verify/rerun totals. Physical commit-then-08006: unknown claim→no SMTP; unknown ACK→no resend. Real bounded closure/SKIP LOCKED/ACK waits, DB deadlines and materialized20-ID expiry preserve guards.
 
-Proof `/private/tmp/ordenfix-ready-email-e2w.azjj8e4_`:4,171 hashes; manifest `9928cf7ef17ac679f6eb8cc06cff7bf5af742d170531703446e1a7ab1ca07494`, patch `0e2a7bb5aeebc6ecf1f0768155006d5e42cb0a6061a1e607028f64acaca42837`, allowlist `0c76c0acdae162151b0408ebf7ea21cb15e774d0c34ba1a49ff4bf469ad32517`. XML/source receipt `/private/tmp/ordenfix-e2w-bookkeeping-53uu4ev6/receipt.json`, SHA `017b12a227cbed51e0837faf4972d625ac2a24aa25d2dad7540535cba92a1d14`; parent `/private/tmp/ordenfix-email-e2w-parent-{integrity,transfer,commit}.json`. Preserved1,295 public/6 protected;1,290 unchanged/1,299 final. JAR unchanged; EPERM is not PID exit proof; writer confirmed11272 alive/no restart.
+`/private/tmp/ordenfix-ready-email-e2w.azjj8e4_`: 4,171 hashes; manifest `9928cf7ef17ac679f6eb8cc06cff7bf5af742d170531703446e1a7ab1ca07494`, patch `0e2a7bb5aeebc6ecf1f0768155006d5e42cb0a6061a1e607028f64acaca42837`, allowlist `0c76c0acdae162151b0408ebf7ea21cb15e774d0c34ba1a49ff4bf469ad32517`. XML/source `/private/tmp/ordenfix-e2w-bookkeeping-53uu4ev6/receipt.json`, SHA `017b12a227cbed51e0837faf4972d625ac2a24aa25d2dad7540535cba92a1d14`; parent `/private/tmp/ordenfix-email-e2w-parent-{integrity,transfer,commit}.json`. Preserved1,295public/6protected;1,290 unchanged/1,299 final. JAR unchanged; EPERM does not prove PID exit; writer confirmed11272 alive/unrestarted.
 
-`inventory-scope-correction.json`: replaced broad owned-unfrozen Config.Env/Cmd/Args before freeze; no retained broad stdout/duplicates or credential display/use. Only safe IDs/Image/Created/Running/StartedAt/attachments and48/8/5, not private-config equivalence/forensic erasure; originals/resources unchanged. Never broad inspect. Initial .atl/read-only .git failures did not lower risk; `/private/tmp/ordenfix-email-e2w-{assess-final,preflight,ready-status,consent-relay}.json` retains attempts; final medium/slice_budget_reached authority below.
+`inventory-scope-correction.json`: broad owned-unfrozen Config.Env/Cmd/Args replaced before freeze; no retained stdout/duplicates or credential display/use. Safe IDs/Image/Created/Running/StartedAt/attachments and48/8/5 only—not private equivalence/forensic erasure. Originals unchanged; never broad inspect. .atl/.git failures retain risk; `/private/tmp/ordenfix-email-e2w-{assess-final,preflight,ready-status,consent-relay}.json` records attempts; final medium authority below.
 
 ## E2-A accepted implementation boundary — 2026-10-04
 
@@ -195,20 +195,20 @@ Acceptance retained: ADMIN/USER/foreign/inactive/unverified/workshop; actualempt
 
 Final six-path allowlist `256cf8bdc0ebed2cc72042a9ab44f2ceeb9ce245583eb12331c114e400f5652c`; patch `8b4f6250007febf9b6e8f78d0afb178e977fb2f5e5c212c501f8b1952f79c2cc`.
 
-TDD baseline1,299 matched. Phase01 compiled607/481 with realPG/Flyway42 but2 UUID36-varchar20 fixture errors—not RED; only ApiIT fixture corrected. Phase02:2 expected200-vs500 assertions/0E/S, exit1, stable1,300-source; absent NoResourceFoundException/generic handler500 verified, logSHA `a119e26a6ca1b50adb0f0273c489c4c49436524c5684c7c602c0a5afd6ad76ef`. No production class or unrelated handler change preceded RED.
+TDD baseline1,299 matched.01: compile607/481, realPG/Flyway42,2 UUID36-varchar20 fixture errors—not RED; only ApiIT fixture fixed.02:2 expected200-vs500 assertions/0E/S, exit1, stable1,300 map; missing NoResourceFoundException yielded generic500, logSHA `a119e26a6ca1b50adb0f0273c489c4c49436524c5684c7c602c0a5afd6ad76ef`. No production/handler change before RED.
 
-Focused71unit/50API and final161PG/352unit passed separately. Docfix changed only stale “API pending” prose3del/4add; fiveJava/1,303 other files and old4,194 proof unchanged. `freeze-attempt-01.json` Path-shadowing TypeError affected unfrozen helper only, not source/tests.
+Focused71unit/50API and final161PG/352unit passed separately. Docfix changed only stale API-pending prose3del/4add; fiveJava/1,303 others and4,194 proof unchanged. `freeze-attempt-01.json` Path-shadowing TypeError affected only an unfrozen helper.
 
 | Fresh final | Actual result |
 | --- | --- |
 | Docfix01 PG |161/6 classes: API50/Worker38/Capture10/Effects43/Store17/Http3; 0F/E/S, exit0; realPG/Flyway42/JWT/security, compile610/482 |
 | Docfix02 unit |352/21 classes: Status71 plus prior mail/worker/quarantine153 and account/JWT/workshop; 0F/E/S, exit0; reused compilation |
 
-Both1,304 maps equal final:513 distinct, no rerun aggregation. Earlier02 reuses unchanged production, **not fresh final-whole-source RED**. Physical MVC/JWT/PG+mock transport/NoScheduling covers races/barriers; unknown-length input is Servlet wrapper, **not network-wire chunking**.
+Both1,304 maps equal final:513 distinct, no rerun totals. Earlier02 is unchanged-production reuse, not final-whole-source RED. Physical MVC/JWT/PG/mock transport/NoScheduling verifies races/barriers; unknown-length input uses Servlet wrapper, not network-wire chunking.
 
-Independent initial `/private/tmp/ordenfix-e2a-proof-bookkeeping-3bck4y9y/receipt.json`, SHA `d771801d1799f87a062c2b902b140ecd958c1e572be5fd582870bbf32793571b`; final `/private/tmp/ordenfix-e2a-docfix-bookkeeping-xilr98i4/receipt.json`, SHA `cc7835c1b802e57b769330b96b900f8d0236a7d6a17803e929935593abd7935d`. Root checked XML/exits/logs,4,151/final1,304/allowlist6/original1,299/protected6; `/private/tmp/ordenfix-email-e2a-parent-{initial,final}-integrity.json` and `/private/tmp/ordenfix-email-e2a-parent` retain transfer/commit/staged-check/numstat.
+Independent initial `/private/tmp/ordenfix-e2a-proof-bookkeeping-3bck4y9y/receipt.json`, SHA `d771801d1799f87a062c2b902b140ecd958c1e572be5fd582870bbf32793571b`; final `/private/tmp/ordenfix-e2a-docfix-bookkeeping-xilr98i4/receipt.json`, SHA `cc7835c1b802e57b769330b96b900f8d0236a7d6a17803e929935593abd7935d`. Root verified XML/exits/logs,4,151hashes/final1,304/allowlist6/original1,299/protected6. `/private/tmp/ordenfix-email-e2a-parent-{initial,final}-integrity.json` and `/private/tmp/ordenfix-email-e2a-parent`: transfer/commit/staged/numstat.
 
-All1,304 working/exact6 staged/committed bytes match;1,298 unchanged/five new. Outside-candidate `mvnw.cmd` CRLF conversion means **no raw whole-Git equivalence**. JAR/v38/.atl/PID11272 and narrow48/8/5 unchanged; no leftovers/global cleanup/private-config equivalence. Separate medium/slice_budget_reached fresh approval/ACK below.
+1,304 working/exact6 staged/committed bytes match;1,298 unchanged/five new. `mvnw.cmd` CRLF excludes raw whole-Git equivalence. JAR/v38/.atl/PID11272 and Docker48/8/5 unchanged; no leftovers/global cleanup/private equivalence. Native medium approval/ACK below.
 
 ## Observed verification — never sum reruns
 
@@ -238,17 +238,17 @@ Current XML only; each phase before/after stable, no copied-report or rerun tota
 | 10 mail/quarantine |138/0/0/0 |10 mocked classes |
 | EOF correction |1/0/0/0 |FreshPG/Flyway42 committed SQL; compile605/478, staged0 |
 
-06 passed files unchanged but LegalRegistrationSchemaVerifier later changed: file reuse, not whole-final.07/08 match final production/docs, not two later-corrected tests;09/10 match whole original final. LegalRegistrationJdbcServiceIT has no XML/coverage; writer/HTTP ran08.
+06 passed files unchanged; later LegalRegistrationSchemaVerifier change means file reuse, not final-whole proof.07/08 match final production/docs, not two corrected tests;09/10 match final. LegalRegistrationJdbcServiceIT has no XML; writer/HTTP ran08.
 
-V42 nullable→created_at backfill→CURRENT_TIMESTAMP/NOT NULL keeps atthasmissing/attmissingval/six-column enqueue stable. HOT backfill changed new-index indcheckxmin; assertion RED→indexes-before-backfill aligned empty/populated/restored catalogs, no VACUUM/reindex/normalization/V41 projection change.
+V42 nullable→created_at backfill→CURRENT_TIMESTAMP/NOT NULL preserves atthasmissing/attmissingval/six-column enqueue. HOT backfill changed new-index indcheckxmin; RED→indexes-before-backfill aligned empty/populated/restored catalogs without VACUUM/reindex/normalization/V41 projection changes.
 
-New/unappliedV42 blank EOF: unstaged missed untrackedSQL, retained staged exit2. Removed one LF;1,294 others/SQL tokens/Flyway11.14.1 checksum unchanged. FreshPG1 pass/staged2→0; Git702+34=736, not737. Prior checks are equivalent-SQL/unchanged-file reuse, not fresh reruns.
+Unapplied V42 EOF: unstaged check missed untracked SQL; staged exit2 retained. One LF removed,1,294 other files/SQL tokens/Flyway11.14.1 checksum unchanged. FreshPG1 pass/staged2→0; Git702+34=736, not737. Prior proof is equivalent-SQL/unchanged-file reuse, not reruns.
 
 ## Native closure and delivery ledger
 
-Historical `fe1bec7..6605d6b`: high/process_boundary,22paths/1,165authored,budget200; exact “Si vamos” localCodexCLI/OpenAI grant, four compiled lenses approved/no tests, burned ACK `sha256:6cb96f98c404d5b1076f3cc1aea142b270b1f811d2d8efbe861759aefd2a0bef`. R2/R3 versionless V41/V42 output warning leaves phase05(V42-only/all42) valid; no accepted fix/reopening. Future combined measurement provenance separate.
+Historical `fe1bec7..6605d6b`: high/process_boundary,22paths/1,165,budget200; exact “Si vamos” localCodexCLI/OpenAI grant, four compiled approvals/no tests, burned ACK `sha256:6cb96f98c404d5b1076f3cc1aea142b270b1f811d2d8efbe861759aefd2a0bef`. R2/R3 versionless V41/V42 warning does not invalidate05(V42-only/all42); no accepted fix/reopening. Combined measurement provenance remains separate.
 
-Frontend `6330d8e..11ba24e`: medium3paths/252net under_budget; .atl/sandbox/transport failures never lower risk. Verified exclusion `sha256:4425697ab74255760bb7c3b87dc13642263a59d4b65cc516abaa19765c94da71`.
+Frontend `6330d8e..11ba24e`: medium3paths/252net under_budget; .atl/sandbox/transport failures never lower risk. Exclusion `sha256:4425697ab74255760bb7c3b87dc13642263a59d4b65cc516abaa19765c94da71`.
 
 | Unit / commit | Authored and disposition |
 | --- | --- |
@@ -269,7 +269,7 @@ Frontend `6330d8e..11ba24e`: medium3paths/252net under_budget; .atl/sandbox/tran
 | Frontend scheduler checkpoint `bf8237b20d7db7cfe6394c26709398d2cc773e42` |144+91=235, running5,924; staged0/passive/non_executable_only; runtime N/A |
 | Frontend scheduler review closure `fa4ce480d7ae850cdf16c0669a0025a21807507b` |69+53=122, running6,046; staged0/passive; current head/count annotations outside immutable commit |
 
-Passive means observed non_executable_only/review_due=false/reason=passive, boundary advanced; documentary runtime N/A. Archived11ba24e: `c051ca5`, `ffdfb71`, `d6ecaa1`, `d08db65`, `c8a3316`, `f6e1ca4`, `84dd47e`, passive/prior1,285. No PR; future slices need checks/docs/fresh consent.
+Passive: observed non_executable_only/review_due=false/reason=passive, boundary advanced; runtime N/A. Archived11ba24e: `c051ca5`, `ffdfb71`, `d6ecaa1`, `d08db65`, `c8a3316`, `f6e1ca4`, `84dd47e`, passive/prior1,285. No PR; future slices require checks/docs/fresh consent.
 
 ## Proof locators and historical recovery
 
@@ -308,7 +308,7 @@ Locator `odd/tasks/repair-ready-email.md`; Engram `odd/repair-ready-email/tasks`
 
 ### Exact closed native authority
 
-Closed medium candidates: fresh exact “Si”/localCodexCLI/OpenAI grant/reliability200; authentic transitions, custom endpoints/API keys unset, approved/no findings/burned ACK/exits0/empty stderr. No manual substitute/source correction/global toggle.
+Closed medium: exact “Si”/localCodexCLI/OpenAI/reliability200, authentic transitions, custom endpoints/API keys unset, approved/no findings/burned ACK/exits0/empty stderr. No substitute/source correction/global toggle.
 
 | Binding | Backend worker | Frontend privacy/documentary slice |
 | --- | --- | --- |
@@ -319,9 +319,9 @@ Closed medium candidates: fresh exact “Si”/localCodexCLI/OpenAI grant/reliab
 | Actual consumed revision | `sha256:6611608201fe08817d9f2765e79c9bcd766958a8da5c498edb5ce8b34f353142` | `sha256:db058e47a76a55ec8cbeee69c877d7598ac8cdbbdf0355fa2aa687721493227e` |
 | New reviewed boundary | `e38bd4570f90915f26b7794bd7b9b34885215043` | `e5b5913ddb5869c584eedc5032a57b4a2b1e6205` |
 
-Backend trees `e510458002be4f33ac94db5f53444d9426473460`/`51b048adb0567374d09b2e223346360afffd3237`, paths `sha256:14a1678bea5fe12f077f376f0959ff75f22cb44066ba5db5b31aa6fc0246677f`; frontend `00c0924ff78d6635aa91271abb86fc9c3e13bbca`/`1f7e11ed0acc8ce42a2e906eede46bd1f4cca666`, paths `sha256:82c82b7dec428cf3c23253b1001437e9b13137dbaa792ff26594d86605b2cff3`. Frontend files: this document, src/lib/sentry.ts, src/lib/sentry.test.ts; privacy bytes match. Later annotations outside both immutable candidates.
+Trees/paths: backend `e510458002be4f33ac94db5f53444d9426473460`/`51b048adb0567374d09b2e223346360afffd3237`, `sha256:14a1678bea5fe12f077f376f0959ff75f22cb44066ba5db5b31aa6fc0246677f`; frontend `00c0924ff78d6635aa91271abb86fc9c3e13bbca`/`1f7e11ed0acc8ce42a2e906eede46bd1f4cca666`, `sha256:82c82b7dec428cf3c23253b1001437e9b13137dbaa792ff26594d86605b2cff3`. Frontend: tracker/Sentry/tests, privacy bytes match; later annotations outside candidates.
 
-Proof `/private/tmp/ordenfix-email-two-reviews.z162qooi`; independent `/private/tmp/ordenfix-email-final-ack-bookkeeping-go8tgn06/receipt.json`, SHA `969fb89c073cca3e46dff9d226c376b5d68fb977e10c3359f362d841754bc3d2`:bindings/four exits. `/private/tmp/ordenfix-email-two-reviews.z162qooi/documentary-{commit,assess}.json`/`documentary-staged-check.txt`:43-line passive/e5b5913/exit0/empty stderr.
+Proof `/private/tmp/ordenfix-email-two-reviews.z162qooi`; independent `/private/tmp/ordenfix-email-final-ack-bookkeeping-go8tgn06/receipt.json`, SHA `969fb89c073cca3e46dff9d226c376b5d68fb977e10c3359f362d841754bc3d2`: bindings/four exits. `/private/tmp/ordenfix-email-two-reviews.z162qooi/documentary-{commit,assess}.json`/`documentary-staged-check.txt`:43-line passive/e5b5913/exit0/empty stderr.
 
 ### API — e38bd457..238eb2b
 
@@ -335,17 +335,17 @@ Exact `e38bd4570f90915f26b7794bd7b9b34885215043..238eb2b104c8ae5fd6ab0e93c4856d4
 | Backend reviewed boundary | `238eb2b104c8ae5fd6ab0e93c4856d46a322ccf4` |
 | Proof | `/private/tmp/ordenfix-email-api-native.63ek_5mt/{capture-reliability,approved-acknowledgement}.json`; actual exits0/empty stderr |
 
-Trees `51b048adb0567374d09b2e223346360afffd3237`/`96443fdf5deb57eda89fa8b7486bf1c713478eed`; paths `sha256:3939e133b03eab3d4a5b890d140fe0548e045773fc168a320adb4cb2c729eb70`. Medium/review_due/slice_budget_reached; exact STATUS/collect excludes only two verified .atl files. `/private/tmp/ordenfix-email-e2a-parent/{assess,preflight,ready-status}.json`:exits0.
+Trees `51b048adb0567374d09b2e223346360afffd3237`/`96443fdf5deb57eda89fa8b7486bf1c713478eed`; paths `sha256:3939e133b03eab3d4a5b890d140fe0548e045773fc168a320adb4cb2c729eb70`. Medium/slice_budget_reached; STATUS/collect excludes only verified two .atl files. `/private/tmp/ordenfix-email-e2a-parent/{assess,preflight,ready-status}.json`:exits0.
 
-Old START rejected **before execution**: old consent covered other candidates. New exact “Si”/session/OpenAI grant then refreshed STATUS/relay/granted START0 preserved identity; no future sharing/provider grant.
+Old START rejected **before execution**: other-candidate consent. Fresh exact “Si”/session/OpenAI grant→STATUS/relay/START0 preserved identity; no future/provider grant.
 
-Independent `/private/tmp/ordenfix-email-api-final-ack-bookkeeping-pm_pha9e/receipt.json`, SHA `5782ff0ae18edfd46a03755b5fc531112e4ff999659cd17ec37f915df2aa783c`:root verified six outputs/identity/ACK/exits, no discrepancies. Actor all9/all3/all6 patch claims involve no commands/tests/external-proof reads—not second source/history audits or fresh functional/full/SMTP/inbox/deploy proof.
+Independent `/private/tmp/ordenfix-email-api-final-ack-bookkeeping-pm_pha9e/receipt.json`, SHA `5782ff0ae18edfd46a03755b5fc531112e4ff999659cd17ec37f915df2aa783c`: root verified six outputs/identity/ACK/exits without discrepancies. Actor9/3/6 patch claims include no commands/tests/external-proof reads; not fresh source/history/full/provider/deploy proof.
 
-Documentary only: mechanical/delegated, runtimeN/A/staged/native checks/rollback documents. `/private/tmp/ordenfix-email-e2a-parent/frontend-{commit,assess}.json`:216/staged0/assessment0/empty stderr/passive; `/private/tmp/ordenfix-email-api-native.63ek_5mt/documentary-{commit,assess}.json`/staged-check:43/whitespace0/assessment0/empty stderr/passive. Failed inventory/index/STATUS sandbox attempts01/02 never lower risk; successful STATUS verified .atl/index permission. No new actor/sharing; later annotations outside candidates; mirror readback required.
+Documentary mechanical/delegated, runtime N/A, document rollback. `/private/tmp/ordenfix-email-e2a-parent/frontend-{commit,assess}.json`:216/staged0/assessment0/empty stderr/passive; `/private/tmp/ordenfix-email-api-native.63ek_5mt/documentary-{commit,assess}.json`:43/whitespace0/assessment0/empty stderr/passive, staged check retained. Inventory/index/STATUS sandbox attempts01/02 did not lower risk; success verified .atl/index permission. No actor/sharing; annotations outside candidates, full mirror readback required.
 
 ### Scheduler — 238eb2b..3956ac2
 
-Fresh human “Si dale” grants only the exact five-file diff through separate local Codex CLI/OpenAI. Genuine refreshed STATUS→relay→granted START→compiled reliability capture→returned ACK completed; medium/557, one lens/budget200, no correction/source changes. All six exits0/empty stderr; default-off/no activation/provider/deploy.
+Exact five-file localCodexCLI/OpenAI “Si dale” grant: authentic STATUS→relay→START→compiled reliability→ACK; medium557/budget200, one lens, no source correction. Six exits0/empty stderr; default-off/no provider/activation/deploy.
 
 | Actual binding | Value |
 | --- | --- |
@@ -354,18 +354,26 @@ Fresh human “Si dale” grants only the exact five-file diff through separate 
 | Consumed ACK revision | `sha256:32c9e148f84f004f46be543eebef6c415d45f37878ed4a5f96f59b6259ce10eb`; acknowledged/burned |
 | Proof | `/private/tmp/ordenfix-email-scheduler-native.yqlt2r5h/{capture-reliability,approved-acknowledgement}.json` |
 
-Independent `/private/tmp/ordenfix-e2g-fresh-review-preparation-pxay8dbi/receipt.json`, SHA `f87ff9f464b7bf3ea54846d884d22860514175b5e6a075a7e0b7ab3782377f23`: root rehashed all18 output/exit/stderr bindings; exact5Git/1,307public/6protected unchanged. Actor allfive-patch/test-inspection claim is scoped attestation, not new tests/history audit/fullclean/SMTP/inbox/deployed proof. Prior554 functional cases/compile-label qualification remain separate, not rerun. Old reviews stay closed; future sharing requires fresh consent.
+Independent `/private/tmp/ordenfix-e2g-fresh-review-preparation-pxay8dbi/receipt.json`, SHA `f87ff9f464b7bf3ea54846d884d22860514175b5e6a075a7e0b7ab3782377f23`: root verified18 output/exit/stderr bindings,5Git/1,307public/6protected unchanged. Five-patch/test-inspection attestation is not new tests/history/full-clean/provider/deploy proof;554 cases and compile qualification remain separate. Prior reviews closed; future sharing needs fresh consent.
 
-Capacity-only delegated condensation:49,735→47,668 chars,66unique hashes/86 occurrences/43TEMP+84total locator tokens/11states/sixcontract blocks preserved;45,500 advisory target unmet. Candidate/receipt at `/private/tmp/repair-email-headroom-buy27hqx`; original `canonical-before-review.md` in native root. Parent actual-closure annotations follow acceptance; no source/RDD budget shrinking.
+Prior capacity pass49,735→47,668 preserved66unique/86hashes,43TEMP/84locator tokens,11states/six contracts;45,500 advisory unmet. `/private/tmp/repair-email-headroom-buy27hqx`; `canonical-before-review.md` in native root. Parent closure followed acceptance; no source/RDD budget change.
 
 E3 tracking commit `855d1cd6ce9b718f130f14ccc8206f15fa83bef2`: doc-only36add/31del=67; initial assessment failed on undeclared .atl, canonical STATUS verified exact two exclusions; reassessment passive/non_executable_only, no native actor/sharing. Source E3 checks pending.
 
 ## E3 local evidence — 2026-10-04
 
-13 source/test paths, one coherent delegated unit; backend/authstore/charge-storage unchanged. UI/root-inspected desktop+mobile screenshots: status/manual GET/single bodyless retry, nonblocking completion, no-phone/WhatsApp/publicbudget intact. Checkbox awaits exact native closure; release gates stay open. Rollback all13 together.
+13 source/test paths, one coherent delegated unit; backend/authstore/charge-storage unchanged. UI/root-inspected desktop+mobile screenshots: status/manual GET/single bodyless retry, nonblocking completion, no-phone/WhatsApp/publicbudget intact. Native closure below; release gates stay open. Rollback all13 together.
 
 RED46/8fail before production; finalfocused200/10files0F/E/S. New heldGET/uncertainPOST raceRED9/1fail fixed with current mutation-error barrier until explicit freshGET. Initial97/99 observer failures fixed with waitFor. Prior `/private/tmp/ordenfix-email-e3.z63k9r9k` immutable/nonfinal; final `/private/tmp/ordenfix-email-e3-race.t_74xu0k`: public331 `ff9a8a3a836a4091d3e000b87622d64f4756ee772723fecc958d72144b0663ad`, input342 `201d5d4e364a03a0cdfc8ed5263cfca203ae55b347daf1fec13790019ec7fa14`; original equal.
 
 Full1197 cases/117files, release44, lint/types/technicalbuild all0: `/private/tmp/ordenfix-e3-final-verification.vgtk7d7t/receipt.json` SHA `9c2b7a823dfffff015e3c4a50f09da275b43d16b085d9f2dbd809506aef40c40`. All8steps0;342writer/343local+2public supplements unchanged. Nested pending label retained, actualfinal passed. Browser8/8/no skips/flaky: `/private/tmp/ordenfix-e3-browser-rc_45r_i/artifacts/final-summary.json` SHA `b52aacecef23c6c48191505ccec39e0d00470a54d7ae47afbbd017129c8dd1f7`,342 unchanged.
 
-Retained harness failures: npm double/dev/null corrected to distinct empty configs; browser EPERM/module/contradictoryDTO fixture corrected. No sums of prior reruns. Final loader/cache ownTEMP; preliminary symlink may have written installed .vite-temp. Font fallback/GoogleFonts blocked;675.21kB build warning, publication/artifact guards SKIPPED. No provider/inbox/activation/currentcleanbackend/Docker/coordinated/deployed proof. Whitespace/commit/native assessment next; new sharing consent absent.
+Retained harness failures: npm double/dev/null corrected to distinct empty configs; browser EPERM/module/contradictoryDTO fixture corrected. No sums of prior reruns. Final loader/cache ownTEMP; preliminary symlink may have written installed .vite-temp. Font fallback/GoogleFonts blocked;675.21kB build warning, publication/artifact guards SKIPPED. No provider/inbox/activation/currentcleanbackend/Docker/coordinated/deployed proof. Whitespace0/commit complete; native approved/ACK; exact grant consumed.
+
+E3 commit `02f443d659c1ef4b96142378a9cebb0591b80993`:14paths/852/whitespace0/staged0; medium/slice_budget_reached. `/private/tmp/ordenfix-email-e3-native/{assess,preflight,ready}.json`: exits0, target `sha256:241160802f52ec9f1c1b7b90c7e2044e20476c086f5432adb82952a1f27dd1ed`, proposed `review-7833d872667c5277`; ready only, no START/actor/sharing. Prior pre-consent checkpoint; actual closure below.
+
+## E3 exact native review closure
+
+Fresh human “Si, vamos” granted only855d1cd→02f443d14file/OpenAI/CodexCLI review. `/private/tmp/ordenfix-email-e3-review.9CyGt5`:6exits0, emptycapturestderr; actual relay/grant/compiledcapture/ACK, approved/acknowledged/authorityburned. Result `sha256:93800e31c64bd114794488390d469defcb0c32cb44c6eeb01527b4d6cd3ed0f6`; consumedrevision `sha256:22c52f478b21e19174449a1d7aa92d00e6b0ce2c50ab7567859877c12398211c`. Bindings/source13/map331/index0 independently checked. Actor inspected14patches, ran no commands/tests.
+
+Informational WARNING R3-stale-get-after-success (`src/api/queries/repairEmail.queries.ts:54-56`): GET during POST may overwrite success with old eligibility. Static/not reproduced; receipt stands/no correction/reopening. Fence-success reads + held-GET test proposed for separate authorized work. Sending stays off.

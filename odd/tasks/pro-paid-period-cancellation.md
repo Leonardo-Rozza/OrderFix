@@ -1,103 +1,372 @@
 # Cancel PRO renewal without losing paid access
 
-## Objective and accepted decision
-Cancel future renewal while retaining PRO until the existing paid month expires. The user explicitly selected the actual approval date on 2026-10-05: approval on October 8 means expiry on November 8, even if the debit was scheduled for October 5. Use a calendar month from the verified approval instant in UTC, not 30 fixed days or the scheduled debit.
+## Current state and next action
 
-## Scope and authorization
-- Local implementation, synthetic tests and coherent work-unit commits only. No payment/provider/email activation, real charges, remote credentials/sessions, Railway/Vercel access, deploy, push, PR or merge. The human separately granted only native review/sharing of the exact backend `3956ac2..fee6c40` four-file diff through a separate local Codex CLI session to OpenAI on 2026-10-05; no other candidate grant is inferred.
-- Actual approved payment evidence is distinct from provider authorization, invoice processing and debit scheduling. Never infer paid access from `authorized`, `processed`, `next_payment_date`, `debit_date`, creation/modification/receipt time, or missing-date fallback.
-- Cancel renewal only after a confirmed provider result, keep the verified paid expiry unchanged, and enforce expiry on backend reads/access/limits rather than waiting for cron. Preserve trial and closed-workshop behavior.
-- Bind payment evidence and cancellation to the captured current provider link. Freeze the first accepted approval anchor per payment; duplicate/out-of-order notifications or updated snapshots must not add months or restore canceled renewal. No invented legacy backfill.
-- New paid terms require actual `approved` payment, correct binding/money/collector, explicit zero refund and a valid approval timestamp. Existing charged-back/reimbursed entitlement handling does not prove a new paid term; broad refund-policy redesign remains separate.
-- Frontend capabilities remain server-authoritative. Display confirmed cancellation and server expiry; uncertainty must not promise stopped charges. Do not remove PRO caches until the server actually revokes capabilities.
-- Historical V1–V42 migrations and frozen schema profiles stay immutable. V43 requires measured admission, registration, legal/photo/closure/erasure and recovery compatibility; never weaken existing gates or reopen a closed workshop.
-- Preserve both `.atl/` inventories and unrelated dirty frontend email trackers/backend `odd/tasks/v38-deploy-fixes.md`. Parent owns this tracker, its full mirror, exact transfers, Git and native disposition.
+**P1 is committed/native-acknowledged; P2–P4 are incomplete.** Selected LegalV43 on current C passes91/91; complete unchanged LegalV29 now passes32/32 against real PostgreSQL with four distinct closed owned lifecycles and maximum2 live. These are separate nonadditive selected-suite results. Earlier selected8,607/package/six raw profiles and fresh STANDARD four-client capability also passed; counts are not additive and this is not full application accreditation. UI unchanged; backend integrated in local commit69cb971. A1578d89/B9737dc67 native acknowledged; remaining gates/activation/deploy pending.
 
-## Baselines and policy
-| Control | Value |
-| --- | --- |
-| Frontend baseline | `6add19efb4eb96745cf708bed0de1cce37347c19`, branch `codex/account-email-links` |
-| Frontend reviewed boundary | `afd67c0243e72cb880c19a4f8b9527d601f6b8aa`; `6add19e` is a 199-line medium pending slice, not approved |
-| Backend baseline | `3956ac2d989eedc7644aa7190bde585537b7ce01`, branch `codex/account-email-links` |
-| Backend reviewed boundary | `fee6c401dbf849446b267028fe0e745363a84782`, exact P1 review acknowledged; next unit starts here |
-| TDD | ON, explicit prior choice at `odd/tasks/charge-session-expiry.md:15`; compilable assertion RED before production edits, GREEN, cleanup. Setup/compilation failures are not RED |
-| Backend runner | Installed Java 21.0.10; `/Users/leonardorozza/.m2/wrapper/dists/apache-maven-3.9.11/a2d47e15/bin/mvn`, offline, synthetic user/global settings and public-only owned snapshot. No bootstrap/downloads |
-| Frontend runner | Installed Node 24.14.0/Vitest 3.2.6, safe public-only snapshot, `envDir: false`, owned caches/physical package-linked dependency folders |
-| Native RDD | ON/global, freshly verified; assess each committed unit against the last reviewed boundary. New due candidates require their own consent; no old grant inherited |
-| Delivery | Cached `ask-on-risk` / `feature-branch-chain`; no PR materialized. Four coherent units, initial forecast 1,800–3,500 authored lines including tests/docs; preparation refines this to roughly 2,500–4,500 because P2 includes coordinated schema/recovery accreditation; about 400 is advisory, never a code/test/readability cap. Future oversized PRs need ordinary slicing/exception policy |
+Historical LegalV43 expectation-only authorization and immutable attempt02 RED are recorded below. Fresh attempt03 passed91/91 with cleanup/deadlines and ordinary audit; frozen fields and used roots grant no reuse, integration/native or full-app authority.
 
-## Tasks and acceptance
-- [x] **P1 Verify actual approved-payment evidence.**
-  - Route: delegated direct; mapping/preparation spans provider DTO/client/validator/invoice/contracts and two non-trivial writer files. Writer edits only its owned backend snapshot; parent transfers exact allowed files.
-  - Add `date_approved` parsing without breaking the legacy DTO constructor. Add an explicitly invoked, non-activating evidence client using the existing RestClient/properties/validator and controlled test clock.
-  - Validate trusted invoice/preapproval binding before GET `/v1/payments/{payment.id}`, then matching actual ID/collector/money/currency, actual approved state, zero refund and present/nonfuture approval timestamp. Produce immutable redacted evidence; no paid deadline, persistence, access change or active-flow invocation yet.
-  - Exact four backend paths: `service/dto/pago/mercadopago/MercadoPagoPaymentResponse.java`, `service/impl/MercadoPagoResponseValidator.java`, new `service/impl/MercadoPagoApprovedPaymentEvidenceClient.java` under `src/main/java/com/leonardorozza/mvgrreparacionesbackend/`; new `src/test/java/com/leonardorozza/mvgrreparacionesbackend/MercadoPagoApprovedPaymentEvidenceClientTests.java`.
-  - TDD first assertion: deserializing `date_approved` must preserve it on the existing DTO; compile against the old DTO through AssertJ property introspection. Then client contracts cover offset normalization, delayed approval, missing/malformed/future/no-zone dates, disabled/no-request, nonapproved/refunded states, identity/money/collector mismatch and HTTP failures. No runtime network or provider authentication.
-  - Focused runner selectors: `MercadoPagoApprovedPaymentEvidenceClientTests,MercadoPagoContractTests,SubscriptionEntitlementPolicyTests`; broader applicable offline Surefire/compile/regressions and new-file-inclusive whitespace at closure. Exact argv/results retained in proof.
-  - Runtime: actual RestClient with MockRestServiceServer, no sockets/DB/startup/scheduler. PostgreSQL/schema/browser checks N/A for this schema-free evidence unit, not waived for P2/P4.
-  - Rollback: remove evidence client/strict validation and new tests plus approval-date parsing together; preserve current provider flows and V42.
-  - Commit: backend `fee6c401dbf849446b267028fe0e745363a84782` from `3956ac2`, exact four paths, 497 additions + 1 deletion = 498 authored lines. Parent transferred only the independently verified frozen files; committed blobs and all 1,308 public inputs match the freeze, protected state preserved and index empty. Native medium / slice_budget_reached: fresh human grant, approved without findings, exact acknowledgement consumed; post-check `already_reviewed`, due false. Forecast 250–500 authored lines plus tracker.
-- [ ] **P2 Persist and enforce paid cancellation atomically with V43 compatibility.**
-  - Route: delegated backend/schema writers with disjoint allowlists after design details are reconciled; mapping involves 4+ files and writers touch 2+ non-trivial files. Parent owns schema/behavior integration and one coherent working boundary, not an unbootable intermediate deployment.
-  - Consume P1 evidence, persist stable approval/paid-expiry/current-link association, retain paid access on confirmed cancellation, fence replacement/late authorization, and enforce exact expiry through shared entitlement/repair limits. Legacy unknown gets no invented paid expiry; do not regrant through closure or reversal evidence.
-  - Add immutable V43 metadata migration and independently measure latest-history/checksum/sentinel18 registration/legal/photo/closure/erasure and C/en_US migrated/restored recovery profiles. Preserve old constants, budgets, drift/future rejection and V33/V34 restrictions.
-  - Checks: controlled-time domain RED/GREEN, real PostgreSQL clean/upgrade/restore positives, tampering/drift negatives, payment/cancel/replay/race/trial/closure/limits regressions, all applicable offline compilation/full checks and artifact identity. Owned local fixtures only; downloads/runtime resource changes need applicable authorization.
-  - Rollback: pre-deployment P2 source/tests/admission changes together; never rewrite applied migrations or revert prior features/data. Commit/evidence/native disposition pending. Revised planning forecast 1,500–3,000 lines after concrete behavior/schema/test mapping; not an observed change count.
-- [ ] **P3 Present canceled renewal and paid expiry without revoking valid PRO.**
-  - Route: delegated frontend writer; DTO/mutation/cache plus both plan and unverified-titular UI/test surfaces trigger mapping/preparation/writer delegation.
-  - Extend server DTO metadata, conditionally reconcile restricted caches, replace immediate-FREE copy with confirmed/pending renewal states and server expiry. Keep backend `funciones` authoritative, preserve unverified titular exit exception and FREE cleanup.
-  - Checks: real assertion RED/GREEN in subscription/cache/payment/plan/preview suites, full Vitest/tooling/lint/types/technical build and isolated mocked browser cancellation test; no guessed browser entitlement dates/provider calls.
-  - Rollback: frontend contract/presentation/reconciliation/tests together. Commit/evidence/native disposition pending. Forecast 430–750 lines plus docs.
-- [ ] **P4 Close the current coordinated candidate and recovery evidence.**
-  - Route: delegated ordinary verifiers; parent reconciles exact source/images/artifacts and records a documentary work unit only after observed outcomes.
-  - Applicable full backend/frontend and local synthetic integration: successful payment, renewal, cancellation, delayed/replayed events, paid expiry, FREE limits, trial, isolation/closure and recovery compatibility. Preserve failed/skipped/pending checks individually, never sum historical runs.
-  - Real provider/inbox/checkout/charges, staging/publication/build-public/cloud/deploy/activation remain separate operational gates. Do not resume or manipulate unrelated withdrawn/shared runtime resources.
-  - Commit/evidence/native disposition pending; rollback documentary evidence only. Forecast 100–250 lines.
+**Next action:** Migration checks (expected8, not yet executed in this turn); Recovery61/Backup23/frontend/P2–P4/release remain pending. B receipt stays closed, C41 review deferred, V3c.18 adopted. No consumed-root reuse, automatic retry or deployment authority.
 
-## Source evidence and decisions
-- Official payment resource documents `date_approved` separately from creation: https://www.mercadopago.com.ar/developers/es/reference/online-payments/subscriptions/get-payment/get . Invoice binding is preapproval → nested payment ID → actual resource: https://www.mercadopago.com.ar/developers/es/reference/online-payments/subscriptions/get-authorized-payment/get . Public examples are not real-provider proof; missing approval dates remain unverified.
-- User's actual approval-date choice supersedes the previously proposed programmed-debit anchor. August design/legal drafts remain contextual, not approved publication or authorization for their broader architecture.
+Consolidated from synchronized canonical/FULL1259 SHA b27a5e7932eb70e938d59090c373b382be41364a55f4ddfa6350b21a12216b37 (49,358 chars), fully archived before replacement. Full source chronology remains recoverable; no scope/evidence discarded.
 
-## Progress and next step
-P1 implementation, independent functional verification and the freshly granted exact native review are complete. The reviewer established no candidate-caused reliability defect; acknowledgement consumed terminal authority and the backend reviewed boundary advances to `fee6c40`. P2 preparation is complete but source implementation is not started: a fresh owned Linux PostgreSQL fixture needs explicit scoped authorization before the existing compatibility/restore gates can run. P2–P4 remain unchecked; actual cancellation still uses immediate FREE, paid expiry is not persisted/enforced and the UI has not changed. Provider/payment flags and historical migrations remain unchanged.
+## Recovery contract
 
-Planning commit `677090ea256013de453c86585e4ad542e84bc8f6`: this document only, 64 additions, staged whitespace passed/index empty. Native assessment of the pending frontend range `afd67c0..677090e` is medium / under_budget (263 authored lines, four paths), `review_due: false`; boundary stays `afd67c0`, no review/approval/sharing. Proof `/private/tmp/ordenfix-pro-p1-parent-idryt_40/frontend-plan-{status,assess}.json`, exits 0. These identity annotations are outside the planning blob.
+Canonical: /Volumes/DiscoExtern/Desktop/mvgr-reparaciones-frontend/odd/tasks/pro-paid-period-cancellation.md; repository locator odd/tasks/pro-paid-period-cancellation.md. Full mirror: odd/pro-paid-period-cancellation/tasks / observation1259; preparation allowlist: observation1288/topic pro/paid-period-p2-preparation.
 
-## P1 observed evidence and delivery
-- TDD: original DTO discarded `date_approved`. Compilable DTO assertion RED before production edits: one failure, zero errors/skips, exit 1, main-source hashes unchanged. A second normalized-UTC RED retained before the edit; final focused GREEN 111 cases / three classes, zero failures/errors/skips. Do not sum runs.
-- Independent verification: one current `clean test` offline run, 212 unique XML cases / nine classes, zero failures/errors/skips, full compilation of 612 main and 485 test Java sources. Selectors: `MercadoPagoApprovedPaymentEvidenceClientTests,MercadoPagoContractTests,MercadoPagoSignatureTests,SubscriptionEntitlementPolicyTests,MercadoPagoPropertiesTests,MercadoPagoClosureStateTest,SuscripcionServiceTest,ClosureRenewalAssessmentTest,RecoveryQuarantineEnvironmentPostProcessorTest`. Exact argv/environment: `/private/tmp/ordenfix-pro-p1-independent-r9i3razs/clean-safe-regressions/command.json`.
-- Runtime proof: actual RestClient plus MockRestServiceServer, no physical sockets; isolated explicit bean-wiring context passes without a Clock bean. Client remains uninvoked by active flows. Legacy nine-argument DTO constructor and prior validation behavior remain compatible. Strict new proof rejects uncertain/reversed/refunded/mismatched or absent/future/non-zoned approval evidence, without fallback or raw provider causes.
-- Freeze: writer receipt `/private/tmp/ordenfix-pro-p1-8a149q6n/final-receipt.json`, SHA256 `ee35efa8fc50b925e86ae003d28bc3f467711c9977c7219414ee719ef2af3483`; independent receipt `/private/tmp/ordenfix-pro-p1-independent-r9i3razs/receipt.json`, SHA256 `4d6c8437d2a3d4d04b032b06a9e8962ba299afac00aefb237037274060b64aa4`. Candidate public map 1,308 files SHA256 `26798cf8ed5e13c4fe53d8cbc32460eff746a9783f61b0e8c507d643e2fb16e7`; all other 1,304 paths unchanged. Parent exact transfer/commit proof `/private/tmp/ordenfix-pro-p1-parent-idryt_40/backend-transfer-commit.json`.
-- Warnings/failures: five existing MapStruct warnings, existing email-test varargs warning and VM agent/CDS warning retained. Independent whitespace harness initially incorrectly required no-index difference exit 0; corrected explicit environment/check accepts exit 1 only with empty diagnostics. All four new-file-inclusive whitespace checks and parent staged whitespace pass. Initial native assessment exit 1/high-unassessable due undeclared `.atl/` retained; canonical inventory then resolved to exact two registry files, excluded, final assessment exit 0/medium. No low-risk inference from the initial failure.
-- Deferred/not applicable: unfiltered Surefire/Boot/DB, Failsafe, packaging, real provider/inbox and activation/deploy not run. PostgreSQL/V43/schema and browser/frontend checks are N/A for schema-free P1 only, remain required in P2–P4. This evidence verifies payment facts, NOT the full cancellation outcome.
-- Native backend: base `3956ac2d989eedc7644aa7190bde585537b7ce01` → `fee6c401dbf849446b267028fe0e745363a84782`, exact four committed paths; medium / 498 lines / `slice_budget_reached`, `review_due: true`. Returned preflight STATUS executed verbatim, then inventory exclusion resolved. Target `sha256:04af04b5942228f4105bf500ac97ffad1f35eed513494810d405f4291d30a351`, fresh-target-ready, pending new exact candidate consent. No START, relay, sharing, review grant or receipt claimed; backend reviewed boundary stays `3956ac2`. Proof `/private/tmp/ordenfix-pro-p1-parent-idryt_40/backend-{assess,preflight,ready}.json`.
-- Delivery: cached feature-branch-chain retained. Planning unit `6add19e..677090e` is 64 authored lines; backend P1 unit `3956ac2..fee6c40` is 498, running feature count 562 before closure annotations. One honest slicing pass keeps adapter, compatibility DTO/validator and contracts together: splitting tests from behavior would make a weaker review unit. This coherent unit exceeds the advisory 400-line budget; a future PR needs an explicit size exception or independently coherent alternative slice, not code-golf. No PR created, no push/merge.
-- Next step: P1 native consent and acknowledgement are now resolved; continue P2's durable paid expiry and cancellation/state/schema compatibility before P3 UI or activation.
+Resume by reading actual file and FULL observation, reconciling intent/source/proofs. Parent alone archives/replaces both and verifies full equality; partial/truncated output is not synchronization. Preserve conflicting copies or pending mirrors. No authoritative session ID: omit session_id, never derive it from Engram metadata. Prior release commands/pins are evidence, not permission to rerun or reuse mutable harnesses.
 
-Closure evidence commit `f6d77bc97ed7ca4b3be54ebf114e131381881bf0` from `677090e`: canonical tracker only, 16 additions + 3 deletions = 19 authored lines, staged whitespace passed/index empty, protected trackers preserved. Running feature work-unit count is 581 (64 planning + 498 backend + 19 closure). Native pending frontend range `afd67c0..f6d77bc` is medium / 276 authored lines / four paths / under_budget, `review_due: false`; frontend boundary remains `afd67c0`, no review/sharing. Proof `/private/tmp/ordenfix-pro-p1-parent-idryt_40/frontend-close-{commit,assess}.json`, exits 0. This post-commit identity annotation is uncommitted; task file and mirror match, no recursive documentation commit.
+Full historical archive index (recorded pins; older files were not revalidated by this draft):
 
-## P1 granted review closure
-- Human's direct `Si, vamos` answered the exact four-file backend `3956ac2..fee6c40` review/share question. Fresh preflight retained target `sha256:04af04b5942228f4105bf500ac97ffad1f35eed513494810d405f4291d30a351`; canonical relay and granted invocations followed unchanged. RDD remains ON/global; no preference toggle or earlier grant reuse.
-- Native lineage `review-5ab044872f95a30d`, medium, one `review-reliability` lens. Provider-owned `capture-result --agent=codex` used the separately authorized local CLI session and exact opaque repository context. Last admitted event approved with zero findings, result `sha256:46204da65d964128e2facfead93c09116fc8328ecf5c1bfea9f2528133a4031e`. Reviewer inspected only four supplied patches and ran no commands/tests; this does not replace independent 212-case proof.
-- Returned acknowledgement executed verbatim and succeeded: target unchanged, consumed revision `sha256:565f229020c49b2cfd709564a566d85d824e98528806e4f2df8780a3627ff0fb`, authority burned. Exact original-range reassessment exits 0: medium, 498 lines/four paths, `consumed: true`, `review_due: false`, `already_reviewed`. Backend reviewed boundary is now `fee6c401dbf849446b267028fe0e745363a84782`. No fixes or source commits were needed.
-- Evidence: `/private/tmp/ordenfix-pro-p1-parent-idryt_40/backend-consented-preflight.json`, `backend-consent-relay.json`, `backend-start-granted.json`, `backend-review-status1.json`, `backend-reviewer-command.json`, `backend-reviewer-capture.json`, `backend-review-ack.json`, `backend-reviewed-assess.json`. All review lifecycle commands exited 0. Auxiliary `gentle-ai skills --help` was unavailable (unknown command); no runtime/config change followed.
-- Independent bookkeeping proof `/private/tmp/ordenfix-pro-p1-review-bookkeeping-m6ve089t/identity.json`, SHA256 `be94459f43876afa95bd2ba03a57a2c7b75639082ec38d9878257a2e98ed1d3b`: no backend candidate drift, four committed/working hashes exact, index empty and protected inputs unchanged. An unrelated frontend `.claude/` was transiently reported then absent in the final parent status; never inspected, removed or included. Both existing `.atl/` inventories remain untouched.
-- Earlier pending-native paragraphs describe the historical pre-consent checkpoint only; this section is the current disposition. P2–P4, full DB/Boot/runtime/browser/provider proof and operational activation/deployment remain pending. Review approval covers P1 only, not cancellation behavior or publication.
+| Full archive | UTF8 bytes | SHA256 |
+|---|---:|---|
+| A27: /private/tmp/ordenfix-pro-postgres-c-lz104i74/tracker-before-postgres-A27.md | 49,850 | 98e37a260c04dc56954756b417242f98fa0519faaab1700662fddbe03f4b987b |
+| A26: /private/tmp/ordenfix-invoice-request-c-ywnchbfm/tracker-before-invoice-fix-A26.md | 49,755 | 99061afe0661041b188a6964a6738ea3f59c8fefc17dec984d6a4d5d8097ee41 |
+| A25: /private/tmp/ordenfix-pro-chain-b-j5h79pew/tracker-before-B-native-ack-A25.md | 49,848 | 4e83f277db0966ae0657070330a7f40ad0f2806a0b5553ffc6596b2a20d174e1 |
+| A24: /private/tmp/ordenfix-pro-chain-b-j5h79pew/tracker-before-B-replay-A24.md | 49,736 | 0062d83db5d8f40820ac4c5df305b33789c9c761f3222d4afca44aeceb4e1bcd |
+| A23: /private/tmp/ordenfix-pro-review-chain-fueuys_0/tracker-before-A-native-ack-A23.md | 49,101 | e0d95c859e81cf1d436c37435eb91e607d2e2b6f70879473c4228ce19ceaedbe |
+| A22: /private/tmp/ordenfix-pro-a-review-tracker-ojdl6fru/canonical-before-A-native-A22.md | 49,804 | d82dcf48b549d9c10e0aff685a34039d55366b36c9e9fa93d5824aa4a762c4d8 |
+| A21: /private/tmp/ordenfix-pro-review-chain-fueuys_0/tracker-before-A-closure-A21.md | 49,555 | ec705bec0cca12d7922fb8142a52b409b033f1ace41616a4aceb00766dbf0c28 |
+| A20: /private/tmp/ordenfix-pro-chain-tracker-_6xefolv/canonical-before-review-chain-A20.md | 49,772 | 7b35267ef19f32e6f88838f0a7dfe2f945491033d490a425506579d22377efa3 |
+| A19: /private/tmp/ordenfix-pro-integration-tracker-p1yx6wcl/canonical-before-pro-integration.md | 49,799 | 967f9db596288c4363622ea6b1c35611095f8c8ed97f0a2061223edf212e7f8b |
 
-Review-closure documentary commit `cf69733890cef5256e978c53eefc8a9104d5d261` from `f6d77bc`: canonical tracker only, 16 additions + 5 deletions = 21 authored lines, staged whitespace passed/index empty, protected trackers unchanged; running feature count 602. Pending frontend range `afd67c0..cf69733` assesses medium / 287 authored lines / four paths / under_budget, `review_due: false`; frontend reviewed boundary remains `afd67c0`, with no new frontend reviewer/sharing grant. Proof `/private/tmp/ordenfix-pro-p1-parent-idryt_40/frontend-review-close-{commit,assess}.json`, exits 0. Post-commit identity annotation intentionally uncommitted, mirrored exactly; no recursive documentation commit.
+A19 is the COMPLETE synchronized pre-integration tracker. Read it FIRST before any condensed historical task: its full same-ID intent, source/argv/receipt/hash contracts, security/budget/check/rollback guards and COMPLETE prior archive index are mandatory inputs. Existing A15/A15b/A16/A16b/A17/A18 references resolve to their exact recorded rows and transitive contracts there, not short labels. Earlier archives remain immutable; their recorded pins were not revalidated by this mapping. A19 preserves every failure/skip/UNKNOWN and scoped-PASS limitation; it grants no new execution, consumed-root reuse, integration or native authority.
 
-## P2 preparation and next prerequisite
-- Human explicitly requested the next local step after P1 review. Backend remains reviewed `fee6c40`; frontend baseline `cf69733`, both indexes empty, unrelated tracker/config hashes and two-file `.atl/` inventories preserved. Baseline `/private/tmp/ordenfix-pro-p2-parent-fnx85vgm/baseline.json`.
-- Route: delegated direct, fresh bounded backend/model map, separate schema-admission map, local runtime-capability survey and official public cancellation-contract research. Writers have not started; backend and schema allowlists are disjoint and recoverable in Engram topic `pro/paid-period-p2-preparation`.
-- Proposed five nullable columns: subscription `pro_paid_through` + `pro_paid_provider_link_id`; payment ledger `provider_link_id` + `approved_at`; provider link `cancellation_confirmed_at`. Freeze the first provider/invoice/actual-payment/link/approval tuple, retain existing actual-payment-ID mismatch rejection, real composite bindings/grouped-null checks/approved-payment uniqueness; no legacy backfill. Exact field/constraint declarations must be frozen before writers.
-- Preserve negative/refund observations through the current actual-payment lookup/merge path. Add an explicitly invoked evidence factory for an already fetched actual payment using P1's same strict validator; approval-only `inspect()` must not swallow the existing negative path. Grant/extend only from accepted approved/zero-refund evidence, UTC calendar month, captured current link. Existing reversal handling can restore only already evidenced unexpired access, not create a new paid term.
-- Capture trusted identifiers before provider I/O, then re-lock/recheck subscription → link → ledger. Valid bound cancellation response establishes a terminal link marker and retains paid expiry; unknown/malformed/foreign/non-canceled/timeout responses do not claim stopped renewal. Late authorization/replacement completions cannot clear terminal confirmation or change the newer link. Shared backend resolution drives DTO/features/limits/checkout at exact expiry without cron.
-- Closure stays authoritative: all five new fields remain unchanged after restriction (new restricted ledger observations keep them null). Existing `blocksRenewal(linkId)` also fences shared read resolution after restoration; an open workshop alone cannot resurrect closure-canceled paid access. V33/V34 function definitions and historical profiles remain untouched; write races reject rather than relax this gate.
-- First genuine RED plan, not executed: existing cancellation contract returns a valid `pending` 2xx body; assert it throws and never applies local cancellation. Current `MercadoPagoService.java:206–221` accepts any 2xx bodylessly. TDD ON and installed offline Java21/Maven3.9.11/env-i synthetic settings remain; use a fresh owned snapshot, not mutable prior harnesses.
-- Schema writer: new V43 migration/metadata verifier/compatibility IT; exact ordered/checksum/latest history and sentinel18, independently measured new registration profile and four full-public-schema C/en_US.utf8 migrated/restored fingerprints. Retain V39/V40/V42 checks, prior profiles, bounds, ACL/session/read-only/protocol/format2 and future/drift rejection. No fingerprints/checksums fabricated or source changes made.
-- Runtime prerequisite: read-only availability confirms Homebrew PostgreSQL16.15 under `/opt/homebrew/Cellar/postgresql@16/16.15/bin`. macOS offers `en_US.UTF-8`, not a verified `en_US.utf8` equivalent; libc query using the latter returned US-ASCII. Existing `LegalV42CompatibilityIT`/`RecoveryProfileDeletionIT` and closure/recovery fixtures hardwire Linux Testcontainers commands/locales. Native C-only checks would not accredit four profiles. Need explicit permission to inspect only Docker local and create new isolated disposable Linux PostgreSQL fixtures using an already available image; no downloads or existing/withdrawn/shared resource manipulation.
-- Official public MP management docs specify cancellation request `status: canceled` (one l); the generic PUT response documents binding fields but is a pending example, not a cancellation-response guarantee. Exact canceled-response enum/nullability/terminality/pending-charge/retry guarantees remain unverified; do not alter closure aliases blindly. Sources: https://www.mercadopago.com.ar/developers/es/docs/subscriptions/subscription-management and https://www.mercadopago.com.ar/developers/es/reference/online-payments/subscriptions/update-preapproval/put .
-- Current verification: read-only reconciliation/capability/version/locale research only. No P2 assertion RED, functional/DB/Boot/restore/schema tests, source edits, Docker probe/start/download or provider request executed. P2 is not complete and no native P2 sharing grant exists. Next action is one focused fixture-authorization question; do not continue affected writes/runtime work until answered.
+## Accepted business rules — do not weaken
 
-## Recovery mirror
-Locator `odd/tasks/pro-paid-period-cancellation.md`; full Engram topic `odd/pro-paid-period-cancellation/tasks`. Read back file and full mirror after updates. No authoritative runtime session ID supplied: omit `session_id`.
+### Approval and immutable evidence
+
+Human decision, 2026-10-05: October 8 actual approval → November 8 expiry even if scheduled debit was October 5. ONE UTC calendar month from actual date_approved, not 30 days. Authorized/processed/next-payment/debit/creation/modification/receipt timestamps are never proof; no fallback or backfill.
+
+Require approved, explicit zero refund, present/nonfuture OffsetDateTime and bound actualID/collector/amount/currency/invoice/preapproval/externalref. Freeze first provider/invoice/actual-payment/link/approval tuple INCLUDING actualID; preserve mismatch/compositeFK/grouped-null/approved-ID uniqueness.
+
+Capture trusted current link before I/O; re-lock/recheck subscription → link → ledger. Replaced/historical/closure links audit-only. Reuse fetched strict actual-payment factory; preserve negative/refund audit/merge. Reversals restore only evidenced unexpired access, never create term; no refund/reactivation/billing redesign.
+
+### Cancellation, expiry and restriction
+
+- Request status “canceled” (one L). Only valid bound canceled 2xx BODY confirms marker; retain then-known expiry. Foreign/malformed/bodyless/unknown/noncanceled/3xx/timeout leaves state unchanged; no stopped-charge promise.
+- Late authorization/replacement cannot clear marker/canceled state/scheduling or mutate newer link. FIRST strict approval on SAME current/open/nonclosureblocked link can establish term after manual renewal cancellation, without changing marker/scheduling. Duplicate/out-of-order/changed timestamp never adds months.
+- Pre-ACK abort preserves legacy canceled/late-ACK fence: confirmationNULL/DTOfalse. LateID/in-flight creation is audit, not provider stop; no outbox/retry.
+- Shared resolver controls DTO/features/limits/checkout at exact expiry without cron. Expired reads FREE/ACTIVA, evidence unchanged; FREE/TRIAL preserved; legacy unknown cannot fabricate term.
+- Five fields freeze after restriction; restricted new ledger pair NULL. blocksRenewal fences paid-PRO resurrection after restore, not FREE/TRIAL/expiredFREE. Closure authority unchanged/no reopen.
+- V33/V34 first bound nonblank late ACK remains auditable after restriction; non-NULL ID then immutable. Unchanged V18 blank allowed; INSERT/new/changed blank rejected. No repair/backfill/realblank-data claim.
+- DTO accesoProHasta:Instant|null, renovacionCancelada:boolean; old constructor NULL/false. Server funciones authoritative; no browser-guessed dates or premature PRO cache cleanup.
+- Disabled provider + bound paid ID: cancellation 502/retained paid PRO/deadline/NULL marker. Preserve owner/email security/unverified titular exit exception; checkout requires verified email.
+
+### Nullable persistence and immutable schema
+
+No defaults/backfill: Suscripcion.proPaidThrough→suscripciones.pro_paid_through(timestamptz); proPaidProviderLink→pro_paid_provider_link_id. SubscriptionPayment.providerLink→subscription_payments.provider_link_id; approvedAt→approved_at(timestamptz). SubscriptionProviderLink.cancellationConfirmedAt→subscription_provider_links.cancellation_confirmed_at(timestamptz).
+
+V1–V42 bytes/V33–V34 functions/old profiles immutable. Exact V43 history alone chooses measured NEW registration/combined closure/erasure/recovery profiles. Retain V39/V40/V42/sentinel18/ACL/session/read-only/protocol/format2/bounds/budgets/drift/future gates; no fabricated constants or broadened old profiles.
+
+Source anchors: full checkpoint/archive “Objective and accepted rules”; frozen backend/schema receipts below; official actual-payment and authorized-invoice contracts:
+https://www.mercadopago.com.ar/developers/es/reference/online-payments/subscriptions/get-payment/get
+https://www.mercadopago.com.ar/developers/es/reference/online-payments/subscriptions/get-authorized-payment/get
+Cancellation sources:
+https://www.mercadopago.com.ar/developers/es/docs/subscriptions/subscription-management
+https://www.mercadopago.com.ar/developers/es/reference/online-payments/subscriptions/update-preapproval/put
+Pending PUT examples are not cancellation/provider proof. Enum/nullability/terminality/queued charges/retry remain unverified; no blind closed-alias change.
+
+## Authorization, ownership and environment
+
+Authorized: local implementation/synthetic checks/work-unit commits. NOT authorized: real provider/inbox/checkout/charges/activation, remote credentials/sessions/SSH/Railway/Vercel/cloud, deploy/push/PR/merge. Separate human native grant covered ONLY 3956ac2→fee6c40 four-file P1 sharing via local CodexCLI/OpenAI; no inherited P2 grant.
+
+Local Docker grant: new owned disposable Linux PG, cached image only; no download, old/shared/withdrawn adoption, ambient remote or config changes. Later explicit “Si” accepts ONE STANDARD bridge Internal=false, sole requested/effective127.0.0.1 publication and outbound capability—not external destinations/traffic/provider/shared restart/old reset permission.
+
+Owner binds exact user Unix socket/full fresh ID/labels/image/full requested+effective ports/networks/resources/locale/history. Direct request names /Users/leonardorozza/.docker/run/docker.sock/UID501; not other contexts. Cached image: sha256:081f1bc7bd5e143dbb6e487b710bbc27712cdcfaced4c071b8e47349aa1b4171. No ambient Factory/credentials/Ryuk/helpers/global search/fake inspection/lifetime extension.
+
+Fixture request: 1 CPU, 1 GiB memory/swap, PIDs 128, shm 64 MiB, read-only root, no host mounts, tmpfs data 512 MiB/run 16 MiB/tmp 128 MiB. Frozen request/fixture guard are authoritative; no relaxation. TCP healthcheck is pg_isready -h 127.0.0.1 -p 5432 -U owner -d v43_source, interval 2 s/timeout 2 s/startPeriod 30 s/retries 3 under launch 60. Temporary socket-only initialization is not TCP readiness. Upstream entrypoint behavior is not a cached-image byte observation.
+
+Parent owns tasks/mirror/integration/transfers/Git/native; delegates fresh public TEMP/disjoint allowlists only. Preserve .atl inventories, dirty frontend email trackers/backend odd/tasks/v38-deploy-fixes.md and protected4. Original /Volumes/DiscoExtern/Desktop/mvrg-backend is delegate-read-only;1308publicmap SHA 26798cf8ed5e13c4fe53d8cbc32460eff746a9783f61b0e8c507d643e2fb16e7.
+
+Private .claude directories PRESENT in both originals; old absence guard stale. Only presence/directory/UID501/inode/mtime lstat; no contents/deletion/origin inference. Front inode2016585/mtime_ns1790561441000000000; back inode1939306/mtime_ns1785602868000000000. Exclude private data from copies; rebind all source/protected/.atl/private-metadata guards before new gates.
+
+## Workflow, TDD, review and delivery
+
+- Both branches codex/account-email-links. Backend baseline 3956ac2d989eedc7644aa7190bde585537b7ce01; current/reviewed fee6c401dbf849446b267028fe0e745363a84782. Front baseline 6add19efb4eb96745cf708bed0de1cce37347c19; reviewed afd67c0243e72cb880c19a4f8b9527d601f6b8aa; current 46b99ff6bfea8d432bd4839d16635041592b91d1+trackers,medium 302/4/under_budget/due=false.
+- **TDD ON**, odd/tasks/charge-session-expiry.md:15: compilable assertion RED→GREEN→refactor. Setup/compiler/reader failures are not RED.
+- Backend Java21.0.10: /Users/leonardorozza/Library/Java/JavaVirtualMachines/corretto-21.0.10/Contents/Home; Maven3.9.11: /Users/leonardorozza/.m2/wrapper/dists/apache-maven-3.9.11/a2d47e15/bin/mvn. Offline/env-i/synthetic user+globalsettings/publiccopy/cachedMockito; no bootstrap/privateconfig/download. Exact commands in receipts.
+- Harness: cached /Library/Frameworks/Python.framework/Versions/3.10/bin/python3 -B -m unittest/syntheticENV. Compiler/Jupiter each separately parent-gated. Front Node24.14.0/Vitest3.2.6/publiccopy/envDir:false/ownedcaches/physicaldeps.
+- **RDD ON/global**. Risk/returned native transitions/fresh candidate consent authoritative. Failed/unavailable assessment never lowers risk; ordinary audit/task checkbox is not native approval.
+- ODD delegated-direct:4+ mapping/2+ nontrivial writer. Work-unit tests/docs/Conventional Commit/no AI attribution. Cached ask-on-risk/feature-branch-chain,noPR.400/task advisory only; no codegolf/test omission/artificial split.
+- Forecast 1800–3500→2500–4500; coherent uncommitted backend 1777 + schema 1279=3056; V3c forecast800–1500. Committed 623=64+498+19+21+21,not summed with uncommitted.
+- Frontend documentary commits/under-budget receipts: /private/tmp/ordenfix-pro-p1-parent-idryt_40 and /private/tmp/ordenfix-pro-p2-parent-fnx85vgm; full archives retain identities. No P2 sharing or recursive commits.
+
+## Work units and acceptance
+
+- [x] **P1 Actual evidence:** invoice→actualGET/redactedfacts/oldctor/no Clock bean; no access/persistence/activeflow change. Four files/498 lines,fee6c40/native terminal. Rollback four together/preserve V42.
+- [ ] **P2 Cancellation+V43:** disjoint backend/schema; selected/package/raw positives partial. Finish PG payment/replay/races/limits/closure/restore/erasure/recovery/history/checksum/drift/tamper/future checks,then source integration/commit/native policy. Rollback unintegrated source/tests/admission together,never appliedmigrations/priorfeatures/data.
+- [ ] **P3 UI/cache:** server DTO/confirmed-pending renewal/expiry/funciones/unverified exit/FREE cleanup. RED/GREEN subscription/cache/payment/plan/preview/full Vitest/tooling/lint/types/technical build/isolated mock-browser cancel;no provider/guesseddate. Rollback contract/UI/reconciliation/tests.
+- [ ] **P4 Coordinated proof:** exact source/image/artifact and applicable fullbackend/frontend synthetic lifecycle/security;documentary work-unit closure. Fail/skips/pending separate; operationalgates/shared withdrawn remain separate.
+
+### Accepted V3c boundary and next tasks
+
+Historical standalone authorization changed only LegalV43/photo field/constructor/helper types; helper initialization/inert constructors required, bodies/assertions/SQL/application unchanged. Exact sites/guards/rollback remain archived.
+
+- [ ] **V3c.1** Delegated standalone lifecycle/credentials/endpoint/JDBCURL/exec-result API;fake-owner assertionRED/GREEN/three-site parity. Credentials immutable after start,no fabricated IDs/responses.
+- [ ] **V3c.2** Python owner and Java driver/launcher. Full same-ID contract and prior archives remain mandatory in A15.
+- [ ] **V3c.3** Parent source/overlay/classpath/command/compile/lifecycle+ordinaryaudit gate then ONE LegalV43/new STANDARD cached PG/actual 127-only. Preserve C+en_US/migration/history/checksum/roles/restore/KILL 45/@Timeout180/all assertions. Record failed/skipped/unknown/cleanup;remainingeightphysical suites follow evidence.
+
+## Archived proof chronology and remaining gates
+
+Historical summaries V3c.6a–10c below retain their COMPLETE accepted intent, checks, coverage, source/invocation/security guards and rollback at matching IDs in /private/tmp/ordenfix-pro-recovery-remaining-tracker-w7ma0cuz/canonical-before-remaining.md (49,481 bytes/SHA8f3c6fa3f2c30d07d2c6811ab4c4ab84d86c55bb30085efb288f05bb04029ff4). These archived contracts remain mandatory: read them before work. This only condenses descriptions; no requirement, failed/skipped/UNKNOWN qualifier, check state or execution/native authority is removed.
+
+Recovery contract archives retain complete prior commands, pins and failed/skipped/UNKNOWN evidence, including49,748 bytes/SHA b17edd07f3ba47868df5090bc232f6d8cc28a5f126f43208ef21fb76da5b97c0. Only repeated history is condensed; no additive counts, execution, reuse or native authority.
+
+Archived P2 selected8607/H2/raw522/package/STANDARD positives remain partial with five warnings. H2 requires jdbc:h2: and Flyway=false; accepted paid-deadline/disabled-provider rules remain exact. Artifact-path checks failed; absent secrets or cleanup are not blanket proof. P1 acknowledgment is not P2 approval.
+
+Excluded160 and seven uncovered suites: CobroConcurrencyIT, InventarioConcurrencyIT, PresupuestoConcurrencyIT, TechnicianAssignmentPostgresIT, InactiveWorkshopPublicAccessIT, PersonalAccessExitIT, RepairReadyEmailCaptureIT. Other physical/Boot/socket/cloud/subprocess/restore/browser/full-backend/frontend/verify-phase checks, P2 integration/work-unit/fresh native consent, P3/P4 and deploy remain pending. Backendfee6c40/prior dec47/shared/single-client evidence untouched. Every new run needs current pins/new gate; no reset/pull/config/provider/lease extension/private reads or deletes. All earlier failed/skipped/UNKNOWN checks remain archived; setup/parser/reader failures are not appRED, mocks not physical capability.
+
+### Historical V43 source and attempts
+
+V43 attempt01 pre-test/SQL FAIL; attempt02 genuine89/91/two assertions/197-pin FAIL. Authorized expectation-only attempt03 passed91/91/lifecycle/audit, not integration/native/full-app. Masked-stack/cleanup history archived.
+- [ ] **V3c.4** Correct the TWO LegalV43CompatibilityIT test expectation sites in a NEW owned public overlay, then rerun the complete selected class against a NEW isolated PostgreSQL fixture. Direct human Si answered exact permission question; application/SQL/PRO policy/global timezone/V1–42 untouched.
+- [x] V3c.4 functional checks observed: exact two-assertion/inverse parity, root seven-source offline compile, ONE fresh complete selected91physicalrun, original timezone retained. Main V3c.4 remains unchecked until coherent P2 source integration/work-unit commit/native boundary; no fabricated source commit.
+
+### Accepted V3c.5 — isolated MercadoPago verification
+
+- [ ] **V3c.5a** Java MP adapter and closed Boot controls. Full same-ID contract and prior archives remain mandatory in A15.
+- [ ] **V3c.5b** Prepare separate fresh Python owner. Delegated writer: controller/entry/template2+files. Same known socket/cached image/new standardInternalfalse bridge/sole127/resources; exact MP database/user/password/health binding; ZERO exec capability, reject before API. Strict eleven-token -B -S, nonce/pins/guards and owner/cleanup protocols retained.
+- [ ] **V3c.5c** Parent MP compile, run and ordinary audit. Full same-ID contract and prior archives remain mandatory in A15.
+
+MP3/3: aggregate/3265-pin FAIL, FINAL receipt absent; late owner close and unproved worker origins.
+
+### Accepted V3c.6 — correct shutdown harness and repeat only three MP cases
+
+- [ ] **V3c.6a** Delegated test-only MP shutdown repair with pure TDD: byte-exact fixture/protocol/overlay; cached Mockito premain and PG MR11 before discovery. Prompt owned closure then exhaustive identity-based joins; natural Dirties required, unknown workers fail.
+- [ ] **V3c.6b** Delegated fresh MP metadata only: unchanged runtime/security/resources, strict disabled11-token -B -S and ZEROEXEC. New nonce/labels, no adopted IDs; old48/3265 before/after and inert cold/preflight checks. Copies are not RED.
+- [ ] **V3c.6c** Parent source/pin admission, offline seven-source compile, ONE unchanged MP3 run and ordinary audit. Actual services/JDBC/Spring/Hikari/transport and all FINAL owner/application joins must finish within the earliest cleanup deadline.
+- [x] V3c.6 functional checks observed: exact test-only source/parity/premainsingleton admission, root7source/29class compile, ONE fresh unchangedMP3 run. Main V3c.6a/b/c remain unchecked until coherent P2 source/work-unit/native integration; no TEMP commit fabricated.
+
+FreshMP3/3/application/owned lifecycle/3332-pin PASS;3265 FAIL immutable. Transient ExecID origins unproved; ZEROOWNEREXEC not global absence.
+
+### Accepted V3c.7 — first account-profile erasure physical validation
+
+Erasure-only historical scope; Recovery/Backup not released.
+
+- [ ] **V3c.7a** Delegated erasure fixture/launcher/overlay only; exact source inverse and original bodies/SQL/timeouts. Fixed profile_erasure tuple, MR11 before discovery, no Boot/provider scope. Preserve all11 signatures/eight parameter values; final actual17 required, never discovery substitution.
+- [ ] **V3c.7b** Delegated NEW erasure owner metadata; retain strict -B -S, known socket, cached image, sole127, resources/EOF/deadlines and ZEROEXEC rejection before API. No consumed-resource adoption; old3332/3265 and source pins rechecked, cold/preflight inert.
+- [ ] **V3c.7c** Parent inverse/signature/pin admission, NEW aggregate, ONE unchanged17-case erasure run and independent audit. Actual V43/JDBC/transactions, selected-only initialization/six TC absences, every observed worker and FINAL owned closure; no automatic retry.
+- [x] V3c.7 functional checks observed: exact original overlayinverse/body/signature/value/source parity, root7source/actual28class offline compile, ONE new complete unchanged17case physical run and full bounded owned lifecycle. Main V3c.7a/b/c remain unchecked until coherentP2source integration/work-unit commit/native boundary; no TEMP source commit fabricated.
+
+Erasure17/17/Flyway43/JDBC/lifecycle/audit3307 PASS;3332 PASS/3265 FAIL intact. Actual28 versus forecast26/tooling/timing failures are not appRED/retry. PENDING/ROOT_PENDING/false and all Boot/provider/thread/exec/egress/integration/native/full-app gaps remain archived.
+
+### Historical V3c.8–17 — mandatory archived contracts
+
+**Read COMPLETE pinned A27 FIRST:** /private/tmp/ordenfix-pro-postgres-c-lz104i74/tracker-before-postgres-A27.md, 49,850 UTF8 bytes/SHA98e37a260c04dc56954756b417242f98fa0519faaab1700662fddbe03f4b987b. Its FULL same-ID intent/source/argv/receipt/hash, security/budget/forecast/check/rollback, failures/skips/UNKNOWN/PENDING and COMPLETE transitive A26/A25/A24/A23/A21/A19/A18/A17/A16b/A16/A15b/A15 contracts remain mandatory inputs, not short-label substitutes. Earlier archive precursor spans/pins stay binding but are distinct from A27's current literal span. Archival navigation only: all task lines/states/order remain exact, counts nonadditive; no new execution, consumed-root reuse, automatic retry, integration/commit/native/full-app/deploy authority. Frozen FALSE/PENDING and exec200 pure-only remain unchanged; setup/reader/tooling failures are not application RED.
+
+#### V3c.8
+
+- [ ] **V3c.8a** Delegated portableV38 fixture/driver/launcher and inverse-only overlay of the pinned59145-byte candidate; original48529-byte backend stays unchanged. Fixed profile_recovery tuple, exact no-arg Jupiter method, all SQL/assertions/Timeout120/127 and MR11/worker guards retained.
+- [ ] **V3c.8b** Portable owner and closed seven-step ledger. Full same-ID contract and prior archives remain mandatory in A15.
+- [ ] **V3c.8c** Parent pinned source/class/fixture/exec admission, NEW aggregate then ONE unchanged portable case. Require final1/1, V38/format2/receipt/twoMATCH, actual7 exec/3DB/2dump/2restore with raw EOF/exit, sole127 and full bounded FINAL closure; independent audit, no retries.
+
+Portable case failed 0/1 before format2/receipt/twoMATCH; owned closure was not recovery approval. Full same-ID proof/qualifiers: mandatory A27 and its transitive inputs.
+
+#### V3c.9
+
+- [ ] **V3c.9a** Unchanged-SQL catalog diagnostic launcher. Full same-ID contract and prior archives remain mandatory in A15.
+- [ ] **V3c.9b** Delegated diagnostic owner metadata and closed seven-step ledger: three databases/two linked custom dumps, source-derived order, actual exit0/EOF before advancing. No extra capability; strict disabled -B -S and all raw framing/resource/deadline guards. Writer remains inert.
+- [ ] **V3c.9c** Parent admission/NEW aggregate then ONE catalog diagnostic, not an original-test rerun. Freeze three unchanged-SQL catalogs and exact7 exec/3DB/2files plus complete lifecycle audit. Offline counterfactual comparison is labeled separately, never recovery/profile accreditation or retry authority.
+
+Catalog diagnostic passed only; counterfactual comparison did not accredit recovery, baseline or collation. Full same-ID proof/qualifiers: mandatory A27 and its transitive inputs.
+
+#### V3c.10
+
+- [ ] **V3c.10a** Delegated Java preparation changes ONLY cached image and paired image literal to Alpine57c. All other sources/original overlay/SQL/Timeout120/127/MR11 and closure guards remain exact; inherited checks, no invented RED.
+- [ ] **V3c.10b** Delegated fresh Python metadata changes only fresh identities and the three exact image bindings to Alpine57c. Seven runtime modules and closed seven-operation capability remain exact; disabled/empty/inert checks, no owner/API.
+- [ ] **V3c.10c** Parent complete delta/pin/admission checks and ONE fresh seven-source offline aggregate with observed inventory; independent ordinary FILE audit. Preparation only: no fixture/Jupiter release; original V3c.8 FAIL and functional restore gate remain.
+
+Alpine preparation passed only; tooling failures were not application RED or runtime/native authority. Full same-ID proof/qualifiers: mandatory A27 and its transitive inputs.
+
+#### V3c.11
+
+- [ ] **V3c.11a** Delegated fresh Python metadata writer (request/spec/pins/tests multi-file trigger): correct-prefix private root/new nonce/names/labels, runtime7 byte-exact, disabled11-token-B-S spec/emptyobserved, fresh image57c binding. Inherited215/cold/preflightAPI0/prefix gates; no actualowner/API/SQL.
+- [ ] **V3c.11b** Guarded parent portable-run derivatives. Full same-ID contract and prior archives remain mandatory in A15.
+- [ ] **V3c.11c** Parent one portable case and separate adoption. Full same-ID contract and prior archives remain mandatory in A15.
+
+One unchanged portable case passed 1/1 with bounded closure; prior failure and frozen PENDING/false remain. Full same-ID proof/qualifiers: mandatory A27 and its transitive inputs.
+
+#### V3c.12
+
+- [ ] **V3c.12a** Java locale launcher and pure TDD. Full same-ID contract and prior archives remain mandatory in A15.
+- [ ] **V3c.12b** Locale owner and closed 15-step ledger. Full same-ID contract and prior archives remain mandatory in A15.
+- [ ] **V3c.12c** Guarded locale parent derivatives. Full same-ID contract and prior archives remain mandatory in A15.
+- [ ] **V3c.12d** Parent three-case locale run and adoption. Full same-ID contract and prior archives remain mandatory in A15.
+
+Initial lifecycle/accreditation false remains; witness-only RED→GREEN and separate original 3/3 closure passed. Full same-ID proof/qualifiers: mandatory A27 and its transitive inputs.
+
+#### V3c.13
+
+- [ ] **V3c.13a** Deterministic channel tests; runtime unchanged. Full same-ID contract and prior archives remain mandatory in A15.
+- [ ] **V3c.13b** Java eight-case launcher and static-agent guards. Full same-ID contract and prior archives remain mandatory in A15.
+- [ ] **V3c.13c** Fresh ZERO-exec backup-check owner. Full same-ID contract and prior archives remain mandatory in A15.
+- [ ] **V3c.13d** Guarded backup-check parent derivatives. Full same-ID contract and prior archives remain mandatory in A15.
+- [ ] **V3c.13e** Parent unchanged eight-case run and closure. Full same-ID contract and prior archives remain mandatory in A15.
+- [ ] **V3c.13f** Independent ordinary FILE-only physical audit and parent separate immutable adoption/canonical mirror. Preserve historical false/PENDING proofs; scoped results never grant source/native/full-app/deploy authority. Main work-unit tasks await coherent P2 source/Conventional commit/native boundary, not fabricated TEMP commits.
+- [ ] **V3c.13g** Aligned pure baseline with -g -parameters. Full same-ID contract and prior archives remain mandatory in A15.
+- [ ] **V3c.13h** Aligned parent binding; binary guards retained. Full same-ID contract and prior archives remain mandatory in A15.
+
+Actor admission failed before physical run/audit/adoption; later aligned original 8/8 passed with independent adoption. Full same-ID proof/qualifiers: mandatory A27 and its transitive inputs.
+
+#### V3c.14
+
+- [ ] **V3c.14a** Java V41-pair fixture, inverse overlay and pure TDD. Full same-ID contract and prior archives remain mandatory in A15b.
+- [ ] **V3c.14b** Fresh V41-pair owner and closed two-createdb ledger. Full same-ID contract and prior archives remain mandatory in A15b.
+- [ ] **V3c.14c** Guarded V41-pair parent derivatives and pure TDD. Full same-ID contract and prior archives remain mandatory in A15b.
+- [ ] **V3c.14d** Parent unchanged V41 pair, full closure and separate adoption. Full same-ID contract and prior archives remain mandatory in A15b.
+
+Unchanged V41 pair passed 2/2; next four CSV cases were mapping only, not a runtime grant. Full same-ID proof/qualifiers: mandatory A27 and its transitive inputs.
+
+#### V3c.15
+
+- [ ] **V3c.15a** Historical Java fixture/launcher/overlay and pure TDD. Full same-ID contract and prior archives remain mandatory in A16.
+- [ ] **V3c.15b** Historical fresh owner and closed fourteen-operation ledger. Full same-ID contract and prior archives remain mandatory in A16.
+- [ ] **V3c.15c** Historical guarded parent derivatives and pure TDD. Full same-ID contract and prior archives remain mandatory in A16.
+- [ ] **V3c.15d** Historical four-case release, closure and independent adoption. Full same-ID contract and prior archives remain mandatory in A16.
+
+Numeric 4/4 was FAIL: unquoted/circular oracle, eight violations/typed EMPTY. Failed13981 preservation was not accreditation. Full same-ID proof/qualifiers: mandatory A27 and its transitive inputs.
+
+#### V3c.16
+
+- [ ] **V3c.16a** Historical Java quoted-display preparation; full same-ID contract mandatory in A17.
+- [ ] **V3c.16b** Historical fresh owner identity preparation; full same-ID contract mandatory in A17.
+- [ ] **V3c.16c** Historical guarded parent preparation; full same-ID contract mandatory in A17.
+- [ ] **V3c.16d** Historical original four-case release/adoption; full same-ID contract mandatory in A17.
+
+Corrected quoted-display original 4/4 and bounded audit/adoption passed; no Boot/full-application accreditation. Full same-ID proof/qualifiers: mandatory A27 and its transitive inputs.
+
+#### V3c.17
+
+- [ ] **V3c.17a** Historical delegated Java preparation; full same-ID scope, checks and source contracts remain mandatory in A18.
+- [ ] **V3c.17b** Historical delegated owner preparation; full same-ID scope, checks and source contracts remain mandatory in A18.
+- [ ] **V3c.17c** Historical delegated parent preparation; full same-ID scope, checks and source contracts remain mandatory in A18.
+- [ ] **V3c.17d** Historical parent release/audit/adoption; full same-ID scope, checks and evidence contracts remain mandatory in A18.
+
+One unchanged receipt-trigger drift case passed 1/1 with bounded audit/adoption; Recovery64/Backup23 then pending. Full same-ID proof/qualifiers: mandatory A27 and its transitive inputs.
+
+### Accepted V3c.18 — three unchanged V39 logical-restore cases
+
+Human accepts ONLY expandedCatalogPreservesRecoveryAfterLogicalRestore(String,String,boolean): C,C,true; en_US.utf8,en_US.utf8,true; C,en_US.utf8,false. Boolean is accredited; ALL3 restore. Original821-line source/annotations/assertions/settings/Timeout120 unchanged. Latest16129 adoption+A18 are explicit complete inputs; live tracker is separate late gate. No retry/product/integration/native/remote/deploy expansion.
+
+- [ ] **V3c.18a** Historical delegated Java V39 preparation. Full same-ID identity, formatter, inverse, binary, TDD and worker guards remain mandatory in A19.
+- [ ] **V3c.18b** Historical delegated V39 owner preparation and closed 15-operation ledger. Full same-ID capability, resource, denial, EOF and TDD guards remain mandatory in A19.
+- [ ] **V3c.18c** Historical delegated parent V39 preparation. Full same-ID schemas, initialization/migration witnesses and complete immutable-input gates remain mandatory in A19.
+- [ ] **V3c.18d** Historical parent original V39 release and adoption. Full same-ID compile, callback, closure, deadline, audit and no-retry gates remain mandatory in A19.
+
+Historical V3c.18 workflow, TDD runners, RDD/delivery, budgets and rollback remain mandatory in A19. These tasks stay unchecked pending coherent P2 source/work-unit/native closure; no TEMP commits.
+
+V3c.18 scoped verification PASS: source/pure and independent source/compiled audits passed. One aligned aggregate (1sya4_ya), 35 classes/six nested binaries exact. One original run (5iwj1x0e): 3/3 passed, zero failed/skipped/aborted; 15 execs, 9 databases, 3 dumps/restores; full worker/resource cleanup and separate-clock deadlines verified.
+Separate adoption: /private/tmp/ordenfix-pro-recovery-v39-final-adoption-u7zmtjtg/final-ordinary-audit-adoption.json — 8550/SHA9c017c340a30a7952a7ada99b58483ef59629bd0a83fc8710b36f7a675947d4e; independent final mechanical audit verified 17,640 pins. Historical FALSE/PENDING unchanged; exec200 remains pure-only. Source integration/work-unit/native/full-app/deploy pending; all 64 task states unchanged. Recovery61/Backup23 pending.
+
+## Accepted integration closure — P2 → P3 → P4
+
+Human now authorizes local source integration of the existing paid-period design, starting with backend PRO, then frontend. No new billing/refund/reactivation behavior, real provider/mail/payment activation, remote credentials/cloud/deploy, push/PR/merge or inherited native grant. Temporary source passes are not shipped behavior. Feature-branch WIP integration may precede the remaining physical gates; P2/P4 cannot close or release until required checks are observed.
+
+- [ ] **P2.I1** Delegated backend transaction (4+ mapping, 2+ writer), parent original transfer/Git: create a NEW public snapshot; observe a compilable pending-2xx cancellation assertion RED on current fee6c40; integrate the accepted 40-file P2/V43 delta plus bounded release-runbook correction; SAME case GREEN with actual stub response verified, then focused11/expanded255/H2-36 checks. Copy only product source/tests, never owned fixtures, shadow classes or runners. Transfer current preimages only; one coherent Conventional work-unit commit, native assessment/returned preflight/fresh consent required.
+- [ ] **P2.I2** Delegated required backend closure verification: remaining Recovery61/Backup23 and uncovered physical/concurrency/security suites stay explicit gates, never waived or added to prior counts. Use fresh authorized local fixtures and source-bound runners, preserve old failures and no automatic consumed-run retry; record every failed/skipped/unavailable check. P2 completion awaits observed requirements plus integration/work-unit/native boundary.
+- [ ] **P3.I1** Delegated frontend contract/UI/cache transaction (4+ mapping, 2+ writer), after backend contract confirmation: add server expiry/renewal-canceled fields, retain paid PRO after confirmed cancellation, clear PRO data only on server-confirmed effective FREE. Revalidate from server at expiry without client entitlement inference; avoid self-canceling subscription reads, stale-account callbacks and duplicate/disabled-observer timers. Scoped UTC presentation, verified/unverified exit rules preserved. Genuine Vitest RED→sameGREEN/refactor, targeted/full tests, release tests, types/lint/technical build and applicable mock-browser flow; coherent Conventional work-unit/native boundary.
+- [ ] **P4.I1** Parent coordinated actual-source closure: verify exact integrated backend/frontend contract and artifact identities, required full checks and rollback; no full-app claim from isolated passes. Keep provider/HTTPS staging, legal/contact, operational backup/restore/alerts and authorized Railway/Vercel deployment separate.
+
+P2 source identity: combined-ready-37kb4lni allowlist41/SHA2e0e298e058ca5f5d12747e123be6f8ca288fcd25b1a40cf59b85576bdb3dedf; delta15817/SHA174adf2db2ca29065a106ed51650ec22e3ba82aa5a687d032937e96dbbb5c964. Unchanged repository path needs no transfer. LegalV43 product projection restores PostgreSQLContainer and retains exactly two accepted expectation edits:51574/SHA202f5fd7648f3dd54f60d27bf238d46bc12168f12691b2b7a84009439c355606. V1–V42/P1/protected sources/dirty trackers/.atl/private directory metadata preserved.
+
+TDD ON(expiry15): NEW public env-i/offline Java21/Maven3.9.11 with synthetic settings, cached Mockito and inherited exact command templates; frontend pinned Node24/Vitest3.2.6, envDir:false/owned caches. Setup/reader/compiler errors are not RED. Existing runtime budgets/capability guards unchanged; no old runner execution or private config reads. Parent owns original transfers/permissions; backend remains delegate-read-only.
+
+RDD ON/global; cached ask-on-risk/feature-branch-chain, no PR. Backend forecast3080–3120 authored lines, frontend forecast pending mapping; 400 is advisory, never code golf or artificial unbootable splits. Roll back coherent new source/tests/docs together, not P1, old migrations, data or prior features. Main P2/P3/P4 and historical boxes remain unchecked until applicable observed outcomes and work-unit evidence.
+
+Original P2.I1/P3 checkpoint: COMPLETE same-ID source/argv/hash/receipt/check/rollback contracts and nonadditive results remain mandatory in A20. Original69 contains41/3081 and genuine RED→GREEN; granted native41 failed lens_context_budget_exceeded/not_started/not_evaluated, no authority/retry. UI unchanged; P3 stopped checkpoint, not final freeze. Recovery61/Backup23/P2–P4/full release/build/browser/transfer/native/deploy remain pending.
+
+## Authorized preserved-history review chain
+
+Human “Si vamos” accepts TWO local coherent units, preserving original69cb971, source/index/user dirt. No reset/amend, push/PR/merge, deployment/provider activation or inherited native consent. Problem: complete41-path native evidence exceeded tool context. Smaller scopes are hypotheses, not fit/approval guarantees.
+
+- [ ] **P2.C1** Delegated A15 V43/schema/admission/entities + paired physical tests from fee6c40 in NEW isolated public worktree; root actual compile/focused9/expanded253/H2-36 checks, Conventional commit, native assessment/exact preflight/fresh consent. Physical/concurrency requirements remain explicit pending gates, not old-count credit.
+- [ ] **P2.C2** Delegated B26 paid-period producer/resolver/DTO/services/fixtures/tests/runbook after A boundary; root applicable endpoint checks, exact final tree69cb971 equivalence, Conventional commit/native boundary. Frontend and full P2–P4 closure remain separate.
+
+Routes: delegated for both (4+ mapping/2+ nontrivial writer); parent owns Git/native/actual checks. TDD ON(expiry15), pinned offline Maven3.9.11/Java21/env-i synthetic settings; original genuine RED→GREEN retained. History-only replay introduces no new behavior, so NEW RED N/A, never fabricated. Acceptance: independently compilable/tested A, exact15/26 units, original preservation, final full-tree equality and honest native/failed/skipped evidence. Rollback only NEW chain; never original69/P1/V1–V42. Forecast1296+1785=3081 authored; cached ask-on-risk/feature-branch-chain, 400 advisory; two indivisible units remain over advisory, no PR authorized. A/B committed/native acknowledged; physical gates remain pending.
+
+P2.C1 progress: commit1578d8921f0a7fd3d3daf707f4eb4a7d70059fc2, fee→A15/1296. Compilation and focused212/expanded8311/H2:220 PASS,0fail/error/skip/flake; nonadditive.1320sourcebyte/stat and originalHEAD/index/41hashes preserved. Evidence /private/tmp/ordenfix-pro-review-chain-fueuys_0/*.json. Assessment permission failure treated due; exact native MEDIUM review approved with zero findings and acknowledged; boundary1578d89. Physical gates are not accredited by review. PhysicalA/P3/P4 pending; both task boxes remain open.
+
+A native outcome: humanDalevamos grants ONLY A1578d89/15files via localCodex/OpenAI. Exact native review-reliability result findings[]; Go approved on final admitted event, then returned acknowledgement exit0/actionacknowledged/authorityburned, lineage review-cd3d40ea9d53ed1e. Reviewer read all15 immutable patches; NO commands, independently executed tests or measured-fingerprint verification. Root functional212/8311/220 proof remains separate. Wrong-cwd STATUS invalid_request/not_started preserved; sameargv owning-worktree correction passed. Native API help extra-agent diagnostic was corrected, not product RED. Evidence /private/tmp/ordenfix-pro-review-chain-fueuys_0/a-native-reviewer-capture-01, a-native-acknowledgement-01 and a-native-final-preservation.json. Final1320sourcebyte/stat+originalHEAD/index/41hashes/status preserved; NEWworktree clean. No source/B/tests/deploy writes; future B grant separate. All70boxes unchanged: physicalA/Recovery61/Backup23/B-finaltree/frontend/P2–P4 pending.
+
+P2.C2 preparation: humanSigamos accepts B26 history-only replay on clean reviewedA1578d89; delegated mapping/writer (26nontrivialfiles), root tests/Git/native. NEW runtime /private/tmp/ordenfix-pro-chain-b-j5h79pew; single pending-2xx assertion/focused11/expanded255/H2-36 unchanged selectors, env-i/offline pinnedJava21/Maven3.9.11/syntheticsettings, NEW HOME/TMP/reports. Original genuine RED retained; NEW historyRED N/A. Exact final fullGit tree must equal69cb971; keep1297outsideB/A15/legacy/P1/originalHEAD/index/dirt. No owned fixtures/overlays, new functionality, deployment or inherited B native grant. Source/tests/commit/native observed; physical closure pending.
+
+P2.C2 outcome: commit9737dc67bf97ec8eb3a4c90dc9340979532621f5,parentA1578d89,26/1785. Actual1/285/8384/223(suites1/11/255/36),0F/E/S/flake/retry; exactselector/XML/rawpin coverage,nonadditive. Full1323byte/stat+1297outsideB/A15/originalHEAD/index/41hashes/status preserved; dirtyV38rawstat unpinned,statusonly. ActualfullGit tree equals69;clean. NEWruntime b-git-commit.json144411/SHA78cc25df6363877d0bbbd513bf9a303f0c847eecd11868302a135083a310ee8b and b-native-final-preservation.json bind fullproofs. NativeMEDIUM/slice_budget_reached: assessment/preflight/relay0; granted review approved+acknowledged below. Initialpagerguard failure0Git/mutation retained; correctedNEWderivative passed. All70boxes/physicalA/Recovery61/Backup23/P3/P4/deploy pending.
+
+B native outcome: humanSi dale avanzemos grants ONLY B9737dc67/26 via localCodex/OpenAI. Exact compiledprovider review-reliability inspected26immutablepatches; NO commands/externalfiles/independenttests. Context fit observed; Go approved, returned exactack exit0/actionacknowledged/authorityburned, lineage review-57dac3ac553ca9a9; lastreviewedboundary9737dc67. ONE WARNING R3-invoice-request-binding is informational/nonblocking: receiptstands, no correction/reopen. Separate SOURCE TRACE found requestedinvoiceID omitted at Service323, replaced by responseID at360/373/377; conditional A-request/B-response effect inferred, NOT runtime-tested. Existingwebhookcontracts coverA/A, notA/B. Follow-up service+contractfix needs authorization; no sourcewrite/extra review. Evidence NEWruntime b-native-reviewer-capture-01, b-native-acknowledgement-01, b-native-closed-preservation.json3510/SHAca1876ca2da415905fc0a8eafafbeb291dbd6bc0207b05488ab076f4bbeec404. Final1323byte/stat+originalHEAD/index/41hashes/status retained; dirtyV38rawgap unchanged. PhysicalA/Recovery61/Backup23/frontend/P2–P4/deploy pending;70boxes unchanged.
+
+## Authorized requested-invoice follow-up — P2.C3
+
+HumanSi sigamos accepts separate service+contract regressionfix, not native correction/reopening or future review consent. Problem: recurrent webhook drops requestedinvoiceID and validates response against itself. Preserve independent requestedID; mismatch must fail BEFORE actualpaymentfetch/state. Local nullsafe equality guard before existing helper avoids changing payment-topic search/fetched/reconciliation paths.
+
+- [x] **P2.C3** Delegated bounded service+contract unit (4+ mapping/preparation and 2nontrivialwriter), test-only first; parent actual assertion RED for MercadoPagoContractTests#recurrentWebhookRejectsUnexpectedInvoiceBeforePaymentFetch, then service-only guard, SAME GREEN/refactor, focused11/expanded255/H2-36 and whitespace/source/commit checks. Request9001/otherwisevalid9002, optional actualGET between(0,1), AtomicInteger firstassert0; ActualRED exit1/1assertfailure/0error-skip-retry: first counter1vs0; exactcase/source1323/groupgone, c-red-evidence/execution.json6709/SHA753d4111372943038230b8bf63cc859d82d880c74a87a71f250189a40d7fc4d4. Servicefix now authorizedGO. Verify failedinbox/PagoException, no markProcessed/state/evidence calls; existing9001/9001 positive unchanged.
+
+Scope: ONLY MercadoPagoService.java + MercadoPagoContractTests.java in isolated /private/tmp/ordenfix-pro-review-chain-fueuys_0/source on codex/pro-paid-period-review-chain, parentB9737dc67. Keep all1321outside files/legacy/P1/rules and original69HEAD/index/41hashes/dirt; dirtyV38rawstat remains unpinned,statusonly. B fulltree69 equivalence is historical; C target exactly B plus these2 acceptedfiles, no overlays/fixtures/shadows/frontend/migrations.
+
+TDD ON(expiry15), NEW /private/tmp/ordenfix-invoice-request-c-ywnchbfm; pinned Python3.10-B-S/Java21/Maven3.9.11, env-i/offline syntheticsettings/HOME/TMP, same RED/GREEN argv/selector, fresh XML/streams and full1323byte/stat BEFORE/AFTER perphase; exactselectedsuite/testcase coverage/zero failures/errors/skips/flake/rerun forGREEN. Setup/compiler/mockHTTP failure is not RED; runtime600s/processgroup closure retained. Root owns runner/Git/native, writer phases require explicit GO.
+
+Forecast60–90 authored, running3081+newdelta; cached ask-on-risk/feature-branch-chain,400advisory/no PR. Acceptance: observed guards/proofs + coherent Conventional commit(parentB) and nativeassessment against lastreviewedB; due follows exactpreflight/freshconsent, underbudget stays pending slice. No inherited Bgrant. Rollback only NEW C3two-fileunit, never approvedA/B/P1/migrations/data. PhysicalA/Recovery61/Backup23/P3/P4/provideractivation/remote/deploy/push/merge unchangedpending.
+
+C3 outcome: commitd2d4dce524bca58b9e2e9039a7330e0400c05108,parentB,2paths41add0delete,running3122. GenuineRED counter1vs0 then SAME1GREEN/focused286/expanded8385/H2223(suites1/11/255/36),0F/E/S/flake/retry,nonadditive. c-git-commit.json819909/SHA42e9bd4cf8ba182a74ca52042b931d20263eca40057d487c5612c1057bf30fb5 binds fullfreshproofs/35exactGitcommands; cleanC/all1323byte-stat/1321outsideGit/originalHEAD-index-41hash-status retained. New02 fixed capture REDformat BEFORE execution, not productfailure. Nativeassessment exit0/MEDIUM/under_budget41: review deferred,pending slice,lastboundaryB,no newapproval/preflight/start/consent/ack. PhysicalA/Recovery61/Backup23/P3/P4/deploy remainpending; nextPostgreSQL.
+
+## Accepted current-C PostgreSQL validation — P2.V43C
+
+HumanSigamos avanzemos accepts remainingLOCAL PostgreSQL checks after C3, no product/remote/deploy/activation changes. Smallest safe unit is COMPLETE LegalV43CompatibilityIT: expected91=10plain+77mutation+4FKfunction; actual91/91. V29expected32/Migrationexpected8 require separate fixture/scheduler closure and stay pending; never widen frozen primary-only policy or use stockTC/Ryuk/ambient config.
+
+- [x] **P2.V43C** Delegated preparation (4+file mapping, multi-file writer); root actual91/91, zero failures/skips/aborts, bounded cleanup and ordinary FILE audit passed. Verified existing commitd2d4dce524bca58b9e2e9039a7330e0400c05108; no product delta/TEMP commit/native approval. Full evidence: final-v43c-adoption.json 11870bytes/SHAaa7e97f8555b23e50e8a9619fffe6f5808f92b9727cd2d9dc682ade273dbfa44 under NEW tracker root below.
+
+NEW tracker/aggregate root /private/tmp/ordenfix-pro-postgres-c-lz104i74; owner must separately match /private/tmp/ordenfix-pro-v43-python-owner-nosite-. Recreate only fresh nonce/names/labels/root/request-key/source-pins/specs/commands from immutable attempt03/reportfix blueprints; runtime6+cold module and seven Java logic sources byte-exact. Current productV43 51574/SHA202f5fd7648f3dd54f60d27bf238d46bc12168f12691b2b7a84009439c355606; overlays ONLY owned PG type/constructor, photo prepare type. Assertions/SQL/annotations/Timeout180 untouched; NEVER transfer fixtures/overlays/shadows into app. Fresh compile against current-C source-bound classes/pinned cached jars, inspect full aggregate inventory, not old26 assumed.
+
+Closed v43_source/owner/synthetic-v43-owner; fixed cached081f image; exact11 exec vectors(7createdb/2dump/2restore), no new capabilities. Start disabled/empty, env-i Python3.10-B-S/Java21, synthetic HOME/TMP; cold/pure/preflight API0. Existing admission/knownUID501/actual IDs-labels-image/sole127/bridge/no-mount/resources/framing/EOF/denials/worker-joins guards remain. Launch60/HTTP10/exec45/owner240/total270/cleanup30 and request16KiB/response2MiB/queue8/exec64KiB-512frames/target8MiB caps unchanged. Root release once only after fresh preflight/audit; preserve failures, no consumed-root reuse/automatic retry/global resource search.
+
+TDD ON(expiry15); exact frozen pure runners retained. Mechanical fresh identity replay changes no behavior: NEW RED N/A, never invent or credit historical RED anew. Existing sealed single-Jupiter/selected-class aggregate91 found-started-success and zero failed/skipped/aborted proof accepted; launcher reports failure IDs, NOT successful per-case identities. No new callback/witness behavior. All1323 product-source byte/stat + original69HEAD/index/41hashes/dirt preserved; V38dirtyrawstat UNKNOWN/statusonly. Truthful bounded owned container/network stop/delete/absence and ordinary independent FILE audit required. Rollback only NEW runtime families, not C/A/B/P1/migrations/data. Sourceauthored forecast0/running3122, cached ask-on-risk/feature-branch-chain/400advisory; C41 MEDIUM-underbudget slice remains pending vs reviewedB. P2-P4/full-app/deploy not closed by this pass.
+
+## Approved current-C V29 validation — P2.V29C
+
+Human “Dale dale, avanzemos” approves the preceding four-fixture environment adjustment for the complete unchanged LegalV29AcceptanceSchemaVerifierIT. Expected 32 cases is a source count, not a pass. One fresh primary and three sequential fresh compatibility fixtures preserve source semantics; at most two fixtures may be live. No application functionality or Railway/Vercel/remote/deployment/provider activation/push/PR/merge/native grant.
+
+The complete pre-addition tracker is archived at /private/tmp/ordenfix-pro-v29-current-c-w9rcn935/tracker-before-v29-A29.md (49,860 UTF8 bytes, SHA c8f14b1c15a604421e7fa207bdd63ff7537dda346f05b1d5d4f132ca23d18b58). Read it and all mandatory transitive archives before relying on condensed history. All 72 existing checkbox lines and prior scope/evidence remain unchanged.
+
+- [ ] **P2.V29C** Prepare and verify the closed four-fixture successor, then run the complete unchanged 32-case suite once on current C. Route: delegated mapping/preparation and bounded Java/Python/parent writers (4+ files and 2+ nontrivial files); root owns actual checks, compilation, physical release, resource closure, independent ordinary FILE audit and adoption. Existing product commit d2d4dce524bca58b9e2e9039a7330e0400c05108 anchors unchanged product validation; no fake TEMP commit or native approval. Temporary harness source is not shipped product code; task closure must distinguish physical validation from outstanding source/work-unit policy.
+
+### V29 acceptance and checks
+
+Use only new identities under /private/tmp/ordenfix-pro-v29-current-c-w9rcn935. Frozen consumed V43 families are read-only blueprints, never reused or mechanically widened. Product source at /private/tmp/ordenfix-pro-review-chain-fueuys_0/source remains byte/stat exact. V29 source is 15,981 bytes/SHA70c348d41a7af1b04e99ca7fbb8409b68adad79d5470fe62aa05bd610635f825. Overlay only its two fixture constructor/type sites; inverse must equal the original. Keep all test bodies, annotations, SQL, credentials and database names unchanged. Primary tuple is ordenfix_legal_v29_schema/ordenfix/ordenfix; each of three children is ordenfix_legal_compat_schema/ordenfix/ordenfix. No SQL exec capability: reject every exec before RPC/API.
+
+TDD ON from charge-session-expiry.md:15. New harness behavior requires an observed assertion RED before implementation, then the SAME GREEN/refactor; compiler/setup failures are not RED. Runners: pinned Python3.10 -B -S -m unittest and Java21 pure fake-owner tests, followed by the explicit single-Jupiter V29 launcher. Root records exact argv, environment, source/class/jar pins and raw outputs. Pure tests must cover exact tuples, four-slot exhaustion, primary-once/child concurrency, inert construction/preflight, zero exec, receipt mismatch, non-extending group deadline and failure cleanup/joins.
+
+Retain existing known-local Docker socket/cached image, UID501, labels/actual IDs, sole127 endpoint, resource/no-mount/framing/EOF/caps and ownership guards. One fixed aggregate run deadline240s/total270s starts with the suite and never resets for children; each owner launch60s/controlHTTP10s/cleanup30s. All acquired processes, workers and resources must close within applicable deadlines. No global resource search, ambient credentials/config, downloads, automatic retry or old root execution.
+
+Physical acceptance: exactly32 found/started/succeeded, zero failures/errors/skips/aborts/container failures, four distinct fixture lifecycles and max2 live; independently auditable per-owner receipts, exact source preservation, bounded stop/delete/absence and exhaustive joins. Root release requires fresh compilation/inventory and ordinary read-only preflight audit. Failure preserves raw evidence and consumes only its new attempt; no automatic physical retry.
+
+Rollback only the new V29 runtime family, not C/A/B/P1/migrations/data. Product authored forecast0; helper authored forecast approximately900–1400 lines before exact implementation count, not falsely zero. Cached delivery ask-on-risk/feature-branch-chain and 400 advisory remain; no PR. C41 MEDIUM/under-budget remains pending against reviewed B9737dc67. V29 does not close Migration8/Recovery61/Backup23/frontend/P2–P4/full-app/deployment.
+
+### V29 progress and recovery
+
+Tracking precedes source writes. Full Engram mirror1259 is PENDING: the update silently truncated at its capacity (warning reported), so root restored and fully read back the exact predecessor. Retain this complete local document, A29 and the separate current-scope recovery observation; no full-mirror synchronization is claimed. Do not truncate scope, remove guards or claim equality on failure. Source preparation, RED/GREEN, compile, physical32, resource closure, ordinary audit and adoption are currently PENDING.
+
+V29 Python policy RED observed before behavior edits: exact test_v29_policy.py SHA d857abf575912cd4982e1af6d8cd66a0b11b8fdc016bada33f5a7caf637020a6; 10 tests, exit1/four assertion failures, zero errors/skips, process group gone. Failure evidence under /private/tmp/ordenfix-pro-v29-current-c-w9rcn935/python-red; primary/compat admission and legacy/pending-exec denial fail against byte-exact old policy. Bounded Python implementation GO follows; same test source must remain unchanged. No physical32 executed.
+
+V29 Java fixture RED observed: pinned javac exit0; unchanged V29FixturePolicyTest.java SHA91a950d94f23e0bb710d4baac09e76798eafd24b6fb2051884445d1da9fe8fcf primary selector exit1/AssertionError caused old selected-primary guard. Both groups gone; evidence java-red. Java bounded implementation GO follows. Separate Python deadline/config RED:11 tests/15 assertion failures including subtests, zero errors/skips, unchanged test SHA38a93b0b6dfb16ae3b9093ca0ffd728e02fa41c4f157d96bb654cd2991c59686; evidence python-deadline-red. Unchanged parent pure11/11 passed in parent-pure-02 after root created required parent/tmp; initial9 FileNotFoundError setup errors retained, not RED or physical retry. New harness implementation and physical32 remain pending.
+
+V29 owner final80/80 GREEN (same frozen policy/deadline/cleanup sources) and pure template/cold imports passed, API/process0. Cleanup all(generator) short-circuit reproduced by one of59 tests, then successor-only eager-join fix; baseline frozen runtime untouched. Parent V29-only release marker one assertion RED then same GREEN plus11 capture regressions=12 passed; run_target logic unchanged. Java fresh compilation passed after root corrected classpath-string setup error (first107 missing-dependency errors retained, not RED). Six fixture/nine group/six driver selectors passed. Byte-exact OwnerProcessChannelTest then failed Invalid/capped frame must fail; source investigation is read-only, no automatic rerun. Remaining Java mains/overlay/aggregate/audit/physical32 still pending.
+
+V29 final preflight checks observed: Java compile and all26 pure selector invocations PASS, including SAME primary policy regression; channel38/launcher18/discovery5/summary17/expected-count10 assertions are harness checks, not application cases. Deterministic gated probe proved the old multiframe test assumption incorrect; TEST-only correction keeps channel/protocol bytes/caps unchanged, no retries/sleeps. Original failure and immutable negative probe retained. Overlay3/3 inverse/lines25&58 PASS. Aggregate7 sources→28 Java21 classes compiled against source-bound current-C classes plus176 pinned jars; class names/SourceFile/source pins and forbidden-reference absence verified, full inventory47558/SHAbc8b70f4702ecbd7b48066a342906b5fe920dd9a2575a0d7e043abee44795d0b. Metadata syntax/no-authority denial passed before writes; final rootinput23127/SHA36be7d93586dee2f080f03df1f75cb9c7dbcb5d075d1f162655f47dada6813d0 is frozen but NOT executed. Independent ordinary FILE preflight audit pending; no physical32 or owned Docker resource started yet. Full tracker mirror stays PENDING.
+
+### V29 physical result and root adoption
+
+The historical progress paragraphs above describe earlier checkpoints, not the current result. ONE physical run passed: selected complete LegalV29AcceptanceSchemaVerifierIT, 32 found/started/succeeded, zero failed/skipped/aborted or container failures. Parent wall time65.502687125s; target stdout38256 bytes/stderr0, EOF/caps/reap/process group closure observed. All four fixtures are distinct; three compatibility children were sequential, actual maximum2 live. 120 admitted HTTP events/38 container snapshots/zero exec. Four stopped containers exited0 and DELETE204 was acknowledged; four empty owned networks DELETE204 then GET404. A separate container GET404 was NOT observed. All owner/input/driver/group/watchdog workers joined; zero unreleased fixtures/unknown resources. No successful per-case witness is claimed beyond source parity and exact selected-class aggregate32.
+
+Independent ordinary READONLY physical FILE/receipt audit (/root/v29_preflight_audit, Engram2624) passed with no blocking gaps: exact233-file three-root byte/stat/path inventory plus35 aggregate/master byte pins, resource ownership/security/localhost guards, shared Python240/270 and separate Java240/270 clocks, bounded per-owner cleanup and process/worker joins. Each child is compared to its OWN cleanup deadline, not the later whole-run finish; raw Python/Java epochs are never compared. Frozen owner physicalJUnitAccredited:false and parent ownerCleanupAccredited:false/ROOT_PENDING remain unchanged. Root adoption is separate ordinary functional evidence, not native/full-PRO/full-app/deployment approval.
+
+Product preservation passed:1323 source files/2722 compiled-class-and-resource files/176 cached jars/4 toolchain identities full byte/stat exact; aggregate28 classes/seven sources and seven Python masters preserved. Isolated backend currentC remains clean at d2d4dce524bca58b9e2e9039a7330e0400c05108; original69 HEAD/index/41 hashes/status preserved. Original dirtyV38 raw byte/stat remains UNKNOWN/status-only. Application behavior, original backend source, Railway and Vercel were not changed.
+
+Final adoption: /private/tmp/ordenfix-pro-v29-current-c-w9rcn935/final-v29c-adoption.json; exact byte/SHA binding below. Its complete inputs bind root-physical-closure-proof.json, physical-output-inventory.json, preservation-after-physical.json, ordinary-preflight-adoption.json, aggregate/class-inventory.json, seal-receipt.json, junit-v29.json and parent-execution.json. Immutable233-file inventory roots (owners, metadata/sealed, physical-capture) remain untouched. All runtime roots are consumed; no rerun/reseal/sealer/parent/owner execution is authorized by this result.
+
+Failed/corrected checks retained: Python eager-join assertion RED→SAME80 GREEN; deterministic channel negative probe proved a test assumption wrong, then test-only corrected channel contract→all26 Java selectors GREEN while runtime protocol/channel remained byte-exact. Parent12/overlay3 passed. Initial parent missing tmp/9 FileNotFoundError and root classpath-string107 missing dependencies were setup failures, not RED. Root physical FILE check initially assumed Networks keyed byID (KeyError), then corrected sole membership NetworkID without raw receipt change/API/physical retry. Auditor strings/Mach-O and jq syntax checks were unavailable/failed diagnostics, corrected read-only. Final physical run had no failed/skipped/aborted case.
+
+Work-unit plan: root inline closure of this ONE documentation file on existing feature branch codex/account-email-links, because scoped runtime/behavior preparation is already delegated and ordinary audited. This is a meaningful validation-evidence docs unit, NOT a fake TEMP/helper/product commit. Stage only this feature document; preserve unrelated repair trackers/.atl and original backend. Rollback the docs unit only; backendC/A/B/P1/migrations/data are independent. Cached ask-on-risk/feature-branch-chain applies to the cohesive over400 advisory documentation unit; no PR/push/merge. Exact authored docs count/commit/native outcome will be recorded after observation. New P2.V29C checkbox remains open until that work-unit is observed. Backend authored3122/C41 MEDIUM-under_budget boundaryB is unchanged and not covered by a docs receipt.
+
+Full Engram mirror1259 remains PENDING due capacity; exact full predecessor plus locator was re-read and matched A29 (49932 UTF8 bytes), not this expanded current document. Preserve full local/A29 and separate current-V29 recovery; do not truncate guards or call a partial copy synchronized. Migration8/Recovery61/Backup23/frontend test-types-lint-build-browser/P2–P4/release/provider/remote/deploy checks are PENDING, not waived or implied by V29.
+
+V29 adoption binding: 6486 UTF8 bytes/SHA 06cfa31b23788153d36f650a8933c255c61eb9709da038b662b53ceb5ec79eac.

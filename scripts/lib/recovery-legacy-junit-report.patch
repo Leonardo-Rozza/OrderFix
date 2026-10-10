@@ -1,0 +1,11 @@
+--- a/parent_stages.py
++++ b/parent_stages.py
+@@ -1031,7 +1031,7 @@
+ 
+ def junit_check(bindings,root):
+     report = g.read_json(root/"junit-report.json")
+-    selector_check(report)
++    runtime_selection_check(report)
+     passed = results.functional_result(report)
+     execution_witness_check(report["selectedExecution"])
+     g.require(report["selectedClass"] == SELECTED_CLASS and report["selectedMethod"] == SELECTED_METHOD

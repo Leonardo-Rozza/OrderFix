@@ -124,3 +124,43 @@ test('planes: apagar altas no impide cancelar PRO ni quita capacidades antes de 
   expect(cancellations).toBe(1);
   expect(checkouts).toBe(0);
 });
+
+test('planes: renovar cancelado conserva PRO pagado y sólo el servidor confirma FREE al vencer', async ({ page, context }) => {
+  await seedAuth(context);
+  await page.clock.install();
+  await mockApi(page);
+  const deadline = new Date(Date.now() + 60_000).toISOString();
+  let current = {
+    ...free, plan: 'PRO', limiteReparacionesMes: null as number | null,
+    funciones: { inventario: true, cobros: true, empleadosMultiples: true },
+    accesoProHasta: deadline, renovacionCancelada: false,
+  };
+  let reads = 0;
+  await page.route('**/api/suscripcion', route => { reads++; return route.fulfill({ json: current }); });
+  let cancellations = 0;
+  await page.route('**/api/pagos/suscripcion/cancelar', route => {
+    expect(route.request().method()).toBe('POST'); cancellations++;
+    current = { ...current, renovacionCancelada: true };
+    return route.fulfill({ json: current });
+  });
+  const checkoutRequests: string[] = [];
+  page.on('request', request => {
+    if (request.method() === 'POST' && request.url().endsWith('/api/pagos/suscripcion')) checkoutRequests.push(request.url());
+  });
+  await page.goto('/planes');
+  await page.getByRole('button', { name: 'Cancelar PRO', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Cancelar PRO' });
+  await expect(dialog).toContainText('funciones PRO permanecerán disponibles hasta');
+  await dialog.getByRole('button', { name: 'Cancelar PRO', exact: true }).click();
+  await expect(page.getByText('Plan PRO activo', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Renovación cancelada.*Acceso PRO disponible hasta/).first()).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Principal' }).getByRole('link', { name: /inventario/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Cancelar PRO', exact: true })).toHaveCount(0);
+  const initialReads = reads;
+  current = { ...current, ...free, accesoProHasta: deadline, renovacionCancelada: true };
+  await page.clock.fastForward(60_001);
+  await expect(page.getByText('Plan FREE activo', { exact: true })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Principal' }).getByRole('link', { name: /inventario/i })).toHaveCount(0);
+  expect(reads).toBe(initialReads + 1);
+  expect(cancellations).toBe(1); expect(checkoutRequests).toEqual([]);
+});

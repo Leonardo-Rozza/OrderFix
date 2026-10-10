@@ -104,6 +104,10 @@ export interface OfertaPro {
 }
 
 export interface Suscripcion {
+  /** Server-confirmed paid expiry; absent on older backends. */
+  accesoProHasta?: string | null;
+  /** True only after confirmed renewal cancellation, independent of paid access. */
+  renovacionCancelada?: boolean;
   plan: Plan;
   estado: EstadoSuscripcion;
   fechaInicio: string | null;

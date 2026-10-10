@@ -1,3 +1,4 @@
+import { cancellationMessage, paidAccessLabel } from '../utils/subscriptionPresentation';
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router';
 import { DashboardLayout } from '../layouts/DashboardLayout';
@@ -68,18 +69,24 @@ export const UnverifiedSubscriptionPage = () => {
   const cancel = useCancelarSuscripcionMutation();
   const [confirm, setConfirm] = useState(false);
   const active = subscription.data?.plan === 'PRO' && subscription.data.estado === 'ACTIVA';
+  const canCancel = active && subscription.data?.renovacionCancelada !== true;
+  const expiry = subscription.data ? paidAccessLabel(subscription.data) : null;
   return <DashboardLayout title="Plan" accountMode>
     <h1 className="text-2xl font-extrabold">Tu suscripción</h1>
     <p className="mt-2 text-sm text-text-2">Podés cancelar una suscripción existente. Para contratar un plan o usar las funciones del taller, primero confirmá tu email.</p>
     <section className="mt-6 max-w-xl rounded-2xl border border-border bg-surface p-6">
       {subscription.isPending ? <Loader /> : subscription.isError ? <ErrorState title="No pudimos consultar tu plan" onRetry={() => void subscription.refetch()} /> : <>
         <h2 className="text-lg font-bold">Plan {subscription.data.plan}</h2>
-        <p className="mt-2 text-sm text-text-2">{active ? 'Tu suscripción PRO está activa.' : 'No tenés una suscripción PRO activa para cancelar.'}</p>
-        {active && <button type="button" onClick={() => setConfirm(true)} className="mt-4 min-h-11 rounded-lg border border-border px-4 text-sm font-bold text-danger">Cancelar PRO</button>}
+        <p className="mt-2 text-sm text-text-2">{active
+          ? subscription.data.renovacionCancelada === true
+            ? `Renovación cancelada.${expiry ? ` Acceso PRO disponible hasta ${expiry}.` : ' Tu acceso sigue vigente según el período confirmado.'}`
+            : 'Tu suscripción PRO está activa.'
+          : 'No tenés una suscripción PRO activa para cancelar.'}</p>
+        {canCancel && <button type="button" onClick={() => setConfirm(true)} className="mt-4 min-h-11 rounded-lg border border-border px-4 text-sm font-bold text-danger">Cancelar PRO</button>}
       </>}
     </section>
-    <ConfirmDialog isOpen={confirm && active} title="Cancelar PRO" message="Cuando se confirme la cancelación, tu taller volverá al plan FREE y dejará de tener las funciones PRO. ¿Querés continuar?" confirmLabel="Cancelar PRO" loading={cancel.isPending} onClose={() => setConfirm(false)} onConfirm={async () => {
-      if (!active || cancel.isPending) return;
+    <ConfirmDialog isOpen={confirm && canCancel} title="Cancelar PRO" message={subscription.data ? cancellationMessage(subscription.data) : 'Se consultará el período vigente antes de confirmar.'} confirmLabel="Cancelar PRO" loading={cancel.isPending} onClose={() => setConfirm(false)} onConfirm={async () => {
+      if (!canCancel || cancel.isPending) return;
       try { await cancel.mutateAsync(); setConfirm(false); } catch { /* La mutation muestra el error y permite reintentar. */ }
     }} />
   </DashboardLayout>;

@@ -1,3 +1,4 @@
+import { cancellationMessage, paidAccessLabel } from '../utils/subscriptionPresentation';
 import { useState } from 'react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -86,7 +87,9 @@ const getStatus = (suscripcion: Suscripcion) => {
   if (suscripcion.plan === 'PRO' && suscripcion.estado === 'ACTIVA') {
     return {
       title: 'Plan PRO activo',
-      detail: detalleCapacidad,
+      detail: suscripcion.renovacionCancelada === true
+        ? `${detalleCapacidad} Renovación cancelada.${paidAccessLabel(suscripcion) ? ` Acceso PRO disponible hasta ${paidAccessLabel(suscripcion)}.` : ' El acceso sigue vigente según el período confirmado.'}`
+        : detalleCapacidad,
       className: 'border-success/35 bg-success-soft text-success',
     };
   }
@@ -298,7 +301,7 @@ export const PlanesPage = () => {
                 <button type="button" disabled className="w-full rounded-xl bg-surface-3 py-3 text-[14px] font-bold text-text-2">
                   Tu plan actual
                 </button>
-                {isAdmin && (
+                {isAdmin && sus.renovacionCancelada !== true && (
                   <button
                     type="button"
                     onClick={() => setConfirmCancel(true)}
@@ -343,14 +346,14 @@ export const PlanesPage = () => {
       </div>
 
       <ConfirmDialog
-        isOpen={confirmCancel && isAdmin && proActivo}
+        isOpen={confirmCancel && isAdmin && proActivo && sus.renovacionCancelada !== true}
         title="Cancelar PRO"
-        message="Cuando se confirme la cancelación, tu taller volverá al plan FREE y dejará de tener las funciones PRO. ¿Querés continuar?"
+        message={cancellationMessage(sus)}
         confirmLabel="Cancelar PRO"
         loading={cancelar.isPending}
         onClose={() => setConfirmCancel(false)}
         onConfirm={async () => {
-          if (!isAdmin || !proActivo || cancelar.isPending) return;
+          if (!isAdmin || !proActivo || sus.renovacionCancelada === true || cancelar.isPending) return;
           try {
             await cancelar.mutateAsync();
             setConfirmCancel(false);

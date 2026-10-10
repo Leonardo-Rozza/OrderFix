@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { btnPrimary, btnGhost } from '../components/ui';
-import { SUSCRIPCION_KEY, fetchSuscripcion } from '../api/queries/suscripcion.queries';
+import { suscripcionQueryOptions, useSubscriptionExpiry } from '../api/queries/suscripcion.queries';
 
 const POLL_MS = 4000;
 const TIMEOUT_MS = 60000; // dejamos de reintentar tras 1 min
@@ -14,11 +14,12 @@ const TIMEOUT_MS = 60000; // dejamos de reintentar tras 1 min
  */
 export const SuscripcionResultadoPage = () => {
   const navigate = useNavigate();
+  const client = useQueryClient();
+  useSubscriptionExpiry();
   const [timedOut, setTimedOut] = useState(false);
 
   const { data: sus, isError, isSuccess, isFetchedAfterMount, refetch } = useQuery({
-    queryKey: SUSCRIPCION_KEY,
-    queryFn: fetchSuscripcion,
+    ...suscripcionQueryOptions(client),
     refetchOnMount: 'always',
     refetchInterval: (query) => {
       const d = query.state.data;

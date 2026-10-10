@@ -205,26 +205,31 @@ export const reconcileDatosCobroChanged = async (
   await invalidateKeys(queryClient, [queryKeys.resumenes.all]);
 };
 
-/** Conserva la respuesta FREE y elimina datos que ya no deben reaparecer fresh. */
+/** Purge only effective nontrial FREE data; never cancel the subscription read itself. */
+export const purgeRestrictedSubscriptionData = async (
+  queryClient: QueryClient,
+  suscripcion: Suscripcion,
+  isCurrent: () => boolean = () => true,
+): Promise<void> => {
+  if (suscripcion.plan !== 'FREE' || suscripcion.estado === 'TRIAL' || !isCurrent()) return;
+  const restrictedRoots = [
+    queryKeys.inventario.all, queryKeys.caja.all, queryKeys.cobros.all,
+    queryKeys.datosCobro.all, queryKeys.resumenes.all,
+  ] as const;
+  await Promise.all(restrictedRoots.map(queryKey => queryClient.cancelQueries({ queryKey })));
+  if (!isCurrent()) return;
+  restrictedRoots.forEach(queryKey => queryClient.removeQueries({ queryKey }));
+  await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all, refetchType: 'none' });
+};
+
+/** Publish a confirmed mutation response after fencing older reads. */
 export const reconcileSuscripcionDegraded = async (
   queryClient: QueryClient,
   suscripcion: Suscripcion,
+  isCurrent: () => boolean = () => true,
 ): Promise<void> => {
-  const restrictedRoots = [
-    queryKeys.inventario.all,
-    queryKeys.caja.all,
-    queryKeys.cobros.all,
-    queryKeys.datosCobro.all,
-    queryKeys.resumenes.all,
-  ] as const;
-
-  await Promise.all([
-    queryClient.cancelQueries({ queryKey: queryKeys.suscripcion.all, exact: true }),
-    ...restrictedRoots.map((queryKey) => queryClient.cancelQueries({ queryKey })),
-  ]);
-
-  queryClient.setQueryData(queryKeys.suscripcion.all, suscripcion);
-  restrictedRoots.forEach((queryKey) => queryClient.removeQueries({ queryKey }));
-
-  await invalidateKeys(queryClient, [queryKeys.dashboard.all]);
+  await queryClient.cancelQueries({ queryKey: queryKeys.suscripcion.all, exact: true });
+  if (!isCurrent()) return;
+  await purgeRestrictedSubscriptionData(queryClient, suscripcion, isCurrent);
+  if (isCurrent()) queryClient.setQueryData(queryKeys.suscripcion.all, suscripcion);
 };

@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { authStore } from '../store/auth.store';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { act, cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server, API } from '../test/server';
@@ -9,6 +10,8 @@ import type { Repuesto } from '../types';
 
 // Al crear, el modal consulta el plan; el inventario se pide recién al abrir su selector.
 beforeEach(() => {
+  const token = `header.${btoa(JSON.stringify({ sub: 'owner@synthetic.invalid', tallerId: 1, role: 'ROLE_ADMIN', exp: Math.floor(Date.now() / 1000) + 3600 }))}.signature`;
+  authStore.getState().login(token, 'owner@synthetic.invalid');
   server.use(
     http.get(`${API}/suscripcion`, () =>
       HttpResponse.json({
@@ -372,3 +375,5 @@ describe('RepuestoFormModal', () => {
   });
 
 });
+
+afterEach(() => { cleanup(); act(() => { authStore.getState().logout(); }); });

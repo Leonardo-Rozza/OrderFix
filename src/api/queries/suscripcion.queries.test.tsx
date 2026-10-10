@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { authStore } from '../../store/auth.store';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { delay, http, HttpResponse } from 'msw';
 import type { ReactNode } from 'react';
@@ -150,3 +151,9 @@ describe('useFunciones', () => {
     });
   });
 });
+
+beforeEach(() => {
+  const token = `header.${btoa(JSON.stringify({ sub: 'owner@synthetic.invalid', tallerId: 1, role: 'ROLE_ADMIN', exp: Math.floor(Date.now() / 1000) + 3600 }))}.signature`;
+  authStore.getState().login(token, 'owner@synthetic.invalid');
+});
+afterEach(() => { cleanup(); act(() => { authStore.getState().logout(); }); });

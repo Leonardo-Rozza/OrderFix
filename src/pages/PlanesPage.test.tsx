@@ -23,13 +23,13 @@ const b64url = (value: object) =>
   btoa(JSON.stringify(value)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 
 const adminToken = `${b64url({ alg: 'HS256' })}.${b64url({
-  sub: 'admin@ordenfix.test',
+  sub: 'admin@ordenfix.test', tallerId: 1,
   role: 'ROLE_ADMIN',
   exp: Math.floor(Date.now() / 1000) + 3600,
 })}.firma`;
 
 const employeeToken = `${b64url({ alg: 'HS256' })}.${b64url({
-  sub: 'empleado@ordenfix.test',
+  sub: 'empleado@ordenfix.test', tallerId: 1,
   role: 'ROLE_USER',
   exp: Math.floor(Date.now() / 1000) + 3600,
 })}.firma`;
@@ -354,7 +354,8 @@ describe('PlanesPage', () => {
     renderPage();
     await userEvent.click(await screen.findByRole('button', { name: 'Cancelar PRO' }));
     const dialog = screen.getByRole('dialog', { name: 'Cancelar PRO' });
-    expect(dialog).toHaveTextContent('Cuando se confirme la cancelación, tu taller volverá al plan FREE');
+    expect(dialog).toHaveTextContent('Se cancelará la renovación.');
+    expect(dialog).toHaveTextContent('período pagado que confirme el servicio');
     expect(dialog).not.toHaveTextContent(/backend/i);
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancelar PRO' }));
 
@@ -394,4 +395,24 @@ describe('PlanesPage', () => {
     expect(cancelaciones).toBe(2);
     expect(showError).toHaveBeenCalledTimes(1);
   });
+  it('retains paid PRO after confirmed cancellation and shows the server UTC deadline', async () => {
+    const cancelled = { ...proActiva, renovacionCancelada: true, accesoProHasta: '2030-11-08T10:45:00-03:00' };
+    let cancellations = 0;
+    server.use(
+      http.get(`${API}/suscripcion`, () => HttpResponse.json({ ...proActiva, accesoProHasta: cancelled.accesoProHasta })),
+      http.post(`${API}/pagos/suscripcion/cancelar`, () => { cancellations++; return HttpResponse.json(cancelled); }),
+    );
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Cancelar PRO' }));
+    const dialog = screen.getByRole('dialog', { name: 'Cancelar PRO' });
+    expect(dialog).toHaveTextContent('funciones PRO permanecerán disponibles hasta 08/11/2030, 13:45:00 UTC');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancelar PRO' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByText('Plan PRO activo')).toBeVisible();
+    expect(screen.getByText(/Renovación cancelada.*08\/11\/2030, 13:45:00 UTC/)).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Cancelar PRO' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /contratar|activar pro|suscribirme/i })).not.toBeInTheDocument();
+    expect(cancellations).toBe(1);
+  });
+
 });

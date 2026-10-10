@@ -1,3 +1,4 @@
+import { isSubscriptionSessionCurrent, type SubscriptionSession } from './subscriptionSession';
 import { chargeAccount, type ChargeSession } from '../utils/pendingCharge';
 import axios, { AxiosError, AxiosHeaders } from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
@@ -9,6 +10,7 @@ import { resolveApiBaseUrl } from '../config/apiBaseUrl';
 
 declare module 'axios' {
   interface AxiosRequestConfig {
+    subscriptionSession?: SubscriptionSession;
     /** Prevent a late recoverable charge from affecting a replacement session. */
     chargeSession?: ChargeSession;
     /** Opt-in repair email scope; rejects stale dispatch and response side effects. */
@@ -69,6 +71,7 @@ type SessionValidationResult = 'valida' | 'invalida' | 'indeterminada';
 let pendingSessionValidation: {
   token: string;
   resource: '/perfil' | '/suscripcion';
+  subscriptionSession?: SubscriptionSession;
   promise: Promise<SessionValidationResult>;
 } | null = null;
 
@@ -97,14 +100,16 @@ const closeInvalidSession = () => {
   redirectToLogin();
 };
 
-const validateBaseSession = (token: string | null, resource: '/perfil' | '/suscripcion'): Promise<SessionValidationResult> => {
+const validateBaseSession = (token: string | null, resource: '/perfil' | '/suscripcion', subscriptionSession?: SubscriptionSession): Promise<SessionValidationResult> => {
   if (!token) return Promise.resolve('invalida');
-  if (pendingSessionValidation?.token === token && pendingSessionValidation.resource === resource) return pendingSessionValidation.promise;
+  if (pendingSessionValidation?.token === token && pendingSessionValidation.resource === resource
+    && pendingSessionValidation.subscriptionSession?.generation === subscriptionSession?.generation) return pendingSessionValidation.promise;
 
   const promise = sessionValidationClient
     .get(resource, { headers: { Authorization: `Bearer ${token}` }, ...(resource === '/perfil' ? { timeout: 20_000 } : {}) })
-    .then<SessionValidationResult>(() => 'valida')
+    .then<SessionValidationResult>(() => !subscriptionSession || isSubscriptionSessionCurrent(subscriptionSession) ? 'valida' : 'indeterminada')
     .catch((validationError: unknown): SessionValidationResult => {
+      if (subscriptionSession && !isSubscriptionSessionCurrent(subscriptionSession)) return 'indeterminada';
       if (isEmailVerificationRequired(validationError)) {
         notifyEmailVerificationRequired(token);
         return 'valida';
@@ -115,7 +120,7 @@ const validateBaseSession = (token: string | null, resource: '/perfil' | '/suscr
       return validationStatus === 401 || validationStatus === 403 ? 'invalida' : 'indeterminada';
     });
 
-  pendingSessionValidation = { token, resource, promise };
+  pendingSessionValidation = { token, resource, subscriptionSession, promise };
   void promise.finally(() => {
     if (pendingSessionValidation?.promise === promise) pendingSessionValidation = null;
   });
@@ -125,6 +130,9 @@ const validateBaseSession = (token: string | null, resource: '/perfil' | '/suscr
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const auth = authStore.getState();
+    if (config.subscriptionSession && !isSubscriptionSessionCurrent(config.subscriptionSession)) {
+      throw new axios.CanceledError('Subscription session changed before dispatch');
+    }
     if (config.chargeSession && (!isChargeSessionCurrent(config.chargeSession)
       || !chargeAccount(auth.token, auth.isAuthenticated))) {
       throw new axios.CanceledError('Charge session changed or expired before dispatch');
@@ -144,12 +152,16 @@ apiClient.interceptors.request.use(
 
 apiClient.interceptors.response.use(
   (response) => {
+    if (response.config.subscriptionSession && !isSubscriptionSessionCurrent(response.config.subscriptionSession)) {
+      throw new axios.CanceledError('Subscription session changed before response');
+    }
     if (response.config.repairEmailSession && !isChargeSessionCurrent(response.config.repairEmailSession)) {
       throw new axios.CanceledError('Repair email session changed before response');
     }
     return response;
   },
   async (error: AxiosError) => {
+    if (error.config?.subscriptionSession && !isSubscriptionSessionCurrent(error.config.subscriptionSession)) throw error;
     if (error.config?.chargeSession && !isChargeSessionCurrent(error.config.chargeSession)) throw error;
     if (error.config?.repairEmailSession && !isChargeSessionCurrent(error.config.repairEmailSession)) throw error;
     // Una búsqueda reemplazada o una query sin observadores no es un fallo para
@@ -198,10 +210,11 @@ apiClient.interceptors.response.use(
         // En cualquier otro endpoint un 403 puede ser falta de rol o una cuenta
         // desactivada. La consulta base deduplicada permite distinguirlos.
         const token = authStore.getState().token;
-        const validation = await validateBaseSession(token, accountRead ? '/perfil' : '/suscripcion');
+        const validation = await validateBaseSession(token, accountRead ? '/perfil' : '/suscripcion', error.config?.subscriptionSession);
 
         // Si la identidad cambió mientras validábamos, no afectamos la nueva sesión.
         if (authStore.getState().token === token
+          && (!error.config?.subscriptionSession || isSubscriptionSessionCurrent(error.config.subscriptionSession))
           && (!error.config?.chargeSession || isChargeSessionCurrent(error.config.chargeSession))
           && (!error.config?.repairEmailSession || isChargeSessionCurrent(error.config.repairEmailSession))) {
           if (validation === 'valida') {

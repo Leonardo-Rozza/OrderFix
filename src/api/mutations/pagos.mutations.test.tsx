@@ -1,3 +1,4 @@
+import { authStore } from '../../store/auth.store';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -25,6 +26,8 @@ const setup = () => {
 };
 
 beforeEach(() => {
+  const token = `header.${btoa(JSON.stringify({ sub: 'owner@synthetic.invalid', tallerId: 1, role: 'ROLE_ADMIN', exp: Math.floor(Date.now() / 1000) + 3600 }))}.signature`;
+  authStore.getState().login(token, 'owner@synthetic.invalid');
   vi.mocked(showError).mockClear();
 });
 

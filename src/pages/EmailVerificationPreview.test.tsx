@@ -117,4 +117,24 @@ describe('vista previa sin email verificado', () => {
     expect(client.getQueryCache().getAll().map(query => query.queryKey)).toEqual([['perfil'], ['suscripcion']]);
     expect(client.getQueryState(['suscripcion'])?.fetchStatus).toBe('idle');
   });
+  it('preserves the unverified owner exit without checkout or operational access after paid cancellation', async () => {
+    const requests: string[] = [];
+    server.use(http.all(`${API}/*`, ({ request }) => {
+      const route = `${request.method} ${new URL(request.url).pathname}`;
+      requests.push(route);
+      if (route === 'GET /api/suscripcion') return HttpResponse.json({ ...pro, accesoProHasta: '2030-11-08T13:45:00Z' });
+      if (route === 'POST /api/pagos/suscripcion/cancelar') return HttpResponse.json({ ...pro, renovacionCancelada: true, accesoProHasta: '2030-11-08T13:45:00Z' });
+      return new HttpResponse(null, { status: 500 });
+    }));
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancelar PRO' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancelar PRO' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('heading', { name: 'Plan PRO' })).toBeVisible();
+    expect(screen.getByText(/Renovación cancelada.*08\/11\/2030, 13:45:00 UTC/)).toBeVisible();
+    expect(screen.queryByRole('button', { name: /cancelar pro|contratar|activar pro|suscribirme/i })).not.toBeInTheDocument();
+    expect(authStore.getState().emailVerificado).toBe(false);
+    expect(requests).toEqual(['GET /api/suscripcion', 'POST /api/pagos/suscripcion/cancelar']);
+  });
+
 });

@@ -94,7 +94,7 @@ The bootstrap inserts only fresh support and tracked registry directories before
 
 ### Fresh Java preparation remains separately scoped
 
-**Delivery context:** this registry/advisory branch does not yet contain the pending Java launcher unit in `HEAD`. Its exact prepared sources remain in commit `333c8b8a979ec9e03587b63a6df28e31508fbb66` on `codex/v41-rank-runtime-review-chain`. The guide below describes historical integration inputs, not Java classes available in a fresh clone of this branch. Full Java preparation requires separately admitted integrated sources and the privately held donors; this documentation authorizes no integration or launch.
+**Delivery context:** this integrated source unit combines the six byte-exact Java runtime/test files preserved in `333c8b8a979ec9e03587b63a6df28e31508fbb66` with the approved completion-once guard and dependency guide. The original launcher commit remains recoverable on `codex/v41-rank-runtime-review-chain`. Git composition is not a newly executed combined GREEN or launch admission. Full Java preparation still requires private donor custody, fresh compiled/runtime provenance and exact per-row root binding; this documentation authorizes no owner or original-case launch.
 
 The complete historical source set consists of the two Java donor classes; four tracked runtime classes (`RecoveryOwnedOwnerDriver`, `RecoveryPostgreSQLFixture`, `RecoveryRuntimeIsolation`, `RecoveryV42CsvLauncher`); unchanged `V41RankIterationSelection`; the inert test fixture; and `V41RankLauncherBindingChecks`. The real original `RecoveryProfileDeletionIT` body is not the inert fixture and must not be compiled or executed as a replacement during pure preparation.
 

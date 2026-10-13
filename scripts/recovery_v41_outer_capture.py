@@ -104,9 +104,43 @@ class RuntimeDependencies:
         os.killpg(group, sig)
 
 
+def validate_capture_spec(spec):
+    """Admit only common capture shape; callers retain their own source/argv gates."""
+    require(type(spec) is dict and set(spec) == SPEC_KEYS and type(spec['schema']) is int
+            and spec['schema'] == 1, 'Exact schema1 capture specification')
+    require(all(type(spec[key]) in (int, float) and spec[key] == 280
+                and math.isfinite(spec[key])
+                for key in ('runTimeoutSeconds', 'totalTimeoutSeconds')),
+            'Fixed outer280/280; no soft budget or extension')
+
+    def absolute(value):
+        return (type(value) is str and 0 < len(value) <= 65536
+                and '\0' not in value and Path(value).is_absolute())
+
+    argv = spec['argv']
+    require(type(argv) is list and 1 <= len(argv) <= 64
+            and all(type(value) is str and 0 < len(value) <= 65536 and '\0' not in value
+                    for value in argv) and absolute(argv[0]), 'Bounded absolute capture argv')
+    environment = spec['environment']
+    fixed = {'PATH': '/usr/bin:/bin', 'LANG': 'C', 'LC_ALL': 'C',
+             'PYTHONDONTWRITEBYTECODE': '1', '__CF_USER_TEXT_ENCODING': '0x1F5:0x0:0x8'}
+    require(type(environment) is dict and set(environment) == set(fixed) | {'HOME', 'TMPDIR'}
+            and all(type(environment[key]) is str and environment[key] == value
+                    for key, value in fixed.items())
+            and absolute(environment['HOME']) and absolute(environment['TMPDIR'])
+            and absolute(spec['cwd']), 'Absolute local cwd and clean ENV7')
+    return spec
+
+
 def run_target(spec, output_dir, dependencies=None):
-    """Capture one owned session; never infer Docker/JUnit success from exit0."""
+    """Retain the closed V41 release-family admission before shared capture."""
     validate_spec(spec)
+    return capture_owned_session(spec, output_dir, dependencies)
+
+
+def capture_owned_session(spec, output_dir, dependencies=None):
+    """Capture one owned session; never infer Docker/JUnit success from exit0."""
+    validate_capture_spec(spec)
     d = dependencies or RuntimeDependencies()
     output_dir = Path(output_dir)
     require(output_dir.is_dir() and not output_dir.is_symlink(), 'Existing ordinary capture output directory')

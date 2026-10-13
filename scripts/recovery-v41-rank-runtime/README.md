@@ -296,3 +296,9 @@ These **176 ordered Maven-relative paths**, byte counts and SHA-256 values were 
 ## Next step and rollback
 
 Fresh twelve-row owner/config construction and full environment admission remain separate pending work. No Docker, SQL, original cases, staging or remote deployment ran for this preparation unit. Roll back this directory as one unit while preserving the approved selector, original sources and historical evidence.
+
+## Frozen launch-spec read contract
+
+The public spec reader accepts at most 65,536 bytes. It opens the input once and reads a 65,537-byte cap-plus-one probe, rejects oversized content before digest verification or JSON parsing, and hashes and parses the same captured buffer. Existing absolute-path, full-SHA256, ancestor-symlink, regular-file and strict-JSON/schema checks remain unchanged.
+
+A separate new seven-method public-reader regression observed RED with four assertion failures, then GREEN with all seven checks passing and no errors or skips. The frozen regression and 120-second child/150-second total limits were unchanged between runs. This evidence does not repeat old tests or authorize owner launch, original-case execution or environment admission.

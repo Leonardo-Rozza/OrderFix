@@ -73,9 +73,17 @@ public final class RecoveryOwnedOwnerDriver implements Owner, AutoCloseable {
     }
 
     public static LaunchSpec readFrozenSpec(Path path, String sha256) throws IOException {
-        verifyFile(path, sha256);
-        if (Files.size(path) > 65536) throw new IOException("Launch spec cap exceeded.");
-        JsonNode node = JSON.readTree(Files.readAllBytes(path));
+        if (!path.isAbsolute() || !hex(sha256)) throw new IOException("Absolute pin and full SHA256 required.");
+        for (Path current=path;current!=null;current=current.getParent())
+            if (Files.isSymbolicLink(current)) throw new IOException("Symlink pin path rejected.");
+        if (!Files.isRegularFile(path,LinkOption.NOFOLLOW_LINKS)) throw new IOException("Regular pinned file required.");
+        byte[] bytes;
+        try (var input = Files.newInputStream(path)) {
+            bytes = input.readNBytes(65537);
+        }
+        if (bytes.length > 65536) throw new IOException("Launch spec cap exceeded.");
+        if (!sha256.equals(sha256(bytes))) throw new IOException("Pinned file SHA mismatch: "+path);
+        JsonNode node = JSON.readTree(bytes);
         keys(node,"enabled","argv","environment","cwd","sourcePins","expectedBinding");
         return new LaunchSpec(bool(node,"enabled"), strings(node.get("argv")), stringMap(node.get("environment")),
             text(node,"cwd"), stringMap(node.get("sourcePins")), parseBinding(node.get("expectedBinding")));

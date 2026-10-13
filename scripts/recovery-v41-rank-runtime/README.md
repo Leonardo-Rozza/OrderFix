@@ -15,6 +15,10 @@ New frozen regressions observed genuine assertion RED, followed by SAME GREEN: 2
 
 The source unit depends on seven unchanged private framework donors and the established cached dependency set. Exact source origins, dependency pins, clean environment and commands are preserved in `release-validation.local/recovery-v41-rank-runtime-eknsdkn0/root-recipes-01.json`; this local evidence directory is ignored by Git. Do not replay consumed recipes. RED's predicted Python failure count undercounted unittest subtests; the actual assertion results and the diagnostic mismatch are retained separately, without changing tests.
 
+## Completion-once advisory follow-up
+
+A reserved attempt records exactly one completion, including a nonzero exit. A second completion is rejected before any observation mutation; failure remains poisoned and the caller still owns reservation release. The independent `test/python/test_v41_failed_completion.py` checks failed-to-success (`9 → 0`), failed-to-failure (`9 → 7`) and successful duplicate (`0 → 0`). It does not import or discover the existing registry test module, start an owner or establish physical EOF/SQL behavior.
+
 ## Next step and rollback
 
 Fresh twelve-row owner/config construction and full environment admission remain separate pending work. No Docker, SQL, original cases, staging or remote deployment ran for this preparation unit. Roll back this directory as one unit while preserving the approved selector, original sources and historical evidence.

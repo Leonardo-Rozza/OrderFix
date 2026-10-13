@@ -174,6 +174,7 @@ class RecoveryRegistry:
                 'Only the active reserved exec can complete.')
         require(type(exit_code) is int, 'Genuine integer exec exit required.')
         attempt = self.attempts[-1]
+        require(attempt['exitCode'] is None, 'A reserved exec can record its completion only once.')
         attempt.update(exitCode=exit_code, framingEOF=True)
         if exit_code != 0:
             self.failed = True

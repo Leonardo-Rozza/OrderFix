@@ -97,12 +97,47 @@ def source_pin(path):
 
 
 def checked_json(path, digest):
-    before = source_pin(path)
-    require(before['sha256'] == digest, 'Pinned JSON SHA mismatch: ' + str(path))
-    require(before['bytes'] <= 16777216, 'Bounded JSON input')
-    result = strict_json(Path(path).read_bytes())
-    require(source_pin(path) == before, 'JSON identity changed during parsing')
-    return result, before
+    """Bound consumption and parse exactly the bytes hashed through one descriptor."""
+    path = Path(path)
+    require(path.is_absolute(), 'Absolute SOURCE path required')
+    before = path.lstat()
+    require(stat.S_ISREG(before.st_mode) and before.st_nlink == 1,
+            'Ordinary single-link SOURCE required: ' + str(path))
+    limit = 16777216
+    require(before.st_size <= limit, 'Bounded JSON input')
+
+    def same_identity(current):
+        return all(getattr(before, key) == getattr(current, key)
+                   for key in STAT_FIELDS + ('st_size',))
+
+    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        # Unbuffered reads must not prefetch beyond the limit-plus-one sentinel.
+        source = os.fdopen(descriptor, 'rb', buffering=0)
+    except BaseException:
+        os.close(descriptor)
+        raise
+    with source:
+        require(same_identity(os.fstat(source.fileno())), 'SOURCE changed at open')
+        raw, observed_digest = bytearray(), hashlib.sha256()
+        while True:
+            block = source.read(min(65536, limit + 1 - len(raw)))
+            if not block:
+                break
+            require(len(raw) + len(block) <= limit, 'Bounded JSON input')
+            raw.extend(block)
+            observed_digest.update(block)
+        require(len(raw) == before.st_size
+                and same_identity(os.fstat(source.fileno()))
+                and same_identity(path.lstat()), 'SOURCE changed during read')
+        observed_sha = observed_digest.hexdigest()
+        require(observed_sha == digest, 'Pinned JSON SHA mismatch: ' + str(path))
+        result = strict_json(bytes(raw))
+        require(same_identity(os.fstat(source.fileno())) and same_identity(path.lstat()),
+                'JSON identity changed during parsing')
+    pin = {'path': str(path), 'bytes': len(raw), 'sha256': observed_sha,
+           'stat8': {key: getattr(before, key) for key in STAT_FIELDS}}
+    return result, pin
 
 
 def clean_environment(home, temporary):

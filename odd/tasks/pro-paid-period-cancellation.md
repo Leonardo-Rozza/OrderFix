@@ -2553,3 +2553,61 @@ Route: delegated bounded DATA assembly/saved auditor and read-only independent q
 FinalFreeze and Once close on the observed result; coherent documentary publication/scoped native outcome are recorded next. Cached feature-branch-chain DATA36→caller794→original-proof documentary slice remains, no PR/push authorized;400-line heuristic never removes tests/readability. Rollback is only this documentary closure/unused future preparation, never consumed evidence or shared behavior. Frozen old requests are historical after legitimate canonical/ref publication, not current replay authority.
 
 Next unattempted row is case6 C,true,V41_NOT_LATEST. It still needs its own bounded preparation/caller/freeze/native outcome and explicit once-runtime authorization; do not execute it under the case5 grant. Other recovery, missing Legacy inputs2735, Backup23, P4/staging/provider/deployment gates remain OPEN.
+
+
+#### Fifth-case original-proof documentary delivery
+
+Coherent work-unit **93e6c0f029a185ad393bbd744eca67fa4b0f8581** (`docs(recovery): verify fifth original rank rejection`), parent/reviewed42577d0711af1fc49e2c86539f0999d26825dab3, treee7777fdfb9b21a25c544d5b48af9022323061425. Sole canonical92 additions/3 deletions =95 authored lines; cached case5 chain DATA36+caller794+proof95=925 running. Temporary-index sole-path whitelist/commit-tree/CAS-ref and postpublication guard preserve all12573 other physical pins, real indexB fullstat8/SHA and four retained refs; only the legitimate current canonical/ref change. Commit proof2433bytes/SHA2563bd1266d9a8a588dadf1541a9f8252583676f2c3c565b80190400a8c13fb2a31 is retained in private /private/tmp/ordenfix-pro-rank-case5-original-delivery-l8ok49nd and durable release-validation.local/rank-case5-original-delivery-l8ok49nd.
+
+Actual scoped committed-only assessment against42577 with freshly observed explicit untracked exclusion returns **PASSIVE /non_executable_only /review_due=false /passive**,95 lines/one path. Reviewed boundary advances to93e6c0f029a185ad393bbd744eca67fa4b0f8581; RDD remains ON/global. No review actors, new executable receipt or extra runtime approval are claimed for this documentary slice. Full task/legacy mirrors and diff --check pass; this mechanical identity/status note is outside the immutable passive candidate.
+
+FinalFreeze[x] and Once[x] close with actual runtime, saved custody, independent/parent accreditation and coherent delivery. No required failed or skipped check remains for case5; retained diagnostic failures and raw-response limitation are described above. Remaining34 original recovery cases and other release gates are not certified. Next case6 is unattempted and requires its own gates/explicit runtime grant; no remote/provider/production activation, push, PR, merge or deployment occurred.
+
+
+### Sixth-case preparation — authorized local DATA work
+
+**Scope:** prepare case6 `C,true,V41_NOT_LATEST` without executing it. Human approval covers local preparation only; original tests, limits, Railway and Vercel remain untouched. Current coverage stays **41/75 verified, 34 pending**. Originals1–5 and all twelve compilation/metadata checks are consumed and must not be replayed.
+
+- [ ] **P2.RecoveryV41Rank12.RealCase6Preparation.Data** Assemble six NEW, CREATE_NEW0600 private/durable case6 controls (request, runtime pins, enabled specification, parent input, recipe and staging report); verify unchanged pure schema/identity/alias/parent admission and static operation plan; independently qualify saved custody; publish this coherent documentary work unit and record its actual scoped native assessment.
+
+#### Intent, route and checks
+
+The accepted fixed-adapter design applies; no new general runner, application feature, Java helper, shared engine, caller or test implementation is authorized here. Route: delegated narrow read-only mapping (four-plus files/preparatory-reading trigger), then one bounded DATA writer; separate read-only saved qualification and parent physical readback. Parent owns this task file, full Engram mirrors, temporary-index sole-canonical commit and scoped native assessment.
+
+Mapping verifies index5/ordinal6, localeC/restoredtrue/kindV41_NOT_LATEST, nonceb86106497c0c47c4a2a89a4f1edd9bc8. Static plan is five execs, three distinct databases, one dump, one restore, no clone; this is preparation evidence, NOT runtime success. The immutable original remains unchanged, including its V41 rank-zero mutation.
+
+Use byte-exact immutable case5 DATA donor23696bytes/SHA2564c132d34fae5617ed8fb23ff186d83048c260f63e9f4d85835486e0c71c203d8 as archived provenance only, never execute it. A NEW narrowly bound assembly helper must have a readable scoped edit roster and complete patch; no broad case/count substitutions or weakened predicates. Preserve all existing controls, donors, classes and consumed evidence.
+
+Actual mapping baseline is SOURCE10078 plus priorDATA2515, disjoint: old1799/48 ordered roots plus measured716/22 additional case5 roots gives2515/70 literal ordered roots. SOURCE is fixed9889+188 extras+canonical1. Mapping checked the previous12575-pin union in5.320145875s with ONLY legitimate current canonical/ref publication exceptions; all18 case5 delivery files are additional closed evidence. Writer must recheck every actual pin and closed root, not trust forecast counts or repin drift.
+
+Acceptance includes six enabled keys, ten source keys, eleven owner argv values, exact ENV7, runtime-nine/dependencies[], parent-six/schema1,179 classpath entries,36 private+36 durable classes, role separation and inverse binding. Use actual row6 allowlist1268bytes/SHA256fee61ffaaee5df627ac40a22bb3509a2fd550ca37faa27ae2417dd35a8f017e1 and disabled fixture1245bytes/SHA2565de90661af10e7257a555c305d4cea49d63756fff58c82d9ff75e629fffd94f5; compilation qualification66222bytes/SHA256ab6f363f865084b1a74675aed383f488d56bcbd43bcd2d29a763b9fc80cd6983 is consumed evidence, never rerun.
+
+Resolve TDD ON from charge-session-expiry.md15, retaining the existing installed Vitest feature runner. This mechanical DATA assembly changes no production behavior or test: RED/GREEN is N/A, not fabricated. Ordinary checks use pinned Python3.10 -B -S, unchanged strict helpers and parent_run.validate_spec; any pure-reader subprocess uses existing generic120run/150total, ENV7,8MiB streams/read65536. It must not launch an owner, Java, Docker, API or SQL operation.
+
+Preserve original limits: ROOT280, parent240run/270total, original120, exec45, launch60, owner240 and cleanup30. Case6 owner/launcher directories remain virgin, root request/home/tmp/markers/output/results absent; no ROOT final freeze or original launch. Source/caller/companion implementation and runtime require later authorization and their own gates.
+
+Hold current HEAD/reviewed93e6c0f029a185ad393bbd744eca67fa4b0f8581, real indexB78648bytes/SHA119d92db43419fe93877e16116d35e0e9bb3a30bd7b78d386edb5d89636692ab/fullstat8 and all four retained refs. Only legitimate canonical tracking publication is allowed before assembly; later source binding must use the actual published document, not an historical snapshot.
+
+Delivery forecast: about40 authored documentary lines, generated DATA excluded. Retain cached ask-on-risk/feature-branch-chain strategy; no PR, push or merge is authorized.400 lines is advisory, never a reason to omit checks/readability. Rollback removes only unused NEW case6 preparation and its documentary entry, never original tests, shared behavior or consumed evidence. Check this task only after observed admission, saved/parent custody, full mirror readback, diff --check, coherent commit and actual native outcome.
+
+
+#### Sixth-case DATA preparation — verified functional outcome
+
+The six case6 controls are prepared and independently qualified; **the main task remains OPEN until documentary delivery/native outcome**. Case6 has NOT run. Coverage remains41/75 verified,34 pending.
+
+| Check | Observed result |
+|---|---|
+| Mechanical assembly | One execution only;13.284369958s, capture13.392337209s, exit0/reaped/fullEOF/closed streams/zero stderr, signals, overflow or failures |
+| NEW adapter | 24371bytes/SHA256b56121f2db2979031096a6afa0aed74831a8ecea1424a821e197dbac1adccd81;30 unique scoped edits reconstruct immutable donor; all reusable function ASTs unchanged |
+| Controls | Six CREATE_NEW0600 private/durable pairs; fixed index5/ordinal6/C,true,V41_NOT_LATEST, inverse identity and unchanged pure parent admission |
+| Static plan | Five execs, three databases, one dump, one restore, no clone;179 classpath entries,36+36 saved classes, partition28 owned/1 selector/7 original; NOT runtime success |
+| Writer closure |37 checks;19 closed0600 pairs/38 files; five external capture originals retained only after exit; post-ALL-records readback11.746188166s |
+| Independent saved qualification |12648 unique physical stat8/byte/SHA pins checked twice plus44 checks,8.174267125s; three additional source/root-order checks0.047163792s |
+| Parent independent readback | PASS8.018370834s; full12648 pins =12593 baseline+12 controls+38 writer files+5 capture originals, no duplicate disagreement |
+| Preserved state | SOURCE10078/priorDATA2515/70 literal ordered roots, indexB/four refs/current canonical and HEAD93e6c0f exact;12 runtime directories virgin, ROOT/results/case6 caller absent |
+
+Evidence: private /private/tmp/ordenfix-pro-rank-case6-data-w2jftoe2 and durable release-validation.local/rank-case6-data-w2jftoe2. Complete manifest37388bytes/SHA256369117458f73a7b01ebc4157758513501d0fb0ba13c47de71ced8cf959a4a51e; final readback1645bytes/SHA25633ee1b12ad6806a8816a2579a6ad075783a15499c5427d8bfe5713557bfc3348. External pure capture /private/tmp/ordenfix-pro-case6-data-capture-n_qssd7z is closed and pinned.
+
+Two preparation-reader diagnostics are retained, not original failures: bootstrap01 correctly rejected a count-field selector matching two contexts before adapter/control writes; NEW bootstrap02 uses exact surrounding contexts with the SAME uniqueness/AST guards. Parent's first read-only inspection used a nonexistent sources key; actual immutable request schema is sourcePins, verified before a fresh corrected read-only pass. No original, assembly, compilation or metadata check was replayed; no tests or acceptance predicates changed. Mechanical DATA RED/GREEN is N/A, ordinary strict checks passed.
+
+No required functional check remains unresolved or skipped. Original280/240run270total/120/45/60/240/30 limits and pure-reader120/150/ENV7/8MiB/65536 remain unchanged. Runtime, Java, owner, Docker/API/SQL, Railway/Vercel and production checks are outside this preparation and were NOT executed. Next is documentary publication; later case6 caller/final freeze/original execution need their own scope and gates.

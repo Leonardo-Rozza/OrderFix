@@ -2568,7 +2568,7 @@ FinalFreeze[x] and Once[x] close with actual runtime, saved custody, independent
 
 **Scope:** prepare case6 `C,true,V41_NOT_LATEST` without executing it. Human approval covers local preparation only; original tests, limits, Railway and Vercel remain untouched. Current coverage stays **41/75 verified, 34 pending**. Originals1–5 and all twelve compilation/metadata checks are consumed and must not be replayed.
 
-- [ ] **P2.RecoveryV41Rank12.RealCase6Preparation.Data** Assemble six NEW, CREATE_NEW0600 private/durable case6 controls (request, runtime pins, enabled specification, parent input, recipe and staging report); verify unchanged pure schema/identity/alias/parent admission and static operation plan; independently qualify saved custody; publish this coherent documentary work unit and record its actual scoped native assessment.
+- [x] **P2.RecoveryV41Rank12.RealCase6Preparation.Data** Assemble six NEW, CREATE_NEW0600 private/durable case6 controls (request, runtime pins, enabled specification, parent input, recipe and staging report); verify unchanged pure schema/identity/alias/parent admission and static operation plan; independently qualify saved custody; publish this coherent documentary work unit and record its actual scoped native assessment.
 
 #### Intent, route and checks
 
@@ -2611,3 +2611,68 @@ Evidence: private /private/tmp/ordenfix-pro-rank-case6-data-w2jftoe2 and durable
 Two preparation-reader diagnostics are retained, not original failures: bootstrap01 correctly rejected a count-field selector matching two contexts before adapter/control writes; NEW bootstrap02 uses exact surrounding contexts with the SAME uniqueness/AST guards. Parent's first read-only inspection used a nonexistent sources key; actual immutable request schema is sourcePins, verified before a fresh corrected read-only pass. No original, assembly, compilation or metadata check was replayed; no tests or acceptance predicates changed. Mechanical DATA RED/GREEN is N/A, ordinary strict checks passed.
 
 No required functional check remains unresolved or skipped. Original280/240run270total/120/45/60/240/30 limits and pure-reader120/150/ENV7/8MiB/65536 remain unchanged. Runtime, Java, owner, Docker/API/SQL, Railway/Vercel and production checks are outside this preparation and were NOT executed. Next is documentary publication; later case6 caller/final freeze/original execution need their own scope and gates.
+
+
+#### Sixth-case DATA documentary delivery
+
+Work-unit **2433ad67b88790b27939a431aa7c0e167dc4e0b8** (`docs(recovery): prepare sixth original rank case`), parent93e6c0f029a185ad393bbd744eca67fa4b0f8581/tree d410235f70d2e1cc760d5f9af01db4d61e28cbba, contains only58 authored canonical additions. Temporary-index/sole-path whitelist/commit-tree/CAS-ref publication preserves12646 other physical pins, six delivery predecessor pairs, real indexB/stat8 and four retained refs. Proof8032bytes/SHA2563bba8787156ddcfd80324a01b624ccb71526a0404de1639769d05c5f3cdf6e26 is in private /private/tmp/ordenfix-pro-rank-case6-data-delivery-1iups4rg and durable release-validation.local/rank-case6-data-delivery-1iups4rg.
+
+Actual scoped committed-only assessment against93e6c0f, with freshly observed untracked inventory explicitly excluded, returns **PASSIVE/non_executable_only/review_due=false/passive**,58 lines/one path. Reviewed boundary advances to2433ad67b88790b27939a431aa7c0e167dc4e0b8; RDD stays ON/global, no reviewer actors or executable approval claimed. Main DATA task closes after admission, independent/parent saved custody, full mirrors, diff --check and coherent delivery. This mechanical checkbox/identity note is outside the immutable passive candidate.
+
+The preparation recipe's714531/290ded canonical snapshot is now historical after legitimate publication; never reuse it as current authority or a replay grant. Existing tests, caps, shared code and consumed evidence are unchanged. Coverage stays41/75; case6 and the other six rank rows remain unexecuted. Next bounded work is its fixed caller and validation, then final freeze and separately authorized original execution. No Railway/Vercel, provider activation, push, PR, merge or deployment occurred.
+
+
+### Persistent recovery of four missing source payloads
+
+**Current gate:** case6 caller implementation is blocked by four missing historical SOURCE paths. The previous preparation/results remain recorded at their observed time; they do not establish current source availability. Human "Si avanza" authorizes locating intact copies and creating a NEW persistent source base, without modifying historical evidence or repeating consumed cases.
+
+- [ ] **P2.RecoveryV41Rank12.SourceRecovery.PersistentCopies** Copy the four verified archival payloads into one NEW persistent0700 source unit, CREATE_NEW0600; record historical identity → archival origin → NEW physical pin, independently qualify saved copies, preserve all available protected inputs, and publish the documentary work unit with its actual scoped native assessment. Historical missing-source admission stays OPEN.
+
+#### Accepted scope and evidence
+
+The bounded read-only search inspected115 local roots/46836 files in3.2089135s and found all four actual payloads, not just quoted pin rosters. Parent independently verified exact sizes/hashes and non-symlink regular archive files. No files, tests, runtime or remote state were changed during mapping.
+
+| Payload | Bytes | Required SHA256 |
+|---|---:|---|
+| Generic parent capture |11709|50755ad38ca03631875842d2ed078c7809979015b030caefe3820d20b8a73aec|
+| Parent stages |175802|4ed4d8eafab0e7483cf2fb8d84aee59a60ea1a6d10f422416abee97737b66c4d|
+| Original row1 request |3838|5f0bb54998a8941658b7872fa2bec68bd21620617899d92b89303e95e76cd2aa|
+| V42 baseline |1375200|82d08ee1daa409f54073680c5e82f5e7db62423cec5a78d158c4028d9331eba5|
+
+Origins for the first three are under /Volumes/DiscoExtern/Desktop/mvgr-reparaciones-frontend/release-validation.local/recovery-v41-final-u1in8maq/complete-actual-environment-unit-01/family, at capture/parent_run.py, parent/parent_stages.py and rows/row-1/ordenfix-pro-recovery-v41-drift4-python-owner-nosite-f829c8943d2f95bceb8330c4ef202e8c/request.json. The baseline origin is /Volumes/DiscoExtern/Desktop/mvgr-reparaciones-frontend/release-validation.local/recovery-v42csv-r2-_4al5aez/complete-v42-closure-family-01/ordenfix-pro-recovery-v42csv-r2-tko2zam6/parent/ordenfix-pro-recovery-v42csv-parent-tko2zam6-r3/data/current-baseline.json. Archive originals remain immutable.
+
+Route: delegated narrow read-only recovery mapping (four-plus/preparatory-reading trigger), then a bounded copy/provenance writer; separate saved-only qualification and parent independent readback. Parent owns task/mirrors, temporary-index documentary commit and native assessment. All artifacts use professional English.
+
+The previous12672-pin inventory has12668 exact available files, four missing, zero other drift; expected-inventory SHA256814cc0b25e986bd9bb39ef95f5249c0be87abe6d3642fb763686788c9cd4d5c3. Writer must recheck all12668 available fullstat8/bytes/SHA pins, all four archival origin pins and all four historical absences before and AFTER all new records. Only legitimate canonical/ref publication changes are allowed; never re-pin an unexpected difference.
+
+NEW source copies belong under a fresh independent release-validation.local/rank12-source-recovery-* unit on the project volume, not under /private/tmp and not inside any immutable prior unit. Use separate explicit SOURCE payload and DATA-audit roles, closed inventories, exact four-map uniqueness and independent new stat8 identities. Do not copy timestamps to imitate history, rewrite bytes or JSON paths, restore old names, add symlinks/fallbacks, alter existing validators or declare the old source gate satisfied.
+
+TDD remains ON from charge-session-expiry.md15; this mechanical byte-copy/provenance work changes no production behavior or tests, so RED/GREEN is N/A. Ordinary checks use pinned Python3.10 -B -S, strict bounded JSON and direct physical readback; no copied Python code is imported or executed. All original limits stay280ROOT/240run270total/120original/45exec/60launch/240owner/30cleanup; no stream or parser cap changes.
+
+Recovery is NOT drop-in execution admission. The existing caller retains fixed historical pins; the shared ROOT fixes old parent argv; recovered parent code and historical JSON contain old absolute paths/import dependencies. A fresh current-only caller/control integration needs its own tracked design after this copy/provenance task. No case6 caller, ROOT request or runtime is created here.
+
+Forecast: about40 authored documentary lines, generated recovered bytes excluded; cached ask-on-risk/feature-branch-chain retained,400-line heuristic advisory. No push/PR/merge. Rollback removes only unused NEW source-recovery unit/documentary entry, never archive originals or consumed evidence. HEAD/reviewed2433ad67b88790b27939a431aa7c0e167dc4e0b8, real indexB/fullstat8 and four retained refs remain protected until legitimate delivery.
+
+Coverage remains41/75 verified historical originals,34 pending. Case6 remains unexecuted, twelve runtime directories virgin; originals1–5/compiler12/metadata12 never replay. No owner/Java/Docker/API/SQL/Railway/Vercel/provider/deployment operation is authorized or performed.
+
+
+#### Persistent source recovery — verified copy/provenance outcome
+
+All four source payloads are now recovered into a NEW persistent unit. **Historical source admission remains OPEN_MISSING_4; currentSourceAdmissionPassed=false and executionAuthorized=false.** The main copy task remains OPEN pending documentary delivery/native outcome; case6 has not run.
+
+| Check | Observed result |
+|---|---|
+| Copy operation | First actual payload copy passed29.332973417s, exit0; no recovered Python imported or executed |
+| Persistent primary | release-validation.local/rank12-source-recovery-ef35f69487734950: exactly4 SOURCE payloads and4 DATA audit records; directories0700/files0600 |
+| Provenance | Four unique old identity → archive origin → NEW physical pin mappings; exact content/length/SHA, fresh stat8, no timestamp copying or historical path restoration |
+| Prior protection |12672 expected historical pins:12668 available/exact,4 still missing,0 other drift; all4 archive origins unchanged |
+| Independent qualification | Two full passes9.926281458s+9.599341583s, total19.682617250s; plus4 origins/12 audit/8 primary fullpins and70 closed mixed-role roots |
+| Parent independent readback | PASS14.807974500s; same full protection, provenance, closed inventories, caps, old absences and12 virgin runtime directories |
+
+Primary absolute path: /Volumes/DiscoExtern/Desktop/mvgr-reparaciones-frontend/release-validation.local/rank12-source-recovery-ef35f69487734950. Manifest4467bytes/SHA2565cc4364db61974a1d4ac9c0d72c6d64eeb73837d5653bb1f0b1a886b4b68fef3; final3047bytes/SHA2568f2d57547275deffd3f219ade9f16b2eca436198a6b7c6178d8b299bbc5c4910. Provenance9101bytes/SHA256c4e55bf75c0643cbe957e3e55bdc450ea0b79c7a5d3e7242c5d57ad180e813b9; protected-inputs24889bytes/SHA256b56036786eb8d73573a287a97d7ed1fdd5441d8dff11acbce16a6138e49f7ea0 retain reconstruction references, raw historical terminal-pin provenance and explicit legitimate canonical/ref overrides.
+
+One new auditor defect was fixed without weakening protection: an inventory check incorrectly compared a mixed root's16 files against only13 DATA entries, omitting3 known SOURCE anchors. Failed copy-command01 stopped BEFORE any unit/payload write and remains retained. Frozen NEW3 filesystem tests1335bytes/SHA2566cb2d63ff6af591c420b658f0765d1200074b973be6122cc9c8aab46aee05074 observed genuine OLD-selector RED1 assertion/0errors0.007s, then SAME GREEN3/3 in0.002s after selecting the full SOURCE/DATA union. Unknown extra and missing protected files still reject; other guards unchanged. Twelve closed audit records are in release-validation.local/recovery-source-audit-3a1eec0c9ede48d5.
+
+Read-only schema/inspection diagnostics were corrected against actual metadata and retained; they are not original failures. Three terminal self-pin expectations were recovered from retained original tool stdout32320a/15a8bc rather than opportunistic current-stat8 recapture. The recovery final self-pin likewise comes from actual tool285e13 output. No historical identity was fabricated or re-pinned.
+
+All required copy/provenance checks now pass; old missing-source execution admission deliberately does NOT pass. Original tests, limits, prepared controls, indexB/four refs and consumed evidence stay intact. New source bytes still contain historical absolute paths/import dependencies: current-only caller/control integration remains separate pending work. No case6, original replay, compiler/metadata rerun, owner, Java, Docker/API/SQL, Railway/Vercel or deployment operation occurred; coverage stays41/75 historical verified,34 pending.

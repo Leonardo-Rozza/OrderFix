@@ -34,6 +34,30 @@ CURRENT_CONTROL_PIN = {'path': '/Volumes/DiscoExtern/Desktop/mvgr-reparaciones-f
            'st_nlink': 1,
            'st_mtime_ns': 1792199434000000000,
            'st_ctime_ns': 1792199434000000000}}
+# Historical preparation controls are DATA, not execution or restored-custody authority.
+SOURCE_RECOVERY_MANIFEST_PIN = {'path': '/Volumes/DiscoExtern/Desktop/mvgr-reparaciones-frontend/release-validation.local/case8-dependency-recovery-4crrgbhz/complete-dependency-recovery-manifest-01.json',
+ 'bytes': 35205,
+ 'sha256': 'abc5c01174afa23e192769d9d0e3cabf657071157dddc6121641a90d299a2e35',
+ 'stat8': {'st_dev': 16777237,
+           'st_ino': 4490334,
+           'st_mode': 33152,
+           'st_uid': 501,
+           'st_gid': 20,
+           'st_nlink': 1,
+           'st_mtime_ns': 1792230274000000000,
+           'st_ctime_ns': 1792230274000000000}}
+SOURCE_RECOVERY_FINAL_PIN = {'path': '/Volumes/DiscoExtern/Desktop/mvgr-reparaciones-frontend/release-validation.local/case8-dependency-recovery-4crrgbhz/final-dependency-recovery-readback-01.json',
+ 'bytes': 10753,
+ 'sha256': 'db17eface28ef684ef7936c53f22bc8bea4a94a28d3f03575ea2f120e28289c9',
+ 'stat8': {'st_dev': 16777237,
+           'st_ino': 4490335,
+           'st_mode': 33152,
+           'st_uid': 501,
+           'st_gid': 20,
+           'st_nlink': 1,
+           'st_mtime_ns': 1792230274000000000,
+           'st_ctime_ns': 1792230274000000000}}
+
 STAT_FIELDS = ('st_dev', 'st_ino', 'st_mode', 'st_uid', 'st_gid', 'st_nlink',
                'st_mtime_ns', 'st_ctime_ns')
 REQUEST_KEYS = {'schema', 'case', 'originalRowIndex', 'originalInvocationOrdinal',
@@ -219,6 +243,7 @@ class Contract:
         requests = {self.request_path, self.durable / 'real-case-8-records/root280-request-01.json'}
         self.absent_paths = [path for path in self.prefreeze_absent_paths
                              if path not in requests and path not in root_directories]
+        self.source_recovery_manifest_pin, self.source_recovery_final_pin = None, None
         self.future_directories, self.future_absent_paths = [], []
         self.anchors, self.extra_paths, self.import_paths = {}, set(), set()
         self.expected_historical_count = 10112
@@ -253,6 +278,7 @@ class Contract:
         historical publication pins remain provenance; only a prospective request
         may bind current canonical/ref identities. Never project the recipe twice.
         """
+        self.source_recovery_mappings()
         self.future_virgin()
         require(source_pin(self.control_path) == self.control_pin,
                 'Current admission DATA full identity drift')
@@ -347,6 +373,105 @@ class Contract:
                 'All nine parent arguments/cwd/ENV/caps remain frozen')
         return mappings
 
+    def source_recovery_mappings(self):
+        """Admit nine current payload identities without restoring historical custody."""
+        if self.source_recovery_manifest_pin is None:
+            # Only the explicit in-process fixture seam omits production controls.
+            require(self.source_recovery_final_pin is None, 'Reconstructed SOURCE control pair')
+            return []
+        manifest_pin, final_pin = self.source_recovery_manifest_pin, self.source_recovery_final_pin
+        unique_pins([manifest_pin, final_pin])
+        manifest, observed = checked_json(manifest_pin['path'], manifest_pin['sha256'])
+        require(observed == manifest_pin, 'Reconstructed SOURCE manifest physical identity')
+        final, observed = checked_json(final_pin['path'], final_pin['sha256'])
+        require(observed == final_pin and final['manifest'] == manifest_pin
+                and final['dependencyReconstructionPassed'] is True
+                and final['historicalIdentityRestored'] is False
+                and type(final['payloadCount']) is int and final['payloadCount'] == 9,
+                'Reconstructed SOURCE preparation final, not historical restoration')
+        require(manifest['schema'] == 'case8-dependency-recovery-manifest/v1'
+                and type(manifest['payloadCount']) is int and manifest['payloadCount'] == 9
+                and all(manifest[key] is False for key in (
+                    'historicalIdentityRestored', 'oldLocatorsRecreated', 'expectedInventoryRebased',
+                    'currentAdmissionAttempted', 'currentAdmissionPassed', 'runtimeAuthority',
+                    'productionAuthority', 'original8Executed')),
+                'Reconstructed SOURCE control remains historical payload preparation DATA')
+        root = Path(manifest_pin['path']).parent
+        require(Path(final_pin['path']).parent == root
+                and all(not p.is_symlink() for p in (root,) + tuple(root.parents)),
+                'Reconstructed SOURCE control root cannot be aliased')
+        files = unique_pins(manifest['files'])
+        require(len(files) == 10 and set(manifest['expectedClosedFiles'])
+                == set(files) | {manifest_pin['path'], final_pin['path']}
+                and len(manifest['expectedClosedFiles']) == 12
+                and {str(p) for p in root.rglob('*') if p.is_file() or p.is_symlink()}
+                == set(manifest['expectedClosedFiles']), 'Reconstructed SOURCE closed twelve-file control')
+        for value in files.values():
+            require(source_pin(value['path']) == value, 'Reconstructed SOURCE physical identity drift')
+        before_pin = files.get(str(root / 'before-recovery-01.json'))
+        require(before_pin is not None, 'Reconstructed SOURCE declared preparation provenance')
+        before, observed = checked_json(before_pin['path'], before_pin['sha256'])
+        require(observed == before_pin, 'Reconstructed SOURCE provenance identity')
+        proofs = unique_pins(before['failedAdmissionProofs'])
+        failed = [v for v in proofs.values() if Path(v['path']).name == 'failed-admission-01.json']
+        require(len(failed) == 1, 'Reconstructed SOURCE exact failed-admission provenance')
+        for value in proofs.values():
+            require(source_pin(value['path']) == value, 'Reconstructed SOURCE failed proof identity')
+        failure, observed = checked_json(failed[0]['path'], failed[0]['sha256'])
+        require(observed == failed[0] and type(failure['newMissingCount']) is int
+                and failure['newMissingCount'] == 9, 'Reconstructed SOURCE nine declared physical losses')
+        lost = unique_pins(failure['newMissingExpectedPins'])
+        copies = failure['declaredVerifiedContentCopies']
+        require(len(lost) == 9 and type(copies) is list and len(copies) == 9,
+                'Reconstructed SOURCE complete loss and donor inventory')
+        donors = {v['missingExpectedPin']['path']: v for v in copies}
+        require(set(donors) == set(lost) and all(v['missingExpectedPin'] == lost[k]
+                for k, v in donors.items()), 'Reconstructed SOURCE bijective declared donors')
+        mappings, historical = manifest['mappings'], unique_pins(self.recipe['fixedPins'])
+        require(type(mappings) is list and len(mappings) == 9,
+                'Reconstructed SOURCE exactly nine mappings')
+        keys = {'oldExpectedPin', 'donorPin', 'newSourcePin', 'relativeCurrentPayloadPath',
+                'role', 'bytesIdentical', 'contentRewritten', 'historicalIdentityRestored',
+                'oldPathRestored', 'substitutionPerformed', 'timestampsCopied'}
+        paths, physical, mapped = set(), set(), set()
+        older_missing = {v['historicalMissingSource']['path']
+                         for v in self.recipe.get('recoveredSourceMappings', [])}
+        for item in mappings:
+            require(type(item) is dict and set(item) == keys
+                    and item['role'] == 'CURRENT_SOURCE_PAYLOAD_PREPARATION_NOT_ADMISSION_AUTHORITY'
+                    and item['bytesIdentical'] is True and all(item[k] is False for k in (
+                        'contentRewritten', 'historicalIdentityRestored', 'oldPathRestored',
+                        'substitutionPerformed', 'timestampsCopied')),
+                    'Reconstructed SOURCE mapping is payload provenance only')
+            old, donor, new = (item[k] for k in ('oldExpectedPin', 'donorPin', 'newSourcePin'))
+            legs = unique_pins([old, donor, new])
+            require(not paths & set(legs) and old['path'] in lost
+                    and old == lost[old['path']] == historical.get(old['path'])
+                    and donor == donors[old['path']]['existingDeclaredContentCopy']
+                    == historical.get(donor['path']) and old['path'] not in older_missing,
+                    'Reconstructed SOURCE exact old and already-retained donor identities')
+            paths.update(legs)
+            mapped.add(old['path'])
+            relative = Path(item['relativeCurrentPayloadPath'])
+            require(not relative.is_absolute() and '..' not in relative.parts
+                    and relative.parts[0] == 'payloads' and root / relative == Path(new['path'])
+                    and files.get(new['path']) == new,
+                    'Reconstructed SOURCE exact current payload locator')
+            require(len({(v['bytes'], v['sha256']) for v in legs.values()}) == 1
+                    and not os.path.lexists(old['path']),
+                    'Reconstructed SOURCE equal content and historically absent locator')
+            for value in (donor, new):
+                path = Path(value['path'])
+                identity = (value['stat8']['st_dev'], value['stat8']['st_ino'])
+                require(all(not p.is_symlink() for p in (path,) + tuple(path.parents))
+                        and source_pin(path) == value and not value['stat8']['st_mode'] & 0o111
+                        and identity not in physical, 'Reconstructed SOURCE nonalias full physical identity')
+                physical.add(identity)
+        require(mapped == set(lost) and set(files) == {before_pin['path']}
+                | {v['newSourcePin']['path'] for v in mappings},
+                'Reconstructed SOURCE complete bijection, never missing-pin suppression')
+        return mappings
+
     def project_current_sources(self, historical):
         for item in self.current_admission():
             old, new, archive = item['historicalMissingSource'], item['newSource'], item['archiveOrigin']
@@ -365,6 +490,12 @@ class Contract:
         require(len(historical) == self.expected_historical_count, 'Complete already-projected SOURCE set')
         require(self.recipe['extraSourcePins'] == [], 'No extra SOURCE projection')
         historical = self.project_current_sources(historical)
+        for item in self.source_recovery_mappings():
+            old, new = item['oldExpectedPin'], item['newSourcePin']
+            require(historical.get(old['path']) == old and new['path'] not in historical,
+                    'Reconstructed SOURCE projection must apply exactly once')
+            del historical[old['path']]
+            historical[new['path']] = new
         historical.pop(str(self.branch_ref), None)
         historical.pop(str(self.canonical), None)
         for pin in self.anchors.values():
@@ -452,6 +583,8 @@ def validate_recipe(recipe):
 
 def production_contract():
     contract = Contract()
+    contract.source_recovery_manifest_pin = SOURCE_RECOVERY_MANIFEST_PIN
+    contract.source_recovery_final_pin = SOURCE_RECOVERY_FINAL_PIN
     recipe_path = contract.records / 'execution-recipe-01.json'
     staging_path = contract.records / 'staging-validation-01.json'
     recipe, recipe_pin = checked_json(recipe_path, RECIPE_SHA)
@@ -533,7 +666,8 @@ def production_contract():
     require(source_pin(SHARED) == contract.anchors[str(SHARED)], 'Shared import SOURCE drift')
     contract.shared = module
     contract.extra_paths = {contract.canonical, contract.branch_ref, contract.head_file,
-        Path(__file__), PROJECT / 'scripts/test_recovery_v41_rank_case8_outer_capture.py'}
+        Path(__file__), PROJECT / 'scripts/test_recovery_v41_rank_case8_outer_capture.py',
+        PROJECT / 'scripts/test_recovery_v41_rank_case8_source_recovery.py'}
     contract.import_paths = import_source_paths()
     require(staging['missingUntilExecution'] == [str(path) for path in contract.prefreeze_absent_paths],
             'Exact30 pre-freeze absence locators')
@@ -575,7 +709,10 @@ def static_admission(contract=None):
         'archivalSourceAnchors': 4, 'absentRuntimePaths': 30, 'emptyRuntimeDirectories': 12,
         'historicalSourceGate': 'OPEN_MISSING_4', 'rootEnvelopeAvailable': False,
         'originalResultAccredited': False, 'ownerCleanupAccredited': False,
-        'dockerVerified': False, 'runtimeAuthority': False, 'productionAuthority': False}
+        'dockerVerified': False, 'runtimeAuthority': False, 'productionAuthority': False,
+        'reconstructedSourceCount': len(contract.source_recovery_mappings()),
+        'historicalAdditionalLostSourceCount': len(contract.source_recovery_mappings()),
+        'historicalPhysicalIdentityRestored': False}
 
 
 def validate_request(request, contract):

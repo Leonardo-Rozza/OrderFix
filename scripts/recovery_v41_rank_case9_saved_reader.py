@@ -361,6 +361,38 @@ def validate_http(owner, events, request, allow, sources):
     check('Exact owned network create request', network_request['request'] == request['networkCreate'])
     validate_resources(create['request'], request, nid)
     http = by('http')
+    remaining_http = list(http)
+
+    def claim_http(method, path, status, body, earliest, latest):
+        matches = [event for event in remaining_http if event['method'] == method and event['path'] == path
+                   and earliest <= event['monotonic'] <= latest]
+        check('HTTP budget requires one causal operation: ' + path, len(matches) == 1)
+        event = matches[0]
+        check('HTTP budget exact status and request body: ' + path,
+              event['status'] == status and event['requestBody'] == body)
+        remaining_http.remove(event)
+        return event
+
+    bootstrap_time = by('bootstrap-requested')[0]['monotonic']
+    claim_http('GET', api + '/images/' + request['imageId'] + '/json', 200, None,
+               bootstrap_time, network_request['monotonic'])
+    network_http = claim_http('POST', api + '/networks/create', 201, network_request['request'],
+                              network_request['monotonic'], network_done['monotonic'])
+    container_http = claim_http('POST', api + '/containers/create?name=' + request['containerName'], 201,
+                                create['request'], create['monotonic'], created['monotonic'])
+    check('HTTP budget create responses match owned IDs', network_http['response'].get('Id') == nid
+          and container_http['response'].get('Id') == cid)
+    claim_http('POST', api + '/containers/' + cid + '/start', 204, None,
+               start['monotonic'], by('ready')[0]['monotonic'])
+    cleanup = by('owner-cleanup')[0]
+    container_delete = claim_http('DELETE', api + '/containers/' + cid + '?v=0&force=0', 204, None,
+                                  cleanup['firstStop'], cleanup['monotonic'])
+    network_delete = claim_http('DELETE', api + '/networks/' + nid, 204, None,
+                                container_delete['monotonic'], cleanup['monotonic'])
+    claim_http('POST', api + '/containers/' + cid + '/stop?t=5', 204, None,
+               cleanup['firstStop'], container_delete['monotonic'])
+    claim_http('GET', api + '/networks/' + nid, 404, None,
+               network_delete['monotonic'], cleanup['monotonic'])
     images = [event for event in http if event['path'] == api + '/images/' + request['imageId'] + '/json']
     check('Exactly one successful pinned image observation', len(images) == 1 and images[0]['status'] == 200)
     image = images[0]['response']
@@ -392,6 +424,13 @@ def validate_http(owner, events, request, allow, sources):
     check('Exactly two exec lifecycles', all(len(group) == 2 for group in groups))
     for index, (reserved, created, stream, result) in enumerate(zip(*groups)):
         attempt, observation, eid = registry['attempts'][index], result['observation'], created['id']
+        exec_body = dict(AttachStdin=False, AttachStdout=True, AttachStderr=True, Tty=False, Cmd=attempt['argv'])
+        exec_http = claim_http('POST', api + '/containers/' + cid + '/exec', 201, exec_body,
+                               reserved['monotonic'], created['monotonic'])
+        inspect_http = claim_http('GET', api + '/exec/' + eid + '/json', 200, None,
+                                  stream['monotonic'], result['monotonic'])
+        check('HTTP budget exec identity, observation and stream method', exec_http['response'] == {'Id': eid}
+              and inspect_http['response'] == observation and stream['method'] == 'POST')
         check('Exact source reservation and registry prefix', reserved['registryReservation'] == dict(attempt, completed=False, exitCode=None, framingEOF=False)
               and len(reserved['recoveryRegistry']['attempts']) == index + 1
               and result['recoveryRegistry']['completedSteps'] == index + 1
@@ -420,6 +459,13 @@ def validate_http(owner, events, request, allow, sources):
             check('Exec channel bytes and hash', len(raw) == stream[channel + 'Bytes'] <= 65536
                   and hashlib.sha256(raw).hexdigest() == stream[channel + 'Sha256'])
     check('Exactly two distinct exec IDs', len({event['id'] for event in groups[1]}) == 2)
+    for event in remaining_http:
+        owned_observation = event['path'] in (api + '/containers/' + cid + '/json', api + '/networks/' + nid)
+        born = container_http['monotonic'] if '/containers/' in event['path'] else network_http['monotonic']
+        removed = container_delete['monotonic'] if '/containers/' in event['path'] else network_delete['monotonic']
+        check('HTTP budget rejects unaccounted operations outside owned observations', owned_observation
+              and event['method'] == 'GET' and event['status'] == 200 and event['requestBody'] is None
+              and born <= event['monotonic'] <= removed)
     check('Actual acknowledged owned deletion and absence', any(event['method'] == 'DELETE'
           and event['path'] == api + '/containers/' + cid + '?v=0&force=0' and event['status'] == 204 for event in http)
           and any(event['method'] == 'DELETE' and event['path'] == api + '/networks/' + nid and event['status'] == 204 for event in http)

@@ -4,6 +4,7 @@
 Ship a controlled version for product evaluation, then iterate. The user accepted this scope on 2026-10-19; zero users is their report, not a verified production count.
 This does not certify a public/commercial release or reopen the advanced recovery/native-review lane.
 On 2026-10-19 the user additionally authorized configuring the required variables in the existing Vercel and Railway projects using current sessions. No push, branch cleanup or deployment; the user will publish source later.
+The user subsequently authorized reviewing the existing Resend account and reusing its sender/credential in Railway, then explicitly identified the personal Google account for sign-in. No new keys, live emails, deployment or push; do not inspect the alternate account or unrelated private environment files.
 
 ## Candidate
 - Frontend: `7f615b73c963ffa31188232a7f3b709b9c00f0f0`.
@@ -34,6 +35,9 @@ On 2026-10-19 the user additionally authorized configuring the required variable
   - [x] E2a: verify exact hosted projects/domains and variable names without exporting secrets.
   - [x] E2b: persist the verified safe API/origin/runtime variable subset; retain existing credentials and record genuinely missing values. The no-redeploy check failed and was mitigated as recorded below, not counted as a pass.
   - [ ] E2c: complete missing secret/provider/public-release prerequisites and verify deployment effects. Changed-value readback passed with the sensitive Vercel API value limitation below; real email acceptance remains pending.
+    - [x] E2c-mail-domain: review the existing Resend sending domain and key metadata using the user-identified account.
+    - [x] E2c-mail-sender: stage the verified business sender without deploying; keep mail disabled while the existing secret is unavailable.
+    - [ ] E2c-mail-secret: securely obtain the user's saved full existing key and configure it without disclosure, key creation or rotation. Stop for user input if unavailable.
 - [ ] E3 — Prepare minimum practical monitoring and audit.
   - Route: delegated implementation if needed; retain the existing test runners.
   - Checks: sanitized frontend/backend errors, uptime alerts, critical-action actor/time/result coverage and basic backup/rollback.
@@ -109,8 +113,18 @@ Screenshots (temporary local evidence): `/private/tmp/ordenfix-railway-variables
 
 ### E2 still required before release
 - `DEVICE_CREDENTIALS_ENCRYPTION_KEY` is missing at service/shared scope. Do not generate a replacement merely because the variable is absent: `DeviceCredentialLegacyMigration` validates existing ciphertext and atomically migrates plaintext; a wrong key rejects existing encrypted rows. Recover any prior key or establish backed-up safe initialization before deployment. No DB was read or modified here.
-- `MAIL_PASSWORD`/`API_KEY_RESEND` and a verified `MAIL_FROM` are not configured. SMTP host/port/user alone do not enable delivery. Mail remains off; no real message or verification/reset link was tested.
+- `MAIL_PASSWORD`/`API_KEY_RESEND` is not configured. The verified `MAIL_FROM` is staged only, not applied or running. SMTP host/port/user alone do not enable delivery. Mail remains off; no real message or verification/reset link was tested.
 - Production public build still lacks its approved tracked legal publication manifest and actual matching legal/privacy/support contacts. No fake manifest/contact or gate bypass was added; a genuine Preview is not Production approval.
 - Existing DB/admin/JWT secret presence was observed, not database connectivity or full runtime validity. No new app tests were necessary for these provider/documentation-only edits; browser, real email, published smoke, monitoring activation and E3/E4 remain pending.
 
-Next: obtain the missing sender/provider setup and safely resolve the device key before publication. E2 preparation work-unit commit pending; never mark the overall E2 task complete on this partial result.
+Next: obtain the missing sender/provider setup and safely resolve the device key before publication. E2 preparation work-unit `4fe3949455723abc6da3cf84f44d2144d86ad2d8` (parent `70c5811`, tracker only, 45 additions/4 deletions) is on NONHEAD `codex/evaluation-release`; commit whitespace passed. Actual HEAD/branch/index and all other refs stayed unchanged. This subsequent local annotation records the commit identity; it is not self-contained in that commit. Native assessment remains unavailable/pending, with no approval claimed. Never mark the overall E2 task complete on this partial result.
+
+### E2 Resend follow-up
+Route: parent-owned, bounded provider inspection and one sender-variable preparation; no application or test edits. Reuse the existing mapped SMTP/link contract; TDD RED/GREEN and app test reruns are N/A. Checks: current domain status, existing key permission, masked-token handling, sender draft readback and no deploy action. No new framework or recovery work.
+The user's screenshots show a historical received reset email from `notificaciones@cuenta.orden-fix.com.ar` with a local loopback link, not a published reset-flow pass. Current authenticated Resend inspection confirms domain `cuenta.orden-fix.com.ar` is **Verified** (domain ID `6ad6313e-e713-48b0-8dff-bb82e51e71fd`). The existing key `Onboarding` has Sending access / All domains; it was not created, rotated, renamed or changed. Dashboard list/detail activity labels differ, so do not infer whether that key sent the historical message from those labels.
+The existing token is masked and the detail page offers no reveal/copy control. Resend documents that existing API key values cannot be viewed again: https://resend.com/docs/dashboard/api-keys/introduction. No secret material was printed, stored or transferred. Resend authentication initially hit an expired OAuth state; restarting the normal flow once with the user-selected account succeeded without account creation or expanded scopes.
+Sender preparation target: `MAIL_FROM=OrdenFix <notificaciones@cuenta.orden-fix.com.ar>`. Only stage this nonsecret value in the existing Railway production backend, preserve `MAIL_ENABLED=false`, and do not apply/redeploy changes or repeat the failed Alt+Deploy shortcut. Existing full key must come from the user's saved copy; do not probe local secrets or other sessions for it. Overall E2 remains pending.
+
+Observed sender preparation: parent staged only `MAIL_FROM=OrdenFix <notificaciones@cuenta.orden-fix.com.ar>` in the existing Railway backend. Reload/readback confirmed the exact sender, `MAIL_ENABLED=false`, 24 displayed variables and **Apply 1 change**. This is an unapplied draft, not the running environment. Temporary screenshot: `/private/tmp/ordenfix-railway-mail-from-pending.jpg`.
+No Apply/Deploy/Alt shortcut, live email, new key, secret read/transfer, source push or application/test change occurred in this follow-up. The existing Resend key stayed masked; contradictory activity labels do not establish its usage. Domain/sender verification does not prove delivery or a published account flow.
+Next: securely obtain the user's saved full existing key through an authorized private handoff, without requesting raw secret text in chat or probing private environment files. Keep `E2c-mail-secret`, overall E2 and deployed email acceptance pending. TDD RED/GREEN and app test reruns remain N/A for this provider/documentation-only unit; native NONHEAD assessment is unavailable/pending, not approval.

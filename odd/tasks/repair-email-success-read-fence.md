@@ -29,10 +29,10 @@ The user accepted this separate local follow-up on 2026-10-05: cancel or fence c
   - Closure checks: full Vitest, `test:release`, lint, typecheck, technical build, source/new-file-inclusive whitespace and index hygiene. Record every failed/skipped/unavailable check.
   - Runtime boundary: the late-result regression deliberately models API completion that ignores AbortSignal and awaits its completion plus Query invalidation settlement. Eligible-200 and scope controls use local MSW. These are deterministic hook/Query and synthetic HTTP checks, not real backend/provider/inbox delivery. Browser/visual rerun N/A for unchanged markup; deployment/publication gates remain separate.
   - Rollback: remove this follow-up's successful-response cancellation and paired regression tests together, preserving E3 and all earlier receipts.
-  - Commit and native assessment: pending.
+  - Commit: `6add19efb4eb96745cf708bed0de1cce37347c19`, `fix(notifications): fence stale reads after successful retry`; three paths, 197 additions/2 deletions = 199 authored lines. New-file-inclusive staged whitespace passed and index is empty. Native assessment: **medium / under_budget**, `review_due: false`; this slice remains pending, not reviewed or approved.
 
 ## Progress and next step
-The bounded fix and independent ordinary full checks are complete. Sending remains off. Next: commit the coherent fix/tests/document unit, assess that new candidate and follow its native consent gate if due. No fixture/setup failures occurred.
+The bounded fix, independent ordinary full checks and coherent work-unit commit are complete. Sending remains off. Native assessment does not require immediate review; the medium slice remains pending against `afd67c0`, without sharing or actor execution. Next: separate authorized provider/activation and outstanding coordinated release work; do not infer production readiness. No fixture/setup failures occurred.
 
 ## Observed implementation evidence
 - Production `onSuccess` cancels the exact repair/generation query and rechecks active repair/account/session after awaiting before publishing the server DTO unchanged.
@@ -49,6 +49,13 @@ The bounded fix and independent ordinary full checks are complete. Sending remai
 - Existing informational bundle warning: largest 675.29 kB. Browser/visual rerun N/A for unchanged markup; actual backend/provider/inbox/activation/Docker/deploy checks not run.
 - Writer342/local343/public original341 plus two known supplements remain unchanged before/after; exact two source hashes preserved. Receipt's nested initial pending label is superseded by its actual final status and verified comparisons.
 - Aggregation-only correction read Node 24's actual spec-reporter summary after a TAP-assuming parser left release counts null; original retained, no test/setup failure or rerun.
+
+## Native delivery checkpoint
+- Exact committed-only range: `afd67c0243e72cb880c19a4f8b9527d601f6b8aa..6add19efb4eb96745cf708bed0de1cce37347c19`, three paths/199 lines. Cumulative prior feature work-unit count 7,047 + 199 = 7,246; this follow-up is a distinct coherent slice on the cached feature-branch chain, no PR created.
+- `/private/tmp/ordenfix-success-fence-parent-2s3rhjb_/assess-permitted.json`: exit 0, empty stderr, native medium/executable_change and `review_due: false`, reason `under_budget`. Do not advance the reviewed boundary or claim an approval; no START/actor/sharing ran.
+- Initial assessment failed safely on undeclared `.atl` files; canonical STATUS obtained exactly the two known unrelated registry paths and inventory `sha256:4425697ab74255760bb7c3b87dc13642263a59d4b65cc516abaa19765c94da71`. Two default-sandbox snapshot/index attempts failed on permissions before the permitted local STATUS/assessment succeeded. Failed assessments were treated as due, never as low risk.
+- Native frozen target `sha256:aa60353744eab00191187381fedf7970bf4b1489aefd92e618eee02cd9c748fd`; base tree `962df7f57b0294bf38c8375266c143e6fcf4e379`, candidate tree `c5934ba3f2897515c0c16bc4a9ae01689ff22c3e`. Only the exact committed three-file unit was assessed; original tracker annotations and `.atl` remain excluded and preserved.
+- These post-commit identity annotations are outside the immutable work-unit blob. No email/provider/activation/deploy/push/PR/merge or future review grant is implied.
 
 ## Recovery mirror
 Repository-relative locator: `odd/tasks/repair-email-success-read-fence.md`. Full Engram topic: `odd/repair-email-success-read-fence/tasks`. Mirror and read back after each task update; no authoritative runtime session ID is available, so omit `session_id`.

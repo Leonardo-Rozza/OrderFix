@@ -22,13 +22,13 @@ Repositories: frontend `/Volumes/DiscoExtern/Desktop/mvgr-reparaciones-frontend`
 | --- | --- |
 | Resume baselines | Frontend `6330d8e5cded8678f6bfb19eb1be38aa7dcdc9e1`; backend `4c847abec4081c69094922b20ee4c3155b564074` |
 | Original baselines | Frontend `b3d7610bf227d7ab63db95d916dee2f42e3aa57e`; backend `f2141f60f2023405ae7ddec5987f13784dd2e76b` |
-| Evidence heads / reviewed boundaries | Frontend head `02f443d659c1ef4b96142378a9cebb0591b80993`; effective boundary `02f443d659c1ef4b96142378a9cebb0591b80993` (approved/ACK); previous approved/ACK candidate `e5b5913ddb5869c584eedc5032a57b4a2b1e6205`. Backend head `3956ac2d989eedc7644aa7190bde585537b7ce01`; acknowledged boundary now `3956ac2d989eedc7644aa7190bde585537b7ce01`. API and scheduler exact reviews closed |
+| Evidence heads / reviewed boundaries | Frontend head/effective boundary `afd67c0243e72cb880c19a4f8b9527d601f6b8aa` (passive; native02f443d approved/ACK); previous approved/ACK candidate `e5b5913ddb5869c584eedc5032a57b4a2b1e6205`. Backend head `3956ac2d989eedc7644aa7190bde585537b7ce01`; acknowledged boundary now `3956ac2d989eedc7644aa7190bde585537b7ce01`. API and scheduler exact reviews closed |
 | TDD | **ON**, explicit prior choice in `odd/tasks/charge-session-expiry.md:15`; compilable assertion RED → GREEN → cleanup. Setup failures are not RED |
 | Backend checks | Installed Java 21.0.10/Maven 3.9.11 directly, offline Surefire and real PostgreSQL/Failsafe in secret-free snapshots/settings; no wrapper bootstrap |
 | Frontend checks | Installed Node 24.14.0/Vitest 3.2.6, Node tooling, lint/typecheck/technical build and Playwright; public-only snapshots/synthetic environment, no private `.env` loading |
 | Native RDD | **ON/global**; new candidates require their own assessment, consent and exact lifecycle |
 | Delivery | `ask-on-risk`, cached `feature-branch-chain`; no PR/push/merge authorized or materialized |
-| Running count / forecast | **6,965 authored committed work-unit lines** (prior6,113+E3 source834/docs18); separate V41/Docker/generated outputs excluded. E3I300–500+U350–550=650–1,050 advisorysource+docs; onecohesivedeliverable, no plumbing-onlycommit. Scheduler forecast200–400 exceeded coherently by physical timing/error/configuration tests, not scope expansion or a hard cap; preserve readable coverage and cached feature-branch-chain |
+| Running count / forecast | **7,047 authored committed work-unit lines** (6,965+closure82); separate V41/Docker/generated outputs excluded. E3I300–500+U350–550=650–1,050 advisorysource+docs; onecohesivedeliverable, no plumbing-onlycommit. Scheduler forecast200–400 exceeded coherently by physical timing/error/configuration tests, not scope expansion or a hard cap; preserve readable coverage and cached feature-branch-chain |
 
 About 400 authored additions plus deletions is a planning heuristic, not an acceptance cap. Preserve readable coverage and strict checks. Cohesive schema/admission exceeds it; a future PR size exception requires explicit acceptance. Record actual commit/slice boundaries.
 
@@ -377,3 +377,5 @@ E3 commit `02f443d659c1ef4b96142378a9cebb0591b80993`:14paths/852/whitespace0/sta
 Fresh human “Si, vamos” granted only855d1cd→02f443d14file/OpenAI/CodexCLI review. `/private/tmp/ordenfix-email-e3-review.9CyGt5`:6exits0, emptycapturestderr; actual relay/grant/compiledcapture/ACK, approved/acknowledged/authorityburned. Result `sha256:93800e31c64bd114794488390d469defcb0c32cb44c6eeb01527b4d6cd3ed0f6`; consumedrevision `sha256:22c52f478b21e19174449a1d7aa92d00e6b0ce2c50ab7567859877c12398211c`. Bindings/source13/map331/index0 independently checked. Actor inspected14patches, ran no commands/tests.
 
 Informational WARNING R3-stale-get-after-success (`src/api/queries/repairEmail.queries.ts:54-56`): GET during POST may overwrite success with old eligibility. Static/not reproduced; receipt stands/no correction/reopening. Fence-success reads + held-GET test proposed for separate authorized work. Sending stays off.
+
+Documentary closure `afd67c0243e72cb880c19a4f8b9527d601f6b8aa`:45add/37del=82, staged0, nativepassive/non_executable_only. These annotations are outside its immutable blob.

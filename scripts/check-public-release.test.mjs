@@ -271,6 +271,20 @@ test('el modo automático separa runtime de publicación pública', () => {
   assert.equal(shouldRunPublicReleaseCheck('public', {}), true);
 });
 
+test('el override explícito baja producción a runtime sin saltear el guard', () => {
+  const override = { ORDENFIX_RELEASE_GUARD: 'runtime' };
+  assert.equal(getReleaseCheckLevel('auto', { VERCEL_ENV: 'production', ...override }), 'runtime');
+  assert.equal(
+    getReleaseCheckLevel('auto', { ORDENFIX_PUBLIC_RELEASE: 'true', ...override }),
+    'runtime'
+  );
+  assert.equal(getReleaseCheckLevel('public', override), 'public');
+  assert.equal(
+    getReleaseCheckLevel('auto', { VERCEL_ENV: 'production', ORDENFIX_RELEASE_GUARD: 'skip' }),
+    'public'
+  );
+});
+
 test('la configuración pública rechaza URL ausente, insegura o contradictoria', () => {
   assert.deepEqual(validatePublicEnvironment({}).map(({ code }) => code), [
     'API_URL_MISSING',

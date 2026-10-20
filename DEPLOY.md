@@ -150,6 +150,9 @@ antes de TypeScript/Vite:
   completo, incluido manifiesto legal, contactos y escaneo de bloqueos productivos; después de
   Vite vuelve a inspeccionar `dist/`, por lo que un archivo estático copiado desde `public/` tampoco
   puede reintroducir un precio PRO fijo o una carga unsigned.
+- `ORDENFIX_RELEASE_GUARD=runtime`: override temporal y explícito que baja producción al nivel
+  runtime (sólo valida la API) mientras no exista una publicación legal aprobada. Quitarlo de
+  Vercel en cuanto se cargue el manifiesto real; `--force` y `build:public` lo ignoran.
 
 Un preview verde sólo acredita configuración de runtime; no acredita readiness público.
 El job de build público completo se habilitará como obligatorio cuando exista el primer

@@ -443,6 +443,7 @@ export const getReleaseCheckLevel = (mode, environment) => {
   if (mode === 'public') return 'public';
   if (mode === 'runtime') return 'runtime';
   if (mode === 'development') return 'skip';
+  if (environment.ORDENFIX_RELEASE_GUARD === 'runtime') return 'runtime';
   if (
     environment.VERCEL_ENV === 'production' ||
     environment.ORDENFIX_PUBLIC_RELEASE === 'true'
